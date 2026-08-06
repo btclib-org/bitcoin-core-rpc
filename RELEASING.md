@@ -135,7 +135,9 @@ It gates nothing automatically, which is why it is a step here.
    of that reaches `master`'s history: the pull request is where it stays,
    and where a reader of any commit in it arrives. A template left
    unfilled, or a bot's summary of the diff, is not a substitute — the
-   summary can stay, but what the diff cannot say has to be written.
+   summary can stay, but what the diff cannot say has to be written, and
+   what a reader should not have to discover at the button belongs there
+   too.
 
 1. Merge `dev` into `master` with **"Rebase and merge"**, never *"Squash
    and merge"* — read the button, GitHub offers whichever method was used
