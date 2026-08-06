@@ -282,3 +282,22 @@ It gates nothing automatically, which is why it is a step here.
    it. Marking it ready and pressing **Rebase and merge** is what that
    step still is; this one is what makes reaching it with a body already
    written the ordinary case rather than the exception.
+
+## If something goes wrong
+
+- The workflow failed before the `publish-pypi` job: nothing was
+  uploaded. Delete the tag, fix, and tag again:
+
+  ```shell
+  git tag -d v<version>
+  git push origin :refs/tags/v<version>
+  ```
+
+- The upload succeeded but the release is broken: PyPI never accepts a
+  file name twice, even after deletion. Yank the bad release on PyPI and
+  publish a new patch version, the fourth number bumped again
+  (`2026.8.6.1` → `2026.8.6.2`).
+
+- Only the `github-release` job failed: the PyPI upload is already done;
+  re-run the failed job, or create the release by hand from the `dist`
+  artifact of the run.
