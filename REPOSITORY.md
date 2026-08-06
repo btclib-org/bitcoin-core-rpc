@@ -9,6 +9,24 @@ The branch rules and the repository settings live *outside* the repository,
 so this file is the whole of them: nothing here can be recovered by reading
 the tree.
 
+## While the repository is private, none of the rules below are in force
+
+Branch protection is a paid feature for a private repository, and
+btclib-org is on the free plan. The API says so rather than failing
+quietly:
+
+```console
+$ gh api -X PUT --input - \
+    repos/btclib-org/btclib-bitcoin-core-rpc/branches/master/protection
+Upgrade to GitHub Pro or make this repository public to enable this
+feature. (HTTP 403)
+```
+
+So this section is what the settings become, not what they are: making the
+repository public is what enables them, and applying them is a step of
+doing that. Everything else here — the merge methods, the token
+permissions, the publishing environments — is settable now and set.
+
 ## Required checks on master
 
 **Never name matrix contexts in the branch rule.** The rule lives outside
