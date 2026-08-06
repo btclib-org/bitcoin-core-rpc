@@ -75,7 +75,7 @@ jobs:
             exit 1
           fi
           # the trigger decides the index, so a tagged pre-release goes to
-          # PyPI itself: a v0.2rc1 tag on a tree declaring 0.2rc1
+          # PyPI itself: a v2026.8rc1 tag on a tree declaring 2026.8rc1
           # passes the comparison above and burns a version that a --pre
           # install would then resolve. RELEASING.md sends a trial run to
           # TestPyPI through workflow_dispatch and says never to tag one;
@@ -84,6 +84,18 @@ jobs:
           if ! echo "$version" | grep -Eq '^[0-9]+(\.[0-9]+)*$'; then
             msg="rehearse on TestPyPI via workflow_dispatch instead"
             echo "::error::$version is not a final version; $msg"
+            exit 1
+          fi
+          # three components at least: the day is not optional on
+          # anything this pushes to PyPI, only on the placeholder
+          # "2026.8" pyproject.toml declares between releases -- which is
+          # never tagged, so this check never sees it. Without this,
+          # "v2026.8" passes every check above it and publishes a
+          # version with no day, indistinguishable from the placeholder
+          # that names the same month
+          if ! echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
+            msg="a release is YYYY.M.D, optionally YYYY.M.D.N for a patch"
+            echo "::error::$version has no day; $msg"
             exit 1
           fi
       # the release notes are HISTORY.md's section for the tag, lifted by
