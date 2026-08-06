@@ -26,7 +26,11 @@ name = "bitcoin-core-rpc"
 # no leading zero in the month: PEP 440 normalizes `2026.08` to `2026.8`,
 # and release.yml compares the tag to this string literally, so a padded
 # one would be a tag no release matches
-version = "2026.8.6"
+#
+# the month alone, with no day, is the placeholder this carries between
+# releases: release.yml's version-check refuses to publish a version of
+# fewer than three components, and its comment says why
+version = "2026.8"
 description = "A standalone JSON-RPC client against Bitcoin Core"
 readme = "README.md"
 # PEP 639: an SPDX expression, which becomes the `License-Expression`
