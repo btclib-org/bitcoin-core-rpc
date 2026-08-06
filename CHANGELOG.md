@@ -104,6 +104,15 @@ The first release.
   month, `v2026.8`, would pass every other check and publish a version
   indistinguishable from the placeholder `pyproject.toml` declares between
   releases, which names the same month and is never tagged.
+- `release.yml` runs on a pull request that changes it, the trigger
+  `links.yml` already carries for itself. What it buys here is a first run:
+  GitHub registers a workflow when one is created for it, and a workflow
+  with no run is offered by neither the dispatch API nor the Actions
+  sidebar — so `release.yml`, whose other triggers are a `v*` tag and that
+  same dispatch, could not be rehearsed before its first tag, and the
+  rehearsal RELEASING.md puts ahead of a release was unreachable. Both
+  publish jobs are guarded on the event and so is version-check's tag
+  comparison, which leaves a pull request run building and testing.
 - `.github/scripts/rpc_smoke.py` restructured for `tests/rpc_smoke_test.py`
   to cover: every function with no live node behind it —
   `check`, `port_is_free`, `check_legacy_reply`, `check_v2_reply`,

@@ -14,6 +14,17 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+  # so a change to this file is checked by the thing it configures, which
+  # is links.yml's reason for the same trigger. It is also what gives this
+  # workflow a run before the day it publishes: GitHub registers a workflow
+  # when it first runs, and until then `workflow_dispatch` is offered
+  # neither by the API nor by the Actions sidebar -- so the rehearsal
+  # RELEASING.md asks for could not be started at all. Both publish jobs
+  # are guarded on the event, and version-check's tag comparison is too,
+  # so what a pull request run does is build and test
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
 
 permissions:
   contents: read
