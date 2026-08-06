@@ -49,15 +49,15 @@ from base64 import b64decode
 from decimal import Decimal, InvalidOperation, localcontext
 from io import BytesIO
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 from urllib.request import Request
 
 import pytest
 
 from bitcoin_core_rpc import (
-    _CORE_CHAIN_FROM_NETWORK,
-    _DATADIR_SUBDIR,
-    _RPC_PORT,
+    _CHAIN_FROM_NETWORK,
+    _DATADIR_SUBDIR_FROM_CHAIN,
+    _RPC_PORT_FROM_CHAIN,
     COOKIE_USER,
     DEFAULT_DATADIR,
     DEFAULT_MAX_BODY_SIZE,
@@ -65,13 +65,17 @@ from bitcoin_core_rpc import (
     BitcoinCoreRpcClient,
     BtcRpcTypeError,
     BtcRpcValueError,
+    Chain,
     FetchError,
     HttpError,
+    Network,
     RpcError,
     _default_datadir,
+    chain_from_network,
     cookie_auth,
-    core_chain_from_network,
-    network_from_core_chain,
+    datadir_subdir_from_chain,
+    network_from_chain,
+    rpc_port_from_chain,
 )
 from tests import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
 
@@ -430,12 +434,12 @@ def test_from_chain_refuses_a_chain_core_has_no_port_for() -> None:
 
     Which a BIP name is now the demonstration of: `mainnet` is a network
     BIP32 and BIP173 have and a chain Core has not, so it is refused here
-    exactly as an invented name is. `core_chain_from_network` is what a
-    caller holding one goes through.
+    exactly as an invented name is. `chain_from_network` is what a caller
+    holding one goes through.
     """
-    with pytest.raises(BtcRpcValueError, match="unknown chain: testnet5"):
+    with pytest.raises(BtcRpcValueError, match="unknown Core chain: testnet5"):
         BitcoinCoreRpcClient.from_chain("testnet5")
-    with pytest.raises(BtcRpcValueError, match="unknown chain: mainnet"):
+    with pytest.raises(BtcRpcValueError, match="unknown Core chain: mainnet"):
         BitcoinCoreRpcClient.from_chain("mainnet")
 
 
@@ -1688,12 +1692,12 @@ def test_the_two_vocabularies_translate_both_ways() -> None:
     necessary and easy to leave out: `"main" != "mainnet"` is the mismatch
     a correct comparison produces.
     """
-    assert core_chain_from_network("mainnet") == "main"
-    assert core_chain_from_network("testnet") == "test"
+    assert chain_from_network("mainnet") == "main"
+    assert chain_from_network("testnet") == "test"
     for shared in ("testnet4", "signet", "regtest"):
-        assert core_chain_from_network(shared) == shared
-    for network in _CORE_CHAIN_FROM_NETWORK:
-        assert network_from_core_chain(core_chain_from_network(network)) == network
+        assert chain_from_network(shared) == shared
+    for network in _CHAIN_FROM_NETWORK:
+        assert network_from_chain(chain_from_network(network)) == network
 
 
 def test_neither_direction_falls_back_on_a_name_it_does_not_know() -> None:
@@ -1704,9 +1708,37 @@ def test_neither_direction_falls_back_on_a_name_it_does_not_know() -> None:
     each is refused by the function that does not own it.
     """
     with pytest.raises(BtcRpcValueError, match="unknown network: main"):
-        core_chain_from_network("main")
+        chain_from_network("main")
     with pytest.raises(BtcRpcValueError, match="unknown Core chain: mainnet"):
-        network_from_core_chain("mainnet")
+        network_from_chain("mainnet")
+
+
+def test_a_caller_can_ask_for_the_port_and_the_subdirectory() -> None:
+    """What `from_chain` reads, for a caller `from_chain` cannot serve.
+
+    A node on another host, or one started with `-datadir=` elsewhere, is
+    a url and a cookie path the caller assembles: these two are the halves
+    of it that Core names and a chain name does not give away -- `main`
+    keeping its cookie in the datadir itself, and `test` living under
+    `testnet3`.
+    """
+    assert rpc_port_from_chain("main") == 8332
+    assert rpc_port_from_chain("regtest") == 18443
+    assert datadir_subdir_from_chain("main") == ""
+    assert datadir_subdir_from_chain("test") == "testnet3"
+
+
+def test_the_port_and_the_subdirectory_are_refused_a_bip_name() -> None:
+    """Core's vocabulary, in the two functions keyed by it as in the third.
+
+    `mainnet` is the network name of the chain Core calls `main`, and a
+    lookup that fell back on it would answer a port and a directory for a
+    name this module holds to meaning nothing here.
+    """
+    with pytest.raises(BtcRpcValueError, match="unknown Core chain: mainnet"):
+        rpc_port_from_chain("mainnet")
+    with pytest.raises(BtcRpcValueError, match="unknown Core chain: mainnet"):
+        datadir_subdir_from_chain("mainnet")
 
 
 def test_every_chain_with_a_port_has_a_datadir_and_a_name() -> None:
@@ -1718,8 +1750,20 @@ def test_every_chain_with_a_port_has_a_datadir_and_a_name() -> None:
     the third: a name Core has a port for and this module cannot translate
     would leave a caller holding a BIP name with no way in.
     """
-    assert _RPC_PORT.keys() == _DATADIR_SUBDIR.keys()
-    assert _RPC_PORT.keys() == set(_CORE_CHAIN_FROM_NETWORK.values())
+    assert _RPC_PORT_FROM_CHAIN.keys() == _DATADIR_SUBDIR_FROM_CHAIN.keys()
+    assert _RPC_PORT_FROM_CHAIN.keys() == set(_CHAIN_FROM_NETWORK.values())
+
+
+def test_the_two_literals_name_what_the_two_tables_hold() -> None:
+    """A name added to a table and not to its Literal is a false signature.
+
+    `Chain` and `Network` are what these functions are annotated as
+    returning, and a type checker believes the annotation: a sixth chain
+    reaching the tables alone would have every caller matching on the
+    five told it cannot happen.
+    """
+    assert set(get_args(Chain)) == _RPC_PORT_FROM_CHAIN.keys()
+    assert set(get_args(Network)) == _CHAIN_FROM_NETWORK.keys()
 
 
 def test_the_call_defaults_are_the_wide_ones() -> None:

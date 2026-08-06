@@ -12,6 +12,15 @@ in this file — read it before upgrading, rather than a digit.
 
 ## v2026.8.6.1 (work in progress, not released yet)
 
+Two exported functions are renamed, with no alias left behind:
+`core_chain_from_network` is `chain_from_network` and
+`network_from_core_chain` is `network_from_chain`. They take and return
+what they always did.
+
+Code matching on the text of an error has one more to check: an unknown
+chain is now refused as `unknown Core chain: ...` everywhere, including
+`BitcoinCoreRpcClient.from_chain`, which said `unknown chain: ...`.
+
 ## v2026.8.6
 
 The first release. There is nothing to act on and nothing to migrate.

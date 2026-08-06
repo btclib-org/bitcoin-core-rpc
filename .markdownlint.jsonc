@@ -14,6 +14,14 @@
   "MD007": {
     // Spaces for indent
     "indent": 4
+  },
+
+  // MD024/no-duplicate-heading - CHANGELOG.md and HISTORY.md group every
+  // release under the same few headings, which is what makes them
+  // readable down the page
+  "MD024": {
+    // Only headings under the same parent have to differ
+    "siblings_only": true
   }
 
 }

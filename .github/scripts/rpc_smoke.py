@@ -104,13 +104,13 @@ CHAIN = "regtest"
 RPC_PORT = 18443
 
 # the subdirectory Core puts a regtest datadir in, which is where the
-# cookie is written. Spelled out rather than imported from the private
-# table in the module: what is being checked is that the module's copy of
-# Core's layout is Core's layout, and a check reading the value under test
-# proves nothing
+# cookie is written. Spelled out rather than read out of the module,
+# whether through its table or through `datadir_subdir_from_chain`: what
+# is being checked is that the module's copy of Core's layout is Core's
+# layout, and a check reading the value under test proves nothing
 DATADIR_SUBDIR = "regtest"
 
-# the four chains besides regtest that `_CORE_CHAIN_FROM_NETWORK` names,
+# the four chains besides regtest that `_CHAIN_FROM_NETWORK` names,
 # each with its own port and datadir subdirectory here for the same reason
 # RPC_PORT and DATADIR_SUBDIR above are spelled out rather than imported:
 # with no chain to generate on any of them, what a live node can still
@@ -660,7 +660,7 @@ def smoke_chain(
 
     `smoke` above proves the chain answers against blocks generated here,
     the one thing regtest can grow with no download. This is the other four
-    chains `_CORE_CHAIN_FROM_NETWORK` names: with none of them a chain this
+    chains `_CHAIN_FROM_NETWORK` names: with none of them a chain this
     script can grow, what is left to check is that Core still accepts
     `-chain=` for each of them and reports the same name back.
     """
