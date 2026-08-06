@@ -80,7 +80,7 @@ These are known and inherent.
 - **`getblockchaininfo` is not asked on the caller's behalf.** Nothing
     here checks which chain a node serves, so a client pointed at a
     testnet node answers testnet questions without saying so. Ask it, and
-    read the answer through `network_from_core_chain`.
+    read the answer through `network_from_chain`.
 - **There is no retry, and that is deliberate**, but it means a `503` from
     a full work queue is a failure the caller has to decide about. The
     reason the decision is theirs is that `call` carries any method and a
