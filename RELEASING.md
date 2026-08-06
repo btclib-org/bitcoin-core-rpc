@@ -13,6 +13,13 @@ against TestPyPI. A rehearsal is never tagged.
 
 ## One-time setup
 
+Neither index holds the project until an upload creates it, so both entries
+below are added as *pending* publishers, on that same page: a publisher
+attached to a project can only be added to a project that exists, and a
+first upload has nothing else to authenticate with, there being no token
+anywhere. The upload PyPI accepts turns its pending entry into an ordinary
+one, and TestPyPI's rehearsal does the same there.
+
 1. On [PyPI](https://pypi.org/manage/account/publishing/), add a trusted
    publisher: PyPI project name `bitcoin-core-rpc`, owner `btclib-org`,
    repository `btclib-bitcoin-core-rpc`, workflow `release.yml`,
