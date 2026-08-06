@@ -53,12 +53,17 @@ repos:
       # nothing. That is the whole reason the meta hooks are in this
       # file, and overruling one of them would be an odd way to keep them
       #
-      # its converse stays off too, and not by oversight: every module here
-      # opens with "#!/usr/bin/env python3", which is the house header
-      # above the copyright notice the hook below enforces and not a claim
-      # that the file is a script. None of them is executable, so enabling
-      # this means either chmod +x on a library or deleting a convention
-      # - id: check-shebang-scripts-are-executable
+      # its converse is on, and is the reason no source file here opens
+      # with "#!/usr/bin/env python3": a shebang is read by the kernel only
+      # when the file is exec'd directly, which needs the executable bit
+      # the hook above finds on nothing, and the one script in the tree is
+      # invoked as "python .github/scripts/rpc_smoke.py". So the line
+      # announced an interpreter nothing consulted, and it cost this guard.
+      # Unlike the hook above, this one selects on types [text] and so
+      # matches every file whether or not any carries a shebang: what it
+      # enforces is the pair, and the day a file needs one it also needs
+      # chmod +x
+      - id: check-shebang-scripts-are-executable
       # no byte order mark anywhere today, and the same kind of guard as
       # check-executables-have-shebangs: what it costs is one line, what
       # it buys is that an editor on another platform cannot quietly add
@@ -261,6 +266,29 @@ repos:
         # the hook declares, and that flag is the whole of what it declares,
         # so passing --offline alone would drop it
         args: [--offline, --no-progress]
+  # COPYRIGHT holds the MIT permission notice in full rather than a pointer
+  # to LICENSE, and that is bitcoin_core_rpc.py's doing: the module is meant
+  # to be copied out of the distribution, and a copy has no LICENSE beside
+  # it, so a pointer would name a file its reader does not have. Every
+  # source file carries the same notice rather than the module alone,
+  # because the alternative is an exclude here and a second notice to keep
+  # in step with this one -- one file, one hook, and the module's header is
+  # then not a special case that an edit can quietly diverge from.
+  # No year in it, MIT asking for none: a copy nobody has touched would
+  # otherwise look out of date every January, and bringing one up to date is
+  # a diff against the tag it was taken from rather than a year to bump.
+  # LICENSE carries the range, being the file a distribution ships and
+  # nobody vendors.
+  # No "SPDX-License-Identifier: MIT" line above it, and not by oversight:
+  # nothing reads one. The identifier a distribution is read by is
+  # pyproject.toml's `license`, which PEP 639 puts in the metadata, GitHub
+  # answers the same question from LICENSE, and no hook or workflow here
+  # scans a source file for the tag. What would read one is a license
+  # scanner in the tree a vendored copy lands in, and what it finds there
+  # is the notice itself.
+  # The check is a substring search over the file's bytes, so COPYRIGHT is
+  # the block to embed and nothing else -- the reasoning cannot live in it,
+  # because every byte of that file has to appear in every file it guards
   - repo: https://github.com/leoll2/copyright_notice_precommit
     rev: 0.1.1
     hooks:

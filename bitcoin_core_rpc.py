@@ -1,21 +1,3 @@
-#!/usr/bin/env python3
-
-# Copyright (C) The btclib developers
-#
-# This file is part of bitcoin-core-rpc. It is subject to the license
-# terms in the LICENSE file found in the top-level directory of this
-# distribution.
-#
-# No part of bitcoin-core-rpc including this file, may be copied,
-# modified, propagated, or distributed except according to the terms contained
-# in the LICENSE file.
-
-# Those terms are the ones below, embedded rather than referenced: this file
-# is meant to be copied out of the distribution, and a copy has no LICENSE
-# beside it. No year in it, MIT asking for none: a copy nobody has touched
-# would otherwise look out of date every January, and updating one is a diff
-# against the tag it was taken from rather than a year to bump.
-# SPDX-License-Identifier: MIT
 # Copyright (c) The btclib developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -35,6 +17,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+
 """A standalone JSON-RPC client against Bitcoin Core.
 
 One source file with nothing but the standard library behind it, so that a
