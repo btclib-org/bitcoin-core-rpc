@@ -52,6 +52,22 @@ carry a union merge driver that would keep both sides' numbers.
   `rpc_port_from_chain`'s, so the three functions a chain name reaches say
   the same thing, and the three words say what the sentence did.
 
+### Repository
+
+- **RELEASING.md asks griffe whether the breaking-change list is
+  complete**, as a release step carrying the command. HISTORY.md promises
+  that a break is announced there, the calendar version promising nothing,
+  and until now nothing read that promise back: the suite judges the code,
+  and review weighs what the notes say rather than what they leave out.
+  griffe reads the public API at the previous release and at the tree and
+  reports the breakage between them -- against v2026.8.6 it names
+  `core_chain_from_network` and `network_from_core_chain`, which this cycle
+  removed and HISTORY.md announces, so the first cycle the step applies to
+  is one it passes. A step and not a hook, for the reason RELEASING.md
+  gives: the comparison is against the previous *release*, so a deliberate
+  break stays a finding until the release that announces it, leaving every
+  pull request in between red for something no branch introduced.
+
 ## v2026.8.6
 
 The first release.

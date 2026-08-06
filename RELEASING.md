@@ -74,6 +74,37 @@ It gates nothing automatically, which is why it is a step here.
 
 ## Release
 
+1. Read the public API against the previous release, before the notes that
+   describe it are declared final. [HISTORY.md](./HISTORY.md) promises that
+   a breaking change is announced there, the calendar version promising
+   nothing, and nothing else reads that promise: the suite judges the code,
+   and a reviewer weighs what the prose says rather than what it leaves
+   out. griffe reads both revisions and answers that second question — not
+   whether the list is right, but whether it is complete:
+
+   ```shell
+   uv run --locked --with griffe griffe check bitcoin_core_rpc \
+       -a v<previous version>
+   ```
+
+   It reports breakage only: a public object removed, a parameter that
+   changed kind or default, an attribute whose value moved. An addition is
+   silent, so the output is short and every line of it wants an entry —
+   what the step asks is that nothing it names is missing from HISTORY.md.
+   The converse is not its to answer: an entry describing a break it did
+   not find is a claim about the prose, which review still has to read.
+   That it catches a real one is measured rather than assumed: run it with
+   `-a 379ae2d -b 873ae03` instead, spanning the exception rename the
+   `### Changed` group of v2026.8.6 records, and it names each removed
+   spelling.
+
+   Not a hook and not a job of `lint.yml`, deliberately: the comparison is
+   against the previous *release*, so a break lands on `dev` on purpose and
+   remains a finding until the release that announces it, leaving every
+   pull request in between red for something no branch introduced. It exits
+   1 on a finding, so the day that reasoning stops holding — a cycle that
+   means to break nothing — making it a gate is one line.
+
 1. Retitle the work-in-progress sections of [HISTORY.md](./HISTORY.md) and
    [CHANGELOG.md](./CHANGELOG.md) to `## v<version>` — the heading must be
    the version alone, and the section must not be empty. `release.yml`
