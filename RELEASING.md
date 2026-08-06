@@ -227,6 +227,16 @@ It gates nothing automatically, which is why it is a step here.
 1. Add the new work-in-progress headings back to HISTORY.md and
    CHANGELOG.md on `dev`.
 
+1. Set `pyproject.toml`'s version to the next cycle's placeholder: the
+   version just released, with its trailing component bumped by one, or
+   `.1` appended if it had none. It is shaped exactly like a release, on
+   purpose — nothing here has to tell the two apart by shape, that being
+   what the heading just added above is for. Re-lock so `uv.lock` agrees:
+
+   ```shell
+   uv lock
+   ```
+
 1. Open a draft pull request from `dev` to `master` for the cycle just
    opened, title included, and leave its body for what the merge step
    above already asks for: written before the release is cut, not
