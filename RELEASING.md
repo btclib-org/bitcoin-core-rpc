@@ -14,8 +14,9 @@ against TestPyPI. A rehearsal is never tagged.
 ## One-time setup
 
 1. On [PyPI](https://pypi.org/manage/account/publishing/), add a trusted
-   publisher: owner `btclib-org`, repository `btclib-bitcoin-core-rpc`,
-   workflow `release.yml`, environment `pypi`.
+   publisher: PyPI project name `bitcoin-core-rpc`, owner `btclib-org`,
+   repository `btclib-bitcoin-core-rpc`, workflow `release.yml`,
+   environment `pypi`.
 
 1. On [TestPyPI](https://test.pypi.org/), add the same trusted publisher,
    with environment `testpypi`.
@@ -49,7 +50,7 @@ publishes to TestPyPI instead of PyPI.
    ```shell
    uv run --isolated --no-project \
      --index https://test.pypi.org/simple/ \
-     --with btclib-bitcoin-core-rpc \
+     --with bitcoin-core-rpc \
      python -c "import bitcoin_core_rpc; print(bitcoin_core_rpc.DEFAULT_TIMEOUT)"
    ```
 

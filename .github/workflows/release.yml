@@ -263,7 +263,7 @@ jobs:
           import json
           import bitcoin_core_rpc as rpc
 
-          name = 'btclib-bitcoin-core-rpc'
+          name = 'bitcoin-core-rpc'
           print(version(name))
           assert not requires(name), requires(name)
           def transport(request, timeout):
@@ -285,7 +285,7 @@ jobs:
     timeout-minutes: 15
     environment:
       name: testpypi
-      url: https://test.pypi.org/project/btclib-bitcoin-core-rpc/
+      url: https://test.pypi.org/project/bitcoin-core-rpc/
     permissions:
       # OIDC: this is what lets TestPyPI trust the workflow itself
       id-token: write
@@ -312,7 +312,7 @@ jobs:
     # environment to require a manual approval before publishing
     environment:
       name: pypi
-      url: https://pypi.org/project/btclib-bitcoin-core-rpc/
+      url: https://pypi.org/project/bitcoin-core-rpc/
     permissions:
       # OIDC: this is what lets PyPI trust the workflow itself
       id-token: write

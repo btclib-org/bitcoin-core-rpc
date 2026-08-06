@@ -9,7 +9,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "btclib-bitcoin-core-rpc"
+name = "bitcoin-core-rpc"
 # the one place the version is declared: docs/source/conf.py parses this
 # file rather than the installed metadata, which would need the package
 # installed to build the documentation. There is no `__version__` in the
@@ -95,7 +95,7 @@ classifiers = [
 [project.urls]
 Homepage = "https://btclib.org"
 Download = "https://github.com/btclib-org/btclib-bitcoin-core-rpc/releases"
-Documentation = "https://btclib-bitcoin-core-rpc.readthedocs.io/"
+Documentation = "https://bitcoin-core-rpc.readthedocs.io/"
 GitHub = "https://github.com/btclib-org/btclib-bitcoin-core-rpc"
 Issues = "https://github.com/btclib-org/btclib-bitcoin-core-rpc/issues"
 "Pull Requests" = "https://github.com/btclib-org/btclib-bitcoin-core-rpc/pulls"

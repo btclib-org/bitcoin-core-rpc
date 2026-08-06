@@ -1,11 +1,11 @@
-# btclib-bitcoin-core-rpc
+# bitcoin-core-rpc
 
 A standalone JSON-RPC client against Bitcoin Core.
 
 [![Lint](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/lint.yml)
 [![Test](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/test.yml)
-[![PyPI](https://img.shields.io/pypi/v/btclib-bitcoin-core-rpc.svg)](https://pypi.org/project/btclib-bitcoin-core-rpc/)
-[![Python](https://img.shields.io/pypi/pyversions/btclib-bitcoin-core-rpc.svg)](https://pypi.org/project/btclib-bitcoin-core-rpc/)
+[![PyPI](https://img.shields.io/pypi/v/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
+[![Python](https://img.shields.io/pypi/pyversions/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 One source file, `bitcoin_core_rpc.py`, with nothing but the standard
@@ -17,7 +17,7 @@ Install it, or copy the file — [Vendoring](#vendoring) below is how, and it
 is a supported way to use this rather than a fallback.
 
 ```shell
-pip install btclib-bitcoin-core-rpc
+pip install bitcoin-core-rpc
 ```
 
 ## Talking to a node
@@ -212,7 +212,7 @@ to be installed.
 
 ## Links
 
-- Documentation: <https://btclib-bitcoin-core-rpc.readthedocs.io/>
+- Documentation: <https://bitcoin-core-rpc.readthedocs.io/>
 - Source: <https://github.com/btclib-org/btclib-bitcoin-core-rpc>
 - Releases: <https://github.com/btclib-org/btclib-bitcoin-core-rpc/releases>
 - [CHANGELOG.md](./CHANGELOG.md), and [HISTORY.md](./HISTORY.md) for what a

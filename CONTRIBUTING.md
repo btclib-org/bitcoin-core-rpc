@@ -1,4 +1,4 @@
-# Contributing to btclib-bitcoin-core-rpc
+# Contributing to bitcoin-core-rpc
 
 Thank you for investing your time in contributing to this project.
 

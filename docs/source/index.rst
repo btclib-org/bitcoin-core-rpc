@@ -1,7 +1,7 @@
-.. btclib-bitcoin-core-rpc documentation master file: the root `toctree`.
+.. bitcoin-core-rpc documentation master file: the root `toctree`.
 
-btclib-bitcoin-core-rpc documentation
-=====================================
+bitcoin-core-rpc documentation
+==============================
 
 .. toctree::
    :maxdepth: 1
