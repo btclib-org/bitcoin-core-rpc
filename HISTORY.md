@@ -4,10 +4,13 @@ Notable changes are documented here.
 [CHANGELOG.md](./CHANGELOG.md) is the record behind them: this file says
 what a user has to act on, that one says what changed and why.
 
-Versions follow *[semantic versioning](https://semver.org/)*, pre-1.0: a
-breaking change moves the minor.
+Versions are *[calendar versions](https://calver.org/)*, `YYYY.M`: the
+number says when a release was cut, which is the useful thing to know about
+a client whose recorded replies come from the Core versions of that month.
+It promises nothing about compatibility, so a breaking change is announced
+in this file — read it before upgrading, rather than a digit.
 
-## v0.1.0 (work in progress, not released yet)
+## v2026.8 (work in progress, not released yet)
 
 The first release. There is nothing to act on and nothing to migrate.
 

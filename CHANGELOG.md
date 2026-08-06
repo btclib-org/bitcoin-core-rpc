@@ -9,7 +9,7 @@ Neither file counts its entries: `grep -c '^- '` does that, whereas a
 stated number is a line every open branch has to edit, and the two files
 carry a union merge driver that would keep both sides' numbers.
 
-## v0.1.0 (work in progress, not released yet)
+## v2026.8 (work in progress, not released yet)
 
 The first release.
 
@@ -62,3 +62,8 @@ The first release.
   a report; `mutation.yml` asks weekly whether a line the suite executes is
   a line the suite checks; `rpc-smoke.yml` asks two live bitcoind versions
   whether the recorded replies are still what Core sends.
+- Calendar versioning, `YYYY.M`: a release is named by the month it was
+  cut, and what it breaks is read in HISTORY.md rather than inferred from
+  the number. The month carries no leading zero, PEP 440 normalizing
+  `2026.08` to `2026.8` and `release.yml` comparing the tag to the declared
+  string as written.
