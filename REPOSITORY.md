@@ -9,23 +9,12 @@ The branch rules and the repository settings live *outside* the repository,
 so this file is the whole of them: nothing here can be recovered by reading
 the tree.
 
-## While the repository is private, none of the rules below are in force
-
-Branch protection is a paid feature for a private repository, and
-btclib-org is on the free plan. The API says so rather than failing
-quietly:
-
-```console
-$ gh api -X PUT --input - \
-    repos/btclib-org/btclib-bitcoin-core-rpc/branches/master/protection
-Upgrade to GitHub Pro or make this repository public to enable this
-feature. (HTTP 403)
-```
-
-So this section is what the settings become, not what they are: making the
-repository public is what enables them, and applying them is a step of
-doing that. Everything else here — the merge methods, the token
-permissions, the publishing environments — is settable now and set.
+**The repository is public, and that is a prerequisite rather than a
+preference.** Branch protection is a paid feature for a private repository
+on the free plan, and the API says so rather than failing quietly —
+`Upgrade to GitHub Pro or make this repository public to enable this
+feature (HTTP 403)`. Everything below depends on it, and so does Actions
+being unmetered.
 
 ## Required checks on master
 
@@ -35,12 +24,13 @@ with nothing in the tree to explain why. `tests-passed` is an aggregate job
 at the end of `test.yml` that `needs` the matrix; a new job in `test.yml`
 belongs in that job's `needs`, or it gates nothing.
 
-`master` requires three checks, and only three:
+`master` requires four checks, and only four:
 
 | Check | Produced by |
 | --- | --- |
 | `tests-passed` | `test.yml`, aggregate over the matrix |
 | `Lint and type-check` | `lint.yml`, first job |
+| `CodeQL` | code scanning default setup |
 | `Build the documentation` | `lint.yml`, second job |
 
 `Build the documentation` is named on its own on purpose: a rule naming
@@ -49,9 +39,25 @@ required checks entirely. `lint.yml` triggers on `pull_request` with no
 branch and no `paths` filter, so both its jobs report on every pull
 request, forks included.
 
-Each check is bound to the app that produces it — `checks` with an `app_id`
-rather than the bare `contexts` list, 15368 for Actions — so nothing else
-can satisfy one.
+`CodeQL` comes from the default setup rather than from a workflow in this
+tree, which is why no `codeql.yml` is here to find: it is a repository
+setting, `actions` and `python` at the default query suite, and the
+`PATCH` below is what turns it on.
+
+```shell
+setup='{"state":"configured","query_suite":"default",'
+setup="${setup}"'"languages":["actions","python"]}'
+gh api -X PATCH --input - \
+  repos/btclib-org/btclib-bitcoin-core-rpc/code-scanning/default-setup \
+  <<<"${setup}"
+```
+
+`PATCH`, not `PUT`: that endpoint answers a PUT with a bare 404, which
+reads as "no such repository" and is not.
+
+Each check is bound to the app that produces it — `checks` with an
+`app_id` rather than the bare `contexts` list, 15368 for Actions and 57789
+for CodeQL — so nothing else can satisfy one.
 
 ```shell
 gh api repos/btclib-org/btclib-bitcoin-core-rpc/branches/master/protection \
@@ -72,25 +78,32 @@ a branch is noise.
 
 Both branches are protected, and differently on purpose.
 
-`master`: those three checks with `strict`, one approving review,
-`dismiss_stale_reviews`, linear history, no force pushes, no deletions,
-`required_conversation_resolution`, and `enforce_admins` *off* — an
-administrator can bypass all of it.
+`master`: those four checks with `strict`, one approving review,
+`dismiss_stale_reviews`, **required signatures**, linear history, no force
+pushes, no deletions, `required_conversation_resolution`, and
+`enforce_admins` *off* — an administrator can bypass all of it.
 
-`dev`: no force pushes, no deletions, linear history, and nothing else — no
-required check, no review, no signature, so a direct push still works,
-which is what both bots rely on.
+`dev`: no force pushes, no deletions, linear history and
+`required_conversation_resolution`, and nothing else — no required check,
+no review, no signature, so a direct push still works, which is what both
+bots rely on.
 
-That asymmetry is a choice rather than an oversight. One approving review
-cannot be satisfied by the author, GitHub not allowing self-approval, so on
-a solo-maintainer branch it is a stop rather than a speed bump.
+That asymmetry is a choice rather than an oversight, and each half of it
+has its own reason. Commits reaching `dev` are unsigned — the bots' are,
+and so is a maintainer's without a signing key configured — so
+`required_signatures` there would reject every push; on `master` it holds
+because the only thing that writes there is a merge GitHub performs
+itself, and GitHub signs those with its web-flow key. And one approving
+review cannot be satisfied by the author, GitHub not allowing
+self-approval, so on a solo-maintainer branch it is a stop rather than a
+speed bump — which is why `enforce_admins` is off.
 
 What `dev` buys is that Dependabot targets it for both ecosystems,
 pre-commit.ci autoupdates it, and Dependabot security updates are on, so
 bot-authored commits reach `master` through it — and the branch cannot be
 rewritten or deleted under them.
 
-Requiring the three checks on `dev` as well is the next step if one is
+Requiring the four checks on `dev` as well is the next step if one is
 wanted, and it costs the direct push.
 
 ## Token permissions
@@ -106,6 +119,25 @@ it is what makes the intent readable in the file.
 **Publishing waits for an approval**: the `pypi` and `testpypi`
 environments both require a review, and `pypi` is restricted to `v*` tags.
 `RELEASING.md` records the reasoning.
+
+## Security settings
+
+All of these are repository settings and none of them is in the tree, so
+this list is the whole of them:
+
+| Setting | State |
+| --- | --- |
+| Dependabot alerts | enabled |
+| Dependabot security updates | enabled |
+| Private vulnerability reporting | enabled |
+| Secret scanning | enabled |
+| Secret scanning push protection | enabled |
+| Code scanning default setup (CodeQL) | configured |
+
+Private vulnerability reporting is what `SECURITY.md` sends a reporter to,
+and the link in `.github/ISSUE_TEMPLATE/config.yml` is the same door: with
+it disabled that link is a 404, so the setting and the two files go
+together.
 
 ## Plan-gated settings
 
