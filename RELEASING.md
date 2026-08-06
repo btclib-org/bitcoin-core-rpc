@@ -226,3 +226,14 @@ It gates nothing automatically, which is why it is a step here.
 
 1. Add the new work-in-progress headings back to HISTORY.md and
    CHANGELOG.md on `dev`.
+
+1. Open a draft pull request from `dev` to `master` for the cycle just
+   opened, title included, and leave its body for what the merge step
+   above already asks for: written before the release is cut, not
+   reconstructed from the diff at the last minute. A draft one is what
+   that step could not be until now — everything that lands on `dev`
+   between one release and the next has a place to be described as it
+   lands, rather than a promise kept only if someone remembers to keep
+   it. Marking it ready and pressing **Rebase and merge** is what that
+   step still is; this one is what makes reaching it with a body already
+   written the ordinary case rather than the exception.
