@@ -11,7 +11,7 @@ breaking change moves the minor.
 
 The first release. There is nothing to act on and nothing to migrate.
 
-`pip install btclib-bitcoin-core-rpc`, or copy `bitcoin_core_rpc.py` — one
+`pip install bitcoin-core-rpc`, or copy `bitcoin_core_rpc.py` — one
 source file with nothing but the standard library behind it, which is what
 makes the second option a supported one rather than a fallback.
 

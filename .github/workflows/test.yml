@@ -217,7 +217,7 @@ jobs:
           import json
           import bitcoin_core_rpc as rpc
 
-          name = 'btclib-bitcoin-core-rpc'
+          name = 'bitcoin-core-rpc'
           print(version(name))
           assert not requires(name), requires(name)
           replies = []

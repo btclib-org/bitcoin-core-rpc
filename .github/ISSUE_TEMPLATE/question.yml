@@ -9,7 +9,7 @@ body:
       value: >
         Discussions are not enabled here, so a question is an issue: this
         form is what keeps one from having to be filed as a bug. The
-        [documentation](https://btclib-bitcoin-core-rpc.readthedocs.io/),
+        [documentation](https://bitcoin-core-rpc.readthedocs.io/),
         the module docstring and the
         [README](https://github.com/btclib-org/btclib-bitcoin-core-rpc/blob/master/README.md)
         come first, and for a real-time answer there is the Slack channel
@@ -33,5 +33,5 @@ body:
       label: Version, if it matters
       description: >
         `python -c "from importlib.metadata import version;
-        print(version('btclib-bitcoin-core-rpc'))"`
+        print(version('bitcoin-core-rpc'))"`
       placeholder: "0.1.0"
