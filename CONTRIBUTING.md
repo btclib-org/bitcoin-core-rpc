@@ -11,7 +11,7 @@ opening an issue and creating a PR, to reviewing and merging it.
 ## New contributor guide
 
 To get an overview of the project, read the [README](./README.md) and the
-docstring at the top of `bitcoin_core_rpc.py`, which is where the design
+docstring at the top of `bitcoin_core_rpc/__init__.py`, which is where the design
 and the reason behind every refusal are written down.
 
 Here are some resources to help you get started with open source
@@ -113,7 +113,7 @@ uv run --locked --no-default-groups --group test --group mutation \
     cr-report --surviving-only --show-diff rpc.sqlite
 ```
 
-The session writes each mutation into `bitcoin_core_rpc.py` and restores it
+The session writes each mutation into the client source and restores it
 afterwards, so nothing else may read the file while it runs.
 
 ### A live node

@@ -45,7 +45,7 @@ Only the latest release is supported. A fix is published as a new release,
 and nothing is backported.
 
 **A vendored copy receives nothing automatically.** Copying
-`bitcoin_core_rpc.py` is a supported way to use this project, and this is
+the one source file is a supported way to use this project, and this is
 its price: a fix published here reaches an installed package through an
 ordinary dependency bump and reaches a copy only when somebody replaces the
 file. Record the release tag beside the copy — that is what says whether it

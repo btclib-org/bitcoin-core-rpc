@@ -29,7 +29,7 @@ on:
   workflow_dispatch:
   # so that a change to this file, or to the script it runs, is checked by
   # the thing it configures -- as links.yml does for its own
-  # configuration. Not bitcoin_core_rpc.py: a change to the client is gated
+  # configuration. Not the client source: a change to it is gated
   # by the recorded suite, and re-validated against live nodes by the
   # dispatch before a release
   pull_request:

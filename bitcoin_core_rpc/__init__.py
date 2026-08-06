@@ -123,18 +123,22 @@ nobody else.
 
 **Vendoring and updates.** `pip install bitcoin-core-rpc` is the
 supported way to get this file, and the reason it can also be copied is a
-project that ships one artifact and takes no dependency for it. Copy
-`bitcoin_core_rpc.py` whole from a release tag, keep the license notice
-above, and record the tag beside the copy. The upstream source is
-`https://github.com/btclib-org/btclib-bitcoin-core-rpc/blob/master/bitcoin_core_rpc.py`,
+project that ships one artifact and takes no dependency for it. Copy it
+whole from a release tag, **rename it to `bitcoin_core_rpc.py`**, keep the
+license notice above, and record the tag beside the copy. It is named
+`__init__.py` here so that `py.typed` can sit beside it and a consumer's
+type checker reads these annotations -- PEP 561 puts that marker inside a
+package directory and nowhere else -- and the rename is what that costs.
+The upstream source is
+`https://github.com/btclib-org/btclib-bitcoin-core-rpc/blob/master/bitcoin_core_rpc/__init__.py`,
 and the raw source of a release is
-`https://raw.githubusercontent.com/btclib-org/btclib-bitcoin-core-rpc/<tag>/bitcoin_core_rpc.py`
+`https://raw.githubusercontent.com/btclib-org/btclib-bitcoin-core-rpc/<tag>/bitcoin_core_rpc/__init__.py`
 -- the whole path, so that it can be fetched as it stands. An update is a
 replacement of the whole file; this shows every behavioral change first:
 
 .. code-block:: console
 
-    git diff OLD..NEW -- bitcoin_core_rpc.py
+    git diff OLD..NEW -- bitcoin_core_rpc/__init__.py
 
 A vendored copy receives no security or compatibility fix automatically, so
 its recorded tag is what tells a maintainer whether it needs replacing --
@@ -170,10 +174,10 @@ __all__ = [
     "DEFAULT_MAX_BODY_SIZE",
     "DEFAULT_TIMEOUT",
     "MAX_ERROR_BODY_SIZE",
-    "BTClibRuntimeError",
-    "BTClibTypeError",
-    "BTClibValueError",
     "BitcoinCoreRpcClient",
+    "BtcRpcRuntimeError",
+    "BtcRpcTypeError",
+    "BtcRpcValueError",
     "FetchError",
     "HttpError",
     "HttpTransport",
@@ -200,6 +204,17 @@ __all__ = [
 # wants none of the names here catches those three and still separates a
 # caller error from a failure of the exchange.
 #
+# `BtcRpc` and not `BTClib`, which is what they were called while this file
+# lived in btclib and is a name no consumer should have to disambiguate: a
+# consumer declaring exceptions of its own is free to call them whatever it
+# likes, and btclib does call three of them `BTClibValueError` and so on.
+# Two classes of the same name from two packages is a caught exception that
+# is silently the wrong one -- `except BTClibValueError` reads correct at
+# every call site and is wrong at half of them. btclib hit exactly that
+# while taking the dependency, in an `except` around a function of this
+# module; the names differ now, so the mistake is visible in the source
+# rather than in a test.
+#
 # The two carrying a field hand every constructor argument to
 # `BaseException.__init__` and compose their message in `__str__`, which is
 # what `subprocess.CalledProcessError` and `UnicodeDecodeError` do, and what
@@ -218,19 +233,19 @@ __all__ = [
 # is the message it always was.
 
 
-class BTClibValueError(ValueError):
+class BtcRpcValueError(ValueError):
     """A value no valid input could carry; the library's usual refusal."""
 
 
-class BTClibTypeError(TypeError):
+class BtcRpcTypeError(TypeError):
     """An input of a type no conversion accepts: a caller error."""
 
 
-class BTClibRuntimeError(RuntimeError):
+class BtcRpcRuntimeError(RuntimeError):
     """A check that failed on valid inputs, e.g. a failed verification."""
 
 
-class FetchError(BTClibRuntimeError):
+class FetchError(BtcRpcRuntimeError):
     """A backend did not answer, or did not answer this.
 
     A RuntimeError and not a ValueError, which is the distinction worth
@@ -241,7 +256,7 @@ class FetchError(BTClibRuntimeError):
 
     It covers the conversion of an answer too. A backend that replies
     with something which is not a transaction has failed, and reporting
-    that as the BTClibValueError the parser of the reply raised would name
+    that as the BtcRpcValueError the parser of the reply raised would name
     the parser rather than the host that has to be fixed.
     """
 
@@ -482,9 +497,9 @@ def _assert_valid_max_body_size(max_body_size: int) -> None:
     """
     if not _is_integer(max_body_size):
         err_msg = f"non-integer max_body_size: {max_body_size}"
-        raise BTClibTypeError(err_msg)
+        raise BtcRpcTypeError(err_msg)
     if max_body_size < 0:
-        raise BTClibValueError(f"negative max_body_size: {max_body_size}")
+        raise BtcRpcValueError(f"negative max_body_size: {max_body_size}")
 
 
 def _read_bounded(response: Any, max_body_size: int, where: str) -> bytes:
@@ -596,7 +611,7 @@ def http_request(
 
     scheme = urlsplit(url).scheme
     if scheme not in _SCHEMES:
-        raise BTClibValueError(f"invalid url scheme: '{scheme}' instead of http(s)")
+        raise BtcRpcValueError(f"invalid url scheme: '{scheme}' instead of http(s)")
 
     # S310 asks what scheme this url can carry, and the answer is the
     # three lines above: nothing but http and https reaches a Request
@@ -742,7 +757,7 @@ def core_chain_from_network(network: str) -> str:
     """
     if network not in _CORE_CHAIN_FROM_NETWORK:
         known = ", ".join(_CORE_CHAIN_FROM_NETWORK)
-        raise BTClibValueError(f"unknown network: {network} not in ({known})")
+        raise BtcRpcValueError(f"unknown network: {network} not in ({known})")
     return _CORE_CHAIN_FROM_NETWORK[network]
 
 
@@ -754,7 +769,7 @@ def network_from_core_chain(chain: str) -> str:
     """
     if chain not in _NETWORK_FROM_CORE_CHAIN:
         known = ", ".join(_NETWORK_FROM_CORE_CHAIN)
-        raise BTClibValueError(f"unknown Core chain: {chain} not in ({known})")
+        raise BtcRpcValueError(f"unknown Core chain: {chain} not in ({known})")
     return _NETWORK_FROM_CORE_CHAIN[chain]
 
 
@@ -850,7 +865,7 @@ _MAX_PARAMS_DEPTH = 100
 
 def _rpc_id() -> str:
     """Return the `id` of one request, distinct from every other."""
-    return f"btclib-{token_hex(_RPC_ID_BYTES)}"
+    return f"btcrpc-{token_hex(_RPC_ID_BYTES)}"
 
 
 def _assert_valid_timeout(timeout: float, what: str) -> None:
@@ -863,9 +878,9 @@ def _assert_valid_timeout(timeout: float, what: str) -> None:
     the standard library rather than through this module's exceptions.
     """
     if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
-        raise BTClibTypeError(f"non-numeric {what}: {timeout!r}")
+        raise BtcRpcTypeError(f"non-numeric {what}: {timeout!r}")
     if not isfinite(timeout) or timeout <= 0:
-        raise BTClibValueError(f"{what} is not a positive number of seconds: {timeout}")
+        raise BtcRpcValueError(f"{what} is not a positive number of seconds: {timeout}")
 
 
 def _checked_url(url: str) -> str:
@@ -879,23 +894,23 @@ def _checked_url(url: str) -> str:
     split = urlsplit(url)
     if split.scheme not in _SCHEMES:
         err_msg = f"invalid rpc url scheme: '{split.scheme}' instead of http(s)"
-        raise BTClibValueError(err_msg)
+        raise BtcRpcValueError(err_msg)
     if split.username is not None or split.password is not None:
         err_msg = "credentials in the rpc url:"
         err_msg += " pass user and password, or use the cookie file"
-        raise BTClibValueError(err_msg)
+        raise BtcRpcValueError(err_msg)
     if not split.hostname:
-        raise BTClibValueError(f"no host in the rpc url: {url}")
+        raise BtcRpcValueError(f"no host in the rpc url: {url}")
     if split.query or split.fragment:
         err_msg = f"query or fragment in the rpc url: {url}"
         err_msg += " -- an rpc endpoint is a path, and the call is the body"
-        raise BTClibValueError(err_msg)
+        raise BtcRpcValueError(err_msg)
     try:
         # the port is parsed on access and not before, so this is what
         # refuses `http://node:https` here rather than at the first call
         _ = split.port
     except ValueError as e:
-        raise BTClibValueError(f"invalid port in the rpc url: {url}") from e
+        raise BtcRpcValueError(f"invalid port in the rpc url: {url}") from e
     return url
 
 
@@ -959,12 +974,12 @@ def _params_member(params: Sequence[Any] | Mapping[str, Any] | None) -> Any:
     if isinstance(params, (str, bytes, bytearray)):
         err_msg = f"rpc params is a {type(params).__name__} and not a sequence"
         err_msg += " of parameters: pass [params] for a single positional one"
-        raise BTClibTypeError(err_msg)
+        raise BtcRpcTypeError(err_msg)
     if isinstance(params, Sequence):
         return list(params)
     err_msg = "rpc params is neither a sequence nor a mapping, but a"
     err_msg += f" {type(params).__name__}"
-    raise BTClibTypeError(err_msg)
+    raise BtcRpcTypeError(err_msg)
 
 
 def _assert_json_params(
@@ -990,14 +1005,14 @@ def _assert_json_params(
     """
     if depth > _MAX_PARAMS_DEPTH:
         err_msg = f"rpc params nested deeper than the {_MAX_PARAMS_DEPTH} allowed"
-        raise BTClibValueError(err_msg)
+        raise BtcRpcValueError(err_msg)
     if _json_scalar(value):
         return
     if isinstance(value, Mapping):
         _assert_no_cycle(value, enclosing)
         for name, item in value.items():
             if not isinstance(name, str):
-                raise BTClibTypeError(f"non-string rpc parameter name: {name!r}")
+                raise BtcRpcTypeError(f"non-string rpc parameter name: {name!r}")
             _assert_json_params(item, depth + 1, (*enclosing, id(value)))
         return
     if isinstance(value, Sequence):
@@ -1005,7 +1020,7 @@ def _assert_json_params(
         for item in value:
             _assert_json_params(item, depth + 1, (*enclosing, id(value)))
         return
-    raise BTClibTypeError(f"rpc parameter that is not a json value: {value!r}")
+    raise BtcRpcTypeError(f"rpc parameter that is not a json value: {value!r}")
 
 
 def _json_scalar(value: Any) -> bool:
@@ -1021,18 +1036,18 @@ def _json_scalar(value: Any) -> bool:
         err_msg = "Decimal rpc parameter: json carries no exact decimal, so"
         err_msg += " pass what the method documents -- an int of satoshis,"
         err_msg += " or the string it accepts -- rather than a rounded float"
-        raise BTClibTypeError(err_msg)
+        raise BtcRpcTypeError(err_msg)
     if isinstance(value, float) and not isfinite(value):
-        raise BTClibValueError(f"not a json number in the rpc params: {value}")
+        raise BtcRpcValueError(f"not a json number in the rpc params: {value}")
     if isinstance(value, (bytes, bytearray)):
-        raise BTClibTypeError(f"rpc parameter that is not a json value: {value!r}")
+        raise BtcRpcTypeError(f"rpc parameter that is not a json value: {value!r}")
     return value is None or isinstance(value, (bool, int, float, str))
 
 
 def _assert_no_cycle(value: Any, enclosing: tuple[int, ...]) -> None:
     """Refuse a container reached from inside itself, by the ids it is in."""
     if id(value) in enclosing:
-        raise BTClibValueError("rpc params contains itself, so it has no json")
+        raise BtcRpcValueError("rpc params contains itself, so it has no json")
 
 
 def _refuse_param(value: Any) -> Any:
@@ -1045,7 +1060,7 @@ def _refuse_param(value: Any) -> Any:
     still has no json -- `range(3)` is one -- passes the walk and arrives
     here.
     """
-    raise BTClibTypeError(f"rpc parameter that is not a json value: {value!r}")
+    raise BtcRpcTypeError(f"rpc parameter that is not a json value: {value!r}")
 
 
 def _json_number(token: str) -> Decimal:
@@ -1316,15 +1331,15 @@ class BitcoinCoreRpcClient:
     ) -> None:
         self.url = _checked_url(url)
         if (user is None) != (password is None):
-            raise BTClibValueError("rpc user and password go together, or neither")
+            raise BtcRpcValueError("rpc user and password go together, or neither")
         if user is not None and cookie_path is not None:
             err_msg = "both rpc credentials and a cookie path:"
             err_msg += " either of them says who is calling, so pass one"
-            raise BTClibValueError(err_msg)
+            raise BtcRpcValueError(err_msg)
         if user is None and cookie_path is None:
             err_msg = "no rpc credentials: pass user and password, or the"
             err_msg += " path of the cookie file the node writes"
-            raise BTClibValueError(err_msg)
+            raise BtcRpcValueError(err_msg)
         for name, value in (("user", user), ("password", password)):
             if value is not None and not isinstance(value, str):
                 # the annotation is not a check, and neither half of the
@@ -1341,7 +1356,7 @@ class BitcoinCoreRpcClient:
                 # caller needs to see, and `bytes` is the mistake this catches
                 # most often
                 err_msg = f"non-string rpc {name}: {type(value).__name__}"
-                raise BTClibTypeError(err_msg)
+                raise BtcRpcTypeError(err_msg)
         if user is not None and ":" in user:
             # the Basic credential is `user:password`, and Core splits it at
             # the *first* colon -- `RPCAuthorized` in src/httprpc.cpp. So a
@@ -1362,7 +1377,7 @@ class BitcoinCoreRpcClient:
             err_msg = "colon in the rpc user. The credential is user:password"
             err_msg += " and the node splits it at the first colon, so a user"
             err_msg += " containing one names a different user than intended"
-            raise BTClibValueError(err_msg)
+            raise BtcRpcValueError(err_msg)
         _assert_valid_timeout(timeout, "rpc timeout")
         self.user = user
         self._password = password
@@ -1415,14 +1430,14 @@ class BitcoinCoreRpcClient:
             known = ", ".join(_RPC_PORT)
             err_msg = f"unknown chain: {chain} not in ({known})."
             err_msg += " These are Core's names, not the BIP ones"
-            raise BTClibValueError(err_msg)
+            raise BtcRpcValueError(err_msg)
         if user is None and password is None and cookie_path is None:
             datadir = _default_datadir()
             if datadir is None:
                 err_msg = "no home directory, so no default datadir to find"
                 err_msg += " the cookie file in: pass cookie_path, or user"
                 err_msg += " and password"
-                raise BTClibValueError(err_msg)
+                raise BtcRpcValueError(err_msg)
             cookie_path = datadir / _DATADIR_SUBDIR[chain] / ".cookie"
         return cls(
             f"http://127.0.0.1:{_RPC_PORT[chain]}",
@@ -1520,7 +1535,7 @@ class BitcoinCoreRpcClient:
             # walks the caller's params for exactly that reason. An unknown
             # method is a value the node answers for -- that is the point of
             # taking it as an argument -- and a number is not one
-            raise BTClibTypeError(f"rpc method that is not a string: {method!r}")
+            raise BtcRpcTypeError(f"rpc method that is not a string: {method!r}")
         timeout = self.timeout if request_timeout is None else request_timeout
         _assert_valid_timeout(timeout, "rpc request_timeout")
         params_member = _params_member(params)
@@ -1540,7 +1555,7 @@ class BitcoinCoreRpcClient:
             # not write it. The walk above refuses the types json has no
             # rendering for, and this is a value of a type it does, so the
             # encoder is where it surfaces
-            raise BTClibValueError(f"rpc params json cannot carry: {e}") from e
+            raise BtcRpcValueError(f"rpc params json cannot carry: {e}") from e
         status, payload = http_request(
             self.url,
             data=body,

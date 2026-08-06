@@ -126,7 +126,7 @@ jobs:
           # next) are unaffected, git diff not seeing them in the first
           # place
           if ! git diff --quiet; then
-            echo "::warning::bitcoin_core_rpc.py was left changed after" \
+            echo "::warning::the client source was left changed after" \
               "exec; restoring the tracked source"
             git checkout -- .
           fi
