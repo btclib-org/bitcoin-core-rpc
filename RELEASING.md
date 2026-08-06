@@ -153,15 +153,76 @@ It gates nothing automatically, which is why it is a step here.
    to write release notes — and they are worth replacing by hand if it
    ever fires.
 
-1. `dev` and `master` now hold the same tree through different commits:
-   "Rebase and merge" replays `dev`'s commits onto `master` with new SHAs,
-   so `dev`'s old ones and `master`'s are equal in content and unequal in
-   identity. Nothing needs doing about it here — `master` disallows a
-   force push, and rewriting `dev` to match would need one — and the next
-   release's own rebase does not need it either: `git rebase` recognizes a
-   commit whose patch is already present upstream and drops it rather
-   than replaying it, which is what keeps a future "Rebase and merge" from
-   presenting this release's commits as new a second time.
+1. Realign `dev` onto `master`. "Rebase and merge" replayed `dev`'s
+   commits onto `master` with new SHAs, so `dev`'s old ones and
+   `master`'s are equal in content and unequal in identity — the two
+   branches hold the same tree through different histories, and their
+   merge base stops advancing right here. Left alone this is not the
+   cosmetic issue it looks like: a two-commit `dev`/`master` set up
+   exactly this way, tested by hand, made GitHub itself report the
+   *next* dev-to-master pull request as `CONFLICTING`, and
+   `gh pr merge --rebase` on it as `the merge commit cannot be cleanly
+   created`. GitHub's rebase-merge does not drop a commit whose patch is
+   already upstream the way a local `git rebase` does — it tries to
+   reapply it, and reapplying "add this file" or "add this line" where
+   it already exists is a conflict, not a no-op. Archive what is about
+   to become unreachable, then move the branch:
+
+   ```shell
+   git fetch origin
+   git tag -a history/dev-<version> dev -m "dev's own commits for <version>"
+   git push origin history/dev-<version>
+   git switch dev && git reset --hard origin/master
+   git push --force-with-lease origin dev
+   ```
+
+   the tag must not start with `v`, `release.yml` triggering on
+   `tags: ["v*"]`. Nothing in the working tree changes, the two trees
+   already being identical, and `git diff origin/master origin/dev` is
+   how to say so rather than assume it.
+
+   That last push can fail on its own: `dev`'s branch protection blocking
+   force pushes is not one of the rules "Include administrators" being
+   off exempts an administrator from — that toggle covers required
+   reviews, required status checks, required signatures and required
+   linear history, and blocking force pushes is a rule of its own that
+   GitHub applies to every push over the git protocol regardless of who
+   is pushing. This repository's own v2026.8.6 is where it was learned:
+   the maintainer's own push, run by hand as an administrator, came back
+   `remote: - Cannot force-push to this branch`. What worked was flipping
+   the setting itself, immediately before the push and immediately
+   after, reading its other fields back first so the PUT does not
+   silently drop them:
+
+   ```shell
+   branch=repos/btclib-org/btclib-bitcoin-core-rpc/branches/dev/protection
+   gh api "$branch" --jq \
+     '{required_status_checks, enforce_admins: .enforce_admins.enabled,
+       required_pull_request_reviews, restrictions,
+       required_linear_history: .required_linear_history.enabled,
+       allow_force_pushes: true, allow_deletions: .allow_deletions.enabled,
+       block_creations: .block_creations.enabled,
+       required_conversation_resolution:
+         .required_conversation_resolution.enabled,
+       lock_branch: .lock_branch.enabled,
+       allow_fork_syncing: .allow_fork_syncing.enabled}' \
+     | gh api -X PUT "$branch" --input -
+   ```
+
+   push, then set `allow_force_pushes` back to `false` through the same
+   PUT at once — the setting, not only this one push, is what stands open
+   in between.
+
+   Every branch still open against `dev` has had its base moved out from
+   under it, and reports the whole release as its own diff until it is
+   rebased:
+
+   ```shell
+   git rebase --onto origin/master <the old dev tip> <branch>
+   ```
+
+   this comes before the next step rather than after it: that step's
+   change is on `dev`, and the force update above would discard it.
 
 1. Add the new work-in-progress headings back to HISTORY.md and
    CHANGELOG.md on `dev`.
