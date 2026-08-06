@@ -256,7 +256,7 @@ def test_print_log_tail_prints_only_the_last_lines(
     lines = [f"line {n}" for n in range(smoke.LOG_TAIL_LINES + 5)]
     log.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    smoke.print_log_tail(datadir)
+    smoke.print_log_tail(datadir, smoke.DATADIR_SUBDIR)
 
     err = capsys.readouterr().err
     assert "line 4\n" not in err
@@ -268,7 +268,7 @@ def test_print_log_tail_is_silent_when_there_is_no_log(
     smoke: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """No debug.log at all prints nothing, rather than failing to read one."""
-    smoke.print_log_tail(tmp_path)
+    smoke.print_log_tail(tmp_path, smoke.DATADIR_SUBDIR)
     assert capsys.readouterr().err == ""
 
 
@@ -314,6 +314,88 @@ def test_main_rejects_an_unknown_protocol(
         smoke.main()
     assert excinfo.value.code == 2
     assert "--protocol" in capsys.readouterr().err
+
+
+def test_main_rejects_an_unknown_chain(
+    smoke: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """`--chain` only accepts a chain `CHAIN_RPC_PORT` names.
+
+    `mainnet` is the BIP network name and not Core's, which is exactly the
+    mismatch `--chain` exists to reject: a caller reaching for the wrong
+    vocabulary is not a chain this script knows how to start.
+    """
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "rpc_smoke.py",
+            "--bitcoind",
+            "/does/not/matter",
+            "--core-version",
+            "31.1",
+            "--chain",
+            "mainnet",
+        ],
+    )
+    with pytest.raises(SystemExit) as excinfo:
+        smoke.main()
+    assert excinfo.value.code == 2
+    assert "--chain" in capsys.readouterr().err
+
+
+def test_main_requires_a_mode(
+    smoke: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Neither `--protocol` nor `--chain` is a run asking nothing at all."""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "rpc_smoke.py",
+            "--bitcoind",
+            "/does/not/matter",
+            "--core-version",
+            "31.1",
+        ],
+    )
+    with pytest.raises(SystemExit) as excinfo:
+        smoke.main()
+    assert excinfo.value.code == 2
+    err = capsys.readouterr().err
+    assert "--protocol" in err
+    assert "--chain" in err
+
+
+def test_main_rejects_both_modes_at_once(
+    smoke: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """`--protocol` and `--chain` ask two different runs, never both."""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "rpc_smoke.py",
+            "--bitcoind",
+            "/does/not/matter",
+            "--core-version",
+            "31.1",
+            "--protocol",
+            "2.0",
+            "--chain",
+            "main",
+        ],
+    )
+    with pytest.raises(SystemExit) as excinfo:
+        smoke.main()
+    assert excinfo.value.code == 2
+    assert "not allowed with argument --protocol" in capsys.readouterr().err
 
 
 def test_the_main_guard_runs_the_script_as___main__(
