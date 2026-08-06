@@ -12,6 +12,13 @@ name: rpc-smoke
 # the chain answers against a regtest chain the script generates, so the
 # expected height is arithmetic rather than a recording.
 #
+# Four more cells ask a narrower question about the four chains regtest
+# is not: with none of them a chain this workflow can grow, `--chain`
+# starts a node of each with no peer reachable at all, and checks only that
+# Core still accepts `-chain=<name>` and echoes it back -- one Core version
+# rather than both, since that spelling has not moved across a supported
+# major yet.
+#
 # It gates a release rather than a commit: RELEASING.md dispatches it, and
 # CONTRIBUTING.md carries the local command.
 #
@@ -54,15 +61,21 @@ concurrency:
 
 jobs:
   rpc-smoke:
-    name: Smoke the rpc client against Core ${{ matrix.core }}
+    name: >-
+      ${{ matrix.protocol && format('Smoke the rpc client against Core {0}', matrix.core)
+          || format('Start Core {0} on {1} and check it answers', matrix.core, matrix.chain) }}
     runs-on: ubuntu-latest
     # a download, a node and a hundred blocks of regtest, all of it local:
-    # a run past this is a node that never opened its rpc port
+    # a run past this is a node that never opened its rpc port. The four
+    # chain-only cells need far less than that -- no chain grown on any of
+    # them -- and share the same ceiling rather than a second one to keep
+    # in step with it
     timeout-minutes: 20
     strategy:
-      # both cells always run: which versions answer which protocol is the
-      # question, so the answer for one of them is not a reason to stop
-      # asking about the other
+      # every cell always runs: which versions answer which protocol, and
+      # whether each of the other chains still starts, are independent
+      # questions, so the answer for one is not a reason to stop asking
+      # the rest
       fail-fast: false
       matrix:
         # x86_64 linux only, that being the architecture the digests below
@@ -88,12 +101,30 @@ jobs:
         # link and is not taken -- it would make this job hold the builder
         # keys and decide how many signatures are enough, which is a policy
         # this repository has nowhere to state
+        #
+        # The four `chain` cells below reuse the 31.1 digest rather than
+        # pinning their own: it is the same download, asked a different
+        # question, and regtest is not among them -- the two `protocol`
+        # cells already start it, on both versions, more thoroughly than a
+        # third start of it here ever would
         include:
           - core: "27.2"
             protocol: "1.1"
             digest: acc223af46c178064c132b235392476f66d486453ddbd6bca6f1f8411547da78
           - core: "31.1"
             protocol: "2.0"
+            digest: b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
+          - core: "31.1"
+            chain: main
+            digest: b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
+          - core: "31.1"
+            chain: test
+            digest: b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
+          - core: "31.1"
+            chain: testnet4
+            digest: b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
+          - core: "31.1"
+            chain: signet
             digest: b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
@@ -153,6 +184,7 @@ jobs:
       # else, so a stale lock fails here rather than resolving something
       # nobody chose
       - name: Smoke the rpc client against the node
+        if: matrix.protocol
         env:
           CORE: ${{ matrix.core }}
           PROTOCOL: ${{ matrix.protocol }}
@@ -162,3 +194,14 @@ jobs:
           --bitcoind "bitcoin-${CORE}/bin/bitcoind"
           --core-version "${CORE}"
           --protocol "${PROTOCOL}"
+      - name: Start the node on its chain and check it answers
+        if: matrix.chain
+        env:
+          CORE: ${{ matrix.core }}
+          CHAIN: ${{ matrix.chain }}
+        run: >
+          uv run --locked --no-default-groups
+          python .github/scripts/rpc_smoke.py
+          --bitcoind "bitcoin-${CORE}/bin/bitcoind"
+          --core-version "${CORE}"
+          --chain "${CHAIN}"

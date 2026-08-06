@@ -133,6 +133,17 @@ pins is that Core v27 answers JSON-RPC 1.1 and the current release answers
 2.0, and a node that stopped doing so has to fail this rather than be
 accommodated by it.
 
+`--chain` is the other mode, one node at a time and no chain generated on
+it: it starts a node of `main`, `test`, `testnet4` or `signet` with no peer
+reachable at all, and checks only that Core still accepts `-chain=<name>`
+and reports it back:
+
+```shell
+uv run --locked --no-default-groups \
+    python .github/scripts/rpc_smoke.py \
+    --bitcoind /path/to/bitcoind --core-version 31.1 --chain testnet4
+```
+
 ### The secrets baseline
 
 `detect-secrets` reads `.secrets.baseline` to decide which findings have

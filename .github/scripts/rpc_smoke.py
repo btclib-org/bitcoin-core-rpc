@@ -51,6 +51,13 @@ from the version number: what the matrix pins is the claim that v27
 answers 1.1 and the current release answers 2.0, and a node that stopped
 doing so has to fail this rather than be accommodated by it.
 
+`--chain` is the other mode: `main`, `test`, `testnet4` and `signet` are
+not chains this script can grow the way it grows regtest, so what it
+starts on one of them is a node with no peer reachable at all -- and the
+one thing left to check is that Core still accepts `-chain=<name>` for it
+and echoes the same name back in `getblockchaininfo`, at height 0, nothing
+downloaded.
+
 Run it against a node of your own with `--bitcoind`; CONTRIBUTING.md
 carries the command, and `.github/workflows/rpc-smoke.yml` the download
 that verifies which binary it is.
@@ -102,6 +109,25 @@ RPC_PORT = 18443
 # Core's layout is Core's layout, and a check reading the value under test
 # proves nothing
 DATADIR_SUBDIR = "regtest"
+
+# the four chains besides regtest that `_CORE_CHAIN_FROM_NETWORK` names,
+# each with its own port and datadir subdirectory here for the same reason
+# RPC_PORT and DATADIR_SUBDIR above are spelled out rather than imported:
+# with no chain to generate on any of them, what a live node can still
+# prove is that Core accepts `-chain=<name>` and that `getblockchaininfo`
+# echoes it back
+CHAIN_RPC_PORT = {
+    "main": 8332,
+    "test": 18332,
+    "testnet4": 48332,
+    "signet": 38332,
+}
+CHAIN_DATADIR_SUBDIR = {
+    "main": "",
+    "test": "testnet3",
+    "testnet4": "testnet4",
+    "signet": "signet",
+}
 
 # 100 blocks of coinbase maturity plus the one that is spendable after
 # them: the height at which exactly one subsidy has matured, so the
@@ -212,6 +238,44 @@ def node(
     # S603: the executable is a path this script was handed, and every
     # other word of the command line is a constant above; no shell is
     # involved, so nothing here is parsed as anything but arguments
+    process = subprocess.Popen(command)  # noqa: S603
+    try:
+        wait_for_rpc(client, process)
+        yield client
+    finally:
+        stop(client, process)
+
+
+@contextmanager
+def isolated_node(
+    bitcoind: Path, datadir: Path, chain: str
+) -> Iterator[BitcoinCoreRpcClient]:  # pragma: no cover
+    """Run a bitcoind of the named chain with no peer reachable, and stop it.
+
+    `-connect=0` so the node makes no automatic outbound connection at all,
+    and `-dnsseed=0` so it looks none up to make one with. Regtest needs
+    neither -- `node` above ships no seed of either kind for that chain --
+    but `main`, `test` and `signet` do, and without both flags the node this
+    starts would begin downloading the very chain this check exists to not
+    need.
+    """
+    port = CHAIN_RPC_PORT[chain]
+    if not port_is_free(port):
+        err_msg = f"something is already listening on {chain} rpc port {port}:"
+        err_msg += " this script talks to Core's default port on purpose, so stop it"
+        raise SmokeError(err_msg)
+    command = [
+        str(bitcoind),
+        f"-chain={chain}",
+        f"-datadir={datadir}",
+        "-connect=0",
+        "-dnsseed=0",
+        "-listen=0",
+        "-printtoconsole=0",
+    ]
+    client = BitcoinCoreRpcClient.from_chain(
+        chain, cookie_path=datadir / CHAIN_DATADIR_SUBDIR[chain] / ".cookie"
+    )
     process = subprocess.Popen(command)  # noqa: S603
     try:
         wait_for_rpc(client, process)
@@ -589,9 +653,28 @@ def smoke(
         check_chain_answers(client, height, tx_id, foreign_coinbase)
 
 
-def print_log_tail(datadir: Path) -> None:
+def smoke_chain(
+    bitcoind: Path, datadir: Path, core_version: str, chain: str
+) -> None:  # pragma: no cover
+    """Start a node of the named chain, with nothing to download, and check it.
+
+    `smoke` above proves the chain answers against blocks generated here,
+    the one thing regtest can grow with no download. This is the other four
+    chains `_CORE_CHAIN_FROM_NETWORK` names: with none of them a chain this
+    script can grow, what is left to check is that Core still accepts
+    `-chain=` for each of them and reports the same name back.
+    """
+    with isolated_node(bitcoind, datadir, chain) as client:
+        check_version(client, core_version)
+        check_cookie(datadir / CHAIN_DATADIR_SUBDIR[chain] / ".cookie")
+        info = client.call("getblockchaininfo")
+        check(info["chain"] == chain, f"the node reports its chain as {chain}")
+        check(info["blocks"] == 0, "no block beyond genesis: nothing was downloaded")
+
+
+def print_log_tail(datadir: Path, subdir: str) -> None:
     """Print the end of the node's own log, a failure being about the node."""
-    log = datadir / DATADIR_SUBDIR / "debug.log"
+    log = datadir / subdir / "debug.log"
     if not log.is_file():
         return
     print(f"\nthe last {LOG_TAIL_LINES} lines of {log}:", file=sys.stderr)
@@ -609,26 +692,41 @@ def main() -> int:
     parser.add_argument(
         "--core-version", required=True, help="the version it has to report, e.g. 27.2"
     )
-    parser.add_argument(
+    # exactly one of the two: `--protocol` runs the full check against a
+    # chain generated on regtest, `--chain` just starts a node of the named
+    # chain, with no chain to generate on it, and checks that it answers
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument(
         "--protocol",
-        required=True,
         choices=("1.1", "2.0"),
-        help="the json-rpc version that node answers",
+        help="the json-rpc version that node answers, on a chain generated here",
+    )
+    mode.add_argument(
+        "--chain",
+        choices=tuple(CHAIN_RPC_PORT),
+        help="just start a node of this chain and check it answers, no chain generated",
     )
     args = parser.parse_args()
     with TemporaryDirectory(
         prefix="bitcoin-core-rpc-smoke-"
     ) as tmp:  # pragma: no cover
         datadir = Path(tmp)
+        subdir = DATADIR_SUBDIR if args.protocol else CHAIN_DATADIR_SUBDIR[args.chain]
         try:
-            smoke(args.bitcoind, datadir, args.core_version, args.protocol)
+            if args.protocol:
+                smoke(args.bitcoind, datadir, args.core_version, args.protocol)
+            else:
+                smoke_chain(args.bitcoind, datadir, args.core_version, args.chain)
         except Exception:
-            print_log_tail(datadir)
+            print_log_tail(datadir, subdir)
             raise
-    print(  # pragma: no cover
-        f"\nCore {args.core_version} answered every check,"
-        f" over json-rpc {args.protocol}"
-    )
+    if args.protocol:  # pragma: no cover
+        print(
+            f"\nCore {args.core_version} answered every check,"
+            f" over json-rpc {args.protocol}"
+        )
+    else:
+        print(f"\nCore {args.core_version} started on {args.chain} and answered")
     return 0  # pragma: no cover
 
 
