@@ -87,9 +87,22 @@ It gates nothing automatically, which is why it is a step here.
    uv lock
    ```
 
-1. Merge `dev` into `master` with **"Rebase and merge"** — read the button,
-   GitHub offers whichever method was used last, and a squash there would
-   fold every landed change into one commit.
+1. Give the pull request that merges `dev` into `master` its title and its
+   body, before merging it and not after. The title is the version; the
+   body says what the release is — what moved, what did not, and which of
+   the two a user would notice. A rebase leaves no merge commit, so none
+   of that reaches `master`'s history: the pull request is where it stays,
+   and where a reader of any commit in it arrives. A template left
+   unfilled, or a bot's summary of the diff, is not a substitute — the
+   summary can stay, but what the diff cannot say has to be written.
+
+1. Merge `dev` into `master` with **"Rebase and merge"**, never *"Squash
+   and merge"* — read the button, GitHub offers whichever method was used
+   last, and a squash there would fold every landed change into one
+   commit, leaving `master` with one line where `dev` carried the
+   reasoning one decision at a time. That cannot be undone afterwards: a
+   tag on the squashed commit, and the attestations bound to it, outlive
+   any attempt to rewrite the history back.
 
 1. Tag `master` and push the tag:
 
