@@ -1,0 +1,53 @@
+---
+name: Feature request
+description: Add something to the client, or change how it works
+labels: [enhancement]
+
+body:
+  - type: markdown
+    attributes:
+      value: >
+        This is one source file with nothing but the standard library
+        behind it, and that is the constraint every request meets first:
+        an addition that needs a dependency, or a second module, is one
+        this project cannot take without ceasing to be what it is. What
+        belongs here is what the JSON-RPC exchange with a node needs.
+        What a *method* does belongs to
+        [bitcoin/bitcoin](https://github.com/bitcoin/bitcoin/issues).
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What is missing
+      description: >
+        What it would let a caller do, and how the call would read.
+    validations:
+      required: true
+
+  - type: input
+    id: reference
+    attributes:
+      label: Specification
+      description: >
+        The JSON-RPC section, RFC, or Bitcoin Core source that defines it.
+        What has no specification has nothing to check an implementation
+        against, which is the harder half of adding it.
+      placeholder: "JSON-RPC 2.0, https://www.jsonrpc.org/specification"
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it belongs here
+      description: >
+        What cannot be done today with what the module already exposes,
+        `transport` and `call` included.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: >
+        Other spellings of the same feature, and what an existing caller
+        would have to change if this were added.

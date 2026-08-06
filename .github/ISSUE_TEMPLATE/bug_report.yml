@@ -1,0 +1,81 @@
+---
+name: Bug report
+description: Something in the client does not work as documented
+labels: [bug]
+
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Not every failure reachable from this client is a bug in it: what
+        a node computes is the node's, and an rpc error carrying a code
+        belongs to
+        [bitcoin/bitcoin](https://github.com/bitcoin/bitcoin/issues) or to
+        the method's documentation. A `RpcError` is usually that; an
+        `HttpError`, a `FetchError` or a wrong result usually is not. If in
+        doubt, report it here.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: What you observed, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce it
+      description: >
+        The shortest Python that shows it, and the full traceback if there
+        is one. A `transport` that returns the reply the node sent is the
+        best form of it, since it reproduces without a node -- and it is
+        also how the credential stays out of the report. Never paste a
+        cookie line, an `rpcpassword` or an `Authorization` header.
+      render: python
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: >
+        `python -c "from importlib.metadata import version;
+        print(version('btclib-bitcoin-core-rpc'))"`, or the release tag the
+        copy was taken from if the file is vendored.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: core-version
+    attributes:
+      label: Bitcoin Core version
+      description: >
+        `bitcoind -version`, or the `subversion` member of
+        `getnetworkinfo`. Which protocol a node answers depends on it: v28
+        and later read the JSON-RPC 2.0 marker, and older ones reply 1.1 to
+        it.
+      placeholder: "v31.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: Platform and interpreter
+      description: >
+        `python -VV` and the operating system, architecture included.
+      placeholder: "CPython 3.13.5, macOS 15.6 arm64"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: >
+        The Core documentation the behaviour should follow, the version
+        this last worked on, anything between the client and the node.

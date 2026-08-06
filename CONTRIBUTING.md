@@ -1,0 +1,286 @@
+# Contributing to btclib-bitcoin-core-rpc
+
+Thank you for investing your time in contributing to this project.
+
+Read our [Code of Conduct](./CODE_OF_CONDUCT.md) to keep our community
+approachable and respectable.
+
+In this guide you will get an overview of the contribution workflow from
+opening an issue and creating a PR, to reviewing and merging it.
+
+## New contributor guide
+
+To get an overview of the project, read the [README](./README.md) and the
+docstring at the top of `bitcoin_core_rpc.py`, which is where the design
+and the reason behind every refusal are written down.
+
+Here are some resources to help you get started with open source
+contributions:
+
+- [Finding ways to contribute to open source on GitHub](https://docs.github.com/en/get-started/exploring-projects-on-github/finding-ways-to-contribute-to-open-source-on-github)
+- [Set up Git](https://docs.github.com/en/get-started/quickstart/set-up-git)
+- [GitHub flow](https://docs.github.com/en/get-started/quickstart/github-flow)
+- [Collaborating with pull requests](https://docs.github.com/en/github/collaborating-with-pull-requests)
+
+## Getting started
+
+uv is the only tool that must be installed; it fetches interpreters,
+linters and packaging tools itself.
+
+```shell
+uv sync                       # create the environment
+uv run pytest                 # the suite
+uv run pre-commit install     # so a commit runs the lint gate
+```
+
+The suite opens no socket and needs no node: every client in it is built
+with a `transport=` that answers from bytes committed under `tests/_data`.
+What a *live* node answers is a separate question, asked by the rpc-smoke
+workflow and by the command under [A live node](#a-live-node) below.
+
+### Reproducing what CI runs
+
+Each command below is the one a CI job runs, verbatim. Keep this section
+true when a workflow changes.
+
+`test.yml`, the `test-py` job — the suite, on one cell of the matrix:
+
+```shell
+uv run --locked --no-default-groups --group test pytest
+```
+
+`test.yml`, the `coverage-py` job — the same suite under the 100% ratchet,
+which a bare `pytest` does not enforce:
+
+```shell
+uv run --locked --no-default-groups --group test \
+    pytest --cov-report term-missing:skip-covered \
+    --cov=bitcoin_core_rpc --cov=tests
+```
+
+`test.yml`, the `dist-py` job — build the distribution files and check
+them:
+
+```shell
+uv build
+uv run --locked --only-group build twine check --strict dist/*
+uv run --locked --only-group build check-wheel-contents dist/*.whl
+uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
+```
+
+`lint.yml`, the `lint` job — this file *is* the lint gate, so there is no
+second list of tools anywhere:
+
+```shell
+uv run --locked --only-group lint pre-commit run --all-files
+```
+
+`lint.yml`, the `docs` job — and this one is worth running even when every
+hook passes, because no hook reads reStructuredText: a docstring docutils
+cannot parse fails the workflow while pre-commit is green.
+
+```shell
+uv run --locked --no-default-groups --group docs \
+    sphinx-build -W --keep-going -b html docs/source docs/build/html
+```
+
+Another interpreter, which is what the matrix varies. Prefix it with
+`UV_PROJECT_ENVIRONMENT`, or `uv run --python <version>` rebuilds `.venv`
+with the restricted group set and leaves pre-commit out of the environment
+its own git hook execs by absolute path:
+
+```shell
+UV_PROJECT_ENVIRONMENT=.venv-3.10 uv run --locked --no-default-groups \
+    --group test --python 3.10 pytest
+```
+
+### Mutation testing
+
+`mutation.yml` asks the question coverage cannot: a line the suite executes
+is not a line the suite checks. It gates nothing and runs weekly; the
+configuration is the single source of the scope and the test command.
+
+```shell
+uv run --locked --no-default-groups --group test --group mutation \
+    cosmic-ray baseline .github/mutation/bitcoin_core_rpc.toml
+uv run --locked --no-default-groups --group test --group mutation \
+    cosmic-ray init .github/mutation/bitcoin_core_rpc.toml rpc.sqlite
+uv run --locked --no-default-groups --group test --group mutation \
+    cr-filter-operators rpc.sqlite .github/mutation/bitcoin_core_rpc.toml
+uv run --locked --no-default-groups --group test --group mutation \
+    cosmic-ray exec .github/mutation/bitcoin_core_rpc.toml rpc.sqlite
+uv run --locked --no-default-groups --group test --group mutation \
+    cr-report --surviving-only --show-diff rpc.sqlite
+```
+
+The session writes each mutation into `bitcoin_core_rpc.py` and restores it
+afterwards, so nothing else may read the file while it runs.
+
+### A live node
+
+`rpc-smoke.yml` is the one claim the recorded replies cannot make. Against
+a `bitcoind` of your own — it runs on a regtest chain in a temporary
+datadir, on Core's own rpc port, and leaves nothing behind:
+
+```shell
+uv run --locked --no-default-groups \
+    python .github/scripts/rpc_smoke.py \
+    --bitcoind /path/to/bitcoind --core-version 31.1 --protocol 2.0
+```
+
+`--protocol` is asserted rather than derived: what the workflow's matrix
+pins is that Core v27 answers JSON-RPC 1.1 and the current release answers
+2.0, and a node that stopped doing so has to fail this rather than be
+accommodated by it.
+
+### The secrets baseline
+
+`detect-secrets` reads `.secrets.baseline` to decide which findings have
+already been reviewed, and which plugins run at all. Adding a credential
+shaped literal to the tests means regenerating it:
+
+```shell
+uv run --locked --only-group lint pre-commit run detect-secrets --all-files
+uvx detect-secrets scan --baseline .secrets.baseline
+```
+
+Read the diff before committing it: a new entry is a finding somebody has
+to have looked at, which is the whole point of a baseline over an
+exclusion.
+
+## Issues
+
+### Create a new issue
+
+If you spot a problem, [search if an issue already
+exists](https://docs.github.com/en/github/searching-for-information-on-github/searching-on-github/searching-issues-and-pull-requests#search-by-the-title-body-or-comments).
+If a related issue does not exist, open a new one using the relevant form.
+
+What a *method* does is Bitcoin Core's, not this client's: an `RpcError`
+carrying a code is usually a question for the method's documentation.
+
+### Solve an issue
+
+Scan through our [existing
+issues](https://github.com/btclib-org/btclib-bitcoin-core-rpc/issues) to
+find one that interests you.
+
+## Make Changes
+
+Work locally on your fork until you are satisfied. Ensure that pre-commit
+and pytest have no issue with your modified codebase.
+
+### The one constraint
+
+**This is one source file with nothing but the standard library behind
+it**, and it stays that way. A dependency here is a dependency a vendored
+copy silently does not have, and a second module is a second file to copy;
+`tests/standalone_test.py` is what fails when either happens — it reads the
+imports of the source, and it runs a copy of it under `python -I -S`, where
+no site package is reachable.
+
+`__all__` is the public surface. A name is public because that list says
+so, not because it happens to lack a leading underscore.
+
+### Documentation and comments
+
+What "satisfied" means for the prose — docstrings, comments, the sphinx
+pages, a pull request reply — is written down here, because a hook can
+check that a docstring exists but not what it says.
+
+**Tone of voice: neutral, factual, dry.** The same register everywhere: no
+wit, no salesmanship, no emphasis where the fact is enough. Explanatory
+detail is wanted; decoration is not.
+
+**A docstring states the contract.** What the function takes, what it
+returns or raises, and the rule the behaviour comes from — not a
+restatement of the name. Most readers of a docstring here are new to the
+project: write for them.
+
+**A comment carries the reasoning, including the negative result.** Say why
+the code is as it is and why *not* the obvious alternative — the second
+half is what stops the next reader from "fixing" a deliberate choice, and
+it is what makes a file reviewable rather than merely readable.
+
+**Cite the authority.** Where behaviour comes from an RFC, the JSON-RPC
+specification or a Bitcoin Core function, name it, rather than asserting
+the behaviour as if this project had decided it. Where this project
+deviates, say so and say why.
+
+**Measure, don't assert.** A number in prose comes from a command, and the
+command belongs beside it, so the next reader can re-measure instead of
+trusting a figure whose date they cannot see. Never state a count that
+nothing checks — an unchecked number drifts into a false claim — and never
+state how many of anything a file holds: a stated total is a line every
+open branch has to edit, and two branches moving it to the same wrong
+number merge without a conflict.
+
+**One fact in one place.** Two files stating the same thing become two
+files disagreeing about it; the second one points at the first.
+
+**No history in the prose.** Comments and docstrings say why the code is as
+it is, in the present tense; they do not tell the story of what it used to
+be. "This is here rather than X because X breaks Y" stays, whatever
+prompted it; "this used to be X, until Z" goes — unless the old spelling is
+something a caller can still encounter (a deprecated alias, a wire format),
+in which case it is not history but the present. History has two files of
+its own, [CHANGELOG.md](./CHANGELOG.md) and [HISTORY.md](./HISTORY.md), and
+it is complete there.
+
+**Markdown wraps at 80 columns**, tables included, so long commands go in
+fenced blocks split with `\`.
+
+## Commit your update
+
+Commit the changes to your fork once you are happy with them.
+
+## Pull Request
+
+When you're finished with the changes, create a pull request (PR).
+
+- Don't forget to
+  [link PR to issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue)
+  if you are solving one.
+- Enable the checkbox to
+  [allow maintainer edits](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/allowing-changes-to-a-pull-request-branch-created-from-a-fork)
+  so the branch can be updated for a merge.
+- We may ask for changes to be made before a PR can be merged, either using
+  [suggested changes](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/incorporating-feedback-in-your-pull-request)
+  or pull request comments.
+- As you update your PR and apply changes, mark each conversation as
+  [resolved](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/commenting-on-a-pull-request#resolving-conversations).
+
+**A correction is a commit of its own, never an amend.** Once a branch is
+pushed and under review, `git commit --amend` and a force-push replace the
+commits the review is attached to: the reviewer loses the diff they read,
+"changes since your last review" has nothing to compare against, and every
+check starts again from a commit nobody has seen. Add the fix on top, with
+a message saying what it fixes, and reply to the comment with the sha.
+
+Nothing is lost in `dev`'s history by doing so, because **a pull request
+into `dev` is merged with "Squash and merge"**: the branch becomes one
+commit whose subject is the PR title with its number, so the review's
+commits are the record of the review and `dev` keeps one commit per landed
+change.
+
+**The pull request that takes `dev` into `master` is merged with "Rebase
+and merge"**. Read the button before clicking it: all three methods are
+enabled on the repository, and GitHub offers whichever was used last. A
+squash there would fold every change `dev` has landed since the previous
+merge into a single commit, and that history would then be on `dev` alone.
+
+The one force-push that stays right is the one that carries no new work: a
+`git rebase origin/dev` on a branch whose base has moved, which is how a
+stale pull request is refreshed. Re-run the gates after it, never only
+before it, and say in the pull request that the head moved and why.
+
+Work happens on `dev`; `master` is the default branch and receives merges
+from it. Dependabot and pre-commit.ci both target `dev`.
+[RELEASING.md](./RELEASING.md) is what happens after that.
+
+## Your PR is merged
+
+Congratulations :tada::tada:
+
+Once your PR is merged, your contributions will be publicly visible on the
+[contributors page](https://github.com/btclib-org/btclib-bitcoin-core-rpc/graphs/contributors).

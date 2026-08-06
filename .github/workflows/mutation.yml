@@ -1,0 +1,146 @@
+---
+name: mutation
+
+# Coverage answers "was this line executed"; this answers "would the suite
+# notice if it were wrong". The gap is not theoretical -- a tree at 100%
+# statement coverage can still have a boundary nothing checks -- and a
+# surviving mutant names one line of it at a time.
+#
+# It gates nothing, and that is the design rather than a caution. A gate
+# needs a number nobody has measured yet, and a survival rate is not a
+# regression: a mutant survives because a test is missing, so a red merge
+# would block whoever next touched the file for a hole somebody else left.
+# It therefore does not appear in master's required checks, and must not --
+# that rule lives outside the repository and names its checks as literal
+# strings.
+#
+# What runs here is what .github/mutation/bitcoin_core_rpc.toml says, which
+# is what CONTRIBUTING.md documents for a local run: one scope and one test
+# command, not a second copy of them in yaml.
+
+on:
+  schedule:
+    # Sundays, 03:41 UTC. Not on the hour: GitHub queues scheduled
+    # workflows across every repository that asked for the same minute, and
+    # the run can be dropped outright when the queue is long.
+    # Cron runs from the default branch only, so this file gates nothing
+    # until it reaches master -- on dev it is reachable through the
+    # dispatch button below and nowhere else
+    - cron: "41 3 * * 0"
+  # the escape hatch, and the way to ask for these numbers now
+  workflow_dispatch:
+  # No pull_request trigger, unlike links.yml, which does run itself when
+  # its own configuration changes. What that trigger would have caught is
+  # caught cheaply elsewhere -- check-toml parses this file on every commit,
+  # and `cosmic-ray baseline` below fails the run before any mutant if the
+  # test command has gone stale
+
+# least privilege for the GITHUB_TOKEN: everything running in a job can
+# read it, and nothing here writes. In particular no issues: write --
+# filing an issue per survivor is the obvious next step and the wrong one,
+# a survivor being a test to write rather than a defect to track
+permissions:
+  contents: read
+
+# cancel superseded runs. Named literally rather than through
+# github.workflow, as everywhere else here: in a called workflow that
+# expression is the caller's name.
+# cancel-in-progress because a dispatch is how somebody asks for these
+# numbers now, and waiting behind the scheduled run would be the opposite
+# of an escape hatch
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutation:
+    name: Mutate the rpc client
+    runs-on: ubuntu-latest
+    # the session is minutes, and the ceiling is an order of magnitude over
+    # it: a job that reaches this has hung somewhere other than in the
+    # session, which is cut on its own by the `timeout` below
+    timeout-minutes: 45
+    steps:
+      # every action is pinned to a commit SHA, the tag in the comment: a
+      # tag, let alone a branch, is a name its owner can move
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # see the checkout of the test-py job in test.yml
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          # the wheels uv.lock pins do not change between runs, so the
+          # cache is the difference between a download and a copy
+          enable-cache: true
+      # the test command of the configuration, run once against the
+      # unmutated tree. Without this a stale path or a renamed test file
+      # fails every mutant identically, and the session reports a perfect
+      # kill rate -- the one failure mode of a mutation run that looks like
+      # good news
+      - name: Check the baseline
+        run: >
+          uv run --locked --no-default-groups --group test --group mutation
+          cosmic-ray baseline .github/mutation/bitcoin_core_rpc.toml
+      # init enumerates the mutants, the filter marks as skipped whatever
+      # the configuration excludes by operator, and exec runs the rest, one
+      # at a time, in this working tree: the local distributor writes each
+      # mutation into the file itself and restores it afterwards, so
+      # nothing else may read the source while it does.
+      #
+      # `timeout` and not the job's timeout-minutes, which would cancel the
+      # job and take the reports and the artifact with it: what is wanted
+      # is the numbers for the mutants that did run. 124 is what timeout
+      # exits with when it cuts the session, and a session is resumable --
+      # `cosmic-ray exec` runs the jobs still pending -- so a partial run
+      # is a partial answer rather than a lost one
+      - name: Run the mutation session
+        run: |
+          uv run --locked --no-default-groups --group test --group mutation \
+            cosmic-ray init .github/mutation/bitcoin_core_rpc.toml rpc.sqlite
+          uv run --locked --no-default-groups --group test --group mutation \
+            cr-filter-operators rpc.sqlite .github/mutation/bitcoin_core_rpc.toml
+          status=0
+          timeout 30m \
+            uv run --locked --no-default-groups --group test --group mutation \
+            cosmic-ray exec .github/mutation/bitcoin_core_rpc.toml rpc.sqlite \
+            || status=$?
+          if [ "$status" -ne 0 ] && [ "$status" -ne 124 ]; then
+            exit "$status"
+          fi
+          if [ "$status" -eq 124 ]; then
+            echo "::notice::the session was cut at 30m, see the report"
+          fi
+      # always(), because the reports are the whole product: a session cut
+      # short, or one whose exec died, still holds every verdict reached
+      # before that, and those are what somebody reads on Monday
+      - name: Write the reports
+        if: always()
+        run: |
+          [ -f rpc.sqlite ] || exit 0
+          # --surviving-only with the diff, which is the whole of what
+          # anybody acts on: a killed mutant is the suite working, and
+          # printing every one of them would bury the handful that are not.
+          # Not --show-output, which is the pytest run of every mutant,
+          # megabytes of it; the html below has the full picture
+          uv run --locked --no-default-groups --group test --group mutation \
+            cr-report --surviving-only --show-diff rpc.sqlite > rpc-survivors.txt
+          uv run --locked --no-default-groups --group test --group mutation \
+            cr-html rpc.sqlite > rpc-report.html
+      # the session as well as the reports: a .sqlite is what `cr-report`
+      # and `cr-html` are re-run against, and what a later `cosmic-ray exec`
+      # resumes
+      - name: Upload the session and the reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mutation-rpc-session
+          path: |
+            rpc.sqlite
+            rpc-survivors.txt
+            rpc-report.html
+          if-no-files-found: error
+          # long enough to compare a run with the one before it, short
+          # enough that a weekly job does not accumulate a year of sqlite
+          retention-days: 90

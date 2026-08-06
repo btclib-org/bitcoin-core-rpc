@@ -1,0 +1,53 @@
+# The whole of this project, mutated: one module, whose boundaries are a
+# protocol's rather than a format's.
+
+[cosmic-ray]
+module-path = "bitcoin_core_rpc.py"
+
+# Measured on the checkout that introduced this profile: 713 mutants
+# enumerate, the annotation filter below skips 187, and the 526 that run take
+# under two minutes of wall clock -- which is what the wide budget in
+# mutation.yml is for, a runner being slower than that machine but not by an
+# order of magnitude. The suite kills 519.
+#
+# The seven survivors are equivalent: four bitwise replacements whose constant
+# operands have disjoint bits (`+ 1024` and `+ 1` becoming `|` and `^`), two
+# identity comparisons standing in for equality between booleans, and
+# `remaining > 0` against `remaining != 0` for a bounded read that cannot make
+# it negative. None of them is a test to write.
+
+# The client tests judge JSON-RPC construction and validation, credentials,
+# cookies and per-call bounds. The transport tests judge the default urllib
+# implementation and the custom-transport seam. The standalone tests run a copy
+# of this file under `python -I -S`, which is the contract that distinguishes
+# it from an ordinary module.
+#
+# -n0 avoids paying xdist startup once per mutant; -p no:randomly keeps the
+# first killing test and therefore the runtime reproducible. Coverage is
+# deliberately absent: a mutant that removes a statement makes the ratchet fail
+# for a reason that has nothing to do with whether the suite noticed the
+# mutation, and every such run would then be recorded as a kill.
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/transport_test.py tests/bitcoin_core_rpc_test.py \
+  tests/standalone_test.py"""
+
+# The unmutated command is well under a second on the measured checkout. The
+# per-mutant ceiling is wide even so: a timeout is reported as KILLED by Cosmic
+# Ray, so a tight bound turns runner load into a false kill, and this scope
+# includes response-reading loops whose bounds are among the expressions being
+# mutated.
+timeout = 300
+
+excluded-modules = []
+
+# Every `|` in this module is part of an annotation, and the file imports
+# `annotations` from __future__: all of them are stored rather than evaluated.
+# Cosmic Ray gives each one eleven binary-operator replacements, which is a
+# large block of mutants no execution can distinguish. Keep them out of the
+# actionable report; the workflow applies this filter after init, as documented
+# in mutation.yml.
+[cosmic-ray.filters.operators-filter]
+exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
+
+[cosmic-ray.distributor]
+name = "local"

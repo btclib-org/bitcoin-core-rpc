@@ -1,0 +1,373 @@
+---
+name: release
+
+# one pipeline, two targets:
+# - pushing a v<version> tag runs the full test matrix, builds and
+#   checks the distribution files, publishes them to PyPI, and turns
+#   the tag into a GitHub release whose notes come from HISTORY.md
+# - workflow_dispatch is the rehearsal: the same pipeline from any
+#   branch, publishing to TestPyPI under a unique .dev<N> version.
+#   A rehearsal is never tagged
+# Both indices trust this workflow directly (PyPI Trusted Publishing,
+# see RELEASING.md): there is no API token to store or leak
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # what a version cannot survive being wrong about, checked before
+  # anything is built and long before anything is uploaded: a version is
+  # consumed by the upload that carries it, and can then only be yanked.
+  # A minute of checking, ahead of an hour of building.
+  # The rehearsal runs this too, so a mismatch cannot wait for release day
+  # to surface; only the tag comparison is release-only, there being no
+  # tag to compare against otherwise
+  version-check:
+    name: Check the declared versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # every action is pinned to a commit SHA, the tag in the comment: a
+      # tag, let alone a branch, is a name its owner can move, and these
+      # run in a job that can read the workflow token. It matters most in
+      # this workflow, where a job holds an OIDC token PyPI accepts
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # see the checkout of the test-py job in test.yml
+          persist-credentials: false
+      # caching off in this workflow, unlike every other: a cache entry is
+      # written by whichever run populated it, and read here through the
+      # scoping that gives a tag push the caches of the default branch. This
+      # is the workflow that builds what gets uploaded and whose jobs hold
+      # an OIDC token PyPI accepts, so it downloads its dependencies afresh
+      # every time. It costs seconds, once per release.
+      # Spelled out rather than left off: the input defaults to "auto",
+      # which means enabled on a GitHub-hosted runner
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: false
+      # every other uv command in these workflows passes --locked, which
+      # asserts the same thing, so this is the named early gate rather
+      # than the only one. --locked and not --frozen, there and here:
+      # --frozen takes uv.lock as it finds it and never checks it, so a
+      # dependency added to pyproject.toml without a re-lock goes
+      # unnoticed while nothing installs it
+      - name: Check that uv.lock is up to date
+        run: uv lock --check
+      # one comparison: pyproject.toml is the only place the version is
+      # declared -- docs/source/conf.py reads it from the file, and the
+      # module carries no version constant at all -- so there is no second
+      # declaration to disagree with. uv.lock carries the project version
+      # too, which is what the check above covers
+      - name: Check that the tag matches the declared version (release only)
+        if: github.event_name == 'push'
+        run: |
+          version=$(uv version --short)
+          echo "pyproject.toml declares $version"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match the declared version $version"
+            exit 1
+          fi
+          # the trigger decides the index, so a tagged pre-release goes to
+          # PyPI itself: a v0.2rc1 tag on a tree declaring 0.2rc1
+          # passes the comparison above and burns a version that a --pre
+          # install would then resolve. RELEASING.md sends a trial run to
+          # TestPyPI through workflow_dispatch and says never to tag one;
+          # this is the check for it. Digits and dots only, and nothing
+          # PEP 440 reads as a pre-release, a dev build or a post release
+          if ! echo "$version" | grep -Eq '^[0-9]+(\.[0-9]+)*$'; then
+            msg="rehearse on TestPyPI via workflow_dispatch instead"
+            echo "::error::$version is not a final version; $msg"
+            exit 1
+          fi
+      # the release notes are HISTORY.md's section for the tag, lifted by
+      # the github-release job below, and its fallback fires only on an
+      # *empty* section: "## v2026.8 (work in progress, not released yet)"
+      # matches that job's heading regex, the tag being followed by a
+      # space, so a forgotten retitle publishes the work-in-progress text
+      # as the release notes, silently. This is the check for it, and it
+      # belongs here rather than in github-release because that job runs
+      # after PyPI has accepted the files, and a version cannot be
+      # unpublished.
+      # CHANGELOG.md is checked too: RELEASING.md retitles the two
+      # together, HISTORY.md's section points at CHANGELOG.md's for the
+      # detail, and a heading left as "work in progress" makes that a link
+      # into nothing.
+      # Release-only, like the comparison above, and for the same reason:
+      # a rehearsal is what runs *before* the retitle, so requiring it
+      # there would forbid the dry run it exists to be.
+      # String comparison rather than a regex, so that the dots of the
+      # version match dots and not any character, and awk rather than
+      # grep, one pass answering all three questions
+      - name: Check that the release notes are retitled for the tag (release only)
+        if: github.event_name == 'push'
+        run: |
+          version=$(uv version --short)
+          for file in HISTORY.md CHANGELOG.md; do
+            awk -v tag="v$version" -v file="$file" '
+              $0 == "## " tag {heading = NR; next}
+              index($0, "## " tag " ") == 1 {heading = NR; extra = $0; next}
+              /^## / && heading {exit}
+              heading && NF {body = 1}
+              END {
+                if (!heading) {
+                  printf "::error::%s has no \"## %s\" section\n", file, tag
+                  exit 1
+                }
+                if (extra) {
+                  printf "::error::%s:%d is \"%s\"; the heading must be \"## %s\" alone\n",
+                    file, heading, extra, tag
+                  exit 1
+                }
+                if (!body) {
+                  printf "::error::%s section \"## %s\" is empty\n", file, tag
+                  exit 1
+                }
+                printf "%s has a non-empty \"## %s\" section\n", file, tag
+              }
+            ' "$file"
+          done
+
+  # the whole build/test matrix, exactly as a pull request runs it
+  test:
+    needs: version-check
+    uses: ./.github/workflows/test.yml
+
+  # and the same checks a pull request lints with: without this, a tag
+  # push could publish code the pre-commit hooks reject. Not gated on
+  # version-check: this is the cheap one, and it runs in parallel with it
+  lint:
+    uses: ./.github/workflows/lint.yml
+
+  build:
+    needs: version-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # caching off, for the reason given in the version-check job: this is
+      # the job whose output is published
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: false
+      # TestPyPI refuses a version it has already seen: the rehearsal
+      # appends .dev<run number>, unique per dispatch and sorted before
+      # the release it rehearses (PEP 440). Re-running a finished
+      # rehearsal would reuse its run number and collide on TestPyPI:
+      # dispatch a fresh run instead
+      - name: Make the version unique for TestPyPI (rehearsal only)
+        if: github.event_name == 'workflow_dispatch'
+        # Python and tomllib, not sed: the value is parsed and only then
+        # located in the text, because a regex for a version key on its own
+        # line would find whichever table came first. The assignment is
+        # rewritten whole, which leaves its spelling as the file had it.
+        # The interpreter comes from uv, --no-project so that nothing is
+        # installed and no lock is consulted: this job sets up no Python of
+        # its own, and tomllib needs 3.11. 3.14 is what .python-version
+        # pins, so this asks for a version uv has already fetched for the
+        # other jobs rather than a second one
+        run: |
+          uv run --no-project --python 3.14 python - <<'PY'
+          import os
+          import re
+          import tomllib
+          from pathlib import Path
+
+          path = Path("pyproject.toml")
+          text = path.read_text(encoding="utf-8")
+          declared = tomllib.loads(text)["project"]["version"]
+          match = re.search(rf'(?m)^version\s*=\s*"{re.escape(declared)}"\s*$', text)
+          if match is None:
+              msg = f"pyproject.toml declares {declared}, which is not a literal in it"
+              raise SystemExit(msg)
+          suffixed = declared + ".dev" + os.environ["GITHUB_RUN_NUMBER"]
+          line = match.group().replace(declared, suffixed, 1)
+          path.write_text(text[: match.start()] + line + text[match.end() :], encoding="utf-8")
+          PY
+          grep -m1 '^version' pyproject.toml
+          # uv.lock carries the project version, so patching pyproject.toml
+          # leaves the two disagreeing, and every uv command that passes
+          # --locked -- which is all of them, by convention -- then fails
+          # with "the lockfile needs to be updated". Measured: without this
+          # re-lock, "uv run --locked --only-group build" on a patched tree
+          # exits non-zero. Nothing after this step in this job happens to
+          # pass --locked today, so the rehearsal works by the arrangement
+          # of the jobs rather than by construction, and moving a packaging
+          # check back in here would break it silently -- silently
+          # because the rehearsal runs by hand, rarely.
+          # The re-lock is also what makes the sdist coherent: it ships
+          # uv.lock, which otherwise declared the unsuffixed version inside
+          # a distribution named for the suffixed one
+          uv lock
+      # one thing the rehearsal does not cover, deliberately: dist-py, in
+      # the workflow this one calls, validates the tree as committed, while
+      # this job ships the suffixed version, so twine and pyroma never see
+      # the metadata that reaches TestPyPI. What they judge is metadata
+      # syntax, README rendering and metadata quality, and a .dev<N> suffix
+      # is valid PEP 440 that changes none of them. The smoke test below is
+      # the exception, and the reason it is below rather than left to
+      # dist-py: it installs the suffixed wheel itself. Should a packaging
+      # check ever become version-sensitive, the suffix has to be plumbed
+      # into test.yml as a workflow_call input instead
+      # uv build builds the sdist first and then the wheel from it, not
+      # both from the source tree: the packaging path a user installing
+      # from source takes is therefore the one that produced the wheel,
+      # which is why no separate "install from the sdist" job is needed.
+      # What this job does not do is inspect what it builds: twine,
+      # check-wheel-contents and pyroma run in the dist-py job of the
+      # test workflow, which this workflow calls, so they gate every
+      # pull request as well as this one tag. check-manifest is a
+      # pre-commit hook, gated by the lint workflow, which this one calls
+      # too
+      - name: Build the distribution files
+        run: uv build
+      # before anything is installed, and that ordering is the point: the
+      # step below runs third-party code -- a `.pth` file in a dependency
+      # executes at interpreter startup, before the first import -- while
+      # dist/ is a writable directory on the same runner. Uploading first
+      # freezes what the publish jobs will download, so the worst a
+      # compromised dependency can do here is fail the job, which stops
+      # them: both name this one in `needs`
+      - name: Upload the distribution files
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
+      # dist-py installs a wheel too, but not this one: it builds its own
+      # copy, on another runner and -- in a rehearsal -- from another
+      # version, the step above having patched pyproject.toml and
+      # re-locked. What reaches an index is this artifact, so this one is
+      # imported, from an empty directory so the import resolves to the
+      # wheel and not to bitcoin_core_rpc.py in the source tree.
+      # The assertions are dist-py's, and there for the same reasons: a
+      # wheel can ship no metadata, an import proves only that the module
+      # parses, and `Requires-Dist` is the one line that says whether this
+      # is still a distribution with nothing behind it
+      - name: Smoke-test the wheel, installed on its own
+        run: |
+          cd "$RUNNER_TEMP"
+          uv run --isolated --no-project --with "$GITHUB_WORKSPACE"/dist/*.whl \
+            python -c "
+          from decimal import Decimal
+          from importlib.metadata import requires, version
+          import json
+          import bitcoin_core_rpc as rpc
+
+          name = 'btclib-bitcoin-core-rpc'
+          print(version(name))
+          assert not requires(name), requires(name)
+          def transport(request, timeout):
+              request_id = json.loads(request.data)['id']
+              body = {'jsonrpc': '2.0', 'id': request_id, 'result': 1.25}
+              return 200, json.dumps(body).encode()
+          client = rpc.BitcoinCoreRpcClient(
+              'http://127.0.0.1:8332', user='u', password='p', transport=transport
+          )
+          assert client.call('getbalance') == Decimal('1.25')
+          "
+
+  publish-testpypi:
+    needs: [test, lint, build]
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.repository == 'btclib-org/btclib-bitcoin-core-rpc'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/btclib-bitcoin-core-rpc/
+    permissions:
+      # OIDC: this is what lets TestPyPI trust the workflow itself
+      id-token: write
+    steps:
+      - name: Download the distribution files
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      # generates PEP 740 attestations by default
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    needs: [test, lint, build]
+    if: >-
+      github.event_name == 'push' &&
+      github.repository == 'btclib-org/btclib-bitcoin-core-rpc'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # deployment gate: configure required reviewers on the "pypi"
+    # environment to require a manual approval before publishing
+    environment:
+      name: pypi
+      url: https://pypi.org/project/btclib-bitcoin-core-rpc/
+    permissions:
+      # OIDC: this is what lets PyPI trust the workflow itself
+      id-token: write
+    steps:
+      - name: Download the distribution files
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      # generates PEP 740 attestations by default
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+
+  # only after PyPI has accepted the files: a GitHub release announces
+  # what users can already install
+  github-release:
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # the one job that writes to the repository, and what it writes is a
+      # release
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download the distribution files
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # the release notes are the tag's own section of HISTORY.md;
+        # if the section is missing the release still happens, with
+        # notes generated from the merged pull requests instead.
+        # The fallback is the safety net for a tag pushed past a red
+        # version-check, not the check itself: version-check has already
+        # refused a tag whose HISTORY.md heading carries anything after
+        # the version -- "(work in progress, not released yet)" matches
+        # the regex below and is not empty, so nothing here would notice
+        run: |
+          awk -v tag="$GITHUB_REF_NAME" '
+            $0 ~ "^## " tag "( |$)" {found=1; next}
+            /^## / && found {exit}
+            found {print}
+          ' HISTORY.md > "$RUNNER_TEMP/notes.md"
+          if [ -s "$RUNNER_TEMP/notes.md" ]; then
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            echo "::warning::HISTORY.md has no $GITHUB_REF_NAME section"
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --title "$GITHUB_REF_NAME" --generate-notes
+          fi

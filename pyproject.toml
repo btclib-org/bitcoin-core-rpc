@@ -1,0 +1,434 @@
+[build-system]
+# 77 is the floor for the PEP 639 metadata below, and for both halves of
+# it at once: the SPDX string form of `project.license` and
+# `project.license-files` arrived in setuptools 77.0.0, which is the
+# version the deprecation warning for the old table form names. An
+# isolated build resolving anything older fails on the syntax rather than
+# ignoring it, which is what the bound is for
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "btclib-bitcoin-core-rpc"
+# the one place the version is declared: docs/source/conf.py parses this
+# file rather than the installed metadata, which would need the package
+# installed to build the documentation. There is no `__version__` in the
+# module either, and that is the same decision the module's docstring
+# states for a vendored copy -- the release tag is the version, and a
+# number inside a file that gets copied is a second one that drifts
+version = "0.1.0"
+description = "A standalone JSON-RPC client against Bitcoin Core"
+readme = "README.md"
+# PEP 639: an SPDX expression, which becomes the `License-Expression`
+# metadata field, and the files it is carried by. The TOML-table form
+# setuptools deprecates wrote a free-text `License:` field instead, and
+# there is no license classifier below for the same reason -- one
+# machine-readable statement rather than three spellings of it.
+#
+# AUTHORS.md is named beside LICENSE rather than dropped: setuptools'
+# default globs match both, so both are in `dist-info/licenses/` today, and
+# the MIT notice this repository carries names "Ferdinando M. Ametrano and
+# btclib contributors" -- AUTHORS.md being where that list is kept
+license = "MIT"
+license-files = ["LICENSE", "AUTHORS.md"]
+authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
+# 3.10 rather than 3.9, and the usual reason -- a split lock file -- is not
+# this project's, which resolves no runtime dependency at all. What decides
+# it is the type checker: 3.10 is the oldest mypy can be aimed at ("Python
+# 3.9 is not supported (must be 3.10 or higher)"), so a floor below it
+# would be a floor nothing static ever checks, on a package whose whole
+# surface is annotations a caller type checks against. 3.9 is also
+# end-of-life since 2025-10
+requires-python = ">=3.10"
+# none, and that is the product rather than an omission: the module imports
+# `json`, `base64`, `decimal`, `pathlib`, `secrets` and `urllib.request`,
+# all of them standard library, which is what lets it be installed as a
+# package or copied as one file. A dependency added here is a dependency a
+# vendored copy silently does not have, so the empty list is a contract
+dependencies = []
+keywords = [
+    "bitcoin",
+    "bitcoin-core",
+    "bitcoind",
+    "json-rpc",
+    "rpc",
+    "rpc-client",
+]
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Topic :: Internet",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+# no "Typing :: Typed", and it is not an oversight: the source is annotated
+# throughout and mypy runs over it in strict mode here, but PEP 561's
+# marker is a `py.typed` file *inside a package directory*, and this
+# distribution is a top-level module with no directory to put one in.
+# Measured rather than assumed, against the built wheel: a consumer running
+# `mypy --strict` gets "module is installed, but missing library stubs or
+# py.typed marker" and `Any` for every name, and a `py.typed` dropped
+# beside the module at the root of site-packages changes nothing -- mypy
+# looks for it under `<module>/`, which is not a directory here.
+#
+# The two ways out are both worse than the claim is worth. A
+# `bitcoin_core_rpc-stubs` distribution does work (measured: the same
+# consumer then type checks) and is a hand-written second copy of the whole
+# interface, which drifts from the source the first time either moves. A
+# package directory would fix it outright, at the cost of the file being
+# named `__init__.py` -- and the file being copyable under its own name is
+# what this project is.
+#
+# A caller who wants the annotations has them: `mypy --follow-untyped-imports`
+# reads them off the installed source
+
+[project.urls]
+Homepage = "https://btclib.org"
+Download = "https://github.com/btclib-org/btclib-bitcoin-core-rpc/releases"
+Documentation = "https://btclib-bitcoin-core-rpc.readthedocs.io/"
+GitHub = "https://github.com/btclib-org/btclib-bitcoin-core-rpc"
+Issues = "https://github.com/btclib-org/btclib-bitcoin-core-rpc/issues"
+"Pull Requests" = "https://github.com/btclib-org/btclib-bitcoin-core-rpc/pulls"
+
+[dependency-groups]
+# what it takes to develop, build and test this package. hypothesis is
+# absent, unlike in a codec library where the malformed input nobody wrote
+# down is the point: what this module refuses is a shape -- a mapping keyed
+# by an int, a body that is not utf-8, a status -- and the shapes are
+# enumerable, which is what the parametrized cases below `tests/` are
+test = [
+    "coverage",
+    "pytest",
+    "pytest-cov",
+    "pytest-randomly",
+    "pytest-xdist",
+]
+lint = ["mypy", "pre-commit", "ruff"]
+# mutation testing, which asks the question coverage cannot: a line the
+# suite executes is not a line the suite checks. Its own group and not part
+# of test, because every cell of the matrix installs that one and none of
+# them runs this -- the scheduled mutation workflow is the only consumer,
+# and it asks for --group test as well, cosmic-ray shelling out to pytest
+mutation = ["cosmic-ray"]
+# the distribution files are built and published by uv itself: what this
+# group holds is what inspects them, before an upload consumes the version
+build = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
+docs = ["myst-parser", "sphinx", "sphinx_rtd_theme"]
+dev = [
+    { include-group = "test" },
+    { include-group = "lint" },
+    { include-group = "build" },
+    { include-group = "docs" },
+    { include-group = "mutation" },
+]
+
+[tool.uv]
+# the oldest uv allowed to touch uv.lock, and it is the version the uv-lock
+# hook of .pre-commit-config.yaml pins: that hook is what regenerates the
+# file, and its rev is something pre-commit.ci moves. Declared here the
+# floor holds for every uv command rather than for the hook alone, so an
+# older uv on a developer's machine says so instead of rewriting the lock
+# in a format the runners then fail to read -- uv is pre-1.0 and changes
+# that format. It also reaches CI without a second pin: setup-uv, given no
+# version input, reads this key
+required-version = ">=0.12.0"
+
+[tool.setuptools]
+# a module and not a package, which is the shape of the thing rather than a
+# packaging preference: the file is meant to be copyable, and a package
+# would name it `__init__.py` in this tree and make the copy a rename.
+# `py-modules` is how setuptools ships one, and the automatic discovery
+# would find it too -- written out because a tree with `docs` and `tests`
+# beside the module is exactly the layout that discovery gives up on
+py-modules = ["bitcoin_core_rpc"]
+
+[tool.check-manifest]
+# the two files whose subject the sdist does not carry. `.github` is
+# ignored by check-manifest already; these are the tracked files that would
+# otherwise be reported as missing from a distribution that has no business
+# holding them
+ignore = [
+    ".lycheeignore",
+]
+
+[tool.pytest.ini_options]
+# where the tests are, so a bare "pytest" from the root collects them and
+# nothing else, whatever else the tree grows
+testpaths = ["tests"]
+# -ra summarizes everything that was not a plain pass. Across a matrix of
+# interpreters and platforms a skip, an xfail or a warning is otherwise
+# invisible: it is not a failure, so nobody opens the log to find it.
+# --strict-config makes a typo in this very table an error rather than a
+# warning that scrolls past a hundred lines of dots, and --strict-markers
+# does the same for a marker nobody registered, which is how a misspelled
+# skipif silently stops skipping.
+#
+# pytest-randomly is in the test group and needs no flag here: installed,
+# it shuffles the order and prints the seed, and `-p no:randomly` puts the
+# file order back when a failure has to be reproduced against it. What it
+# guards is the one thing a green suite cannot tell you about itself --
+# whether a test passes because of what ran before it. Not hypothetical on
+# this module: `DEFAULT_DATADIR` is computed at import and several tests
+# patch `Path.home`, so a test reading the constant after another has moved
+# the home is exactly the ordering a fixed order would hide
+addopts = "-ra --durations=8 -n auto --dist worksteal --strict-config --strict-markers"
+# a test that was expected to fail and passed is a fixed bug still marked
+# as broken: strict turns it red instead of reporting xpass
+xfail_strict = true
+# a deprecation warning is the early form of a break, emitted years before
+# the removal that will fail the suite: on a 3.10 to 3.14 spread, plus
+# pypy, there is time to act on it only if it is not silent. It is not
+# theoretical for a module built on `urllib.request`, whose opener and
+# handler api this one reaches into.
+# The list carries no ignore, and no test silences a warning wholesale
+filterwarnings = ["error"]
+
+[tool.codespell]
+# .secrets.baseline and uv.lock are hashes, and the recorded reply bodies
+# under tests/_data are what a node sends, byte for byte: a spell checker
+# correcting a word inside Core's own error message would void the pin that
+# tests/_data/README.md states. By extension rather than by directory, so
+# that tests/_data/README.md -- which records where each of those files
+# came from -- is still spell checked, being prose about the data and not
+# the data
+skip = "*/_data/*.json,.secrets.baseline,uv.lock"
+# a misspelling written on purpose goes in backticks, and that is a
+# convention of this repository rather than a preference: prose that
+# documents a spell checker has to name what it catches. codespell has no
+# per-file configuration, so it holds everywhere it reads; what the rule
+# hides from it is what is written inside backticks, i.e. identifiers,
+# which are typos' half of the work and not this hook's -- the two hook
+# names say as much
+ignore-regex = '`[^`]*`'
+
+# the second spell checker, and the pair is deliberate: the two are blind
+# in different places, so neither subsumes the other. codespell matches
+# whole words against a curated list of misspellings, and its word regex
+# keeps the hyphen inside the token: `hex-strin` is one word, in no
+# dictionary, and therefore silent, while typos splits hyphens, snake_case
+# and camelCase itself. One thing typos does not read is this file:
+# pyproject.toml is skipped even under --isolated, its own configuration
+# not being something a spell checker can sensibly check. Everything below
+# is therefore codespell's to keep honest
+[tool.typos.files]
+# the same files [tool.codespell] skips above, for the reasons given there,
+# and the list has to be written again rather than shared because the glob
+# syntax differs: "*/_data/*.json" matches at any depth for codespell and
+# one directory deep for typos
+extend-exclude = [
+  "**/_data/*.json",
+  ".secrets.baseline",
+  "uv.lock",
+]
+
+[tool.typos.default]
+# hashes, transaction hex and base64 credentials written inline in the test
+# sources, which splitting into words turns into a spell checker's worst
+# input. The hook runs with --write-changes, so with the rule off it
+# rewrites the sources it reads. Ignored by shape rather than by file,
+# because those literals sit next to prose that has to stay checked: an
+# unbroken run of 26 characters or more is a literal and not a word, 26
+# being the length of the shortest possible base58 address; the trailing =
+# covers base64 padding, and no English word comes close
+extend-ignore-re = ['[0-9A-Za-z+/]{26,}={0,2}']
+
+[tool.typos.type.verbatim]
+# the backtick convention of [tool.codespell] above, honoured on the files
+# that quote a spelling on purpose rather than on all of them: outside
+# these a backticked word is an identifier, and identifiers are what this
+# hook is here for
+extend-glob = ["CHANGELOG.md", "HISTORY.md", ".pre-commit-config.yaml"]
+extend-ignore-re = ['`[^`]*`']
+
+[tool.coverage.run]
+omit = ["*/site-packages/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+precision = 2
+# a local threshold rather than a coveralls.io upload: no secret, no third
+# party service, and enforced on every run instead of only on pull requests
+# targeting master.
+# 100 is not the same rule with the bar raised: coverage special-cases it,
+# so `round(total, precision) < fail_under` does not apply and nothing
+# short of an exact 100.00% passes -- 99.999% is a red build, where 99.99
+# passed everything above 99.985%. The statements it allows to go uncovered
+# are therefore zero, and that is the whole of why.
+# The price is that a line no ordinary run reaches no longer disappears
+# into a rounding step. It is covered by patching what stands in the way --
+# which is what the transport tests already do to `_OPENER` -- or it
+# carries a `pragma: no cover` with the reason beside it. Neither of those
+# is a build left red.
+# Measured on one interpreter, 3.14, and that is enough at 100: there is no
+# sys.version_info and no sys.platform branch in this tree, so every job
+# walks the same lines
+fail_under = 100.0
+
+[tool.mypy]
+strict = true
+show_column_numbers = true
+show_error_codes = true
+# the optional error codes strict does not turn on, surveyed one by one
+# over the module and the tests: each of them finds nothing today, so each
+# is a ratchet and none is a cleanup. Two carry their own weight beyond
+# that -- ignore-without-code makes every "type: ignore" name the rule it
+# silences, so a blanket one cannot creep in, and deprecated reports a
+# stdlib API on its way out, which on a 3.10 to 3.14 spread is the same
+# early warning filterwarnings = ["error"] buys at runtime
+enable_error_code = [
+    "deprecated",
+    "exhaustive-match",
+    "ignore-without-code",
+    "mutable-override",
+    "narrowed-type-not-subtype",
+    "redundant-self",
+    "truthy-bool",
+    "truthy-iterable",
+    "unimported-reveal",
+]
+# the oldest interpreter this package supports, and also the oldest mypy
+# can be aimed at. Keep the key: without it mypy targets whatever runs it,
+# i.e. the 3.14 of .python-version, and a typing construct missing from the
+# floor is then invisible. An annotation is not evaluated under "from
+# __future__ import annotations", but a type *alias* is an ordinary
+# assignment, so `HttpTransport` is a line no annotation rule covers and
+# only a checker aimed at the floor reads correctly. Ruff needs no
+# equivalent, inferring py310 from requires-python
+python_version = "3.10"
+exclude = [
+    "build",
+]
+
+[tool.ruff]
+# target-version is inferred from project.requires-python
+
+[tool.ruff.lint]
+# the same selection btclib-org holds its Python to. What the survey behind
+# it rejected, with the reason rather than a count: N (uppercase math
+# symbols are a convention elsewhere in the org), COM (COM812, which ruff's
+# own documentation recommends against alongside the formatter), EM, FBT,
+# EXE (all EXE001, the shebang-not-executable finding that
+# .pre-commit-config.yaml records the same decision about), TC, PTH, ARG,
+# ANN, SLF (tests reaching into private members on purpose), PERF
+select = [
+    "A",    # flake8-builtins: a name that shadows a builtin
+    "B",    # flake8-bugbear
+    "BLE",  # flake8-blind-except
+    "C4",   # flake8-comprehensions
+    "C90",  # mccabe, at ruff's default with noqa'd exceptions
+    "D",    # pydocstyle
+    "E",    # pycodestyle errors
+    "ERA",  # eradicate: code that was commented out instead of deleted
+    "F",    # pyflakes
+    "FURB", # refurb
+    "I",    # isort
+    "ISC",  # flake8-implicit-str-concat
+    "PGH",  # pygrep-hooks
+    "PIE",  # flake8-pie
+    "PL",   # pylint
+    "PT",   # flake8-pytest-style
+    "RET",  # flake8-return
+    "RSE",  # flake8-raise
+    "RUF",  # ruff-specific rules
+    "S",    # flake8-bandit
+    "SIM",  # flake8-simplify
+    "T20",  # flake8-print: a library writes to no stream of its own
+    "TID",  # flake8-tidy-imports: absolute, so the layering is readable
+    "TRY",  # tryceratops
+    "UP",   # pyupgrade
+    "W",    # pycodestyle warnings
+]
+ignore = [
+    # docstrings: every public module, class, method and function must
+    # carry one -- D100/D104 and the D101/D102/D103 left out of this list
+    # enforce exactly that. The two still ignored are the ones pep257 does
+    # not ask for: __init__ is documented by its class, and a magic method
+    # by the data model it implements
+    "D105", # undocumented-magic-method
+    "D107", # undocumented-public-init
+    "D203", # incorrect-blank-line-before-class (conflicts with D211)
+    "D213", # multi-line-summary-second-line (conflicts with D212)
+    "D301", # escape-sequence-in-docstring
+    "D405", # capitalize-section-name, and the other section rules
+    "D406", # new-line-after-section-name
+    "D407", # dashed-underline-after-section
+    "D413", # blank-line-after-last-section
+    # code length is enforced by the formatter, which reflows to its 88
+    # columns everything it is allowed to rewrite. What is left for E501 to
+    # find is what no width can break, almost all of it a recorded reply or
+    # a transaction on one line. The prose the formatter never touches is
+    # measured instead by max-doc-length below
+    "E501", # line-too-long
+    # ambiguous unicode (−, non-breaking space) in comments is intentional
+    "RUF003",
+    # rebinding the loop variable is used throughout the code base
+    "PLW2901", # redefined-loop-name
+    # complexity metrics: not enforced on this codebase
+    "PLR0904", # too-many-public-methods
+    "PLR0911", # too-many-return-statements
+    "PLR0912", # too-many-branches
+    "PLR0913", # too-many-arguments
+    "PLR0914", # too-many-locals
+    "PLR0915", # too-many-statements
+    "PLR0917", # too-many-positional-arguments
+    "PLR2004", # magic-value-comparison
+    # exception messages are built inline, on purpose
+    "TRY003", # raise-vanilla-args
+]
+
+[tool.ruff.lint.per-file-ignores]
+# the smoke script's output is the whole of what it produces: it runs a
+# bitcoind and prints, one line each, the claim every check confirmed, so
+# the log of a green run is the list of what a live node was actually
+# asked. T20 is selected for the module, which writes to no stream of its
+# own; a script whose caller is a workflow step is the case it is not about
+".github/scripts/rpc_smoke.py" = ["T201"]
+# the D rules are not here: a public test function, fixture or method
+# states what it verifies -- the property, the vector, the failure mode --
+# under the same docstring gate as the module's public interface. D102/D103
+# stop at that boundary, so a private or nested helper is held to the
+# convention every private helper in the module already is: undocumented
+# unless the name alone does not say what it does
+"tests/**" = [
+    "S101",   # assert
+    "B017",   # assert-raises-exception
+    "PT011",  # pytest-raises-too-broad
+    "PT012",  # pytest-raises-with-multiple-statements
+    "PT018",  # pytest-composite-assertion
+    "RUF043", # pytest-raises-ambiguous-pattern
+]
+
+[tool.ruff.lint.mccabe]
+# ruff's default, and a function over it carries a noqa whose reason is the
+# comment above the def -- ruff reads the code, the prose after it is for
+# the reader. Not a global bound at the tree's worst, which keeps the worst
+# from growing but lets any new function reach it unremarked. No exemption
+# is permanent: RUF100 (unused-noqa, selected above) fails a noqa as unused
+# the moment a refactor brings its function under the line
+max-complexity = 10
+
+[tool.ruff.lint.pycodestyle]
+# 80 columns on the prose, where the code keeps the formatter's 88. Not a
+# compromise between two numbers: ruff-format reflows code and never a
+# comment or a docstring, so 88 is what it can enforce and this is the rest
+# -- the half of a file that carries the reasoning, held to the width every
+# markdown file here is already held to by MD013.
+# W505 is in the "W" set selected above and is inert without this line,
+# ruff having no default doc length; setting it is the whole of the switch.
+# A comment that ends in a URL is exempt, which is the amnesty MD013 gives
+# an unbreakable link
+max-doc-length = 80
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"

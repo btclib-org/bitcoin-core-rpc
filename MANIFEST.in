@@ -1,0 +1,26 @@
+include LICENSE
+include COPYRIGHT
+include *.md
+include pyproject.toml
+include uv.lock
+include .python-version
+include .markdownlint.jsonc
+# .yamllint.yaml, .pre-commit-config.yaml and .readthedocs.yaml: the lint
+# gate is runnable from an unpacked sdist, and two of these three are what
+# it reads. Written as a glob because there is no fourth yaml at the root
+# for it to pick up by accident -- the workflows are under .github, which
+# an sdist does not carry
+include *.yaml
+# the sdist already carries .pre-commit-config.yaml, which points at this
+include .secrets.baseline
+
+recursive-include tests *.json
+recursive-include tests *.md
+recursive-include tests *.py
+
+recursive-exclude tests *.pyc
+
+recursive-exclude docs/build *
+recursive-include docs *.py
+recursive-include docs *.md
+recursive-include docs *.rst

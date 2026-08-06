@@ -1,0 +1,268 @@
+---
+name: test
+
+on:
+  push:
+    # master only: a push to a branch that has an open pull request would
+    # run this workflow twice, once per event, and the two runs land in
+    # different concurrency groups (refs/heads/dev against
+    # refs/pull/N/merge) so neither cancels the other. The pull_request
+    # run is the one worth keeping, because it tests the merge commit and
+    # is the only run a fork's pull request produces at all.
+    # master keeps a trigger of its own because a merge creates a commit
+    # that is not the one the pull request tested, and nothing else would
+    # ever test it. Tag pushes are covered by the release workflow
+    branches: [master]
+    # a documentation-only commit would otherwise run the whole matrix.
+    # None of these files is imported by the module or read by a test --
+    # README.md is the PyPI long description, not a doctest source, and
+    # CONTRIBUTING.md is checked by markdownlint, which is the lint
+    # workflow's business.
+    # Only on push: the same list on pull_request would be wrong, because
+    # tests-passed is a required check on master and a required check that
+    # produces no run at all blocks the merge instead of passing it
+    paths-ignore:
+      - "*.md"
+  pull_request:
+  # allows the release workflow to reuse the whole build/test pipeline
+  workflow_call:
+  # the escape hatch: the matrix on demand for a branch whose pull
+  # request is not open yet
+  workflow_dispatch:
+
+# least privilege for the GITHUB_TOKEN: everything running in a job
+# (actions, dependencies, build scripts) can read the token, so it must
+# not be able to write to the repository
+permissions:
+  contents: read
+
+# cancel superseded runs on the same branch/PR.
+# The group is named literally rather than with github.workflow, which in
+# a called workflow is the caller's name: the release workflow calls both
+# this and lint.yml, and with that expression the two would share a group
+# and cancel each other
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # what the matrix buys on a module with no compiled dependency and no
+  # third-party import: the standard library it is built out of, which is
+  # not the same library everywhere. `urllib.request` and the `ssl` and
+  # `http.client` under it are the largest part of what this module does
+  # and the part that moves most between releases; `Path.home()` resolves
+  # through the registry on Windows and through the passwd database
+  # elsewhere, which is what `_default_datadir` reads; `decimal` is
+  # libmpdec on CPython and a Python implementation on PyPI, and the exact
+  # parsing of an amount is a promise this client makes.
+  # windows-11-arm needs no special handling, and that is worth a word:
+  # which architecture the interpreter targets there is up to the runner
+  # image, native arm64 for the versions it caches and emulated x86-64
+  # for the ones uv has to download, and nothing here is compiled for
+  # either
+  test-py:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          [
+            ubuntu-latest,
+            ubuntu-24.04-arm,
+            macos-26-intel,
+            macos-latest,
+            windows-latest,
+            windows-11-arm,
+          ]
+        # 3.14t is the free-threaded interpreter, and it belongs here for
+        # what this module promises: concurrent calls are supported while
+        # the configuration is not mutated, and a build without the GIL is
+        # the one that would report a shared counter or a cached credential
+        # if either existed
+        python:
+          [
+            "3.10",
+            "3.11",
+            "3.12",
+            "3.13",
+            "3.14",
+            "3.14t",
+            "pypy3.11",
+          ]
+    # far above what a run of the suite needs: what it bounds is a hung
+    # job holding a runner for six hours
+    timeout-minutes: 30
+    steps:
+      # every action is pinned to a commit SHA, the tag in the comment: a
+      # tag, let alone a branch, is a name its owner can move, and these
+      # run in a job that can read the workflow token
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # checkout leaves the token in .git/config by default, where
+          # anything running afterwards can read it and any step archiving
+          # the workspace would carry it out of the job. No job in any of
+          # these workflows performs an authenticated git operation -- the
+          # release is created by gh, from GH_TOKEN in its environment --
+          # so nothing needs it to stay
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          # the cache holds the wheels uv.lock resolves, this matrix
+          # fetching the same ones on every run of every commit
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      - name: Run pytest
+        run: uv run --locked --no-default-groups --group test pytest
+
+  # coverage is measured once, not once per matrix job: the code base has
+  # no platform- or version-conditional branch (no sys.platform, no
+  # sys.version_info) and no conditional skip, so every job walks the very
+  # same lines. Per-job measurement would buy only the instrumentation
+  # overhead.
+  # The number is a gate rather than a report: fail_under, in
+  # tool.coverage.report, fails this job on a regression. It needs no
+  # secret and no third party, and it applies to every run
+  coverage-py:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          # 3.14, i.e. what .python-version pins and what a bare `uv run`
+          # gives a maintainer locally: the number this job gates on is a
+          # ratio of statements, and the statement count moves between
+          # interpreters, so a threshold checked on one version is not the
+          # one another measures. Pinned rather than inherited from
+          # .python-version even so, because the coupling belongs where the
+          # gate runs: the fail_under comment in pyproject.toml names this
+          # version, and the two have to move together
+          python-version: "3.14"
+      - name: Run pytest under coverage
+        run: >
+          uv run --locked --no-default-groups --group test
+          pytest --cov-report term-missing:skip-covered
+          --cov=bitcoin_core_rpc --cov=tests
+
+  # the packaging metadata is checked on every pull request, not only on
+  # the tag that ships it: a release is the one place where finding a
+  # problem is too late, a version being consumed by the upload that
+  # carries it, and then only yankable. The release workflow calls this
+  # one, so it runs these checks too, and its build job builds only what
+  # it publishes
+  dist-py:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+      # uv build builds the sdist first and then the wheel from it, not
+      # both from the source tree, so what is checked below is what a user
+      # installing from source would get. That the sdist is complete in the
+      # first place is check-manifest's job, a pre-commit hook, gated by
+      # the lint workflow
+      - name: Build the distribution files
+        run: uv build
+      # the same validation PyPI applies on upload: broken metadata, or a
+      # README that does not render, cannot be fixed by reuploading
+      - name: Check the metadata and the long description
+        run: uv run --locked --only-group build twine check --strict dist/*
+      # what twine does not look at: where the files land once installed,
+      # a test package shipped by accident, a stray top-level module. This
+      # distribution *is* a top-level module, which is the case the tool
+      # reports as W004 unless the wheel says so, so what this catches here
+      # is a second one appearing beside it -- `tests` above all, which is
+      # a package in this tree and has no business in the wheel
+      - name: Check the wheel contents
+        run: uv run --locked --only-group build check-wheel-contents dist/*.whl
+      # and what twine cannot see either: metadata that is valid but poor,
+      # a missing classifier or url, a version PyPI would sort in a way
+      # nobody meant. The pyroma pre-commit hook rates the source tree, for
+      # an answer before pushing; this rates the sdist, i.e. the metadata
+      # that would actually be shipped. --min 10 is a ratchet, the score
+      # being 10 today
+      - name: Rate the packaging metadata
+        run: uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
+      # what none of the three above does: install the wheel, alone, from
+      # an empty directory, and use it. There is no dependency to resolve,
+      # which is itself the thing asserted -- `importlib.metadata.requires`
+      # reads the `Requires-Dist` the wheel carries, and a dependency added
+      # to pyproject.toml by accident is a dependency a vendored copy of
+      # this file silently does not have.
+      # The version is asserted rather than printed, because a wheel
+      # shipping no metadata would print nothing and pass; and a call goes
+      # through a transport of its own, because importing a module proves
+      # only that it parses
+      - name: Smoke-test the wheel, installed on its own
+        run: |
+          cd "$RUNNER_TEMP"
+          uv venv
+          uv pip install "$GITHUB_WORKSPACE"/dist/*.whl
+          .venv/bin/python -c "
+          from decimal import Decimal
+          from importlib.metadata import requires, version
+          import json
+          import bitcoin_core_rpc as rpc
+
+          name = 'btclib-bitcoin-core-rpc'
+          print(version(name))
+          assert not requires(name), requires(name)
+          replies = []
+          def transport(request, timeout):
+              request_id = json.loads(request.data)['id']
+              replies.append(request_id)
+              body = {'jsonrpc': '2.0', 'id': request_id, 'result': 1.25}
+              return 200, json.dumps(body).encode()
+          client = rpc.BitcoinCoreRpcClient.from_chain(
+              'regtest', user='u', password='p', transport=transport
+          )
+          assert client.call('getbalance') == Decimal('1.25')
+          assert len(replies) == 1
+          "
+
+  # the single check master's branch protection requires from this
+  # workflow, and it exists because that rule names its checks as literal
+  # strings, stored outside the repository. The matrix above produces one
+  # per (runner label, interpreter) pair -- a count that moves whenever the
+  # matrix does: naming those directly means every matrix edit has to be
+  # mirrored in a setting no pull request can review, and a name that stops
+  # being produced -- macos-latest moving on, 3.10 aging out in its turn --
+  # becomes a required check that never reports, which blocks every merge
+  # until someone remembers where the rule lives.
+  # This job depends on the others instead, so the rule names one thing
+  # that never changes and adding a job here is enough to gate on it
+  tests-passed:
+    needs: [test-py, coverage-py, dist-py]
+    # not success(): a job whose dependencies failed is skipped, and a
+    # skipped check reports "skipped", which branch protection counts as
+    # satisfied. The gate has to run to be able to fail
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # the condition reads the whole needs context rather than testing
+      # each job by name, so a job added to needs above is covered
+      # without touching this. "skipped" is a failure here too: nothing
+      # in this workflow is conditional, so a skip means something
+      # upstream did not run
+      - name: Fail unless every job above succeeded
+        if: >-
+          contains(needs.*.result, 'failure') ||
+          contains(needs.*.result, 'cancelled') ||
+          contains(needs.*.result, 'skipped')
+        run: |
+          echo "::error::a job this gate depends on did not succeed"
+          exit 1
