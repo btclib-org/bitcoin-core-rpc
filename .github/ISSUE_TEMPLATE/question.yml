@@ -34,4 +34,4 @@ body:
       description: >
         `python -c "from importlib.metadata import version;
         print(version('bitcoin-core-rpc'))"`
-      placeholder: "0.1.0"
+      placeholder: "2026.8"
