@@ -158,7 +158,7 @@ from http.client import HTTPException, HTTPMessage
 from math import isfinite
 from pathlib import Path
 from secrets import token_hex
-from typing import IO, Any
+from typing import IO, Any, Literal
 from urllib.error import HTTPError
 from urllib.parse import quote, urlsplit
 from urllib.request import (
@@ -178,14 +178,18 @@ __all__ = [
     "BtcRpcRuntimeError",
     "BtcRpcTypeError",
     "BtcRpcValueError",
+    "Chain",
     "FetchError",
     "HttpError",
     "HttpTransport",
+    "Network",
     "RpcError",
+    "chain_from_network",
     "cookie_auth",
-    "core_chain_from_network",
+    "datadir_subdir_from_chain",
     "http_request",
-    "network_from_core_chain",
+    "network_from_chain",
+    "rpc_port_from_chain",
     "urlopen_transport",
 ]
 
@@ -706,20 +710,49 @@ def http_request(
 # `test` indexes `testnet3`, which is the third vocabulary for that one
 # chain and the reason both columns are Core's: a directory name is no
 # more this module's to choose than a port number is
-_RPC_PORT = {
+_RPC_PORT_FROM_CHAIN = {
     "main": 8332,
     "test": 18332,
     "testnet4": 48332,
     "signet": 38332,
     "regtest": 18443,
 }
-_DATADIR_SUBDIR = {
+_DATADIR_SUBDIR_FROM_CHAIN = {
     "main": "",
     "test": "testnet3",
     "testnet4": "testnet4",
     "signet": "signet",
     "regtest": "regtest",
 }
+
+
+def rpc_port_from_chain(chain: str) -> int:
+    """Return the default rpc port of one of Core's chains.
+
+    What `from_chain` builds its loopback url out of, and what reaching
+    the same node any other way -- through a tunnel, an `https` proxy, or
+    from another host -- otherwise means copying this table to know.
+    """
+    if chain not in _RPC_PORT_FROM_CHAIN:
+        known = ", ".join(_RPC_PORT_FROM_CHAIN)
+        raise BtcRpcValueError(f"unknown Core chain: {chain} not in ({known})")
+    return _RPC_PORT_FROM_CHAIN[chain]
+
+
+def datadir_subdir_from_chain(chain: str) -> str:
+    """Return the datadir subdirectory of one of Core's chains.
+
+    Empty for `main`, which keeps its cookie in the datadir itself, and
+    `testnet3` for `test`: the two the chain name does not give away.
+    `from_chain` derives a cookie path under the default datadir, and a
+    node started with `-datadir=` elsewhere is what this is for -- that
+    directory, this subdirectory, `.cookie`.
+    """
+    if chain not in _DATADIR_SUBDIR_FROM_CHAIN:
+        known = ", ".join(_DATADIR_SUBDIR_FROM_CHAIN)
+        raise BtcRpcValueError(f"unknown Core chain: {chain} not in ({known})")
+    return _DATADIR_SUBDIR_FROM_CHAIN[chain]
+
 
 # The BIP network names against Core's chain names: `mainnet`/`main` and
 # `testnet`/`test` differ, the rest agree. A library encoding keys and
@@ -735,19 +768,33 @@ _DATADIR_SUBDIR = {
 # warns that support for testnet3 is deprecated and will be removed, so
 # `test` is a name Core still reads rather than a chain every node still
 # serves.
-_CORE_CHAIN_FROM_NETWORK = {
-    "mainnet": "main",
-    "testnet": "test",
-    "testnet4": "testnet4",
-    "signet": "signet",
-    "regtest": "regtest",
-}
-_NETWORK_FROM_CORE_CHAIN = {
-    chain: network for network, chain in _CORE_CHAIN_FROM_NETWORK.items()
+#
+# A Literal each, and not an Enum: both vocabularies are `str` wherever
+# they are spoken -- `-chain=` takes one, `getblockchaininfo` answers one,
+# a json body carries them -- so an enum would be an island every caller
+# converts at, and a strict type checker refuses the typo it would have
+# guarded against anyway. They annotate what these functions return and
+# not what they take, which is the same distinction: an argument arrives
+# from a config file or from a node, as a `str` no annotation narrows, and
+# a parameter of this type would buy a cast at every such call site to say
+# what the refusal below already says at runtime.
+Chain = Literal["main", "test", "testnet4", "signet", "regtest"]
+Network = Literal["mainnet", "testnet", "testnet4", "signet", "regtest"]
+
+_NETWORK_CHAIN_PAIRS: tuple[tuple[Network, Chain], ...] = (
+    ("mainnet", "main"),
+    ("testnet", "test"),
+    ("testnet4", "testnet4"),
+    ("signet", "signet"),
+    ("regtest", "regtest"),
+)
+_CHAIN_FROM_NETWORK: dict[str, Chain] = dict(_NETWORK_CHAIN_PAIRS)
+_NETWORK_FROM_CHAIN: dict[str, Network] = {
+    chain: network for network, chain in _NETWORK_CHAIN_PAIRS
 }
 
 
-def core_chain_from_network(network: str) -> str:
+def chain_from_network(network: str) -> Chain:
     """Return Core's chain name for one of the BIP network names.
 
     Raises rather than passing an unrecognized name through, in both
@@ -755,22 +802,21 @@ def core_chain_from_network(network: str) -> str:
     what it knows, instead of a string that reaches a node as a port
     lookup or a directory name.
     """
-    if network not in _CORE_CHAIN_FROM_NETWORK:
-        known = ", ".join(_CORE_CHAIN_FROM_NETWORK)
+    if network not in _CHAIN_FROM_NETWORK:
+        known = ", ".join(_CHAIN_FROM_NETWORK)
         raise BtcRpcValueError(f"unknown network: {network} not in ({known})")
-    return _CORE_CHAIN_FROM_NETWORK[network]
+    return _CHAIN_FROM_NETWORK[network]
 
 
-def network_from_core_chain(chain: str) -> str:
+def network_from_chain(chain: str) -> Network:
     """Return the BIP network name for one of Core's chain names.
 
-    The inverse of `core_chain_from_network`, and raising for the same
-    reason.
+    The inverse of `chain_from_network`, and raising for the same reason.
     """
-    if chain not in _NETWORK_FROM_CORE_CHAIN:
-        known = ", ".join(_NETWORK_FROM_CORE_CHAIN)
+    if chain not in _NETWORK_FROM_CHAIN:
+        known = ", ".join(_NETWORK_FROM_CHAIN)
         raise BtcRpcValueError(f"unknown Core chain: {chain} not in ({known})")
-    return _NETWORK_FROM_CORE_CHAIN[chain]
+    return _NETWORK_FROM_CHAIN[chain]
 
 
 # the username bitcoind writes into the cookie file, COOKIEAUTH_USER in
@@ -1314,9 +1360,9 @@ class BitcoinCoreRpcClient:
     on the caller's behalf: the url and the cookie path say where to ask,
     and what the answers mean is the caller's to hold. `getblockchaininfo`
     is the question, its `chain` member the answer, and
-    `network_from_core_chain` the vocabulary to read it in -- one round
-    trip, worth asking once, because a client built for a testnet node
-    under code that believes it is on mainnet fails silently.
+    `network_from_chain` the vocabulary to read it in -- one round trip,
+    worth asking once, because a client built for a testnet node under
+    code that believes it is on mainnet fails silently.
     """
 
     def __init__(
@@ -1404,9 +1450,9 @@ class BitcoinCoreRpcClient:
         the string `-chain=` takes and `getblockchaininfo` reports, so
         `main` where BIP32 and BIP173 say `mainnet` -- because what it
         indexes here is a port and a directory, and Core names both.
-        `core_chain_from_network` translates for a caller holding a BIP
-        name; a chain Core has no default port for is an explicit url with
-        a `cookie_path`, which is the constructor.
+        `chain_from_network` translates for a caller holding a BIP name; a
+        chain Core has no default port for is an explicit url with a
+        `cookie_path`, which is the constructor.
 
         It asks the node nothing, so it is no claim that one is listening
         on that port, nor that it serves this chain if it is. The first
@@ -1426,11 +1472,7 @@ class BitcoinCoreRpcClient:
         cookie derived before that check would report a missing home
         directory to a caller who passed a password and forgot the user.
         """
-        if chain not in _RPC_PORT:
-            known = ", ".join(_RPC_PORT)
-            err_msg = f"unknown chain: {chain} not in ({known})."
-            err_msg += " These are Core's names, not the BIP ones"
-            raise BtcRpcValueError(err_msg)
+        port = rpc_port_from_chain(chain)
         if user is None and password is None and cookie_path is None:
             datadir = _default_datadir()
             if datadir is None:
@@ -1438,9 +1480,9 @@ class BitcoinCoreRpcClient:
                 err_msg += " the cookie file in: pass cookie_path, or user"
                 err_msg += " and password"
                 raise BtcRpcValueError(err_msg)
-            cookie_path = datadir / _DATADIR_SUBDIR[chain] / ".cookie"
+            cookie_path = datadir / datadir_subdir_from_chain(chain) / ".cookie"
         return cls(
-            f"http://127.0.0.1:{_RPC_PORT[chain]}",
+            f"http://127.0.0.1:{port}",
             user=user,
             password=password,
             cookie_path=cookie_path,

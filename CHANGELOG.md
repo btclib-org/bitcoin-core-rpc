@@ -11,6 +11,47 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.8.6.1 (work in progress, not released yet)
 
+### Added
+
+- **`rpc_port_from_chain` and `datadir_subdir_from_chain`**, the port and
+  the subdirectory Core gives a chain, which `from_chain` reads and a
+  caller could not derive: `main` keeps its cookie in the datadir itself
+  and `test` lives under `testnet3`, neither of them a name the chain name
+  gives away. A node on another host, or one started with `-datadir=`
+  elsewhere, is a url and a `cookie_path` the caller assembles, and these
+  two are what it assembles them out of instead of a table copied from
+  here. Functions rather than the dicts behind them, for the reason the
+  vocabulary pair are functions: an unknown chain is refused where it is
+  named, and a published dict is a table a caller can write to.
+
+- **`Chain` and `Network`**, a `Literal` each for the five names of each
+  vocabulary, and what `chain_from_network` and `network_from_chain` are
+  now annotated as returning. Not what they take: an argument arrives from
+  a config file or from `getblockchaininfo`, as a `str` no annotation
+  narrows, so a parameter of that type would only mean a cast at the call
+  site — the runtime refusal is what checks a name either way. Not an
+  `Enum` either: both vocabularies are `str` in every place they are
+  spoken, `-chain=` and a json body included, so an enum would be an
+  island every caller converts at, and this file has to import on 3.10,
+  where `StrEnum` does not exist and the `str, Enum` that stands in for it
+  formats as `Chain.MAIN` inside an f-string.
+
+### Changed
+
+- **`core_chain_from_network` and `network_from_core_chain` are
+  `chain_from_network` and `network_from_chain`.** In this module `chain`
+  is Core's vocabulary and `network` the BIP one -- `from_chain` is named
+  for it, and so are the parameters of both functions -- so `core_` was
+  spelling a distinction the names around it already carry. What it costs
+  is a rename in a caller: the old names are gone rather than aliased, one
+  release being a short enough life for a name that a second spelling of
+  it is the worse thing to publish.
+- **an unknown chain is refused as `unknown Core chain`** wherever it is
+  refused, `from_chain` included, where that one said `unknown chain: ...
+  These are Core's names, not the BIP ones`. The check there is now
+  `rpc_port_from_chain`'s, so the three functions a chain name reaches say
+  the same thing, and the three words say what the sentence did.
+
 ## v2026.8.6
 
 The first release.
