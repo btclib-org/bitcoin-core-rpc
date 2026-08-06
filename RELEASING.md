@@ -111,9 +111,57 @@ It gates nothing automatically, which is why it is a step here.
    git push origin v<version>
    ```
 
-1. Approve the `pypi` environment when the workflow asks. The GitHub
-   release is created afterwards, from HISTORY.md's section for the tag: a
-   release announces what users can already install.
+1. Approve the `pypi` environment when the workflow asks. Up to here
+   nothing is public and the tag can still be deleted; the upload that
+   follows is the point of no return — the upload, and not the approval,
+   the token exchange happening after it. A registration that does not
+   match the claims fails there having uploaded nothing, and a version
+   survives a failed exchange: delete the tag, fix the registration, tag
+   again.
+
+1. Install what was just published, in an environment of its own rather
+   than one that may already hold it, and run something with it:
+
+   ```shell
+   uv run --isolated --no-project --with bitcoin-core-rpc \
+     python -c "import bitcoin_core_rpc; print(bitcoin_core_rpc.DEFAULT_TIMEOUT)"
+   ```
+
+   then check the attestations — the JSON API answers `null` for
+   `provenance` even where they exist; the
+   [simple API](https://pypi.org/simple/bitcoin-core-rpc/) (`Accept:
+   application/vnd.pypi.simple.v1+json`) carries the real link, under
+   `/integrity/<project>/<version>/<filename>/provenance`, and
+   `pypi-attestations verify pypi <file> --repository
+   https://github.com/btclib-org/btclib-bitcoin-core-rpc` checks the
+   signature rather than merely its presence.
+
+1. Dispatch the `published` workflow (Actions → published → Run workflow)
+   and expect it green: it installs what was just uploaded from PyPI, on
+   every platform test.yml builds for and at both ends of the supported
+   interpreter range, and round-trips a JSON-RPC call against it. From
+   then on it runs weekly on its own, and a failure means the outside
+   world moved, not this repository — a new runner image, an interpreter
+   release, PyPI serving a file that does not match its own hash — which
+   is why it is a workflow of its own rather than a job of this one.
+
+1. Check the GitHub release the previous step's workflow run created: its
+   notes are the tag's section of HISTORY.md, and the distribution files
+   are attached. A run that logs `HISTORY.md has no v<version> section`
+   generated the notes from the merged pull requests instead — the
+   fallback `version-check` exists to make unreachable, not a second way
+   to write release notes — and they are worth replacing by hand if it
+   ever fires.
+
+1. `dev` and `master` now hold the same tree through different commits:
+   "Rebase and merge" replays `dev`'s commits onto `master` with new SHAs,
+   so `dev`'s old ones and `master`'s are equal in content and unequal in
+   identity. Nothing needs doing about it here — `master` disallows a
+   force push, and rewriting `dev` to match would need one — and the next
+   release's own rebase does not need it either: `git rebase` recognizes a
+   commit whose patch is already present upstream and drops it rather
+   than replaying it, which is what keeps a future "Rebase and merge" from
+   presenting this release's commits as new a second time.
 
 1. Add the new work-in-progress headings back to HISTORY.md and
    CHANGELOG.md on `dev`.
