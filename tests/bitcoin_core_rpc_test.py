@@ -41,7 +41,9 @@ test about the id. A test about the id builds its own body and uses
 
 from __future__ import annotations
 
+import copy
 import json
+import pickle
 import re
 from base64 import b64decode
 from decimal import Decimal, InvalidOperation, localcontext
@@ -1088,6 +1090,26 @@ def test_the_data_member_of_an_error_object_is_kept() -> None:
     assert exc.value.data == {"field": "txid"}
 
 
+def test_an_rpc_error_survives_pickle_and_deepcopy() -> None:
+    """`code` and `data` are constructor arguments now, not folded into `str`.
+
+    `BaseException.__reduce__` rebuilds an exception by calling its class
+    with `self.args`, so a class whose `args` held the composed message
+    alone -- one argument -- could not be rebuilt from it, this one taking
+    three. That failure is what a `ProcessPoolExecutor` hits when a worker
+    raises this and cannot send it back: the pool reports itself broken
+    rather than the rpc error the worker actually died of.
+    """
+    error = RpcError("getrawtransaction: not found", -5, {"tx": 1})
+    said = "getrawtransaction: not found (rpc error code -5)"
+    assert str(error) == said
+    for back in (pickle.loads(pickle.dumps(error)), copy.deepcopy(error)):  # noqa: S301
+        assert type(back) is RpcError
+        assert str(back) == said
+        assert back.code == -5
+        assert back.data == {"tx": 1}
+
+
 def test_an_rpc_error_arriving_with_a_500_is_still_an_rpc_error() -> None:
     """A node older than v28 does not know the 2.0 marker and answers 1.1.
 
@@ -1164,6 +1186,15 @@ def test_a_401_says_it_is_the_credentials() -> None:
     with pytest.raises(HttpError, match="HTTP 401, the node refused") as exc:
         client((401, b"")).call("getblockcount")
     assert exc.value.status == 401
+
+
+def test_an_http_error_survives_pickle_and_deepcopy() -> None:
+    """`status` is a constructor argument now, not folded into `str` alone."""
+    error = HttpError("getblockcount at http://node: HTTP 503", 503)
+    for back in (pickle.loads(pickle.dumps(error)), copy.deepcopy(error)):  # noqa: S301
+        assert type(back) is HttpError
+        assert str(back) == str(error)
+        assert back.status == 503
 
 
 @pytest.mark.parametrize("code", [301, 302, 303, 307, 308])

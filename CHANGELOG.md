@@ -28,7 +28,14 @@ The first release.
   that did not answer, one for an exchange that failed with a status, one
   for an error the node computed with its code and its `data`. All three
   are `FetchError`, so one `except` catches the lot, and the fields are
-  what a caller's own retry policy reads.
+  what a caller's own retry policy reads. `HttpError` and `RpcError` hand
+  every constructor argument to `BaseException.__init__` and compose their
+  message in `__str__`, which is what makes them picklable —
+  `BaseException.__reduce__` rebuilds an exception from `self.args`, and a
+  class carrying two or three fields is not rebuilt by calling it with the
+  one composed string those two used to leave in `args` — and what a
+  `ProcessPoolExecutor` needs to send one back from a worker rather than
+  report the pool broken.
 - Amounts as `Decimal` in both directions: a number in a reply is parsed
   exactly, a `Decimal` parameter is refused rather than rounded through
   `float`, and `NaN` and `Infinity` are refused either way.
@@ -66,7 +73,26 @@ The first release.
   cut, and what it breaks is read in HISTORY.md rather than inferred from
   the number. The month carries no leading zero, PEP 440 normalizing
   `2026.08` to `2026.8` and `release.yml` comparing the tag to the declared
-  string as written.
+  string as written. `release.yml`'s version-check job also refuses a tag
+  with fewer than three components: without it a tag naming only the
+  month, `v2026.8`, would pass every other check and publish a version
+  indistinguishable from the placeholder `pyproject.toml` declares between
+  releases, which names the same month and is never tagged.
+- `.github/scripts/rpc_smoke.py` restructured for `tests/rpc_smoke_test.py`
+  to cover: every function with no live node behind it —
+  `check`, `port_is_free`, `check_legacy_reply`, `check_v2_reply`,
+  `check_cookie`, `print_log_tail`, and `main`'s own argument parsing —
+  now has a test with no `bitcoind` in the loop, and every function that
+  does talk to one carries `# pragma: no cover`, that half staying
+  `rpc-smoke.yml`'s to monitor against Core itself.
+- `mutation.yml`'s session runs under `timeout --signal=INT` rather than
+  the default SIGTERM, with a `git diff --quiet` check afterwards that
+  restores the tracked source if anything is left changed. The local
+  distributor applies a mutant and restores it from a `finally` block that
+  only runs if the process can unwind; SIGTERM kills it outright,
+  mid-mutant, before that block runs, where SIGINT is what Python turns
+  into a catchable `KeyboardInterrupt`. A session cut at its budget could
+  otherwise leave `bitcoin_core_rpc.py` mutated for whatever ran next.
 - The MIT permission notice in full at the head of every source file, and
   `COPYRIGHT` — the text a hook requires them all to carry — is that notice
   rather than a pointer to `LICENSE`: `bitcoin_core_rpc.py` is meant to be
