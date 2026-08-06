@@ -79,6 +79,16 @@ jobs:
             windows-11-arm,
           ]
         python-version: ["3.10", "3.14", "3.14t"]
+        exclude:
+          # actions/setup-python has no CPython 3.10 build for Windows
+          # arm64 -- "The version '3.10' with architecture 'arm64' was not
+          # found for Windows Enterprise", measured on this matrix.
+          # test.yml's own windows-11-arm cell does not need this: it
+          # provisions Python through astral-sh/setup-uv, which fetches
+          # python-build-standalone's distributions rather than reading
+          # this action's version manifest, and that one goes back further
+          - os: windows-11-arm
+            python-version: "3.10"
         include:
           # the path a resolver takes if it is ever asked for the sdist
           # rather than the wheel PyPI also serves: this package has no
