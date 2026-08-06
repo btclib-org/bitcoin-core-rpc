@@ -11,6 +11,41 @@ configured to trust the workflow itself
 The same workflow, started by hand instead of by a tag, is a full rehearsal
 against TestPyPI. A rehearsal is never tagged.
 
+## Which version string is which
+
+Five strings here look like versions, and two of them are written by
+hand. Telling them apart is most of what can go wrong:
+
+- **`2026.8.6`**, in `pyproject.toml`, is *the* version. It is what gets
+  published, on either index, and the only one typed in by number
+- **`2026.8.6.1`**, a fourth number on an already-final version, plays
+  two roles: right after `2026.8.6` ships, the last step of a release
+  opens `dev` on it as a placeholder, nothing having moved since to
+  warrant a real bump; and if `2026.8.6` itself shipped broken, "If
+  something goes wrong" ships the very same string as the fix, tagged.
+  Both are typed by hand, and both read the same way — "the same
+  release, one change since" — whichever of the two prompted it. The
+  placeholder is shaped exactly like a release on purpose: what keeps it
+  from being tagged as one is `version-check`'s heading check against
+  HISTORY.md's and CHANGELOG.md's section for it, not the shape of the
+  number, which no longer tells the two apart
+- **`v2026.8.6`**, the tag, carries no version of its own: it picks the
+  index, PyPI rather than TestPyPI, and `version-check` exists to
+  confirm it says what `pyproject.toml` says
+- **`.dev<run number>`** is not a version but the template in
+  `release.yml`, appended to what `pyproject.toml` declares by a
+  `workflow_dispatch` run alone. Nothing writes it down, and no commit
+  ever carries it
+- **`2026.8.6rc1`**, and a `v2026.8.6rc1` tag, have no place in this
+  scheme: there are no release candidates here, only a version not yet
+  tagged. `version-check` refuses anything that is not digits and dots,
+  which is what stops `2026.8.6rc1` before a tag is even pushed — and
+  what a `v2026.8.6rc1` tag would otherwise pass, burning a pre-release
+  on PyPI itself, where `--pre` installs would find it from then on
+
+PEP 440 sorts a `.dev<run number>` rehearsal before the release it
+rehearses, so a rehearsal never shadows it.
+
 ## One-time setup
 
 Neither index holds the project until an upload creates it, so both entries
@@ -29,13 +64,19 @@ one, and TestPyPI's rehearsal does the same there.
    with environment `testpypi`.
 
 1. In the GitHub repository settings, create the `pypi` and `testpypi`
-   environments. Both require a review, so neither index is uploaded to
-   without a human approving that run; the two `publish-*` jobs are the
-   only holders of `id-token: write`, and this is the gate in front of
-   them. `pypi` is additionally restricted to `v*` tags, which is the only
-   ref its job runs on anyway — the restriction is what makes that true of
-   the environment and not just of an `if:` in a file a pull request could
-   change.
+   environments. Both require a review from `fametrano`, so neither
+   index is uploaded to without a human approving that run; the two
+   `publish-*` jobs are the only holders of `id-token: write`, and this
+   is the gate in front of them. `pypi` is additionally restricted to
+   `v*` tags, which is the only ref its job runs on anyway — the
+   restriction is what makes that true of the environment and not just
+   of an `if:` in a file a pull request could change.
+
+   Self-review stays allowed on purpose: the maintainer who pushes the
+   tag is the reviewer, and forbidding it would deadlock a
+   one-maintainer release. The approval is a confirmation step, not a
+   second pair of eyes; it becomes one as soon as there is a second
+   reviewer to add.
 
 ## Rehearse on TestPyPI
 
@@ -125,7 +166,9 @@ It gates nothing automatically, which is why it is a step here.
    of that reaches `master`'s history: the pull request is where it stays,
    and where a reader of any commit in it arrives. A template left
    unfilled, or a bot's summary of the diff, is not a substitute — the
-   summary can stay, but what the diff cannot say has to be written.
+   summary can stay, but what the diff cannot say has to be written, and
+   what a reader should not have to discover at the button belongs there
+   too.
 
 1. Merge `dev` into `master` with **"Rebase and merge"**, never *"Squash
    and merge"* — read the button, GitHub offers whichever method was used
@@ -278,3 +321,22 @@ It gates nothing automatically, which is why it is a step here.
    it. Marking it ready and pressing **Rebase and merge** is what that
    step still is; this one is what makes reaching it with a body already
    written the ordinary case rather than the exception.
+
+## If something goes wrong
+
+- The workflow failed before the `publish-pypi` job: nothing was
+  uploaded. Delete the tag, fix, and tag again:
+
+  ```shell
+  git tag -d v<version>
+  git push origin :refs/tags/v<version>
+  ```
+
+- The upload succeeded but the release is broken: PyPI never accepts a
+  file name twice, even after deletion. Yank the bad release on PyPI and
+  publish a new patch version, the fourth number bumped again
+  (`2026.8.6.1` → `2026.8.6.2`).
+
+- Only the `github-release` job failed: the PyPI upload is already done;
+  re-run the failed job, or create the release by hand from the `dist`
+  artifact of the run.
