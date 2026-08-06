@@ -59,8 +59,8 @@ from bitcoin_core_rpc import (
     DEFAULT_MAX_BODY_SIZE,
     DEFAULT_TIMEOUT,
     MAX_ERROR_BODY_SIZE,
-    BTClibTypeError,
-    BTClibValueError,
+    BtcRpcTypeError,
+    BtcRpcValueError,
     FetchError,
     http_request,
     urlopen_transport,
@@ -449,14 +449,14 @@ def test_a_limit_that_is_no_size_is_refused_as_such(max_body_size: object) -> No
     octet, and `true` is what a json configuration decodes to.
     """
     transport = Recorded((200, b"7"))
-    with pytest.raises(BTClibTypeError, match="non-integer max_body_size"):
+    with pytest.raises(BtcRpcTypeError, match="non-integer max_body_size"):
         http_request(URL, max_body_size=max_body_size, transport=transport)  # type: ignore[arg-type]
     assert transport.requests == []
 
 
 def test_a_negative_limit_is_no_limit_at_all() -> None:
     """Where zero is a limit: only an empty body answers it."""
-    with pytest.raises(BTClibValueError, match="negative max_body_size: -1"):
+    with pytest.raises(BtcRpcValueError, match="negative max_body_size: -1"):
         http_request(URL, max_body_size=-1, transport=Recorded((200, b"")))
 
     assert http_request(URL, max_body_size=0, transport=Recorded((200, b""))) == (
@@ -599,7 +599,7 @@ def test_only_http_and_https_are_opened(url: str) -> None:
     the local disk. The last two have no scheme at all.
     """
     transport = Recorded((200, b"never reached"))
-    with pytest.raises(BTClibValueError, match="invalid url scheme"):
+    with pytest.raises(BtcRpcValueError, match="invalid url scheme"):
         http_request(url, transport=transport)
     assert transport.requests == []
 

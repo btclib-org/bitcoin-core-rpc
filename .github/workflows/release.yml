@@ -260,7 +260,7 @@ jobs:
       # version, the step above having patched pyproject.toml and
       # re-locked. What reaches an index is this artifact, so this one is
       # imported, from an empty directory so the import resolves to the
-      # wheel and not to bitcoin_core_rpc.py in the source tree.
+      # wheel and not to the bitcoin_core_rpc/ package in the source tree.
       # The assertions are dist-py's, and there for the same reasons: a
       # wheel can ship no metadata, an import proves only that the module
       # parses, and `Requires-Dist` is the one line that says whether this

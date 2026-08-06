@@ -14,7 +14,7 @@ in this file — read it before upgrading, rather than a digit.
 
 The first release. There is nothing to act on and nothing to migrate.
 
-`pip install bitcoin-core-rpc`, or copy `bitcoin_core_rpc.py` — one
+`pip install bitcoin-core-rpc`, or copy `bitcoin_core_rpc/__init__.py` — one
 source file with nothing but the standard library behind it, which is what
 makes the second option a supported one rather than a fallback.
 

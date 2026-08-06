@@ -80,27 +80,11 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Internet",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    # true, and it takes `bitcoin_core_rpc/py.typed` to be true: PEP 561's
+    # marker is a file *inside a package directory*, so this claim and the
+    # single-directory layout below are one decision. See [tool.setuptools]
+    "Typing :: Typed",
 ]
-# no "Typing :: Typed", and it is not an oversight: the source is annotated
-# throughout and mypy runs over it in strict mode here, but PEP 561's
-# marker is a `py.typed` file *inside a package directory*, and this
-# distribution is a top-level module with no directory to put one in.
-# Measured rather than assumed, against the built wheel: a consumer running
-# `mypy --strict` gets "module is installed, but missing library stubs or
-# py.typed marker" and `Any` for every name, and a `py.typed` dropped
-# beside the module at the root of site-packages changes nothing -- mypy
-# looks for it under `<module>/`, which is not a directory here.
-#
-# The two ways out are both worse than the claim is worth. A
-# `bitcoin_core_rpc-stubs` distribution does work (measured: the same
-# consumer then type checks) and is a hand-written second copy of the whole
-# interface, which drifts from the source the first time either moves. A
-# package directory would fix it outright, at the cost of the file being
-# named `__init__.py` -- and the file being copyable under its own name is
-# what this project is.
-#
-# A caller who wants the annotations has them: `mypy --follow-untyped-imports`
-# reads them off the installed source
 
 [project.urls]
 Homepage = "https://btclib.org"
@@ -154,13 +138,39 @@ dev = [
 required-version = ">=0.12.0"
 
 [tool.setuptools]
-# a module and not a package, which is the shape of the thing rather than a
-# packaging preference: the file is meant to be copyable, and a package
-# would name it `__init__.py` in this tree and make the copy a rename.
-# `py-modules` is how setuptools ships one, and the automatic discovery
-# would find it too -- written out because a tree with `docs` and `tests`
-# beside the module is exactly the layout that discovery gives up on
-py-modules = ["bitcoin_core_rpc"]
+# a package directory holding one file, which is a shape chosen for exactly
+# one reason: `py.typed`. This distribution is annotated throughout and
+# type checked in strict mode, and PEP 561 gives it no way to say so as a
+# top-level module -- the marker has to sit inside a package directory, and
+# a module has none. Measured against a built wheel of each layout, with a
+# consumer running `mypy --strict` and no configuration of its own:
+#
+#   bitcoin_core_rpc.py                     every name is `Any`, plus
+#                                           "missing library stubs or
+#                                           py.typed marker"
+#   bitcoin_core_rpc.py + py.typed beside   the same; mypy looks for the
+#                                           marker under `<module>/`
+#   bitcoin_core_rpc.pyi beside it          the same
+#   bitcoin_core_rpc/ + py.typed            checks, and catches a wrong
+#                                           argument type
+#
+# So the alternatives are a `bitcoin_core_rpc-stubs` distribution, which is
+# a hand-written second copy of the whole interface and drifts the first
+# time either moves, or leaving every typed consumer to configure
+# `follow_untyped_imports` for this one module -- which btclib measured at
+# 21 lines of override, and which the consumers who do not notice pay in
+# silence rather than in errors.
+#
+# What it costs is the file name: `__init__.py` in this tree, where the
+# vendoring instruction is now "copy it out *and rename it*". That is one
+# sentence in the module docstring, and `tests/standalone_test.py` already
+# copies to `bitcoin_core_rpc.py` rather than to the source's own name, so
+# the property that file exists to check is unchanged
+packages = ["bitcoin_core_rpc"]
+
+[tool.setuptools.package-data]
+# `py.typed` is not a `.py`, so nothing ships it without being told
+bitcoin_core_rpc = ["py.typed"]
 
 [tool.check-manifest]
 # the two files whose subject the sdist does not carry. `.github` is

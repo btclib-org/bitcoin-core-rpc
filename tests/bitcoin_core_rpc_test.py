@@ -63,8 +63,8 @@ from bitcoin_core_rpc import (
     DEFAULT_MAX_BODY_SIZE,
     DEFAULT_TIMEOUT,
     BitcoinCoreRpcClient,
-    BTClibTypeError,
-    BTClibValueError,
+    BtcRpcTypeError,
+    BtcRpcValueError,
     FetchError,
     HttpError,
     RpcError,
@@ -224,7 +224,7 @@ def test_from_chain_derives_no_cookie_when_told_who_is_calling(
     """
     monkeypatch.setattr(Path, "home", lambda: pytest.fail("home consulted"))
     for kwargs in ({"password": RPC_PASSWORD}, {"user": RPC_USER}):
-        with pytest.raises(BTClibValueError, match="go together"):
+        with pytest.raises(BtcRpcValueError, match="go together"):
             BitcoinCoreRpcClient.from_chain(**kwargs)  # type: ignore[arg-type]
 
 
@@ -288,7 +288,7 @@ def test_from_chain_refuses_a_datadir_it_cannot_name(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(Path, "home", no_home)
 
-    with pytest.raises(BTClibValueError, match="pass cookie_path"):
+    with pytest.raises(BtcRpcValueError, match="pass cookie_path"):
         BitcoinCoreRpcClient.from_chain()
 
     # the file is there and readable, so the refusal above is what kept it
@@ -344,7 +344,7 @@ def test_a_colon_in_the_user_is_refused_and_one_in_the_password_is_not() -> None
     stays valid, and the assertion here is what keeps the refusal from
     spreading to it.
     """
-    with pytest.raises(BTClibValueError, match="colon in the rpc user"):
+    with pytest.raises(BtcRpcValueError, match="colon in the rpc user"):
         BitcoinCoreRpcClient(URL, user="alice:admin", password=RPC_PASSWORD)
 
     ambiguous = f"admin:{RPC_PASSWORD}"
@@ -377,7 +377,7 @@ def test_a_credential_that_is_not_a_string_is_refused(
     The message names the type and not the value, which the next test is
     about.
     """
-    with pytest.raises(BTClibTypeError, match=match):
+    with pytest.raises(BtcRpcTypeError, match=match):
         BitcoinCoreRpcClient(URL, **kwargs)
 
 
@@ -398,15 +398,15 @@ def test_a_refused_credential_is_not_quoted_back() -> None:
     """
     secret = f"s3cret-{RPC_PASSWORD}"
 
-    with pytest.raises(BTClibTypeError) as type_error:
+    with pytest.raises(BtcRpcTypeError) as type_error:
         BitcoinCoreRpcClient(URL, user="alice", password=secret.encode())  # type: ignore[arg-type]
     assert secret not in str(type_error.value)
 
-    with pytest.raises(BTClibValueError) as colon_error:
+    with pytest.raises(BtcRpcValueError) as colon_error:
         BitcoinCoreRpcClient(URL, user=f"alice:{secret}", password="")
     assert secret not in str(colon_error.value)
 
-    with pytest.raises(BTClibValueError) as url_error:
+    with pytest.raises(BtcRpcValueError) as url_error:
         BitcoinCoreRpcClient(f"http://alice:{secret}@127.0.0.1:8332")
     assert secret not in str(url_error.value)
 
@@ -421,7 +421,7 @@ def test_a_method_that_is_not_a_string_is_refused(method: object) -> None:
     the node answers for, which is why it is an argument; a number is not
     one.
     """
-    with pytest.raises(BTClibTypeError, match="rpc method that is not a string"):
+    with pytest.raises(BtcRpcTypeError, match="rpc method that is not a string"):
         client().call(method)  # type: ignore[arg-type]
 
 
@@ -433,9 +433,9 @@ def test_from_chain_refuses_a_chain_core_has_no_port_for() -> None:
     exactly as an invented name is. `core_chain_from_network` is what a
     caller holding one goes through.
     """
-    with pytest.raises(BTClibValueError, match="unknown chain: testnet5"):
+    with pytest.raises(BtcRpcValueError, match="unknown chain: testnet5"):
         BitcoinCoreRpcClient.from_chain("testnet5")
-    with pytest.raises(BTClibValueError, match="unknown chain: mainnet"):
+    with pytest.raises(BtcRpcValueError, match="unknown chain: mainnet"):
         BitcoinCoreRpcClient.from_chain("mainnet")
 
 
@@ -474,7 +474,7 @@ def test_an_endpoint_that_is_not_one_is_refused_at_construction(
     Not at the first call, which is where `urlopen` would refuse most of
     these -- by then the line that supplied it is somewhere else.
     """
-    with pytest.raises(BTClibValueError, match=match):
+    with pytest.raises(BtcRpcValueError, match=match):
         BitcoinCoreRpcClient(url, user=RPC_USER, password=RPC_PASSWORD)
 
 
@@ -492,7 +492,7 @@ def test_credentials_in_the_url_are_refused(url: str) -> None:
     a traceback and pasted into an issue; a password in one has been
     disclosed before anybody meant to disclose it.
     """
-    with pytest.raises(BTClibValueError, match="credentials in the rpc url"):
+    with pytest.raises(BtcRpcValueError, match="credentials in the rpc url"):
         BitcoinCoreRpcClient(url, cookie_path="/nowhere/.cookie")
 
 
@@ -501,7 +501,7 @@ def test_a_user_without_a_password_is_refused(
     user: str | None, password: str | None
 ) -> None:
     """Refuse a user without a password, and the other way round."""
-    with pytest.raises(BTClibValueError, match="go together"):
+    with pytest.raises(BtcRpcValueError, match="go together"):
         BitcoinCoreRpcClient(URL, user=user, password=password)
 
 
@@ -513,7 +513,7 @@ def test_credentials_and_a_cookie_path_together_are_refused() -> None:
     afternoon: the cookie was rotated, the password was stale, and
     nothing said which of the two was in use.
     """
-    with pytest.raises(BTClibValueError, match="both rpc credentials and a cookie"):
+    with pytest.raises(BtcRpcValueError, match="both rpc credentials and a cookie"):
         BitcoinCoreRpcClient(
             URL,
             user=RPC_USER,
@@ -524,21 +524,21 @@ def test_credentials_and_a_cookie_path_together_are_refused() -> None:
 
 def test_neither_credentials_nor_a_cookie_path_is_refused() -> None:
     """A client with no way to authenticate is refused where it is built."""
-    with pytest.raises(BTClibValueError, match="no rpc credentials"):
+    with pytest.raises(BtcRpcValueError, match="no rpc credentials"):
         BitcoinCoreRpcClient(URL)
 
 
 @pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan")])
 def test_a_timeout_that_is_no_duration_is_refused(timeout: float) -> None:
     """A zero, a negative, an infinity and a nan are not seconds to wait."""
-    with pytest.raises(BTClibValueError, match="rpc timeout is not a positive"):
+    with pytest.raises(BtcRpcValueError, match="rpc timeout is not a positive"):
         BitcoinCoreRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD, timeout=timeout)
 
 
 @pytest.mark.parametrize("timeout", [True, "30", None])
 def test_a_non_numeric_timeout_is_refused(timeout: object) -> None:
     """A bool is not a duration: `timeout=True` would be one second."""
-    with pytest.raises(BTClibTypeError, match="non-numeric rpc timeout"):
+    with pytest.raises(BtcRpcTypeError, match="non-numeric rpc timeout"):
         BitcoinCoreRpcClient(
             URL,
             user=RPC_USER,
@@ -769,7 +769,7 @@ def test_a_string_is_not_a_sequence_of_parameters() -> None:
     parameters in it.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibTypeError, match="not a sequence of parameters"):
+    with pytest.raises(BtcRpcTypeError, match="not a sequence of parameters"):
         endpoint.call("getblock", TX_ID)
 
 
@@ -777,21 +777,21 @@ def test_a_string_is_not_a_sequence_of_parameters() -> None:
 def test_bytes_are_not_a_sequence_of_parameters(params: object) -> None:
     """Bytes are a Sequence too, and are a value and not a list of them."""
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibTypeError, match="not a sequence of parameters"):
+    with pytest.raises(BtcRpcTypeError, match="not a sequence of parameters"):
         endpoint.call("getblock", params)  # type: ignore[arg-type]
 
 
 def test_params_that_are_neither_a_sequence_nor_a_mapping() -> None:
     """An int is not a parameter structure json-rpc has."""
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibTypeError, match="neither a sequence nor a mapping"):
+    with pytest.raises(BtcRpcTypeError, match="neither a sequence nor a mapping"):
         endpoint.call("getblock", 481824)  # type: ignore[arg-type]
 
 
 def test_a_parameter_name_that_is_not_a_string() -> None:
     """A json object is keyed by strings, and a mapping here may not be."""
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibTypeError, match="non-string rpc parameter name"):
+    with pytest.raises(BtcRpcTypeError, match="non-string rpc parameter name"):
         endpoint.call("getblock", {1: TX_ID})  # type: ignore[dict-item]
 
 
@@ -805,7 +805,7 @@ def test_a_nested_parameter_name_that_is_not_a_string() -> None:
     reach the node changed from what was passed.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibTypeError, match="non-string rpc parameter name"):
+    with pytest.raises(BtcRpcTypeError, match="non-string rpc parameter name"):
         endpoint.call("importdescriptors", [{"nested": {1: "value"}}])
 
 
@@ -825,14 +825,14 @@ def test_a_decimal_anywhere_in_the_parameters_is_refused(params: object) -> None
     request -- never to the array itself.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibTypeError, match="Decimal rpc parameter"):
+    with pytest.raises(BtcRpcTypeError, match="Decimal rpc parameter"):
         endpoint.call("send", params)  # type: ignore[arg-type]
 
 
 def test_a_non_finite_number_nested_in_the_parameters_is_refused() -> None:
     """The same walk, and the same diagnosis, for a nan inside a structure."""
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibValueError, match="not a json number in the rpc params"):
+    with pytest.raises(BtcRpcValueError, match="not a json number in the rpc params"):
         endpoint.call("send", [{"fee_rate": float("inf")}])
 
 
@@ -843,7 +843,7 @@ def test_bytes_nested_in_the_parameters_are_not_a_list_of_octets() -> None:
     level gives: this client takes hex where Core takes hex.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibTypeError, match="not a json value"):
+    with pytest.raises(BtcRpcTypeError, match="not a json value"):
         endpoint.call("sendrawtransaction", [b"\x01\x00"])
 
 
@@ -857,7 +857,7 @@ def test_parameters_that_contain_themselves_are_refused() -> None:
     cyclic: list[Any] = [1]
     cyclic.append(cyclic)
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibValueError, match="contains itself"):
+    with pytest.raises(BtcRpcValueError, match="contains itself"):
         endpoint.call("send", cyclic)
 
 
@@ -875,7 +875,7 @@ def test_the_parameter_depth_bound_is_inclusive(kind: str) -> None:
     endpoint = client((200, recorded_body("getblockcount.json")))
     assert endpoint.call("send", at_limit) == TIP_HEIGHT
 
-    with pytest.raises(BTClibValueError, match="nested deeper than"):
+    with pytest.raises(BtcRpcValueError, match="nested deeper than"):
         endpoint.call("send", wrap(at_limit))
 
 
@@ -889,7 +889,7 @@ def test_something_that_walks_as_json_and_has_none_is_still_refused() -> None:
     inside the standard library.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibTypeError, match="not a json value: range"):
+    with pytest.raises(BtcRpcTypeError, match="not a json value: range"):
         endpoint.call("send", [range(3)])
 
 
@@ -903,7 +903,7 @@ def test_a_decimal_parameter_is_refused_and_not_rounded() -> None:
     Core accepts for the field.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibTypeError, match="Decimal rpc parameter"):
+    with pytest.raises(BtcRpcTypeError, match="Decimal rpc parameter"):
         endpoint.call("sendtoaddress", ["bc1qexample", Decimal("0.1")])
 
 
@@ -916,7 +916,7 @@ def test_a_parameter_json_cannot_carry_at_all() -> None:
     with it. A caller's own class lands in the same place.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibTypeError, match="not a json value"):
+    with pytest.raises(BtcRpcTypeError, match="not a json value"):
         endpoint.call("importaddress", [{"bc1qexample"}])
 
 
@@ -929,7 +929,7 @@ def test_a_non_finite_number_is_not_a_json_number(number: float) -> None:
     parameter that caused it.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibValueError, match="not a json number in the rpc params"):
+    with pytest.raises(BtcRpcValueError, match="not a json number in the rpc params"):
         endpoint.call("settxfee", [number])
 
 
@@ -999,7 +999,7 @@ def test_one_second_is_a_positive_timeout() -> None:
 def test_a_per_call_timeout_that_is_no_duration_is_refused(timeout: float) -> None:
     """The same check as the constructor's, at the other place it is set."""
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibValueError, match="request_timeout is not a positive"):
+    with pytest.raises(BtcRpcValueError, match="request_timeout is not a positive"):
         endpoint.call("getblockcount", request_timeout=timeout)
 
 
@@ -1016,7 +1016,7 @@ def test_every_call_asks_with_an_id_of_its_own() -> None:
     endpoint.call("getblockcount")
     ids = [asked_id(request) for request in recording(endpoint).requests]
     assert len(set(ids)) == 2
-    assert all(re.fullmatch(r"btclib-[0-9a-f]{16}", id_) for id_ in ids)
+    assert all(re.fullmatch(r"btcrpc-[0-9a-f]{16}", id_) for id_ in ids)
 
 
 def test_a_call_writes_nothing_on_the_client() -> None:
@@ -1399,7 +1399,7 @@ def test_a_number_too_long_for_this_interpreter_to_write() -> None:
     where it surfaces.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibValueError, match="rpc params json cannot carry"):
+    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
         endpoint.call("send", [10**5000])
 
 
@@ -1452,7 +1452,7 @@ def test_a_parameter_that_is_not_what_the_walk_saw() -> None:
     """
     shifty = Shifty(amount=1.0)
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BTClibValueError, match="rpc params json cannot carry"):
+    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
         endpoint.call("sendmany", [shifty])
 
     # the transport was never called: no request was recorded
@@ -1703,9 +1703,9 @@ def test_neither_direction_falls_back_on_a_name_it_does_not_know() -> None:
     Core's `main` is no BIP network name, `mainnet` no chain of Core's, and
     each is refused by the function that does not own it.
     """
-    with pytest.raises(BTClibValueError, match="unknown network: main"):
+    with pytest.raises(BtcRpcValueError, match="unknown network: main"):
         core_chain_from_network("main")
-    with pytest.raises(BTClibValueError, match="unknown Core chain: mainnet"):
+    with pytest.raises(BtcRpcValueError, match="unknown Core chain: mainnet"):
         network_from_core_chain("mainnet")
 
 

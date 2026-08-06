@@ -14,6 +14,8 @@ include *.yaml
 # the sdist already carries .pre-commit-config.yaml, which points at this
 include .secrets.baseline
 
+include bitcoin_core_rpc/py.typed
+
 recursive-include tests *.json
 recursive-include tests *.md
 recursive-include tests *.py
