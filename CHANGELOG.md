@@ -67,3 +67,9 @@ The first release.
   the number. The month carries no leading zero, PEP 440 normalizing
   `2026.08` to `2026.8` and `release.yml` comparing the tag to the declared
   string as written.
+- The MIT permission notice in full at the head of every source file, and
+  `COPYRIGHT` — the text a hook requires them all to carry — is that notice
+  rather than a pointer to `LICENSE`: `bitcoin_core_rpc.py` is meant to be
+  copied out, and a copy has no `LICENSE` beside it to point at. No year in
+  it, so a vendored copy nobody has touched does not look out of date every
+  January.
