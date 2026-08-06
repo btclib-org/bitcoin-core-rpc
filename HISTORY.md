@@ -4,13 +4,13 @@ Notable changes are documented here.
 [CHANGELOG.md](./CHANGELOG.md) is the record behind them: this file says
 what a user has to act on, that one says what changed and why.
 
-Versions are *[calendar versions](https://calver.org/)*, `YYYY.M`: the
+Versions are *[calendar versions](https://calver.org/)*, `YYYY.M.D`: the
 number says when a release was cut, which is the useful thing to know about
 a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
-## v2026.8 (work in progress, not released yet)
+## v2026.8.6
 
 The first release. There is nothing to act on and nothing to migrate.
 
