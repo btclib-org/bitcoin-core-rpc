@@ -2,11 +2,11 @@
 
 # Copyright (C) The btclib developers
 #
-# This file is part of btclib-bitcoin-core-rpc. It is subject to the license
+# This file is part of bitcoin-core-rpc. It is subject to the license
 # terms in the LICENSE file found in the top-level directory of this
 # distribution.
 #
-# No part of btclib-bitcoin-core-rpc including this file, may be copied,
+# No part of bitcoin-core-rpc including this file, may be copied,
 # modified, propagated, or distributed except according to the terms contained
 # in the LICENSE file.
 
@@ -138,7 +138,7 @@ seen at all -- `.cookie` is what bitcoind writes for exactly this,
 rotated at every restart, readable by the user running the node and by
 nobody else.
 
-**Vendoring and updates.** `pip install btclib-bitcoin-core-rpc` is the
+**Vendoring and updates.** `pip install bitcoin-core-rpc` is the
 supported way to get this file, and the reason it can also be copied is a
 project that ships one artifact and takes no dependency for it. Copy
 `bitcoin_core_rpc.py` whole from a release tag, keep the license notice

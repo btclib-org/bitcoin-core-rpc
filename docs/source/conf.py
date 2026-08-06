@@ -2,11 +2,11 @@
 
 # Copyright (C) The btclib developers
 #
-# This file is part of btclib-bitcoin-core-rpc. It is subject to the license
+# This file is part of bitcoin-core-rpc. It is subject to the license
 # terms in the LICENSE file found in the top-level directory of this
 # distribution.
 #
-# No part of btclib-bitcoin-core-rpc including this file, may be copied,
+# No part of bitcoin-core-rpc including this file, may be copied,
 # modified, propagated, or distributed except according to the terms contained
 # in the LICENSE file.
 """Configuration file for the Sphinx documentation builder.
