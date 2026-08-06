@@ -11,6 +11,41 @@ configured to trust the workflow itself
 The same workflow, started by hand instead of by a tag, is a full rehearsal
 against TestPyPI. A rehearsal is never tagged.
 
+## Which version string is which
+
+Five strings here look like versions, and two of them are written by
+hand. Telling them apart is most of what can go wrong:
+
+- **`2026.8.6`**, in `pyproject.toml`, is *the* version. It is what gets
+  published, on either index, and the only one typed in by number
+- **`2026.8.6.1`**, a fourth number on an already-final version, plays
+  two roles: right after `2026.8.6` ships, the last step of a release
+  opens `dev` on it as a placeholder, nothing having moved since to
+  warrant a real bump; and if `2026.8.6` itself shipped broken, "If
+  something goes wrong" ships the very same string as the fix, tagged.
+  Both are typed by hand, and both read the same way — "the same
+  release, one change since" — whichever of the two prompted it. The
+  placeholder is shaped exactly like a release on purpose: what keeps it
+  from being tagged as one is `version-check`'s heading check against
+  HISTORY.md's and CHANGELOG.md's section for it, not the shape of the
+  number, which no longer tells the two apart
+- **`v2026.8.6`**, the tag, carries no version of its own: it picks the
+  index, PyPI rather than TestPyPI, and `version-check` exists to
+  confirm it says what `pyproject.toml` says
+- **`.dev<run number>`** is not a version but the template in
+  `release.yml`, appended to what `pyproject.toml` declares by a
+  `workflow_dispatch` run alone. Nothing writes it down, and no commit
+  ever carries it
+- **`2026.8.6rc1`**, and a `v2026.8.6rc1` tag, have no place in this
+  scheme: there are no release candidates here, only a version not yet
+  tagged. `version-check` refuses anything that is not digits and dots,
+  which is what stops `2026.8.6rc1` before a tag is even pushed — and
+  what a `v2026.8.6rc1` tag would otherwise pass, burning a pre-release
+  on PyPI itself, where `--pre` installs would find it from then on
+
+PEP 440 sorts a `.dev<run number>` rehearsal before the release it
+rehearses, so a rehearsal never shadows it.
+
 ## One-time setup
 
 Neither index holds the project until an upload creates it, so both entries
