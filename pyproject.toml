@@ -16,7 +16,17 @@ name = "bitcoin-core-rpc"
 # module either, and that is the same decision the module's docstring
 # states for a vendored copy -- the release tag is the version, and a
 # number inside a file that gets copied is a second one that drifts
-version = "0.1.0"
+#
+# calendar versioning, `YYYY.M`: what ages in a client of a node is which
+# Core versions its recorded replies were recorded against, and a date says
+# that where a compatibility number does not. There is no dependency here
+# whose bump such a number would have to describe either, so what a release
+# breaks is announced in HISTORY.md rather than encoded in a digit
+#
+# no leading zero in the month: PEP 440 normalizes `2026.08` to `2026.8`,
+# and release.yml compares the tag to this string literally, so a padded
+# one would be a tag no release matches
+version = "2026.8"
 description = "A standalone JSON-RPC client against Bitcoin Core"
 readme = "README.md"
 # PEP 639: an SPDX expression, which becomes the `License-Expression`

@@ -45,7 +45,7 @@ body:
         `python -c "from importlib.metadata import version;
         print(version('bitcoin-core-rpc'))"`, or the release tag the
         copy was taken from if the file is vendored.
-      placeholder: "0.1.0"
+      placeholder: "2026.8"
     validations:
       required: true
 
