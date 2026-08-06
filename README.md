@@ -8,10 +8,10 @@ A standalone JSON-RPC client against Bitcoin Core.
 [![Python](https://img.shields.io/pypi/pyversions/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-One source file, `bitcoin_core_rpc.py`, with nothing but the standard
-library behind it. `BitcoinCoreRpcClient` invokes any one rpc method a node
-has, with positional or named parameters: one HTTP POST per call, basic
-authentication, the result or an exception.
+One source file with nothing but the standard library behind it, fully
+annotated and shipping `py.typed`. `BitcoinCoreRpcClient` invokes any one
+rpc method a node has, with positional or named parameters: one HTTP POST
+per call, basic authentication, the result or an exception.
 
 Install it, or copy the file — [Vendoring](#vendoring) below is how, and it
 is a supported way to use this rather than a fallback.
@@ -163,32 +163,30 @@ followed, and its own thread safety.
 
 ## Type checking
 
-The source is annotated throughout and `mypy --strict` runs over it here,
-but the annotations do not reach you by default, and that is worth stating
-rather than leaving you to discover: PEP 561's `py.typed` marker goes
-*inside a package directory*, and this is a top-level module with no
-directory to put one in. `mypy` therefore reports "module is installed, but
-missing library stubs or py.typed marker" and gives you `Any`.
+The source is annotated throughout, `mypy --strict` runs over it here, and
+the distribution ships `py.typed` — so your own checker reads those
+annotations with no configuration of any kind:
 
-One flag is the whole of the fix — it reads the annotations off the
-installed source:
-
-```shell
-mypy --strict --follow-untyped-imports your_code.py
+```console
+$ mypy --strict your_code.py
+your_code.py:4: error: Argument 1 to "call" of "BitcoinCoreRpcClient" has
+incompatible type "int"; expected "str"
 ```
 
-`pyproject.toml` records the alternatives and why neither was taken.
+That marker is why the source is `bitcoin_core_rpc/__init__.py` and not a
+top-level module: PEP 561 puts it inside a package directory and nowhere
+else. `pyproject.toml` records what the alternatives were measured to do.
 
 ## Vendoring
 
-Copy `bitcoin_core_rpc.py` whole from a release tag, keep the license
-notice at the top of it — MIT, embedded rather than referenced, because a
-copy has no `LICENSE` beside it — and record the tag next to the copy. An
-update is a replacement of the whole file, and this shows every behavioral
-change first:
+Copy `bitcoin_core_rpc/__init__.py` whole from a release tag, **rename it
+to `bitcoin_core_rpc.py`**, keep the license notice at the top of it — MIT,
+embedded rather than referenced, because a copy has no `LICENSE` beside it
+— and record the tag next to the copy. An update is a replacement of the
+whole file, and this shows every behavioral change first:
 
 ```shell
-git diff OLD..NEW -- bitcoin_core_rpc.py
+git diff OLD..NEW -- bitcoin_core_rpc/__init__.py
 ```
 
 A vendored copy receives no security or compatibility fix automatically, so

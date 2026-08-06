@@ -15,6 +15,32 @@ The first release.
 
 ### Added
 
+- **the distribution ships `py.typed`**, so a consumer's type checker reads
+  these annotations with no configuration at all. That marker has to sit
+  inside a package directory, which is why the source is
+  `bitcoin_core_rpc/__init__.py`: measured against a built wheel of each
+  layout, a top-level module leaves `mypy --strict` reporting "missing
+  library stubs or py.typed marker" and treating every name as `Any` --
+  and a `py.typed` or a `.pyi` placed beside such a module changes
+  nothing, mypy looking for the marker under `<module>/`. What it costs is
+  that vendoring is now a copy *and a rename*, which the module docstring
+  and the README both say.
+
+### Changed
+
+- **`BTClibValueError`, `BTClibTypeError` and `BTClibRuntimeError` are
+  `BtcRpcValueError`, `BtcRpcTypeError` and `BtcRpcRuntimeError`.** The old
+  names were this file's while it lived inside btclib, and btclib declares
+  three of its own spelled exactly that way -- so a consumer holding both
+  had two same-named classes and an `except BTClibValueError` that reads
+  correct at every call site while being the wrong one at some of them.
+  btclib hit that taking the dependency, in an `except` around a function
+  of this module. Nothing catches these names inside this package, so the
+  change is a rename; nothing has shipped, so no caller has to act.
+- **a request id is prefixed `btcrpc-`**, where it said `btclib-`. The
+  prefix reaches a node's `debug.log`, and naming a library the caller may
+  not be using was a claim this package had no business making.
+
 - `BitcoinCoreRpcClient`, one Bitcoin Core JSON-RPC endpoint and the
   credentials to reach it. `call` invokes any one method with positional or
   named parameters, `from_chain` builds a client for the local node of one

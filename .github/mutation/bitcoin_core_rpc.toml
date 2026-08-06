@@ -2,7 +2,7 @@
 # protocol's rather than a format's.
 
 [cosmic-ray]
-module-path = "bitcoin_core_rpc.py"
+module-path = "bitcoin_core_rpc/__init__.py"
 
 # Measured on the checkout that introduced this profile: 713 mutants
 # enumerate, the annotation filter below skips 187, and the 526 that run take

@@ -18,7 +18,7 @@ uv run pytest                                   # the suite
 uv run pytest tests/transport_test.py           # one file
 uv run pytest -k test_a_wallet_name             # one test
 uv run pre-commit run --all-files               # every gate, see below
-uv run pre-commit run mypy --files bitcoin_core_rpc.py   # one hook
+uv run pre-commit run mypy --files bitcoin_core_rpc/__init__.py  # one hook
 uv run --python 3.10 pytest                     # another interpreter
 ```
 
@@ -27,7 +27,7 @@ if a workflow changes.
 
 ## Architecture
 
-One source file, `bitcoin_core_rpc.py`, with nothing but the standard
+One source file, `bitcoin_core_rpc/__init__.py`, with nothing but the standard
 library behind it, and that constraint is the single most important thing
 to know before touching it:
 

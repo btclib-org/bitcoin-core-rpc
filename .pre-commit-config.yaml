@@ -326,7 +326,7 @@ repos:
         name: mypy (strict, in the project environment)
         entry: >
           uv run --locked --no-default-groups --group lint --group test
-          mypy bitcoin_core_rpc.py tests .github/scripts
+          mypy bitcoin_core_rpc tests .github/scripts
         language: system
         types: [python]
         pass_filenames: false
