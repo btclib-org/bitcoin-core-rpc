@@ -353,7 +353,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-randomly" },
     { name = "pytest-xdist" },
-    { name = "ruff" },
+    { name = "ruff", specifier = ">=0.16" },
     { name = "sphinx" },
     { name = "sphinx-rtd-theme" },
     { name = "twine" },
@@ -366,7 +366,7 @@ docs = [
 lint = [
     { name = "mypy" },
     { name = "pre-commit" },
-    { name = "ruff" },
+    { name = "ruff", specifier = ">=0.16" },
 ]
 mutation = [{ name = "cosmic-ray" }]
 test = [

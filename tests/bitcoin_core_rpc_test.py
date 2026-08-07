@@ -90,7 +90,7 @@ COOKIE_LINE = f"{COOKIE_USER}:" + "ab" * 32
 # `password=` argument: the two secret scanners read a literal there as a
 # credential, and they are right to -- a real one belongs in neither
 RPC_USER = "rpcuser"
-RPC_PASSWORD = "rpcpassword"  # noqa: S105  # pragma: allowlist secret
+RPC_PASSWORD = "rpcpassword"  # ruff: ignore[S105]  # pragma: allowlist secret
 
 # the endpoint the tests build against, written once. A url is required,
 # there being no chain here to derive one from -- `from_chain` is what
@@ -1107,7 +1107,7 @@ def test_an_rpc_error_survives_pickle_and_deepcopy() -> None:
     error = RpcError("getrawtransaction: not found", -5, {"tx": 1})
     said = "getrawtransaction: not found (rpc error code -5)"
     assert str(error) == said
-    for back in (pickle.loads(pickle.dumps(error)), copy.deepcopy(error)):  # noqa: S301
+    for back in (pickle.loads(pickle.dumps(error)), copy.deepcopy(error)):  # ruff: ignore[S301]
         assert type(back) is RpcError
         assert str(back) == said
         assert back.code == -5
@@ -1195,7 +1195,7 @@ def test_a_401_says_it_is_the_credentials() -> None:
 def test_an_http_error_survives_pickle_and_deepcopy() -> None:
     """`status` is a constructor argument now, not folded into `str` alone."""
     error = HttpError("getblockcount at http://node: HTTP 503", 503)
-    for back in (pickle.loads(pickle.dumps(error)), copy.deepcopy(error)):  # noqa: S301
+    for back in (pickle.loads(pickle.dumps(error)), copy.deepcopy(error)):  # ruff: ignore[S301]
         assert type(back) is HttpError
         assert str(back) == str(error)
         assert back.status == 503
