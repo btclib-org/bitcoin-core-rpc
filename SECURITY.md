@@ -13,7 +13,7 @@ advisory is published, and a CVE can be requested from it if the
 vulnerability warrants one.
 
 If you have no GitHub account, or would rather not use it for this,
-responsible disclosure by email to _security at btclib dot org_ is
+responsible disclosure by email to *security at btclib dot org* is
 equally welcome.
 
 ## What belongs here, and what belongs upstream
@@ -31,7 +31,7 @@ credential and with a reply:
     asked for it
 - the distributions published to PyPI and their provenance
 
-What a _method_ does is Bitcoin Core's, and belongs to
+What a *method* does is Bitcoin Core's, and belongs to
 [bitcoin/bitcoin](https://github.com/bitcoin/bitcoin/security/policy). So
 does the node's own authentication.
 
