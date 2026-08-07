@@ -64,13 +64,28 @@ requires-python = ">=3.10"
 # package or copied as one file. A dependency added here is a dependency a
 # vendored copy silently does not have, so the empty list is a contract
 dependencies = []
+# the GitHub repository topics, in the same order, and the order is by
+# relevance rather than alphabetical: PyPI shows keywords as the metadata
+# gives them, and GitHub sorts its own, so there the order decides only
+# which topic goes when the twenty it allows are full -- which nine is well
+# short of. Lowercase throughout, a GitHub topic being lowercase or not a
+# topic, so that one spelling serves both lists.
+#
+# What is not here: `python`, which names no feature and is what the
+# `Programming Language ::` classifiers below already say; `type-hints`,
+# which `Typing :: Typed` says the same way, machine-readably; and a chain
+# name, `from_chain` carrying Core's defaults for all five and no keyword
+# naming one of them being better than naming none
 keywords = [
-    "bitcoin",
     "bitcoin-core",
     "bitcoind",
+    "bitcoin",
+    "bitcoin-rpc",
     "json-rpc",
-    "rpc",
     "rpc-client",
+    "rpc",
+    "zero-dependency",
+    "vendorable",
 ]
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",

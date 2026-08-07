@@ -21,6 +21,22 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.8.7.1 (work in progress, not released yet)
 
+### Changed
+
+- **`keywords` and the GitHub repository topics name the same things.**
+  The keyword list had neither `zero-dependency` nor `vendorable`, which
+  the topics already carried and which are two of the three things the
+  README leads with; `bitcoin-rpc` is new to both, and is what somebody
+  looking for this searches for. The order is by relevance rather than
+  alphabetical, PyPI showing keywords as the metadata gives them; GitHub
+  sorts its own, so there the order decides only which topic goes when the
+  twenty it allows are full, which nine is well short of. Three candidates
+  are left out, and the comment beside the list says why: `python`, which
+  names no feature and repeats the `Programming Language ::` classifiers,
+  `type-hints`, which repeats `Typing :: Typed`, and a chain name,
+  `from_chain` carrying Core's defaults for all five. The `python` topic
+  goes for the first of those reasons, leaving the two lists identical.
+
 ### Repository
 
 - **The README gained ten badges: `status`, `uv`, `calver`, `downloads`,
