@@ -23,16 +23,18 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
-- **The README carries a `status`, a `ruff`, a `type-check` and a `docs`
-  badge**, next to the `PyPI`, `Python`, `License` and the two workflow
-  badges already there. `status` reads the same PyPI classifier as
-  `Python`; `ruff` is the endpoint badge upstream publishes for its own
-  lint-and-format state, rather than a static claim of it; `type-check`
-  names mypy the way `mypy --strict` runs here; `docs` points at the Read
-  the Docs build the Links section already named but never showed a
-  status for. The nine badges now read in one sequence -- what the
-  project is, what installs, what checks it, what documents it, what
-  CI ran -- which is the order btclib and btclib_libsecp256k1 both use.
+- **The README gained ten badges: `status`, `uv`, `calver`, `downloads`,
+  `ruff`, `markdownlint`, `type-check`, `docs`, `pre-commit` and
+  `pre-commit.ci`.** None of them claimed something new: `uv` is the tool
+  this project already requires installed, `calver` the scheme
+  `2026.8.7.1` already follows, `pre-commit.ci` the check already
+  configured in `.pre-commit-config.yaml`'s `ci:` block and already
+  running against `dev`. What was missing was the badge saying so. The
+  sixteen badges now read in one sequence -- what the project is, what
+  installs it, what checks it, what documents it, what CI ran, where to
+  talk about it -- the order btclib and btclib_libsecp256k1 both use, a
+  `slack` badge to the same channel included and no `twitter` one, which
+  the sibling projects are dropping too.
 
 ## v2026.8.7
 
