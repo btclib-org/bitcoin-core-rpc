@@ -10,7 +10,7 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
-## v2026.8.6.1 (work in progress, not released yet)
+## v2026.8.7
 
 The timeout now bounds the whole exchange rather than each socket
 operation, so a call cannot outlive it by waiting on a peer that keeps
