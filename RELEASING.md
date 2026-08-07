@@ -1,4 +1,4 @@
-# Releasing
+# Releasing bitcoin-core-rpc
 
 Releases are published by GitHub Actions
 ([release.yml](.github/workflows/release.yml)), not from a developer
@@ -11,31 +11,46 @@ configured to trust the workflow itself
 The same workflow, started by hand instead of by a tag, is a full rehearsal
 against TestPyPI. A rehearsal is never tagged.
 
+**A workflow GitHub has not registered cannot be dispatched, and it
+registers one only once its file has reached the default branch.** That
+makes `release.yml`, `latest.yml` and `published.yml` — `schedule` and
+`workflow_dispatch` only, so nothing else ever triggers them — answer
+`gh: Not Found (HTTP 404)` until the release pull request is merged. It
+bites once, on the first release after any of them is written, and it
+inverts the order below: the TestPyPI rehearsal that this file asks for
+*before* the merge can only happen after it, still before the tag. It also
+means such a workflow reaches `master` having never run.
+
 ## Which version string is which
 
-Five strings here look like versions, and two of them are written by
-hand. Telling them apart is most of what can go wrong:
+Telling these apart is most of what can go wrong when cutting a release.
 
-- **`2026.8.6`**, in `pyproject.toml`, is *the* version. It is what gets
-  published, on either index, and the only one typed in by number
-- **`2026.8.6.1`**, a fourth number on an already-final version, plays
-  two roles: right after `2026.8.6` ships, the last step of a release
-  opens `dev` on it as a placeholder, nothing having moved since to
-  warrant a real bump; and if `2026.8.6` itself shipped broken, "If
-  something goes wrong" ships the very same string as the fix, tagged.
-  Both are typed by hand, and both read the same way — "the same
-  release, one change since" — whichever of the two prompted it. The
-  placeholder is shaped exactly like a release on purpose: what keeps it
-  from being tagged as one is `version-check`'s heading check against
-  HISTORY.md's and CHANGELOG.md's section for it, not the shape of the
-  number, which no longer tells the two apart
+- **`pyproject.toml`'s own `version`** takes three shapes over one cycle,
+  never two at once: `2026.9`, month only, between releases — the
+  placeholder "Open the next cycle" sets, so a checkout of `dev` reports
+  itself as work in progress rather than as a release it is not;
+  `2026.8.6`, with the day added on release day — calendar versioning,
+  `YYYY.M.D` — which is what gets published; and `2026.8.6.1`, a fourth
+  number added only if `2026.8.6` shipped broken and cannot be reuploaded
+  (see "If something goes wrong"). All three are typed by hand. Three
+  components is always the release day; four is always a patch on it. The
+  day is never dropped in favour of a fourth digit standing in for it,
+  which is what would make the two indistinguishable — and `version-check`
+  refuses a tag on the placeholder shape for exactly that reason: two
+  components reach the check and nothing past it, whichever one is
+  declared. It does not tell three apart from four, both being a release
+  it accepts
 - **`v2026.8.6`**, the tag, carries no version of its own: it picks the
   index, PyPI rather than TestPyPI, and `version-check` exists to
   confirm it says what `pyproject.toml` says
-- **`.dev<run number>`** is not a version but the template in
-  `release.yml`, appended to what `pyproject.toml` declares by a
-  `workflow_dispatch` run alone. Nothing writes it down, and no commit
-  ever carries it
+- **`2026.8.6.dev7`** is a rehearsal, and nobody types it either half at
+  a time: `.dev<run number>` is the template `release.yml` appends to
+  what `pyproject.toml` declares when `workflow_dispatch` starts it, the
+  number being `github.run_number` counted for that workflow alone, so
+  the seventh such run rehearsing `2026.8.6` produces exactly that. The
+  count is what makes a rehearsal's version unique, and what makes
+  re-running a finished one collide with itself rather than mint a new
+  one. Nothing writes it down, and no commit ever carries it
 - **`2026.8.6rc1`**, and a `v2026.8.6rc1` tag, have no place in this
   scheme: there are no release candidates here, only a version not yet
   tagged. `version-check` refuses anything that is not digits and dots,
@@ -43,8 +58,11 @@ hand. Telling them apart is most of what can go wrong:
   what a `v2026.8.6rc1` tag would otherwise pass, burning a pre-release
   on PyPI itself, where `--pre` installs would find it from then on
 
-PEP 440 sorts a `.dev<run number>` rehearsal before the release it
-rehearses, so a rehearsal never shadows it.
+PEP 440 sorts `2026.8.6.dev7` before `2026.8.6`, so a rehearsal never
+shadows the release it rehearses. `git tag` on its own does not read the
+numbers the same way: measured, `v2026.10` lists before `v2026.7`,
+alphabetically rather than chronologically. `git tag --sort=v:refname`
+reads them as PEP 440 does.
 
 ## One-time setup
 
@@ -81,8 +99,10 @@ one, and TestPyPI's rehearsal does the same there.
 ## Rehearse on TestPyPI
 
 A rehearsal runs the identical pipeline — lint gate, test matrix, the
-packaging checks of the `dist-py` job, build, wheel smoke test — and
-publishes to TestPyPI instead of PyPI.
+packaging checks of the `dist-py` job (twine, check-wheel-contents,
+pyroma), build, wheel smoke test — and publishes to
+[TestPyPI](https://test.pypi.org/project/bitcoin-core-rpc/) instead of
+PyPI.
 
 1. On GitHub, Actions → release → Run workflow, and pick the branch to
    rehearse (usually `dev`).
@@ -90,12 +110,16 @@ publishes to TestPyPI instead of PyPI.
 1. The workflow appends `.dev<run number>` to whatever `pyproject.toml`
    declares on the branch dispatched — the outgoing cycle's placeholder if
    `dev` has not yet been bumped to the version about to ship, which
-   publishes something like `2026.8.6.1.dev4` and still tests the
-   identical pipeline the tag will run; the number is not what is being
-   asked about. Every rehearsal is unique on TestPyPI this way, and sorts
-   before the release it rehearses. Re-running a finished rehearsal would
-   reuse its run number and be refused by TestPyPI: dispatch a fresh run
-   instead.
+   publishes something like `2026.9.dev4` and still tests the identical
+   pipeline the tag will run; the number is not what is being asked about.
+   Every rehearsal is unique on TestPyPI this way. It sorts before the
+   release it rehearses once that release's own version is the one
+   declared, which is what the rehearsal from `master` below runs on; a
+   placeholder naming a later month sorts after the day it rehearses
+   instead, which costs nothing — `.dev` is a pre-release no plain install
+   resolves, and the release itself never reaches TestPyPI. Re-running a
+   finished rehearsal would reuse its run number and be refused by
+   TestPyPI: dispatch a fresh run instead.
 
 1. Check the upload, and optionally install it — it has no dependency to
    resolve from anywhere:
@@ -119,6 +143,16 @@ it generates. CONTRIBUTING.md has the same command for a node of your own.
 It gates nothing automatically, which is why it is a step here.
 
 ## Release
+
+`latest` is worth dispatching before the tag rather than waiting for its
+cron, because what it answers is cheaper to know before a version is
+consumed than after. It gates nothing, so it will not stop you: reading it
+is the point.
+
+**Read it per job, not as a verdict**, and open the failure rather than
+inferring it from a sibling. A release ships what `uv.lock` pins, so drift
+against a newer version of some dependency does not make the release
+wrong — it says the next bump is going to be work.
 
 1. Read the public API against the previous release, before the notes that
    describe it are declared final. [HISTORY.md](./HISTORY.md) promises that
@@ -185,6 +219,21 @@ It gates nothing automatically, which is why it is a step here.
    pull request that never mentions them reads exactly like one that
    skipped them.
 
+1. Run `uv run pre-commit run --all-files` and `uv run pytest --cov`
+   before pressing anything. The local gates are the evidence here in a
+   way they are not on an ordinary branch: `test.yml` and `lint.yml`
+   trigger on `pull_request` and on a push to `master` alone,
+   deliberately, so that a branch with an open pull request is not tested
+   twice — which means **a commit pushed straight to `dev` runs neither**,
+   and the next CI it meets is the push to `master`. Correcting the
+   release branch after the pull request is merged is exactly that case.
+
+   Then verify the
+   [read the docs](https://readthedocs.org/projects/bitcoin-core-rpc/builds/)
+   build renders. Read the *builds* page and not only the rendered one: a
+   site that answers 200 may be serving the last build that succeeded,
+   the webhook having quietly refused every delivery since.
+
 1. Merge `dev` into `master` with **"Rebase and merge"**, never *"Squash
    and merge"* — read the button, GitHub offers whichever method was used
    last, and a squash there would fold every landed change into one
@@ -193,23 +242,60 @@ It gates nothing automatically, which is why it is a step here.
    tag on the squashed commit, and the attestations bound to it, outlive
    any attempt to rewrite the history back.
 
-   Read `lint` and `test` on the commit `master` ends up at before
-   tagging, rather than trust the pull request's own green run:
+   **Past 100 commits there is no button at all.** "Rebase and merge" is
+   [limited to 100 commits](https://docs.github.com/en/repositories/creating-and-managing-repositories/repository-limits),
+   and answers `This branch can't be rebased` above it. The limit belongs
+   to the feature, so no branch rule and no administrator bypasses it, and
+   the other two buttons are barred by the paragraph above and by
+   `master`'s required linear history. What is left is the command line
+   the button wraps:
+
+   ```shell
+   git fetch origin
+   git merge-base --is-ancestor origin/master origin/dev && echo fast-forward
+   git push origin origin/dev:master
+   ```
+
+   Read that middle line before pushing, because it decides the realign
+   step below too. If `master` is already an ancestor of `dev` — which it
+   is whenever nothing has landed on `master` alone since the previous
+   release, the realign step having left the two equal — the push is a
+   **fast-forward**: every commit keeps its sha, `dev` and `master` end on
+   the same commit, and the realign has nothing to do. A rebase, replaying
+   commits under new shas, is what makes it necessary; a fast-forward is
+   what makes it moot. `git diff origin/master origin/dev` answers which
+   happened rather than leaving it to be assumed.
+
+   Either way, read `lint` and `test` on the commit `master` ends up at
+   before tagging, rather than trust the pull request's own green run:
 
    ```shell
    gh run list --commit "$(git rev-parse origin/master)"
    ```
 
-   the merge pushes a new commit to `master`, and that push fires both
-   workflows again from their own `push` trigger — a run of its own, not
-   the `pull_request` run already green a moment earlier.
+   the merge pushes to `master`, and that push fires both workflows again
+   from their own `push` trigger — a run of its own, not the
+   `pull_request` run already green a moment earlier, and the paragraph
+   above on the local gates is why there is no third one to fall back on.
 
-1. Tag `master` and push the tag:
+1. Rehearse on TestPyPI (see above) from `master`.
+
+1. Tag the release commit on `master` and push the tag. **Name the
+   commit**, and read the tag back before pushing it:
 
    ```shell
-   git tag v<version>
-   git push origin v<version>
+   git tag -a v2026.8.6 -m "release v2026.8.6" <sha of the release commit>
+   git show v2026.8.6:pyproject.toml | grep '^version'
+   git push origin v2026.8.6
    ```
+
+   `git tag` with no commit tags whatever HEAD the shell is in, and every
+   step above ran in a worktree while the primary checkout sits on another
+   branch — so the argumentless form is one `cd` away from tagging the
+   commit before the version bump. `version-check` would refuse it,
+   comparing the declared version against the tag's and failing the run
+   with nothing uploaded, which is the guard doing its job; the `git show`
+   above is the same check one step earlier, where it costs nothing.
 
 1. Approve the `pypi` environment when the workflow asks. Up to here
    nothing is public and the tag can still be deleted; the upload that
@@ -264,7 +350,20 @@ It gates nothing automatically, which is why it is a step here.
    to write release notes — and they are worth replacing by hand if it
    ever fires.
 
-1. Realign `dev` onto `master`. "Rebase and merge" replayed `dev`'s
+1. Realign `dev` onto `master`, before anything else is committed to it —
+   **if the merge was a rebase.** Ask first, because a fast-forward needs
+   none of what follows:
+
+   ```shell
+   git fetch origin
+   git rev-parse origin/master origin/dev    # the same sha? then skip this step
+   ```
+
+   after a fast-forward the two branches *are* one commit, the merge base
+   is that commit, and there is nothing to archive or move. The rest of
+   this step is for the other case.
+
+   "Rebase and merge" replays `dev`'s
    commits onto `master` with new SHAs, so `dev`'s old ones and
    `master`'s are equal in content and unequal in identity — the two
    branches hold the same tree through different histories, and their
@@ -357,14 +456,14 @@ It gates nothing automatically, which is why it is a step here.
    this comes before the next step rather than after it: that step's
    change is on `dev`, and the force update above would discard it.
 
-1. Add the new work-in-progress headings back to HISTORY.md and
-   CHANGELOG.md on `dev`.
-
-1. Set `pyproject.toml`'s version to the next cycle's placeholder: the
-   version just released, with its trailing component bumped by one, or
-   `.1` appended if it had none. It is shaped exactly like a release, on
-   purpose — nothing here has to tell the two apart by shape, that being
-   what the heading just added above is for. Re-lock so `uv.lock` agrees:
+1. Open the next cycle: set a generic next version without the day (e.g.
+   after 2026.8.6, use 2026.9) in `pyproject.toml`, and start a new "work
+   in progress" section in HISTORY.md and CHANGELOG.md. Two components is
+   the shape nothing tagged can have, so a checkout of `dev` between
+   releases reports itself as work in progress rather than as a release it
+   is not, and `version-check` refuses it should it ever reach a tag —
+   which is a second guard behind the heading check, not a replacement for
+   it. Re-lock so `uv.lock` agrees:
 
    ```shell
    uv lock
@@ -391,6 +490,12 @@ It gates nothing automatically, which is why it is a step here.
   git push origin :refs/tags/v<version>
   ```
 
+  Both lines, and the local one is the half that is easy to skip: a tag is
+  per-repository where a branch is per-worktree, so deleting it in one
+  worktree leaves it in every other, and the `git tag -a` that follows
+  answers `fatal: tag 'v<version>' already exists` — from a checkout that
+  looks uninvolved. Delete locally wherever it is, then re-create.
+
 - `publish-pypi` itself ran and failed at the token exchange
   (`invalid-publisher`), after the matrix had already built everything:
   nothing was uploaded, but retagging would rebuild what was never at
@@ -409,8 +514,8 @@ It gates nothing automatically, which is why it is a step here.
 
 - The upload succeeded but the release is broken: PyPI never accepts a
   file name twice, even after deletion. Yank the bad release on PyPI and
-  publish a new patch version, the fourth number bumped again
-  (`2026.8.6.1` → `2026.8.6.2`).
+  publish a new patch version, a fourth number on the day
+  (`2026.8.6` → `2026.8.6.1`).
 
 - Only the `github-release` job failed: the PyPI upload is already done;
   re-run the failed job, or create the release by hand from the `dist`
