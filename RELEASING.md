@@ -193,6 +193,17 @@ It gates nothing automatically, which is why it is a step here.
    tag on the squashed commit, and the attestations bound to it, outlive
    any attempt to rewrite the history back.
 
+   Read `lint` and `test` on the commit `master` ends up at before
+   tagging, rather than trust the pull request's own green run:
+
+   ```shell
+   gh run list --commit "$(git rev-parse origin/master)"
+   ```
+
+   the merge pushes a new commit to `master`, and that push fires both
+   workflows again from their own `push` trigger — a run of its own, not
+   the `pull_request` run already green a moment earlier.
+
 1. Tag `master` and push the tag:
 
    ```shell
@@ -207,6 +218,17 @@ It gates nothing automatically, which is why it is a step here.
    match the claims fails there having uploaded nothing, and a version
    survives a failed exchange: delete the tag, fix the registration, tag
    again.
+
+   A registration that matched once can still go stale on its own — a
+   repository rename is enough — without anything here flagging it before
+   the upload tries. Sibling repository btclib-libsecp256k1 hit exactly
+   this on a real tag rather than a rehearsal: the matrix had already
+   built everything and only the token exchange failed, so retagging
+   would have rebuilt it for nothing. Fixing the registration and running
+   `gh run rerun <run id> --failed` republished from the artifacts
+   already there in minutes instead. Retagging is the right answer only
+   when the failure happened before those artifacts existed — see "If
+   something goes wrong" below.
 
 1. Install what was just published, in an environment of its own rather
    than one that may already hold it, and run something with it:
@@ -270,6 +292,22 @@ It gates nothing automatically, which is why it is a step here.
    already being identical, and `git diff origin/master origin/dev` is
    how to say so rather than assume it.
 
+   `git switch dev` assumes a checkout free to hold it, which the
+   convention this repository asks every session to follow — its own
+   worktree, never the primary checkout — does not give a worktree
+   already busy with a branch of its own, and should not be made to have
+   by switching branches inside it. Without a local checkout of `dev` at
+   all:
+
+   ```shell
+   git push --force-with-lease=refs/heads/dev:<old dev sha> origin \
+     origin/master:refs/heads/dev
+   ```
+
+   pushes the read-only remote-tracking ref `origin/master` straight to
+   `refs/heads/dev`, the lease keyed to the `dev` tip a `git fetch`
+   already holds rather than to a branch checked out locally.
+
    That last push can fail on its own: `dev`'s branch protection blocking
    force pushes is not one of the rules "Include administrators" being
    off exempts an administrator from — that toggle covers required
@@ -310,6 +348,12 @@ It gates nothing automatically, which is why it is a step here.
    git rebase --onto origin/master <the old dev tip> <branch>
    ```
 
+   GitHub's own `mergeable`/`mergeStateStatus` on that branch's pull
+   request can still read `CONFLICTING`/`DIRTY` for a few seconds after
+   the force-push that follows, before it finishes recomputing against
+   the new tip — worth a second look rather than read as the rebase
+   above having failed.
+
    this comes before the next step rather than after it: that step's
    change is on `dev`, and the force update above would discard it.
 
@@ -346,6 +390,22 @@ It gates nothing automatically, which is why it is a step here.
   git tag -d v<version>
   git push origin :refs/tags/v<version>
   ```
+
+- `publish-pypi` itself ran and failed at the token exchange
+  (`invalid-publisher`), after the matrix had already built everything:
+  nothing was uploaded, but retagging would rebuild what was never at
+  fault. Fix the registration and re-run the publish job alone against
+  what is already built:
+
+  ```shell
+  gh run rerun <run id> --failed
+  ```
+
+  a fresh approval of the `pypi` environment is still required, the
+  protection applying per deployment attempt rather than once per run.
+  This is a different case from the one above: there, the workflow never
+  reached `publish-pypi`, so there is nothing to re-run and no artifact to
+  re-run it against.
 
 - The upload succeeded but the release is broken: PyPI never accepts a
   file name twice, even after deletion. Yank the bad release on PyPI and
