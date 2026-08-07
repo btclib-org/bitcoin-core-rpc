@@ -90,6 +90,16 @@ repos:
       - id: detect-private-key
       - id: debug-statements
       - id: check-docstring-first
+        # every module-level constant of the client carries a PEP 258
+        # attribute docstring -- the string literal *after* the assignment,
+        # which is what sphinx reads and what puts the nine names that had
+        # only a `#` comment on the built api page. This hook counts any
+        # such literal as a second module docstring, having been written
+        # for the mistake of a docstring placed below the imports; the
+        # client source is the one file where the two are indistinguishable
+        # to it, and `test_every_public_name_carries_a_docstring` is what
+        # checks the arrangement it can no longer see
+        exclude: ^bitcoin_core_rpc/__init__\.py$
       # the hook's default, *_test.py, with neither args nor exclude.
       # What it is for is the one failure mode a test suite cannot report
       # on itself -- a file named so that pytest never collects it is not
