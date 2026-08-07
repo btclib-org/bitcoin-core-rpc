@@ -1788,7 +1788,7 @@ def test_a_call_that_asks_for_a_number_may_bound_the_reply_to_one() -> None:
     refused rather than parsed.
     """
     oversized = b'{"jsonrpc":"2.0","result":' + b"9" * 1100 + b',"id":"x"}'
-    with pytest.raises(FetchError, match="more than the 1024 allowed"):
+    with pytest.raises(FetchError, match="more than the max_body_size of 1024"):
         client((200, oversized)).call("getblockcount", max_body_size=1024)
 
     # and the recorded answer is well inside it, which is the other half of
@@ -1808,7 +1808,7 @@ def test_a_custom_transport_owns_its_allocation_bound() -> None:
     """
     body = b'{"jsonrpc":"2.0","result":"' + b"a" * 2048 + b'","id":"x"}'
     endpoint = client((200, body))
-    with pytest.raises(FetchError, match="more than the 1024 allowed"):
+    with pytest.raises(FetchError, match="more than the max_body_size of 1024"):
         endpoint.call("getblockcount", max_body_size=1024)
 
     # and the same answer is fine when the call allows its weight, which

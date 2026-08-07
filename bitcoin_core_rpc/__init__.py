@@ -79,8 +79,7 @@ a rule about which failures are transient: a refused connection and an
 expired timeout arrive as a plain `FetchError` and can both clear on
 their own.
 Whether *this* call may be sent again is the caller's question and the
-method's, and this module's docstring says why -- a timeout is not a
-deadline.
+method's, and this module's docstring says why.
 
 ``batch_`` is what a consumer loses: several calls in one request, which
 is a named non-goal here because a batch needs an api for correlating the
@@ -97,11 +96,12 @@ sending one at all means reaching past the public interface into
 its rpc work queue is full and the same request works once the queue
 drains, so a retry is the obvious convenience -- and it is the caller's
 to write, for two reasons. `call` carries any method, so this class
-cannot know whether re-sending one is safe. And a timeout is not a
-deadline: a node that stopped answering may still be executing the call,
-so a client re-sending a wallet command of its own accord can execute it
-twice. `HttpError.status` is what makes the caller's policy three lines
-rather than a match on the text of a message.
+cannot know whether re-sending one is safe. And the timeout bounds this
+client's wait rather than the node's work: a node that stopped answering
+may still be executing the call, so a client re-sending a wallet command
+of its own accord can execute it twice. `HttpError.status` is what makes
+the caller's policy three lines rather than a match on the text of a
+message.
 
 **JSON-RPC 2.0, and 1.1 read back.** Core answers 1.1 by default and 2.0
 to a request carrying the `"jsonrpc": "2.0"` marker, and the difference
@@ -158,6 +158,7 @@ from http.client import HTTPException, HTTPMessage
 from math import isfinite
 from pathlib import Path
 from secrets import token_hex
+from time import monotonic
 from typing import IO, Any, Literal
 from urllib.error import HTTPError
 from urllib.parse import quote, urlsplit
@@ -357,6 +358,10 @@ def _is_integer(value: Any) -> bool:
 #   back, which is a refusal after the allocation and not instead of it.
 #   The two are different bounds, and a transport that reads a body of any
 #   size has already spent the memory this module then declines to use;
+# - a bound on how long it holds the call. `timeout` is one number and
+#   most client libraries spend it per socket operation, which a peer
+#   dripping a body resets forever; `urlopen_transport` reads it as a
+#   deadline for the whole exchange instead;
 # - no redirect followed. The request already carries the `Authorization`
 #   for the host it names -- `_OPENER` below is what does this for the
 #   default -- and a client library that follows a 30x sends that
@@ -368,29 +373,35 @@ def _is_integer(value: Any) -> bool:
 #   knows which it is.
 HttpTransport = Callable[[Request, float], tuple[int, bytes]]
 
-# 30 seconds. Long enough for `getrawtransaction` against a node reading
-# from a cold transaction index, short enough that a caller notices a host
-# that is not answering: urllib's own default is no timeout at all, i.e.
-# whatever the socket does, which on a silently dropped connection is
-# minutes. A caller who needs longer says so; a default nobody can reach
-# is not a timeout
+# 30 seconds, and for the default transport it bounds the whole exchange
+# rather than each socket operation -- `urlopen_transport` says how. Long
+# enough for `getrawtransaction` against a node reading from a cold
+# transaction index, short enough that a caller notices a host that is not
+# answering: urllib's own default is no timeout at all, i.e. whatever the
+# socket does, which on a silently dropped connection is minutes. A caller
+# who needs longer says so, and a reply large enough to take longer than
+# this to arrive is one of the cases for `request_timeout`
 DEFAULT_TIMEOUT = 30.0
 
-# How much of a response body this module will hold in memory, and why
-# there is a number at all: an endpoint is allowed to be a host on the
-# internet rather than the node beside the process, and `response.read()`
-# with nothing in front of it lets that host hand over as much as it likes
-# before any parser gets to refuse it. The socket timeout is no substitute:
-# a peer delivering data slowly but steadily resets it with every packet.
+# How much of a response body this module will hold in memory. An endpoint
+# is allowed to be a host on the internet rather than the node beside the
+# process, and `response.read()` with nothing in front of it lets that host
+# hand over as much as it likes before any parser gets to refuse it. The
+# deadline in `_read_bounded` bounds the time and not the memory: a fast
+# peer sends a great deal well inside it.
 #
-# Eight megabytes and a little. The widest answer a node sends is a raw
-# transaction, a transaction fits in a block, and it travels as hex, so the
-# bound is twice Core's 4,000,000-byte buffer bound on a serialized block,
-# plus room for the newline a proxy may add. A buffer bound and not a
-# consensus rule, consensus capping the weight of a block rather than its
-# size, which is why it is written out here rather than named as a limit of
-# the protocol. A caller asking for something larger -- `getblock` on a
-# large block -- says so with max_body_size
+# Eight megabytes and a little: twice Core's 4,000,000-byte buffer bound on
+# a serialized block, plus room for the newline a proxy may add. A buffer
+# bound and not a consensus rule, consensus capping the weight of a block
+# rather than its size, which is why it is written out here rather than
+# named as a limit of the protocol.
+#
+# It is a default and not a ceiling on what a node can answer. A block as
+# hex fits; `getblock` at verbosity 2 renders every transaction in it as
+# json and does not, and neither does `listunspent` or `listtransactions`
+# on a large wallet, which no block size bounds at all. Those are ordinary
+# calls, so the refusal names `max_body_size`, that being the one thing the
+# caller has to change
 _MAX_BLOCK_SERIALIZED_SIZE = 4_000_000
 DEFAULT_MAX_BODY_SIZE = 2 * _MAX_BLOCK_SERIALIZED_SIZE + 1024
 
@@ -506,7 +517,9 @@ def _assert_valid_max_body_size(max_body_size: int) -> None:
         raise BtcRpcValueError(f"negative max_body_size: {max_body_size}")
 
 
-def _read_bounded(response: Any, max_body_size: int, where: str) -> bytes:
+def _read_bounded(
+    response: Any, max_body_size: int, where: str, deadline: float
+) -> bytes:
     """Return the body, having never held more than the limit of it.
 
     `Content-Length` first, when the response carries one: a server
@@ -517,9 +530,22 @@ def _read_bounded(response: Any, max_body_size: int, where: str) -> bytes:
     over it.
 
     The reads are incremental because the point is not to hold the body:
-    `read(limit + 1)` may answer with less than was asked for on a
-    chunked response, so this loops until the limit is filled or the peer
-    is done.
+    `read1` answers with what one recv gave it, so this loops until the
+    limit is filled or the peer is done.
+
+    `read1` and not `read`, and that is what makes `deadline` mean
+    anything. The response reads through a `BufferedReader`, whose
+    `read(n)` blocks until it has *n* octets or reaches EOF -- so
+    `read(limit + 1)` is one call that returns when the whole body has
+    arrived, and no check around it runs in the meantime. `read1(n)`
+    returns after one underlying read, which is what puts the loop, and
+    the deadline in it, between one packet and the next.
+
+    `deadline` is a `monotonic()` reading, and is what a socket timeout
+    cannot be: that one is per recv, so a peer sending an octet just inside
+    it resets it with every packet and the limit is never reached. Checked
+    before each read, so the wait is the deadline plus the one recv in
+    flight when it passes.
     """
     _assert_valid_max_body_size(max_body_size)
 
@@ -530,13 +556,16 @@ def _read_bounded(response: Any, max_body_size: int, where: str) -> bytes:
         with suppress(ValueError):
             if int(announced) > max_body_size:
                 err_msg = f"{where}: announced {int(announced)} bytes,"
-                err_msg += f" more than the {max_body_size} allowed"
+                err_msg += f" more than the max_body_size of {max_body_size}"
                 raise FetchError(err_msg)
 
     chunks = []
     remaining = max_body_size + 1
     while remaining > 0:
-        chunk = response.read(remaining)
+        if monotonic() > deadline:
+            err_msg = f"{where}: still arriving when the timeout expired"
+            raise FetchError(err_msg)
+        chunk = response.read1(remaining)
         if not chunk:
             break
         chunks.append(chunk)
@@ -544,7 +573,8 @@ def _read_bounded(response: Any, max_body_size: int, where: str) -> bytes:
     body = b"".join(chunks)
 
     if len(body) > max_body_size:
-        raise FetchError(f"{where}: response larger than {max_body_size} bytes")
+        err_msg = f"{where}: response larger than the max_body_size of {max_body_size}"
+        raise FetchError(err_msg)
     return body
 
 
@@ -570,12 +600,17 @@ def urlopen_transport(
 
     No redirect is followed: `_OPENER` above says why, and what a 30x
     arrives as is the `HTTPError` any other non-2xx status does.
+
+    `timeout` bounds the exchange and not each socket operation: the
+    deadline is taken before the connect, so a peer that drips a body one
+    octet at a time cannot hold this call open past it.
     """
+    deadline = monotonic() + timeout
     # what reaches the opener is http or https: `http_request` is the only
     # thing that builds a Request, it checks the scheme first, and a
     # redirect cannot introduce a second url
     with _OPENER.open(request, timeout=timeout) as response:
-        body = _read_bounded(response, max_body_size, request.full_url)
+        body = _read_bounded(response, max_body_size, request.full_url, deadline)
         return response.status, body
 
 
@@ -694,7 +729,7 @@ def http_request(
     # what is left to promise for one: an oversized answer goes no further
     if len(body) > max_body_size:
         err_msg = f"{url}: response of {len(body)} bytes,"
-        err_msg += f" more than the {max_body_size} allowed"
+        err_msg += f" more than the max_body_size of {max_body_size}"
         raise FetchError(err_msg)
     return status, body
 
@@ -1550,17 +1585,19 @@ class BitcoinCoreRpcClient:
         `NaN` and `Infinity` are refused both ways, being what Python
         writes for floats json has no numbers for.
 
-        `request_timeout` is this call's, defaulting to the client's.
-        What it is for is the handful of methods that legitimately run
-        long -- `rescanblockchain`, `scantxoutset`, `dumptxoutset` -- for
-        which the alternative is a second client whose wider timeout
-        applies to everything.
+        `request_timeout` is this call's, defaulting to the client's, and
+        for the default transport it bounds the whole exchange -- the
+        node's thinking and the reply's arrival together. What it is for
+        is the methods that legitimately run long
+        -- `rescanblockchain`, `scantxoutset`, `dumptxoutset` -- and the
+        replies large enough to take a while on the wire; the alternative
+        is a second client whose wider timeout applies to everything.
 
-        `max_body_size` is what the reply may weigh, and it defaults to
-        the widest ordinary answer -- a raw transaction, as hex inside a
-        json envelope. A caller invoking something whose reply is
-        a number tightens it; one invoking `getblock` on a large block
-        widens it, this being their node and their memory.
+        `max_body_size` is what the reply may weigh, and its default fits
+        a block as hex. Widen it for the answers that are larger --
+        `getblock` at verbosity 2, `listunspent` on a large wallet -- and
+        tighten it where the reply is a number, this being the caller's
+        node and the caller's memory.
 
         There is no retry: one call is one HTTP request, whatever comes
         back. `HttpError.status` is what a caller's own policy reads --
