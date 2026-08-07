@@ -343,12 +343,6 @@ def _is_integer(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-# What this module does its I/O with: a callable taking the request and a
-# timeout in seconds, answering with the HTTP status and the response
-# body. A status rather than an exception, because a JSON-RPC error can
-# arrive with a 500 and its body is the error object -- see
-# `BitcoinCoreRpcClient` below
-#
 # Two arguments and no more, which is what a caller's own transport is
 # owed and what it owes. What it is owed: a `Request` with its url, its
 # method, its body and its headers already built, and a timeout in
@@ -374,38 +368,54 @@ def _is_integer(value: Any) -> bool:
 #   thread-safe makes the client not thread-safe, and only its author
 #   knows which it is.
 HttpTransport = Callable[[Request, float], tuple[int, bytes]]
+"""What this module does its I/O with, and what `transport=` takes.
 
-# 30 seconds, and for the default transport it bounds the whole exchange
-# rather than each socket operation -- `urlopen_transport` says how. Long
-# enough for `getrawtransaction` against a node reading from a cold
+A callable given the built `Request` and a timeout in seconds, answering
+with the HTTP status and the response body. A status rather than an
+exception, because a JSON-RPC error can arrive with a 500 and its body is
+the error object.
+
+A transport of a caller's own owes four things this module cannot check
+for it: its own bound on what it reads into memory, its own bound on how
+long it holds the call, no redirect followed, and its own thread-safety.
+`urlopen_transport` is the default and does all four.
+"""
+
+# Long enough for `getrawtransaction` against a node reading from a cold
 # transaction index, short enough that a caller notices a host that is not
 # answering: urllib's own default is no timeout at all, i.e. whatever the
-# socket does, which on a silently dropped connection is minutes. A caller
-# who needs longer says so, and a reply large enough to take longer than
-# this to arrive is one of the cases for `request_timeout`
+# socket does, which on a silently dropped connection is minutes
 DEFAULT_TIMEOUT = 30.0
+"""The seconds a call may take, unless `timeout` or `request_timeout` says.
 
-# How much of a response body this module will hold in memory. An endpoint
-# is allowed to be a host on the internet rather than the node beside the
-# process, and `response.read()` with nothing in front of it lets that host
-# hand over as much as it likes before any parser gets to refuse it. The
-# deadline in `_read_bounded` bounds the time and not the memory: a fast
-# peer sends a great deal well inside it.
+For the default transport it bounds the whole exchange rather than each
+socket operation, so a peer that keeps sending cannot outlast it. A reply
+large enough to take longer than this to arrive is one of the cases for
+`request_timeout`, along with the methods that legitimately run long.
+"""
+
+# An endpoint is allowed to be a host on the internet rather than the node
+# beside the process, and `response.read()` with nothing in front of it
+# lets that host hand over as much as it likes before any parser gets to
+# refuse it. The deadline in `_read_bounded` bounds the time and not the
+# memory: a fast peer sends a great deal well inside it.
 #
 # Eight megabytes and a little: twice Core's 4,000,000-byte buffer bound on
 # a serialized block, plus room for the newline a proxy may add. A buffer
 # bound and not a consensus rule, consensus capping the weight of a block
 # rather than its size, which is why it is written out here rather than
 # named as a limit of the protocol.
-#
-# It is a default and not a ceiling on what a node can answer. A block as
-# hex fits; `getblock` at verbosity 2 renders every transaction in it as
-# json and does not, and neither does `listunspent` or `listtransactions`
-# on a large wallet, which no block size bounds at all. Those are ordinary
-# calls, so the refusal names `max_body_size`, that being the one thing the
-# caller has to change
 _MAX_BLOCK_SERIALIZED_SIZE = 4_000_000
 DEFAULT_MAX_BODY_SIZE = 2 * _MAX_BLOCK_SERIALIZED_SIZE + 1024
+"""How much of a reply this module will hold in memory, by default.
+
+Twice Core's buffer bound on a serialized block, so a block as hex fits.
+A default and not a ceiling on what a node can answer: `getblock` at
+verbosity 2 renders every transaction as json and is larger, and so is
+`listunspent` or `listtransactions` on a large wallet, which no block size
+bounds at all. Those are ordinary calls, so the refusal names
+`max_body_size` -- the one thing the caller has to change.
+"""
 
 # how much one read of the bounded read asks for. `read1` answers with one
 # recv, but it *allocates* what it was asked for, and the response narrows
@@ -424,11 +434,14 @@ _READ_CHUNK = 64 * 1024
 # transport of a caller's own that catches its own errors and returns them
 _CLIENT_ERROR = 400
 
-# what is kept of the body of a failure: enough to carry whatever the
-# backend said with its status, and not the megabytes an error page from
-# something in the way can be. Truncated rather than refused, a diagnostic
-# being worth more incomplete than absent
 MAX_ERROR_BODY_SIZE = 64 * 1024
+"""How much of the body of a *failure* is kept, `max_body_size` not applying.
+
+Enough to carry whatever the backend said with its status, and not the
+megabytes an error page from something in the way can be. Truncated rather
+than refused: an error page one octet over a caller's limit for a tip
+height is still the diagnosis of why there is no height.
+"""
 
 # http and https, and nothing else. `urlopen` also speaks `file:` and
 # `data:`, so a url taken from configuration could make this client read
@@ -829,7 +842,20 @@ def datadir_subdir_from_chain(chain: str) -> str:
 # a parameter of this type would buy a cast at every such call site to say
 # what the refusal below already says at runtime.
 Chain = Literal["main", "test", "testnet4", "signet", "regtest"]
+"""Core's five chain names: what `-chain=` takes and `getblockchaininfo`
+reports, and what `from_chain` and the two lookups are spelled in.
+
+What `network_from_chain` takes and `chain_from_network` returns -- not
+what either is annotated as taking, a name arriving from a config file or
+from a node being a `str` no annotation narrows.
+"""
+
 Network = Literal["mainnet", "testnet", "testnet4", "signet", "regtest"]
+"""The five BIP network names, which BIP32 and BIP173 spell.
+
+`mainnet` and `testnet` are where this vocabulary differs from `Chain`;
+the rest agree. `chain_from_network` translates.
+"""
 
 _NETWORK_CHAIN_PAIRS: tuple[tuple[Network, Chain], ...] = (
     ("mainnet", "main"),
@@ -869,11 +895,14 @@ def network_from_chain(chain: str) -> Network:
     return _NETWORK_FROM_CHAIN[chain]
 
 
-# the username bitcoind writes into the cookie file, COOKIEAUTH_USER in
-# src/rpc/request.cpp. The node ignores it -- cookie authentication
-# compares the whole `user:password` line -- so it is documentation, and
-# a cookie file whose first field is something else is still a valid one
 COOKIE_USER = "__cookie__"
+"""The username bitcoind writes into its cookie file.
+
+`COOKIEAUTH_USER` in Core's `src/rpc/request.cpp`. The node ignores it --
+cookie authentication compares the whole `user:password` line -- so it is
+documentation, and a cookie file whose first field is something else is
+still a valid one.
+"""
 
 
 def _default_datadir() -> Path | None:
@@ -932,6 +961,17 @@ def _default_datadir() -> Path | None:
 # whose strict type checking now asks for the None case is being asked the
 # question the value always had
 DEFAULT_DATADIR: Path | None = _default_datadir()
+"""`~/.bitcoin` as it stood at import, or None where no home resolves.
+
+Core's datadir on Linux and on nothing else -- macOS puts it under
+``~/Library/Application Support/Bitcoin`` and Windows under
+``%APPDATA%\\Bitcoin`` -- so a caller on either passes `cookie_path`
+instead. None rather than a relative path, which is why a strict type
+checker asks about the None case here.
+
+`from_chain` does not read this: it asks at the call, so that a `HOME` set
+after this module was imported is the one that counts.
+"""
 
 # what a cookie file may weigh. bitcoind writes one line of some seventy
 # octets, so a bound three orders of magnitude above that refuses nothing
@@ -959,11 +999,15 @@ _RPC_ID_BYTES = 8
 _MAX_PARAMS_DEPTH = 100
 
 
-# what `call` sends as `User-Agent`, and what a node's access log and any
-# proxy in front of it record. urllib's default names the interpreter --
-# `Python-urllib/3.14` -- which identifies neither this client nor the
-# program running it
 USER_AGENT = "bitcoin-core-rpc"
+"""What `call` sends as `User-Agent`, and a transport of a caller's own can.
+
+urllib's default names the interpreter -- `Python-urllib/3.14` -- which
+identifies neither this client nor the program running it, where a node's
+access log and any proxy in front of it record this. No version in it: the
+release tag is the version, and a copied file would carry whichever one it
+was copied from.
+"""
 
 
 def _rpc_id() -> str:

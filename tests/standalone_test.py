@@ -43,6 +43,49 @@ def _source_path() -> Path:
     return Path(path)
 
 
+def test_every_public_name_carries_a_docstring() -> None:
+    """`docs/source/api.rst` says the page lists the whole public surface.
+
+    `automodule` with `:members:` documents a class or a function by its
+    docstring and a module-level assignment by the string literal that
+    follows it -- a `#` comment is neither, so a constant carrying one is
+    absent from the built page rather than undescribed on it. Nine of the
+    names in `__all__` were, the type aliases and every constant among
+    them, which is the promise above being false about the interface a
+    consumer reads at readthedocs.
+    """
+    body = ast.parse(_source_path().read_text(encoding="utf-8")).body
+    documented = set()
+    for position, statement in enumerate(body):
+        if isinstance(statement, (ast.FunctionDef, ast.ClassDef)):
+            if ast.get_docstring(statement):
+                documented.add(statement.name)
+            continue
+        following = body[position + 1] if position + 1 < len(body) else None
+        # PEP 258's attribute docstring: the string literal *after* the
+        # assignment, which is what sphinx reads and what `ast` gives no
+        # accessor for
+        target = (
+            statement.targets[0]
+            if isinstance(statement, ast.Assign)
+            else statement.target
+            if isinstance(statement, ast.AnnAssign)
+            else None
+        )
+        name = getattr(target, "id", None)
+        if (
+            name is not None
+            and isinstance(following, ast.Expr)
+            and isinstance(following.value, ast.Constant)
+            and isinstance(following.value.value, str)
+        ):
+            documented.add(name)
+    undocumented = sorted(set(bitcoin_core_rpc.__all__) - documented)
+    # named, because pytest elides the difference of two sets this size and
+    # what the next reader needs is which name arrived without one
+    assert not undocumented, f"public names with no docstring: {undocumented}"
+
+
 def test_the_client_source_imports_only_the_standard_library() -> None:
     """A copied file has no package or third-party import left behind."""
     tree = ast.parse(_source_path().read_text(encoding="utf-8"))

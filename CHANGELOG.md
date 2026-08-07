@@ -58,6 +58,25 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Changed
 
+- **every public name reaches the documentation.** `docs/source/api.rst`
+  says the page lists the whole public interface, and it listed fourteen
+  of the twenty-three names in `__all__`. `automodule` with `:members:`
+  documents a class or a function by its docstring and a module-level
+  assignment by the string literal that *follows* it; a `#` comment is
+  neither, so a name carrying one is absent from the built page rather
+  than undescribed on it. The nine were `COOKIE_USER`, `DEFAULT_DATADIR`,
+  `DEFAULT_MAX_BODY_SIZE`, `DEFAULT_TIMEOUT`, `MAX_ERROR_BODY_SIZE`,
+  `USER_AGENT`, `Chain`, `Network` and `HttpTransport` -- the last of
+  which is the type a caller has to implement to pass a transport of their
+  own, so the interface the module tells them to use was the one they
+  could not look up.
+
+  Each has a docstring now, and the `#` comment above it keeps the
+  reasoning that is not a caller's business: the docstring states the
+  contract, the comment says why not the alternative, which is the split
+  CONTRIBUTING.md already draws between the two.
+  `test_every_public_name_carries_a_docstring` fails on the next name that
+  arrives without one.
 - **a read asks for a chunk, not for the whole limit.** `read1` allocates
   what it was asked for, and the response narrows that request only where
   it knows how -- `HTTPResponse.read1` caps n at the remaining
