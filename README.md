@@ -14,9 +14,9 @@ A standalone JSON-RPC client against Bitcoin Core.
 [![type-check: mypy](https://img.shields.io/badge/type--check-mypy-yellowgreen.svg?logo=mypy)](http://mypy-lang.org/)
 [![docs](https://readthedocs.org/projects/bitcoin-core-rpc/badge/?version=latest)](https://bitcoin-core-rpc.readthedocs.io)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib-bitcoin-core-rpc/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib-bitcoin-core-rpc/master)
-[![Lint](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/lint.yml)
-[![Test](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/test.yml)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/bitcoin-core-rpc/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/bitcoin-core-rpc/master)
+[![Lint](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml)
+[![Test](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml)
 [![slack](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES)
 
 One source file with nothing but the standard library behind it, fully
@@ -246,7 +246,7 @@ to be installed.
 ## Links
 
 - Documentation: <https://bitcoin-core-rpc.readthedocs.io/>
-- Source: <https://github.com/btclib-org/btclib-bitcoin-core-rpc>
-- Releases: <https://github.com/btclib-org/btclib-bitcoin-core-rpc/releases>
+- Source: <https://github.com/btclib-org/bitcoin-core-rpc>
+- Releases: <https://github.com/btclib-org/bitcoin-core-rpc/releases>
 - [CHANGELOG.md](./CHANGELOG.md), and [HISTORY.md](./HISTORY.md) for what a
   release asks a user to act on

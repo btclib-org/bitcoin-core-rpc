@@ -96,11 +96,11 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://btclib.org"
-Download = "https://github.com/btclib-org/btclib-bitcoin-core-rpc/releases"
+Download = "https://github.com/btclib-org/bitcoin-core-rpc/releases"
 Documentation = "https://bitcoin-core-rpc.readthedocs.io/"
-GitHub = "https://github.com/btclib-org/btclib-bitcoin-core-rpc"
-Issues = "https://github.com/btclib-org/btclib-bitcoin-core-rpc/issues"
-"Pull Requests" = "https://github.com/btclib-org/btclib-bitcoin-core-rpc/pulls"
+GitHub = "https://github.com/btclib-org/bitcoin-core-rpc"
+Issues = "https://github.com/btclib-org/bitcoin-core-rpc/issues"
+"Pull Requests" = "https://github.com/btclib-org/bitcoin-core-rpc/pulls"
 
 [dependency-groups]
 # what it takes to develop, build and test this package. hypothesis is

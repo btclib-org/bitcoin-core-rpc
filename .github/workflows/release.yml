@@ -294,7 +294,7 @@ jobs:
     needs: [test, lint, build]
     if: >-
       github.event_name == 'workflow_dispatch' &&
-      github.repository == 'btclib-org/btclib-bitcoin-core-rpc'
+      github.repository == 'btclib-org/bitcoin-core-rpc'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -319,7 +319,7 @@ jobs:
     needs: [test, lint, build]
     if: >-
       github.event_name == 'push' &&
-      github.repository == 'btclib-org/btclib-bitcoin-core-rpc'
+      github.repository == 'btclib-org/bitcoin-core-rpc'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # deployment gate: configure required reviewers on the "pypi"
