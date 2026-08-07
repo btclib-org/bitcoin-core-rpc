@@ -48,7 +48,7 @@ setting, `actions` and `python` at the default query suite, and the
 setup='{"state":"configured","query_suite":"default",'
 setup="${setup}"'"languages":["actions","python"]}'
 gh api -X PATCH --input - \
-  repos/btclib-org/btclib-bitcoin-core-rpc/code-scanning/default-setup \
+  repos/btclib-org/bitcoin-core-rpc/code-scanning/default-setup \
   <<<"${setup}"
 ```
 
@@ -60,7 +60,7 @@ Each check is bound to the app that produces it — `checks` with an
 for CodeQL — so nothing else can satisfy one.
 
 ```shell
-gh api repos/btclib-org/btclib-bitcoin-core-rpc/branches/master/protection \
+gh api repos/btclib-org/bitcoin-core-rpc/branches/master/protection \
   --jq '.required_status_checks'   # PATCH that sub-endpoint to change
 ```
 
@@ -111,7 +111,7 @@ wanted, and it costs the direct push.
 `delete_branch_on_merge` is on, since 7 August 2026:
 
 ```shell
-gh api repos/btclib-org/btclib-bitcoin-core-rpc --jq '.delete_branch_on_merge'
+gh api repos/btclib-org/bitcoin-core-rpc --jq '.delete_branch_on_merge'
 ```
 
 GitHub deletes the head branch of a pull request when it is merged, which
