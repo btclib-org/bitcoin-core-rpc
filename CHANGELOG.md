@@ -1,5 +1,15 @@
 # Changelog
 
+<!-- markdownlint-configure-file
+  {
+    // MD024/no-duplicate-heading - every release repeats the same few
+    // headings ("Added", "Changed", "Repository"), which is what keeps
+    // the page readable scrolling down it; only a duplicate under the
+    // same release heading would be the accident this rule looks for
+    "MD024": { "siblings_only": true }
+  }
+-->
+
 Every change of a release, in full: what changed, why, and what it cost.
 [HISTORY.md](./HISTORY.md) has the release notes, which say what a user has
 to act on; this file is the record behind them, and is where a claim in
