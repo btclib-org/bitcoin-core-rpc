@@ -188,6 +188,18 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **the smoke script stops waiting on a credential the node refused.**
+  `wait_for_rpc` retried every `FetchError` until `STARTUP_TIMEOUT`, and a
+  401 is a `FetchError` -- so a wrong cookie was two minutes of polling
+  followed by `no rpc answer in 120.0 s`, which names the symptom. It is
+  the case `HttpError.status` exists for, and the script already asserted
+  the property from the other side in `check_credentials_refused`. Every
+  other status is still retried: a 503 from a full work queue is the one
+  that does clear on its own, and the rpc error -28 of a node reading its
+  index arrives as an `RpcError`.
+- **`except (FetchError, RpcError)` is `except FetchError`**, there and in
+  `stop`. `RpcError` and `HttpError` are both a `FetchError`, so the pair
+  read as two families where there is one.
 - **RELEASING.md asks griffe whether the breaking-change list is
   complete**, as a release step carrying the command. HISTORY.md promises
   that a break is announced there, the calendar version promising nothing,

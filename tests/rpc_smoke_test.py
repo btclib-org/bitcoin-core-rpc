@@ -35,9 +35,12 @@ predicate every other function calls; `port_is_free`, a socket check;
 `check_legacy_reply` and `check_v2_reply`, which read a status and a
 plain `dict` -- exactly the shape `probe` hands them, but built here by
 hand rather than read off a wire; `check_cookie`, which is file
-parsing (`cookie_auth` reads a path, no client passed to it at all); and
-`print_log_tail`. `main`'s argument parsing is covered by its own
-failure modes, which is what does not need `--bitcoind` to be real.
+parsing (`cookie_auth` reads a path, no client passed to it at all);
+`print_log_tail`; and the policy `wait_for_rpc` applies to what it
+catches, a stub raising the failure a node would and no node needed to
+tell a status that clears from one that does not. `main`'s argument
+parsing is covered by its own failure modes, which is what does not need
+`--bitcoind` to be real.
 
 The script is loaded by path, `.github/scripts` being no package.
 """
@@ -54,6 +57,8 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+
+from bitcoin_core_rpc import HttpError, RpcError
 
 _SCRIPT = Path(__file__).parents[1] / ".github" / "scripts" / "rpc_smoke.py"
 
@@ -81,6 +86,75 @@ def test_check_raises_on_a_false_claim(smoke: ModuleType) -> None:
     """A false claim is a SmokeError naming the claim that failed."""
     with pytest.raises(smoke.SmokeError, match="the node answers"):
         smoke.check(False, "the node answers")
+
+
+class _Answering:
+    """A client that raises the same failure at every call, and a process.
+
+    What `wait_for_rpc` reads of a process is `poll`, None meaning it is
+    still running, so the two stubs are one class: no node, and the branch
+    under test is which failures the wait retries.
+    """
+
+    returncode = None
+
+    def __init__(self, failure: Exception) -> None:
+        self.failure = failure
+        self.calls = 0
+
+    def call(self, method: str) -> Any:
+        self.calls += 1
+        raise self.failure
+
+    def poll(self) -> None:
+        return None
+
+
+def test_wait_for_rpc_gives_up_on_a_refused_credential(smoke: ModuleType) -> None:
+    """A 401 never becomes an answer, so it ends the wait rather than fills it.
+
+    Everything else arriving while a node starts is the node not being up:
+    retried until the deadline, which for a credential the node has already
+    rejected spent the whole startup timeout and then reported `no rpc
+    answer` -- the symptom, where the status names the cause.
+    """
+    node = _Answering(HttpError("nope", 401))
+    with pytest.raises(smoke.SmokeError, match="refused the cookie credential"):
+        smoke.wait_for_rpc(node, node)
+    # once: the point is that it did not wait out the timeout first
+    assert node.calls == 1
+
+
+def test_wait_for_rpc_retries_a_status_that_can_still_clear(
+    smoke: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A 503 is a full work queue, which the next attempt can find drained.
+
+    The deadline is what ends this one, so the timeout is shortened rather
+    than waited out.
+    """
+    monkeypatch.setattr(smoke, "STARTUP_TIMEOUT", 0.05)
+    monkeypatch.setattr(smoke, "STARTUP_POLL", 0.0)
+    node = _Answering(HttpError("busy", 503))
+    with pytest.raises(smoke.SmokeError, match="no rpc answer"):
+        smoke.wait_for_rpc(node, node)
+    assert node.calls > 1
+
+
+def test_wait_for_rpc_retries_the_error_of_a_node_still_loading(
+    smoke: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The rpc error -28 is what a node answers while it reads its index.
+
+    An `RpcError` is a `FetchError`, which is why the retry catches that
+    one name and not a pair of them.
+    """
+    monkeypatch.setattr(smoke, "STARTUP_TIMEOUT", 0.05)
+    monkeypatch.setattr(smoke, "STARTUP_POLL", 0.0)
+    node = _Answering(RpcError("Loading block index...", -28))
+    with pytest.raises(smoke.SmokeError, match="no rpc answer"):
+        smoke.wait_for_rpc(node, node)
+    assert node.calls > 1
 
 
 def test_port_is_free_when_nothing_listens(smoke: ModuleType) -> None:
