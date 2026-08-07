@@ -2,19 +2,23 @@
 
 A standalone JSON-RPC client against Bitcoin Core.
 
-<!-- markdownlint-disable MD013 -->
-| | |
-| --- | --- |
-| Project | [![status](https://img.shields.io/pypi/status/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE) |
-| Package | [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv) [![calver: yyyy.m.d](https://img.shields.io/badge/cal_ver-yyyy.m.d-1674b1.svg?logo=calver)](https://calver.org/) [![PyPI](https://img.shields.io/pypi/v/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/) [![downloads](https://static.pepy.tech/badge/bitcoin-core-rpc)](https://pepy.tech/project/bitcoin-core-rpc) |
-| Supported platforms | [![Python](https://img.shields.io/pypi/pyversions/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/) |
-| Formatting standards | [![lint: markdownlint-cli2](https://img.shields.io/badge/lint-markdownlint--cli2-yellowgreen.svg?logo=markdown)](https://github.com/DavidAnson/markdownlint-cli2) |
-| Coding standards | [![lint and format: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) |
-| Type checking | [![type-check: mypy](https://img.shields.io/badge/type--check-mypy-yellowgreen.svg?logo=mypy)](http://mypy-lang.org/) |
-| Documentation | [![docs](https://readthedocs.org/projects/bitcoin-core-rpc/badge/?version=latest)](https://bitcoin-core-rpc.readthedocs.io) |
-| CI/CD | [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit) [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/bitcoin-core-rpc/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/bitcoin-core-rpc/master) [![Lint](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml) [![Test](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml) |
-| Conversations | [![slack](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES) |
-<!-- markdownlint-enable MD013 -->
+<!-- The badges are what the reader decides with: the first line says what
+this is and whether it can be used, the second whether it works. A badge
+that reports no state -- "we use ruff", "we use uv" -- reports a choice
+instead, and those are in CONTRIBUTING.md, beside the prose that says how
+the choice is enforced. One badge per line keeps a change to one line and
+every line inside MD013, whose 80 columns bind only where a space follows
+them. btclib and btclib_libsecp256k1 carry the same two lines. -->
+[![PyPI version](https://img.shields.io/pypi/v/bitcoin-core-rpc.svg?logo=pypi)](https://pypi.org/project/bitcoin-core-rpc/)
+[![downloads](https://static.pepy.tech/badge/bitcoin-core-rpc)](https://pepy.tech/project/bitcoin-core-rpc)
+[![development status](https://img.shields.io/pypi/status/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![supported Python versions](https://img.shields.io/pypi/pyversions/bitcoin-core-rpc.svg?logo=python)](https://pypi.org/project/bitcoin-core-rpc/)
+
+[![test workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml)
+[![lint workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/bitcoin-core-rpc/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/bitcoin-core-rpc/master)
+[![documentation build](https://readthedocs.org/projects/bitcoin-core-rpc/badge/?version=latest)](https://bitcoin-core-rpc.readthedocs.io)
 
 One source file with nothing but the standard library behind it, fully
 annotated and shipping `py.typed`. `BitcoinCoreRpcClient` invokes any one
@@ -247,3 +251,9 @@ to be installed.
 - Releases: <https://github.com/btclib-org/bitcoin-core-rpc/releases>
 - [CHANGELOG.md](./CHANGELOG.md), and [HISTORY.md](./HISTORY.md) for what a
   release asks a user to act on
+
+<!-- the channel is here rather than among the badges at the top: "where do
+I ask" is a question the reader has after reading, and this is the section
+that answers where to go. btclib and btclib_libsecp256k1 keep it beside
+their repository link, for the same reason. -->
+[![slack: btclib_dev](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES)
