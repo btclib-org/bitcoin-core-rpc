@@ -57,11 +57,13 @@ import pytest
 from bitcoin_core_rpc import (
     _CHAIN_FROM_NETWORK,
     _DATADIR_SUBDIR_FROM_CHAIN,
+    _NETWORK_FROM_CHAIN,
     _RPC_PORT_FROM_CHAIN,
     COOKIE_USER,
     DEFAULT_DATADIR,
     DEFAULT_MAX_BODY_SIZE,
     DEFAULT_TIMEOUT,
+    USER_AGENT,
     BitcoinCoreRpcClient,
     BtcRpcTypeError,
     BtcRpcValueError,
@@ -723,6 +725,20 @@ def test_the_request_is_a_json_rpc_2_0_post() -> None:
     assert body["jsonrpc"] == "2.0"
     assert body["method"] == "getblockcount"
     assert body["params"] == []
+
+
+def test_the_request_names_this_client_rather_than_the_interpreter() -> None:
+    """Urllib's default is `Python-urllib/3.x`, and an access log keeps it.
+
+    Set on the Request rather than left to the opener, which only fills a
+    `User-Agent` in when the request carries none -- so this one wins, and
+    a caller's own transport receives it already built.
+    """
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    endpoint.call("getblockcount")
+
+    assert recording(endpoint).request.get_header("User-agent") == USER_AGENT
+    assert "urllib" not in USER_AGENT
 
 
 def test_positional_parameters_go_through_in_order() -> None:
@@ -1745,6 +1761,24 @@ def test_a_transport_that_is_not_callable_is_refused_at_construction(
     untyped: Any = BitcoinCoreRpcClient
     with pytest.raises(BtcRpcTypeError, match="transport that is not callable"):
         untyped(URL, user=RPC_USER, password=RPC_PASSWORD, transport=transport)
+
+
+def test_every_chain_is_in_every_table_that_takes_one() -> None:
+    """The five chains are written down four times, and must agree.
+
+    A chain Core adds is a port, a datadir subdirectory, a network name
+    and a `Literal` -- four edits, of which only the two `Literal`s fail
+    anything when one is forgotten, and they fail a type check rather than
+    this suite. A port with no subdirectory beside it derives a cookie
+    path under a directory that is not the node's.
+    """
+    chains = set(get_args(Chain))
+    assert chains == set(_RPC_PORT_FROM_CHAIN)
+    assert chains == set(_DATADIR_SUBDIR_FROM_CHAIN)
+    assert chains == set(_NETWORK_FROM_CHAIN)
+    assert set(get_args(Network)) == set(_CHAIN_FROM_NETWORK)
+    # and the pairing is a bijection, not merely two tables of one size
+    assert set(_NETWORK_FROM_CHAIN.values()) == set(_CHAIN_FROM_NETWORK)
 
 
 def test_the_two_vocabularies_translate_both_ways() -> None:
