@@ -131,6 +131,8 @@ than a match on the text of a message.
   wrong source for the decision of where a wallet command is sent. A caller
   who does want one passes a `transport`.
 
+## Migrating from `AuthServiceProxy`
+
 It is **not** python-bitcoinrpc's `AuthServiceProxy` and not a port of it.
 That class, and the copy of it Core's test framework maintains, carry the
 LGPL-2.1 of their python-jsonrpc ancestry, where this is MIT: this is an
