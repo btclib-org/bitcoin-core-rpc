@@ -57,7 +57,7 @@ one, and TestPyPI's rehearsal does the same there.
 
 1. On [PyPI](https://pypi.org/manage/account/publishing/), add a trusted
    publisher: PyPI project name `bitcoin-core-rpc`, owner `btclib-org`,
-   repository `btclib-bitcoin-core-rpc`, workflow `release.yml`,
+   repository `bitcoin-core-rpc`, workflow `release.yml`,
    environment `pypi`.
 
 1. On [TestPyPI](https://test.pypi.org/), add the same trusted publisher,
@@ -207,7 +207,7 @@ It gates nothing automatically, which is why it is a step here.
    application/vnd.pypi.simple.v1+json`) carries the real link, under
    `/integrity/<project>/<version>/<filename>/provenance`, and
    `pypi-attestations verify pypi <file> --repository
-   https://github.com/btclib-org/btclib-bitcoin-core-rpc` checks the
+   https://github.com/btclib-org/bitcoin-core-rpc` checks the
    signature rather than merely its presence.
 
 1. Dispatch the `published` workflow (Actions → published → Run workflow)
@@ -269,7 +269,7 @@ It gates nothing automatically, which is why it is a step here.
    silently drop them:
 
    ```shell
-   branch=repos/btclib-org/btclib-bitcoin-core-rpc/branches/dev/protection
+   branch=repos/btclib-org/bitcoin-core-rpc/branches/dev/protection
    gh api "$branch" --jq \
      '{required_status_checks, enforce_admins: .enforce_admins.enabled,
        required_pull_request_reviews, restrictions,
