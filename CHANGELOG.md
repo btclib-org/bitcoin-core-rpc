@@ -21,6 +21,21 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.8.7.1 (work in progress, not released yet)
 
+### Repository
+
+- **The README gained ten badges: `status`, `uv`, `calver`, `downloads`,
+  `ruff`, `markdownlint`, `type-check`, `docs`, `pre-commit` and
+  `pre-commit.ci`.** None of them claimed something new: `uv` is the tool
+  this project already requires installed, `calver` the scheme
+  `2026.8.7.1` already follows, `pre-commit.ci` the check already
+  configured in `.pre-commit-config.yaml`'s `ci:` block and already
+  running against `dev`. What was missing was the badge saying so. The
+  sixteen badges now read in one sequence -- what the project is, what
+  installs it, what checks it, what documents it, what CI ran, where to
+  talk about it -- the order btclib and btclib_libsecp256k1 both use, a
+  `slack` badge to the same channel included and no `twitter` one, which
+  the sibling projects are dropping too.
+
 ## v2026.8.7
 
 ### Added
