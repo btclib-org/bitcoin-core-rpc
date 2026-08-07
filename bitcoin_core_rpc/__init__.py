@@ -407,6 +407,18 @@ DEFAULT_TIMEOUT = 30.0
 _MAX_BLOCK_SERIALIZED_SIZE = 4_000_000
 DEFAULT_MAX_BODY_SIZE = 2 * _MAX_BLOCK_SERIALIZED_SIZE + 1024
 
+# how much one read of the bounded read asks for. `read1` answers with one
+# recv, but it *allocates* what it was asked for, and the response narrows
+# that request only where it knows how: `HTTPResponse.read1` caps n at the
+# remaining `Content-Length`, or at the rest of the current chunk, and does
+# neither for a body the close of the connection delimits. There
+# `read1(max_body_size + 1)` would allocate the whole limit to hold a tip
+# height, which is the limit behaving backwards -- widening it to allow one
+# large answer would cost that on every small one. A fixed piece costs one
+# more loop per piece and holds what it is about to read;
+# `test_a_read_asks_for_no_more_than_a_chunk` is what keeps it fixed
+_READ_CHUNK = 64 * 1024
+
 # where a status stops being an answer and becomes a diagnosis: urlopen
 # raises HTTPError from 400 up, so this is the same line drawn for a
 # transport of a caller's own that catches its own errors and returns them
@@ -533,7 +545,8 @@ def _read_bounded(
 
     The reads are incremental because the point is not to hold the body:
     `read1` answers with what one recv gave it, so this loops until the
-    limit is filled or the peer is done.
+    limit is filled or the peer is done. Each asks for `_READ_CHUNK` at
+    most, that being what such a read allocates.
 
     `read1` and not `read`, and that is what makes `deadline` mean
     anything. The response reads through a `BufferedReader`, whose
@@ -567,7 +580,7 @@ def _read_bounded(
         if monotonic() > deadline:
             err_msg = f"{where}: still arriving when the timeout expired"
             raise FetchError(err_msg)
-        chunk = response.read1(remaining)
+        chunk = response.read1(min(remaining, _READ_CHUNK))
         if not chunk:
             break
         chunks.append(chunk)

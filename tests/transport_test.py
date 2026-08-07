@@ -56,6 +56,7 @@ import pytest
 
 import bitcoin_core_rpc as transport_module
 from bitcoin_core_rpc import (
+    _READ_CHUNK,
     DEFAULT_MAX_BODY_SIZE,
     DEFAULT_TIMEOUT,
     MAX_ERROR_BODY_SIZE,
@@ -304,6 +305,35 @@ def test_eof_ends_the_incremental_read(monkeypatch: pytest.MonkeyPatch) -> None:
     assert response.reads == [65]
     with pytest.raises(AssertionError, match="read again after EOF"):
         response.read(1)
+
+
+def test_a_read_asks_for_no_more_than_a_chunk(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`read1` allocates what it was asked for, so it is asked for little.
+
+    `HTTPResponse.read1` caps n at the remaining `Content-Length` or at the
+    rest of the current chunk, and does neither for a body the close of the
+    connection delimits -- where asking for the limit allocates the limit,
+    whatever the reply weighs. Both directions are checked: a body of one
+    octet under a wide limit, and one that spans several chunks.
+    """
+    limit = 4 * _READ_CHUNK
+    for body in (b"a", b"b" * (limit - 1)):
+        response = FakeResponse(200, body)
+
+        def fake_open(
+            request: Request, timeout: float, _r: FakeResponse = response
+        ) -> FakeResponse:
+            return _r
+
+        monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
+        request = Request(URL, method="GET")
+        assert urlopen_transport(request, DEFAULT_TIMEOUT, max_body_size=limit) == (
+            200,
+            body,
+        )
+        assert max(read for read in response.reads if read is not None) <= _READ_CHUNK
 
 
 def _clock(*readings: float) -> Callable[[], float]:
