@@ -142,7 +142,7 @@ it generates. CONTRIBUTING.md has the same command for a node of your own.
 
 It gates nothing automatically, which is why it is a step here.
 
-## Release
+## Release to PyPI
 
 `latest` is worth dispatching before the tag rather than waiting for its
 cron, because what it answers is cheaper to know before a version is
