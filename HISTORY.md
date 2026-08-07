@@ -12,6 +12,17 @@ in this file — read it before upgrading, rather than a digit.
 
 ## v2026.8.6.1 (work in progress, not released yet)
 
+The timeout now bounds the whole exchange rather than each socket
+operation, so a call cannot outlive it by waiting on a peer that keeps
+sending. If you fetch replies large enough to take longer than the timeout
+to arrive — a big `getblock` over a slow link — raise `request_timeout`
+for those calls; they would previously have succeeded under a timeout that
+did not cover them.
+
+Code matching on the text of a size refusal has three to update: they name
+`max_body_size` now, as `more than the max_body_size of 8001024` rather
+than `more than the 8001024 allowed`.
+
 Two exported functions are renamed, with no alias left behind:
 `core_chain_from_network` is `chain_from_network` and
 `network_from_core_chain` is `network_from_chain`. They take and return
