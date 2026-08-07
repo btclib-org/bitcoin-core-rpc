@@ -48,6 +48,28 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Changed
 
+- **a read asks for a chunk, not for the whole limit.** `read1` allocates
+  what it was asked for, and the response narrows that request only where
+  it knows how -- `HTTPResponse.read1` caps n at the remaining
+  `Content-Length`, or at the rest of the current chunk, and does neither
+  for a body the close of the connection delimits. Against a peer like
+  that, `max_body_size` was paid in full on every reply however small,
+  which is the limit behaving backwards: widening it to allow one large
+  answer cost that much on each little one. Measured with `tracemalloc`
+  against a local HTTP/1.0 server sending a fifty-octet reply with no
+  announced length, peak allocation for one `call`:
+
+  | `max_body_size` | before | after |
+  | --- | --- | --- |
+  | 8001024 (the default) | 8.27 MB | 0.34 MB |
+  | 1024 | 0.14 MB | 0.20 MB |
+
+  Core announces a length, so a call to a node was never the case that
+  paid it; something in the way that does not is. Not a regression from
+  the `read1` of the deadline change either -- the `read(max_body_size +
+  1)` before it allocated the same, measured at the same 8.27 MB on the
+  commit before. `test_a_read_asks_for_no_more_than_a_chunk` is what keeps
+  the request bounded.
 - **three arguments are checked where they are written**, which is
   `_checked_url`'s rule and the three that escaped it. A `transport` that
   is not callable built a client and failed at the first `call`, from
