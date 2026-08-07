@@ -38,6 +38,41 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Changed
 
+- **the timeout bounds the whole exchange**, where it bounded each socket
+  operation. A socket timeout is reset by every packet, so a peer sending
+  one octet just inside it held a call open until `max_body_size` octets
+  had arrived -- with the default that is eight megabytes at a byte a
+  time, and no number of seconds a caller could write said otherwise.
+  `urlopen_transport` takes a `monotonic()` deadline before the connect
+  and `_read_bounded` stops at it, so the wait is the timeout plus the one
+  recv in flight when it passes. Refused as
+  `still arriving when the timeout expired`, a FetchError like the other
+  ways an exchange does not produce an answer. What it costs is a reply
+  that legitimately takes longer than the timeout to arrive -- a large
+  `getblock` over a slow link -- and `request_timeout` is what that call
+  passes.
+
+  The read is `read1` and not `read`, which is the half without which the
+  deadline is decoration: the response reads through a `BufferedReader`,
+  whose `read(n)` blocks until it holds *n* octets, so the whole drip
+  happened inside one call and no check ran between packets. Measured
+  against a server sending an octet every 0.3s under a one-second timeout:
+  the `read` spelling returned only when that server stopped, the `read1`
+  one at the deadline. `FakeResponse` in the tests answers the two calls
+  differently for the same reason -- a fake whose `read` returned early
+  cannot tell a bounded read from an unbounded wait.
+
+  Two bounds are unchanged, and deliberately. A caller's own transport
+  gets no deadline: two positional arguments have nowhere to carry one,
+  and `HttpTransport`'s comment lists this with the rest of what such a
+  transport owes. And the body of a *failure*, which `http_request` reads
+  off the `HTTPError`, is still bounded by `MAX_ERROR_BODY_SIZE` and by
+  the socket timeout alone -- a drip there is 64 KiB of diagnostic rather
+  than eight megabytes of answer, and threading the deadline into that
+  path is a change to the exception handling rather than to the read.
+- **a refusal on size names `max_body_size`**, in all three places one is
+  raised, where they said `more than the 8001024 allowed` and left the
+  reader to find which knob carried that number.
 - **`core_chain_from_network` and `network_from_core_chain` are
   `chain_from_network` and `network_from_chain`.** In this module `chain`
   is Core's vocabulary and `network` the BIP one -- `from_chain` is named

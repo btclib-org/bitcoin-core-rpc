@@ -94,8 +94,12 @@ class FakeResponse:
 
     `content_length` is what the response *claims*, which is a header and
     so is the sender's claim about the sender: a test sets it apart from
-    the body on purpose. `chunk_size` caps every read, which is what a
-    chunked response does and what the bounded read has to loop over.
+    the body on purpose. `chunk_size` is how much one recv answers with,
+    and it caps `read1` alone -- `read` fills what it was asked for, the
+    two differing exactly as they do on a `BufferedReader`. That
+    difference is the reason the transport reads with `read1`, so a fake
+    whose `read` behaved like `read1` would be a fake that cannot tell the
+    bounded read from an unbounded wait.
     """
 
     def __init__(
@@ -129,16 +133,28 @@ class FakeResponse:
         self.closed = True
 
     def read(self, amt: int | None = None) -> bytes:
-        """Return up to amt octets of the recorded body, as a socket would.
+        """Return amt octets, or the rest of the body when it is shorter.
+
+        What a `BufferedReader` does: it blocks until it has the whole of
+        what was asked for, which is why one `read` cannot be interrupted
+        by a deadline and the transport does not use it.
+        """
+        return self._take(amt, one_recv=False)
+
+    def read1(self, amt: int | None = None) -> bytes:
+        """Return what one recv answered with, capped by `chunk_size`.
 
         Every read is remembered, which is how a test checks that a
         caller's limit reached the read rather than the check after it.
         """
+        return self._take(amt, one_recv=True)
+
+    def _take(self, amt: int | None, *, one_recv: bool) -> bytes:
         if self._returned_eof:
             raise AssertionError("the response was read again after EOF")
         self.reads.append(amt)
         size = len(self._body) - self._offset if amt is None else amt
-        if self._chunk_size is not None:
+        if one_recv and self._chunk_size is not None:
             size = min(size, self._chunk_size)
         chunk = self._body[self._offset : self._offset + size]
         self._offset += len(chunk)
@@ -243,16 +259,16 @@ def test_the_body_of_a_response_is_bounded(
     )
 
     serve(b"a" * (limit + 1))
-    with pytest.raises(FetchError, match=f"response larger than {limit} bytes"):
+    with pytest.raises(FetchError, match=f"larger than the max_body_size of {limit}"):
         urlopen_transport(request, DEFAULT_TIMEOUT, max_body_size=limit)
 
 
 def test_a_chunked_body_is_read_to_the_limit_and_no_further(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """read(n) may answer with less than n, so the bounded read loops.
+    """read1(n) answers with one recv, so the bounded read loops.
 
-    A single `read(limit + 1)` would take a chunked response for a short
+    A single `read1(limit + 1)` would take a chunked response for a short
     one and hand back a truncated body as if the peer were done with it.
     """
     limit = 100
@@ -288,6 +304,63 @@ def test_eof_ends_the_incremental_read(monkeypatch: pytest.MonkeyPatch) -> None:
     assert response.reads == [65]
     with pytest.raises(AssertionError, match="read again after EOF"):
         response.read(1)
+
+
+def _clock(*readings: float) -> Callable[[], float]:
+    """Return a `monotonic` answering each reading, then repeating the last."""
+    remaining = list(readings)
+
+    def now() -> float:
+        return remaining.pop(0) if len(remaining) > 1 else remaining[0]
+
+    return now
+
+
+def test_a_body_that_drips_past_the_deadline_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The socket timeout is per read, so a slow drip never expires it.
+
+    A peer sending one octet just inside the timeout resets it with every
+    packet, and the bounded read on its own would wait for `max_body_size`
+    of them. The deadline is what ends the loop instead.
+    """
+    response = FakeResponse(200, b"z" * 100, chunk_size=1)
+
+    def fake_open(request: Request, timeout: float) -> FakeResponse:
+        return response
+
+    monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
+    # 0.0 sets a deadline of 1.0, 0.5 is inside it and 9.0 is past it
+    monkeypatch.setattr(transport_module, "monotonic", _clock(0.0, 0.5, 9.0))
+
+    request = Request(URL, method="GET")
+    with pytest.raises(FetchError, match="still arriving when the timeout expired"):
+        urlopen_transport(request, 1.0, max_body_size=100)
+    # one read, and the ninety-nine octets still to come are not waited for
+    assert response.reads == [101]
+
+
+def test_the_deadline_covers_the_connect_and_not_only_the_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Taken before the open, so a slow connect spends the same budget.
+
+    Otherwise a connect just inside the timeout and a body just inside it
+    again are two timeouts spent on one exchange.
+    """
+    response = FakeResponse(200, b"body")
+
+    def fake_open(request: Request, timeout: float) -> FakeResponse:
+        return response
+
+    monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
+    monkeypatch.setattr(transport_module, "monotonic", _clock(0.0, 9.0))
+
+    request = Request(URL, method="GET")
+    with pytest.raises(FetchError, match="still arriving when the timeout expired"):
+        urlopen_transport(request, 1.0, max_body_size=64)
+    assert response.reads == []
 
 
 def test_an_announced_size_over_the_limit_is_refused_before_reading(
@@ -329,7 +402,7 @@ def test_an_announced_size_over_the_limit_is_refused_before_reading(
     )
 
     serve(FakeResponse(200, b"a" * (limit + 1), content_length="1"))
-    with pytest.raises(FetchError, match=f"response larger than {limit} bytes"):
+    with pytest.raises(FetchError, match=f"larger than the max_body_size of {limit}"):
         urlopen_transport(request, DEFAULT_TIMEOUT, max_body_size=limit)
 
 
@@ -344,7 +417,9 @@ def test_an_oversized_body_from_a_caller_transport_goes_no_further() -> None:
     transport = Recorded((200, b"a" * 40))
     assert http_request(URL, max_body_size=40, transport=transport) == (200, b"a" * 40)
 
-    with pytest.raises(FetchError, match="response of 40 bytes, more than the 39"):
+    with pytest.raises(
+        FetchError, match="response of 40 bytes, more than the max_body_size of 39"
+    ):
         http_request(URL, max_body_size=39, transport=Recorded((200, b"a" * 40)))
 
 
@@ -365,7 +440,7 @@ def test_the_limit_reaches_the_read_of_the_default_transport(
 
     monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
 
-    with pytest.raises(FetchError, match="response larger than 64 bytes"):
+    with pytest.raises(FetchError, match="larger than the max_body_size of 64"):
         http_request(URL, max_body_size=64)
 
     # what the read asked for, and the whole of what it asked for: the
@@ -389,7 +464,7 @@ def test_an_odd_limit_still_reads_the_octet_that_proves_it_was_exceeded(
 
     monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
 
-    with pytest.raises(FetchError, match="response larger than 63 bytes"):
+    with pytest.raises(FetchError, match="larger than the max_body_size of 63"):
         http_request(URL, max_body_size=63)
     assert response.reads == [64, 1]
 
@@ -463,12 +538,16 @@ def test_a_negative_limit_is_no_limit_at_all() -> None:
         200,
         b"",
     )
-    with pytest.raises(FetchError, match="more than the 0 allowed"):
+    with pytest.raises(FetchError, match="more than the max_body_size of 0"):
         http_request(URL, max_body_size=0, transport=Recorded((200, b"7")))
 
 
-def test_the_default_limit_is_a_transaction_in_hex() -> None:
-    """Twice Core's buffer bound on a block, plus room for a newline."""
+def test_the_default_limit_is_a_block_in_hex() -> None:
+    """Twice Core's buffer bound on a block, plus room for a newline.
+
+    A default and not a ceiling: `getblock` at verbosity 2 answers with
+    more than this, and says so by naming `max_body_size`.
+    """
     assert DEFAULT_MAX_BODY_SIZE == 2 * 4_000_000 + 1024
     defaults = http_request.__kwdefaults__
     assert defaults is not None
@@ -544,7 +623,7 @@ def test_a_caller_transport_uses_400_as_the_error_boundary(
     """A 400 starts diagnostics; a 399 remains a size-limited answer."""
     transport = Recorded((status, b"too long"))
     if not is_error:
-        with pytest.raises(FetchError, match="more than the 1 allowed"):
+        with pytest.raises(FetchError, match="more than the max_body_size of 1"):
             http_request(URL, max_body_size=1, transport=transport)
         return
 
