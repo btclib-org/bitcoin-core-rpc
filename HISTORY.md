@@ -19,6 +19,10 @@ to arrive — a big `getblock` over a slow link — raise `request_timeout`
 for those calls; they would previously have succeeded under a timeout that
 did not cover them.
 
+Requests carry `User-Agent: bitcoin-core-rpc`, where they carried urllib's
+`Python-urllib/3.x`. Anything filtering or logging by user agent in front
+of a node — a reverse proxy, a WAF rule — sees the new string.
+
 Three arguments are refused now where they used to fail later or not at
 all: a `transport` that is not callable, a `cookie_path` that is no path,
 and a `wallet_name` that is not a string. Each raises `BtcRpcTypeError` at
