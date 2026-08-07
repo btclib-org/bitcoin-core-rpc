@@ -152,30 +152,71 @@ than a match on the text of a message.
 It is **not** python-bitcoinrpc's `AuthServiceProxy` and not a port of it.
 That class, and the copy of it Core's test framework maintains, carry the
 LGPL-2.1 of their python-jsonrpc ancestry, where this is MIT: this is an
-implementation of the protocol and shares no line with either. Migrating
-from it is four changes:
+implementation of the protocol and shares no line with either. What a
+caller rewrites is below, an `AuthServiceProxy` line at a time with the
+same command under it.
+
+**Connecting.** The credential is an argument, and a url carrying
+`user:password@` is refused rather than accepted and stripped: that url is
+the string that ends up in a configuration file, a traceback and a log.
 
 ```python
-# a method is an argument, not an attribute: an unknown one is a value
-# that arrives at the node, not an AttributeError here
-rpc.getblock(block_id, 2)
-client.call("getblock", [block_id, 2])
-client.call("getblock", {"blockhash": block_id, "verbosity": 2})  # or named
+# AuthServiceProxy
+rpc = AuthServiceProxy(f"http://{user}:{password}@127.0.0.1:8332")
 
-# credentials leave the url, which is what gets written into a config
-# file and printed in a traceback
-AuthServiceProxy(f"http://{user}:{password}@127.0.0.1:8332")
-BitcoinCoreRpcClient("http://127.0.0.1:8332", user=user, password=password)
-BitcoinCoreRpcClient.from_chain("main")  # or the node's cookie file
-
-# one wallet of a multi-wallet node, percent-encoded
-client.for_wallet("hot").call("getbalance")
+# this client
+client = BitcoinCoreRpcClient(
+    "http://127.0.0.1:8332", user=user, password=password
+)
 ```
 
-`JSONRPCException` becomes three exceptions -- [When it goes
-wrong](#when-it-goes-wrong) above has the table -- and `batch_` has no
-equivalent, per [What it does not do](#what-it-does-not-do); a loop over
-`call` is the replacement.
+A node left on its defaults needs neither argument: `from_chain` has the
+port and the cookie file, per [Talking to a node](#talking-to-a-node).
+
+**Invoking a method.** The method is an argument and not an attribute: any
+name a node has works without this class knowing it, and none of them can
+collide with a name of the client's own. `params` is then one argument as
+well, a sequence for the positional form and a mapping for the named one.
+
+```python
+# AuthServiceProxy
+block = rpc.getblock(block_id, 2)
+
+# this client
+block = client.call("getblock", [block_id, 2])
+block = client.call("getblock", {"blockhash": block_id, "verbosity": 2})
+```
+
+**A wallet command.** `/wallet/<name>` is derived from the client rather
+than written into a second url, and the name is percent-encoded.
+
+```python
+# AuthServiceProxy
+hot = AuthServiceProxy(f"http://{user}:{password}@127.0.0.1:8332/wallet/hot")
+balance = hot.getbalance()
+
+# this client
+balance = client.for_wallet("hot").call("getbalance")
+```
+
+**A batch.** There is none, per [What it does not
+do](#what-it-does-not-do), and a loop is what replaces it: the calls go one
+HTTP request each rather than several in one, and each answer is a value or
+an exception where a batch answered with a list to inspect.
+
+```python
+# AuthServiceProxy
+hashes = rpc.batch_([["getblockhash", height] for height in heights])
+
+# this client
+hashes = [client.call("getblockhash", [height]) for height in heights]
+```
+
+**An error.** `JSONRPCException` becomes three exceptions, and [When it
+goes wrong](#when-it-goes-wrong) above has the table: `RpcError` for an
+error the node computed, `HttpError` for an exchange that failed and
+`FetchError` for no answer to read. All three are `FetchError`, so `except
+FetchError` is the translation that catches what the one exception caught.
 
 ## Testing code that calls a node
 
