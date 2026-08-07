@@ -19,6 +19,13 @@ to arrive — a big `getblock` over a slow link — raise `request_timeout`
 for those calls; they would previously have succeeded under a timeout that
 did not cover them.
 
+Three arguments are refused now where they used to fail later or not at
+all: a `transport` that is not callable, a `cookie_path` that is no path,
+and a `wallet_name` that is not a string. Each raises `BtcRpcTypeError` at
+the call that supplied it. The one to check for is
+`for_wallet(b"hot")` — bytes built an endpoint before, from a name that
+was never spelled that way, and is refused now.
+
 Code matching on the text of a size refusal has three to update: they name
 `max_body_size` now, as `more than the max_body_size of 8001024` rather
 than `more than the 8001024 allowed`.

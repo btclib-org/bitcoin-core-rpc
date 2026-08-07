@@ -156,6 +156,7 @@ from contextlib import suppress
 from decimal import Decimal, DecimalException
 from http.client import HTTPException, HTTPMessage
 from math import isfinite
+from os import PathLike
 from pathlib import Path
 from secrets import token_hex
 from time import monotonic
@@ -1406,7 +1407,7 @@ class BitcoinCoreRpcClient:
         *,
         user: str | None = None,
         password: str | None = None,
-        cookie_path: Path | str | None = None,
+        cookie_path: str | PathLike[str] | None = None,
         timeout: float = DEFAULT_TIMEOUT,
         transport: HttpTransport = urlopen_transport,
     ) -> None:
@@ -1460,6 +1461,20 @@ class BitcoinCoreRpcClient:
             err_msg += " containing one names a different user than intended"
             raise BtcRpcValueError(err_msg)
         _assert_valid_timeout(timeout, "rpc timeout")
+        if cookie_path is not None and not isinstance(cookie_path, (str, PathLike)):
+            # what `Path()` on the next line takes, asked before it is asked
+            # there: an int reaches it and leaves through a bare TypeError
+            # about `__fspath__`, which names pathlib rather than the
+            # argument this class was given
+            err_msg = f"rpc cookie_path that is no path: {type(cookie_path).__name__}"
+            raise BtcRpcTypeError(err_msg)
+        if not callable(transport):
+            # configuration checked while the caller is still looking at the
+            # line that supplied it -- `_checked_url` says why -- and a
+            # transport is the one argument where not doing so is a failure
+            # at the first `call` instead, out of urllib rather than here
+            err_msg = f"rpc transport that is not callable: {type(transport).__name__}"
+            raise BtcRpcTypeError(err_msg)
         self.user = user
         self._password = password
         self.cookie_path = None if cookie_path is None else Path(cookie_path)
@@ -1473,7 +1488,7 @@ class BitcoinCoreRpcClient:
         *,
         user: str | None = None,
         password: str | None = None,
-        cookie_path: Path | str | None = None,
+        cookie_path: str | PathLike[str] | None = None,
         timeout: float = DEFAULT_TIMEOUT,
         transport: HttpTransport = urlopen_transport,
     ) -> BitcoinCoreRpcClient:
@@ -1537,9 +1552,21 @@ class BitcoinCoreRpcClient:
         The credentials, the timeout and the transport are this client's,
         the endpoint being the only difference -- so a caller working on
         several wallets builds one client and derives the rest.
+
+        `type(self)` and not this class by name, as `from_chain` builds
+        with `cls`: a subclass that derives a wallet client keeps whatever
+        it added, rather than losing it at the one call that looks like it
+        preserves everything.
         """
+        if not isinstance(wallet_name, str):
+            # `quote` takes `bytes` as well, so this is a refusal and not a
+            # convenience: `for_wallet(b"hot")` built an endpoint rather
+            # than failing, and anything else left through a TypeError of
+            # urllib's about `quote_from_bytes`
+            err_msg = f"rpc wallet name that is not a string: {wallet_name!r}"
+            raise BtcRpcTypeError(err_msg)
         url = f"{self.url.rstrip('/')}/wallet/{quote(wallet_name, safe='')}"
-        return BitcoinCoreRpcClient(
+        return type(self)(
             url,
             user=self.user,
             password=self._password,
