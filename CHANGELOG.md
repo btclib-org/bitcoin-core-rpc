@@ -74,28 +74,34 @@ carry a union merge driver that would keep both sides' numbers.
   that can turn red.** None of the additions claimed something new:
   `pre-commit.ci` is the check already configured in
   `.pre-commit-config.yaml`'s `ci:` block and already running against
-  `dev`; what was missing was the badge saying so. They read on two lines,
-  in the order the reader asks for them: version, downloads, development
-  status, license and supported interpreters first; test, lint,
-  pre-commit.ci and the documentation build second. Version and downloads
-  are adjacent, both being PyPI reading back the same project, and `test`
-  precedes `lint`, a red suite and a red linter not weighing the same. The
-  badges that report no state -- `uv`, `cal_ver`, `pre-commit enabled`,
-  ruff, mypy and markdownlint-cli2 -- name a choice rather than measure
-  anything, so they are in CONTRIBUTING.md's "Getting started", beside the
-  prose that says how each choice is enforced; the `slack` badge is in the
-  README's Links section, "where do I ask" being a question the reader has
-  after reading, and no `twitter` one, which the sibling projects dropped
-  too. The alternative text says what a badge means -- "PyPI version",
-  "supported Python versions", "test workflow status" -- rather than
-  naming the site that serves the image: it is the accessible name of the
-  link, and a flat list has nothing else to carry the meaning. One badge
-  per source line, which puts a badge change in one line of a diff and
-  needs no `markdownlint-disable MD013`: the rule's 80 columns bind only
-  where a space follows them, and in a bare URL none does. btclib and
-  btclib_libsecp256k1 carry the same two lines, which is what makes the
-  three READMEs comparable; the badge sets differ only where the projects
-  do.
+  `dev`; what was missing was the badge saying so. They read on three
+  lines, in the order the reader asks for them: version, downloads,
+  development status, license and supported interpreters first; test,
+  lint, pre-commit.ci and the documentation build second; the repository
+  and the `slack` channel third, "where is the code" and "where do I ask"
+  being the two questions a reader has once the first two lines have
+  answered theirs. Version and downloads are adjacent, both being PyPI
+  reading back the same project, and `test` precedes `lint`, a red suite
+  and a red linter not weighing the same. The badges that report no state
+  -- `cal_ver`, `uv`, ruff, mypy, markdownlint-cli2 and `pre-commit
+  enabled` -- name a choice rather than measure anything, so they open
+  CONTRIBUTING.md, which is the file that says how each choice is enforced
+  and what the command for it is; ruff is three of them, its formatter,
+  its linter and its docstring rules being three gates with three
+  documentation pages and three ways to fail, where one badge announced
+  them as one. `pre-commit` closes that run because it is what runs the
+  others, and the repository and `slack` badges close the line, a
+  contributor wanting both. No `twitter` badge, which the sibling projects
+  dropped too. The alternative text says what a badge means -- "PyPI
+  version", "supported Python versions", "test workflow status" -- rather
+  than naming the site that serves the image: it is the accessible name of
+  the link, and a flat list has nothing else to carry the meaning. One
+  badge per source line, which puts a badge change in one line of a diff
+  and needs no `markdownlint-disable MD013`: the rule's 80 columns bind
+  only where a space follows them, and in a bare URL none does. btclib and
+  btclib_libsecp256k1 carry the same three lines and the same
+  CONTRIBUTING.md run, which is what makes the three comparable; the badge
+  sets differ only where the projects do.
 
 - **The GitHub repository is `btclib-org/bitcoin-core-rpc`**, where it was
   `btclib-org/btclib-bitcoin-core-rpc`: the distribution took the shorter
