@@ -48,7 +48,7 @@ import re
 from base64 import b64decode
 from decimal import Decimal, InvalidOperation, localcontext
 from io import BytesIO
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, get_args
 from urllib.request import Request
 
@@ -1683,6 +1683,68 @@ def test_a_wallet_client_keeps_the_credentials_and_the_transport() -> None:
     assert endpoint.timeout == 7.0
     assert endpoint.transport is transport
     assert endpoint.user is None
+
+
+@pytest.mark.parametrize("name", [7, b"hot", None, Path("hot")])
+def test_a_wallet_name_that_is_not_a_string_is_refused(name: object) -> None:
+    """`quote` takes bytes too, so this is a refusal and not a convenience.
+
+    `for_wallet(b"hot")` built an endpoint rather than failing, and the
+    rest left through a TypeError of urllib's naming `quote_from_bytes`.
+    """
+    endpoint = BitcoinCoreRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD)
+    untyped: Any = endpoint.for_wallet
+    with pytest.raises(BtcRpcTypeError, match="wallet name that is not a string"):
+        untyped(name)
+
+
+def test_a_subclass_derives_a_wallet_client_of_its_own_class() -> None:
+    """`type(self)`, as `from_chain` builds with `cls`.
+
+    A subclass that adds a retry policy would otherwise lose it at the one
+    call whose whole subject is carrying this client's configuration over.
+    """
+
+    class Subclass(BitcoinCoreRpcClient):
+        pass
+
+    endpoint = Subclass(URL, user=RPC_USER, password=RPC_PASSWORD)
+    assert type(endpoint.for_wallet("hot")) is Subclass
+    assert type(Subclass.from_chain("main", cookie_path="/nowhere/.cookie")) is Subclass
+
+
+@pytest.mark.parametrize("cookie_path", [7, 1.5, object()])
+def test_a_cookie_path_that_is_no_path_is_refused_as_such(cookie_path: object) -> None:
+    """Before `Path()` refuses it, which reports pathlib's argument.
+
+    `__fspath__` is not what the caller passed, and not a name they can
+    look up in this module's interface.
+    """
+    untyped: Any = BitcoinCoreRpcClient
+    with pytest.raises(BtcRpcTypeError, match="cookie_path that is no path"):
+        untyped(URL, cookie_path=cookie_path)
+
+
+def test_a_path_like_cookie_path_is_a_path() -> None:
+    """What `Path()` accepts is what this takes: `str`, and any `PathLike`."""
+    assert BitcoinCoreRpcClient(
+        URL, cookie_path=PurePosixPath("/nowhere/.cookie")
+    ).cookie_path == Path("/nowhere/.cookie")
+
+
+@pytest.mark.parametrize("transport", ["x", 7, None])
+def test_a_transport_that_is_not_callable_is_refused_at_construction(
+    transport: object,
+) -> None:
+    """Configuration that cannot work is refused where it was written.
+
+    That is `_checked_url`'s rule, and a transport was the argument that
+    escaped it: the client built, and the first `call` failed from inside
+    urllib with a TypeError about a str not being callable.
+    """
+    untyped: Any = BitcoinCoreRpcClient
+    with pytest.raises(BtcRpcTypeError, match="transport that is not callable"):
+        untyped(URL, user=RPC_USER, password=RPC_PASSWORD, transport=transport)
 
 
 def test_the_two_vocabularies_translate_both_ways() -> None:
