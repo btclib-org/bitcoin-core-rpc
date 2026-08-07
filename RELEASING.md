@@ -87,10 +87,15 @@ publishes to TestPyPI instead of PyPI.
 1. On GitHub, Actions → release → Run workflow, and pick the branch to
    rehearse (usually `dev`).
 
-1. The workflow appends `.dev<run number>` to the version, so every
-   rehearsal is unique on TestPyPI and sorts before the release it
-   rehearses. Re-running a finished rehearsal would reuse its run number
-   and be refused by TestPyPI: dispatch a fresh run instead.
+1. The workflow appends `.dev<run number>` to whatever `pyproject.toml`
+   declares on the branch dispatched — the outgoing cycle's placeholder if
+   `dev` has not yet been bumped to the version about to ship, which
+   publishes something like `2026.8.6.1.dev4` and still tests the
+   identical pipeline the tag will run; the number is not what is being
+   asked about. Every rehearsal is unique on TestPyPI this way, and sorts
+   before the release it rehearses. Re-running a finished rehearsal would
+   reuse its run number and be refused by TestPyPI: dispatch a fresh run
+   instead.
 
 1. Check the upload, and optionally install it — it has no dependency to
    resolve from anywhere:
@@ -169,6 +174,16 @@ It gates nothing automatically, which is why it is a step here.
    summary can stay, but what the diff cannot say has to be written, and
    what a reader should not have to discover at the button belongs there
    too.
+
+   The previous cycle's last step opened this pull request asking for the
+   body to fill in one merged pull request at a time, and said so itself:
+   "a promise kept only if someone remembers to keep it." Check it against
+   `git log v<previous version>..dev --oneline` regardless of how current
+   it looks, rather than trust that every line landed when it should have.
+   Griffe's result and the rpc-smoke run belong here too, each a line
+   rather than a screenshot — both are steps nothing else enforces, and a
+   pull request that never mentions them reads exactly like one that
+   skipped them.
 
 1. Merge `dev` into `master` with **"Rebase and merge"**, never *"Squash
    and merge"* — read the button, GitHub offers whichever method was used
