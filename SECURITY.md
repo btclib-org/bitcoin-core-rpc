@@ -7,7 +7,7 @@ issue: an issue is public from the moment it is filed, and so is the
 window between filing it and a fix being released.
 
 Report it privately instead, by
-[opening a security advisory](https://github.com/btclib-org/btclib-bitcoin-core-rpc/security/advisories/new).
+[opening a security advisory](https://github.com/btclib-org/bitcoin-core-rpc/security/advisories/new).
 Only the maintainers can see it, the discussion stays private until an
 advisory is published, and a CVE can be requested from it if the
 vulnerability warrants one.

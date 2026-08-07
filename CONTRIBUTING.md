@@ -173,7 +173,7 @@ carrying a code is usually a question for the method's documentation.
 ### Solve an issue
 
 Scan through our [existing
-issues](https://github.com/btclib-org/btclib-bitcoin-core-rpc/issues) to
+issues](https://github.com/btclib-org/bitcoin-core-rpc/issues) to
 find one that interests you.
 
 ## Make Changes
@@ -309,4 +309,4 @@ from it. Dependabot and pre-commit.ci both target `dev`.
 Congratulations :tada::tada:
 
 Once your PR is merged, your contributions will be publicly visible on the
-[contributors page](https://github.com/btclib-org/btclib-bitcoin-core-rpc/graphs/contributors).
+[contributors page](https://github.com/btclib-org/bitcoin-core-rpc/graphs/contributors).

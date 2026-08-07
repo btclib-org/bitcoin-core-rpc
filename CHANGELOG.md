@@ -36,6 +36,23 @@ carry a union merge driver that would keep both sides' numbers.
   `slack` badge to the same channel included and no `twitter` one, which
   the sibling projects are dropping too.
 
+- **The GitHub repository is `btclib-org/bitcoin-core-rpc`**, where it was
+  `btclib-org/btclib-bitcoin-core-rpc`: the distribution took the shorter
+  name in v0.1.0 already, and the repository read as the wrong thing to
+  clone for a client that is not part of btclib for exactly as long as it
+  kept the old one. GitHub redirects `git clone`, the web UI and most of
+  the REST API from the old path, so nothing with it cached breaks
+  outright; every URL this tree spells out regardless -- `release.yml`'s
+  `github.repository` guard on the publish jobs, `pyproject.toml`'s
+  `[project.urls]`, RELEASING.md's and REPOSITORY.md's `gh api` runbook
+  commands, the README's badges and Links section, CONTRIBUTING.md,
+  SECURITY.md, AUTHORS.md and both issue templates -- now names the new
+  one, so none of it depends on the redirect staying up. PyPI's Trusted
+  Publisher entry lives outside this tree and does not follow a GitHub
+  rename automatically; RELEASING.md's setup step now records the new
+  repository name, and the entry on pypi.org needs updating to match
+  before the next release, or that release's OIDC handshake fails.
+
 ## v2026.8.7
 
 ### Added
