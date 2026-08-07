@@ -69,6 +69,28 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **The README's migration section pairs each `AuthServiceProxy` command
+  with the one that replaces it, where it listed lines and left the reader
+  to pair them.** One block held three changes, each of them a comment
+  followed by two or three lines in no marked order: the `AuthServiceProxy`
+  spelling and the one here were told apart only by the class name where a
+  line happened to carry one, so the two `client.call` lines under
+  `rpc.getblock` read as a sequence to run rather than as the same call
+  twice, and the `for_wallet` change had no "before" line at all. It is now
+  one block per change, each opening `# AuthServiceProxy` and continuing
+  `# this client`, under a sentence of prose saying what moved and why --
+  connecting, invoking a method, a wallet command, a batch and an error,
+  the last two of which were prose with no command in them. `batch_`
+  gains the loop that replaces it, spelled out. The claim that an unknown
+  method "arrives at the node, not an AttributeError here" is gone with
+  it: `AuthServiceProxy.__getattr__` builds a proxy for any name too, so
+  the sentence named a difference that is not one, where what does differ
+  is that a method name is data here and cannot collide with the client's
+  own attributes. No count of the changes either, the old "four changes"
+  having counted three blocks and a paragraph. Every `# this client` line
+  was run against a stub transport before the section was rewritten around
+  them, which is what the section had never been.
+
 - **The README gained the badges it was missing -- `status`, `downloads`,
   `docs` and `pre-commit.ci` among them -- and now carries only the ones
   that can turn red.** None of the additions claimed something new:
