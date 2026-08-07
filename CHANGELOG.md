@@ -19,10 +19,40 @@ Neither file counts its entries: `grep -c '^- '` does that, whereas a
 stated number is a line every open branch has to edit, and the two files
 carry a union merge driver that would keep both sides' numbers.
 
-## v2026.8.7.1 (work in progress, not released yet)
+## v2026.9 (work in progress, not released yet)
 
 ### Changed
 
+- **The between-releases placeholder is the month, `2026.9`, and no longer
+  the last release with its trailing component bumped.** The old
+  placeholder was shaped exactly like a release on purpose, which left one
+  guard in front of it: `version-check`'s heading check against HISTORY.md
+  and CHANGELOG.md. A version with no day cannot be published at all --
+  the same `version-check` requires three components of anything tagged,
+  and always did -- so the month-only shape puts a second, independent
+  guard behind the first, and a checkout of `dev` stops reporting itself
+  as a release it is not. `pyproject.toml`, `uv.lock` and the two
+  work-in-progress headings move with it, and `release.yml`'s comment on
+  the three-component check says which guard it now is.
+- **RELEASING.md takes back eight steps from btclib's copy of it.** The
+  rehearsal from `master` after the version bump, and the annotated tag
+  that names the release commit and is read back with `git show` before
+  the push, the argumentless `git tag` being one `cd` away from tagging
+  the commit before the bump; the local gates as the evidence they are
+  here, `test.yml` and `lint.yml` triggering on `pull_request` and a push
+  to `master` alone, so a commit pushed straight to `dev` runs neither;
+  the read-the-docs *builds* page, which a rendered page answering 200
+  does not stand in for; the 100-commit ceiling on "Rebase and merge",
+  past which the button reads `This branch can't be rebased` and the
+  command line it wraps is what is left; the fast-forward that ceiling's
+  `git merge-base --is-ancestor` also detects, which makes the realign
+  step below it moot and is now the question that step opens with; the
+  404 a `workflow_dispatch`-only workflow answers until its file reaches
+  the default branch; `git tag --sort=v:refname`, without which `v2026.10`
+  lists before `v2026.7`; and deleting a botched tag locally in every
+  worktree, a tag being per-repository where a branch is per-worktree.
+  `latest` gets the short form of btclib's paragraph, there being no
+  sibling pin here for the long one.
 - **`keywords` and the GitHub repository topics name the same things.**
   The keyword list had neither `zero-dependency` nor `vendorable`, which
   the topics already carried and which are two of the three things the

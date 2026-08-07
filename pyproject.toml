@@ -34,7 +34,7 @@ name = "bitcoin-core-rpc"
 # and does not have to, that job also refusing to publish a tag whose
 # HISTORY.md and CHANGELOG.md section still reads "(work in progress, not
 # released yet)"
-version = "2026.8.7.1"
+version = "2026.9"
 description = "A standalone JSON-RPC client against Bitcoin Core"
 readme = "README.md"
 # PEP 639: an SPDX expression, which becomes the `License-Expression`
