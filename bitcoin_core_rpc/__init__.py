@@ -408,8 +408,8 @@ MAX_ERROR_BODY_SIZE = 64 * 1024
 # http and https, and nothing else. `urlopen` also speaks `file:` and
 # `data:`, so a url taken from configuration could make this client read
 # the local disk and report the bytes as a node's answer. Refusing the
-# scheme here is what makes the `noqa` in `urlopen_transport` true rather
-# than hopeful
+# scheme here is what makes the suppression in `urlopen_transport` true
+# rather than hopeful
 _SCHEMES = ("http", "https")
 
 
@@ -624,7 +624,7 @@ def http_request(
     # the same line -- an absent body is what makes a request a GET there --
     # and Core answers a GET with "JSON-RPC: method not allowed", which is
     # not the diagnosis an empty body deserves
-    request = Request(  # noqa: S310
+    request = Request(  # ruff: ignore[S310]
         url,
         data=data,
         headers=dict(headers or {}),

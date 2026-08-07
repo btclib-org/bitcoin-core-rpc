@@ -158,7 +158,7 @@ except rpc.HttpError as error:
 else:
     raise AssertionError("HttpError not raised")
 """
-    subprocess.run(  # noqa: S603
+    subprocess.run(  # ruff: ignore[S603]
         [sys.executable, "-I", "-S", "-c", smoke, str(vendored)],
         cwd=tmp_path,
         check=True,

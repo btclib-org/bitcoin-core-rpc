@@ -517,7 +517,7 @@ def test_a_transport_equal_to_the_default_is_still_the_callers_transport(
     # PLW1641: an __eq__ that answers True to one object and nothing else
     # has no hash to define, and defining one would be defining the very
     # thing this class exists to lie about
-    class EqualTransport:  # noqa: PLW1641
+    class EqualTransport:  # ruff: ignore[PLW1641]
         def __init__(self) -> None:
             self.requests: list[Request] = []
 
