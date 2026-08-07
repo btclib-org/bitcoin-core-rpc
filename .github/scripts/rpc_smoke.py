@@ -289,10 +289,18 @@ def wait_for_rpc(
 ) -> None:  # pragma: no cover
     """Wait until the node answers, or say what it did instead.
 
-    Both failures on the way are the node not being up yet: no cookie file
+    The failures on the way are the node not being up yet: no cookie file
     and a refused connection arrive as `FetchError`, and the rpc error -28
     is what it answers while it loads the block index. A node that exited
     is not waited for -- its own output on the console says why.
+
+    A 401 is the one that never becomes an answer, so it ends the wait
+    rather than filling it. `check_credentials_refused` states the same
+    property from the other side, and this is what `HttpError.status` is
+    for: spending the whole timeout on a credential the node has already
+    rejected reports `no rpc answer`, which names the symptom. Every other
+    status is left to the retry -- a 503 from a full work queue is the case
+    that does clear on its own.
     """
     deadline = time.monotonic() + STARTUP_TIMEOUT
     while time.monotonic() < deadline:
@@ -301,7 +309,15 @@ def wait_for_rpc(
             raise SmokeError(err_msg)
         try:
             client.call("getblockchaininfo")
-        except (FetchError, RpcError):
+        except HttpError as e:
+            if e.status == 401:
+                err_msg = f"the node refused the cookie credential: HTTP {e.status}"
+                raise SmokeError(err_msg) from e
+            time.sleep(STARTUP_POLL)
+        except FetchError:
+            # RpcError and HttpError are both FetchError, so this is the
+            # rest of them: the -28 of a node still loading its index, and
+            # every way an exchange produced no status at all
             time.sleep(STARTUP_POLL)
         else:
             return
@@ -321,7 +337,9 @@ def stop(
     try:
         client.call("stop")
         process.wait(timeout=STARTUP_TIMEOUT)
-    except (FetchError, RpcError, subprocess.TimeoutExpired):
+    except (FetchError, subprocess.TimeoutExpired):
+        # FetchError alone, `RpcError` and `HttpError` both being one: a
+        # pair spelled out here would read as two families rather than one
         process.kill()
         process.wait()
 
