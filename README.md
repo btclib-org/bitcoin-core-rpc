@@ -2,11 +2,15 @@
 
 A standalone JSON-RPC client against Bitcoin Core.
 
-[![Lint](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/lint.yml)
-[![Test](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/test.yml)
+[![status](https://img.shields.io/pypi/status/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
 [![Python](https://img.shields.io/pypi/pyversions/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![lint and format: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![type-check: mypy](https://img.shields.io/badge/type--check-mypy-yellowgreen.svg?logo=mypy)](http://mypy-lang.org/)
+[![docs](https://readthedocs.org/projects/bitcoin-core-rpc/badge/?version=latest)](https://bitcoin-core-rpc.readthedocs.io)
+[![Lint](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/lint.yml)
+[![Test](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/test.yml)
 
 One source file with nothing but the standard library behind it, fully
 annotated and shipping `py.typed`. `BitcoinCoreRpcClient` invokes any one

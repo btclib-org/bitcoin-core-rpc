@@ -21,6 +21,19 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.8.7.1 (work in progress, not released yet)
 
+### Repository
+
+- **The README carries a `status`, a `ruff`, a `type-check` and a `docs`
+  badge**, next to the `PyPI`, `Python`, `License` and the two workflow
+  badges already there. `status` reads the same PyPI classifier as
+  `Python`; `ruff` is the endpoint badge upstream publishes for its own
+  lint-and-format state, rather than a static claim of it; `type-check`
+  names mypy the way `mypy --strict` runs here; `docs` points at the Read
+  the Docs build the Links section already named but never showed a
+  status for. The nine badges now read in one sequence -- what the
+  project is, what installs, what checks it, what documents it, what
+  CI ran -- which is the order btclib and btclib_libsecp256k1 both use.
+
 ## v2026.8.7
 
 ### Added
