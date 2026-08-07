@@ -115,7 +115,11 @@ test = [
     "pytest-randomly",
     "pytest-xdist",
 ]
-lint = ["mypy", "pre-commit", "ruff"]
+# a floor here and on nothing else in this group: the suppressions in this
+# tree are written `ruff: ignore`, and 0.16 is the first release that reads
+# them. An older ruff does not fail on the syntax -- it fails on the
+# findings those comments suppress, which is the confusing way to learn it
+lint = ["mypy", "pre-commit", "ruff>=0.16"]
 # mutation testing, which asks the question coverage cannot: a line the
 # suite executes is not a line the suite checks. Its own group and not part
 # of test, because every cell of the matrix installs that one and none of
@@ -354,7 +358,7 @@ select = [
     "B",    # flake8-bugbear
     "BLE",  # flake8-blind-except
     "C4",   # flake8-comprehensions
-    "C90",  # mccabe, at ruff's default with noqa'd exceptions
+    "C90",  # mccabe, at ruff's default with suppressed exceptions
     "D",    # pydocstyle
     "E",    # pycodestyle errors
     "ERA",  # eradicate: code that was commented out instead of deleted
@@ -438,12 +442,13 @@ ignore = [
 ]
 
 [tool.ruff.lint.mccabe]
-# ruff's default, and a function over it carries a noqa whose reason is the
-# comment above the def -- ruff reads the code, the prose after it is for
-# the reader. Not a global bound at the tree's worst, which keeps the worst
-# from growing but lets any new function reach it unremarked. No exemption
-# is permanent: RUF100 (unused-noqa, selected above) fails a noqa as unused
-# the moment a refactor brings its function under the line
+# ruff's default, and a function over it carries a `ruff: ignore` whose
+# reason is the comment above the def -- ruff reads the code, the prose
+# after it is for the reader. Not a global bound at the tree's worst, which
+# keeps the worst from growing but lets any new function reach it
+# unremarked. No exemption is permanent: RUF100 (unused-noqa, selected
+# above) fails a suppression the moment a refactor brings its function
+# under the line
 max-complexity = 10
 
 [tool.ruff.lint.pycodestyle]

@@ -238,7 +238,7 @@ def node(
     # S603: the executable is a path this script was handed, and every
     # other word of the command line is a constant above; no shell is
     # involved, so nothing here is parsed as anything but arguments
-    process = subprocess.Popen(command)  # noqa: S603
+    process = subprocess.Popen(command)  # ruff: ignore[S603]
     try:
         wait_for_rpc(client, process)
         yield client
@@ -276,7 +276,7 @@ def isolated_node(
     client = BitcoinCoreRpcClient.from_chain(
         chain, cookie_path=datadir / CHAIN_DATADIR_SUBDIR[chain] / ".cookie"
     )
-    process = subprocess.Popen(command)  # noqa: S603
+    process = subprocess.Popen(command)  # ruff: ignore[S603]
     try:
         wait_for_rpc(client, process)
         yield client
@@ -457,7 +457,7 @@ def check_credentials_refused(
         user="not-the-cookie-user",
         # S106 and detect-secrets: a credential that is deliberately not
         # the node's, which is the whole of what this checks
-        password="not the cookie",  # noqa: S106  # pragma: allowlist secret
+        password="not the cookie",  # ruff: ignore[S106]  # pragma: allowlist secret
     )
     try:
         wrong.call("getblockcount")
