@@ -36,6 +36,16 @@ carry a union merge driver that would keep both sides' numbers.
   where `StrEnum` does not exist and the `str, Enum` that stands in for it
   formats as `Chain.MAIN` inside an f-string.
 
+- **`USER_AGENT`**, what `call` now sends as the `User-Agent` header:
+  `bitcoin-core-rpc`, where urllib's default named the interpreter and
+  identified neither this client nor the program running it. What a node's
+  access log and any proxy in front of it record, the request `id` already
+  marking the same call in the node's debug log. No version in it, for the
+  reason there is none anywhere here -- the release tag is the version,
+  and a copied file would carry whichever one it was copied from forever.
+  Published so that a caller writing a transport of their own can send the
+  same thing.
+
 ### Changed
 
 - **three arguments are checked where they are written**, which is
@@ -106,6 +116,24 @@ carry a union merge driver that would keep both sides' numbers.
   These are Core's names, not the BIP ones`. The check there is now
   `rpc_port_from_chain`'s, so the three functions a chain name reaches say
   the same thing, and the three words say what the sentence did.
+- **the class docstring says that a call opens its own connection.**
+  urllib holds none, so every `call` sends `Connection: close` and
+  connects again. Beside the node that is loopback and costs nothing; to a
+  node over `https` it is a TLS handshake each time, which is a caller
+  polling one in a loop wanting a `transport` of their own. Documented and
+  not fixed: keeping a connection alive means a pool, its own
+  thread-safety and its own eviction, none of which one bounded request
+  needs, and `HttpTransport` is the seam a caller who wants all three
+  already has.
+
+### Tests
+
+- **the five chains are checked against every table that takes one.** They
+  are written down four times -- a port, a datadir subdirectory, a network
+  name and a `Literal` each way -- and only the `Literal`s failed anything
+  when one was forgotten, at a type check rather than here. A port with no
+  subdirectory beside it derives a cookie path under a directory that is
+  not the node's.
 
 ### Repository
 

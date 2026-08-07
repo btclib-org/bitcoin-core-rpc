@@ -176,6 +176,7 @@ __all__ = [
     "DEFAULT_MAX_BODY_SIZE",
     "DEFAULT_TIMEOUT",
     "MAX_ERROR_BODY_SIZE",
+    "USER_AGENT",
     "BitcoinCoreRpcClient",
     "BtcRpcRuntimeError",
     "BtcRpcTypeError",
@@ -945,6 +946,13 @@ _RPC_ID_BYTES = 8
 _MAX_PARAMS_DEPTH = 100
 
 
+# what `call` sends as `User-Agent`, and what a node's access log and any
+# proxy in front of it record. urllib's default names the interpreter --
+# `Python-urllib/3.14` -- which identifies neither this client nor the
+# program running it
+USER_AGENT = "bitcoin-core-rpc"
+
+
 def _rpc_id() -> str:
     """Return the `id` of one request, distinct from every other."""
     return f"btcrpc-{token_hex(_RPC_ID_BYTES)}"
@@ -1392,6 +1400,15 @@ class BitcoinCoreRpcClient:
     authorise every wallet command that node has: an `https` url, or a
     tunnel, is what keeps them off it.
 
+    **One connection per call**, urllib holding none open: every `call`
+    sends `Connection: close` and opens a socket of its own. Beside the
+    node that is a loopback connect and costs nothing. To a node reached
+    over `https` it is a TLS handshake each time, so a caller polling one
+    in a loop wants a `transport` of their own -- a `requests` session, an
+    `httpx` client -- which is what `HttpTransport` is for. Keeping a
+    connection alive here would mean a pool, its own thread-safety and its
+    own eviction, none of which one bounded request needs.
+
     Nothing here asks the node which chain it is on, and no call does it
     on the caller's behalf: the url and the cookie path say where to ask,
     and what the answers mean is the caller's to hold. `getblockchaininfo`
@@ -1668,6 +1685,10 @@ class BitcoinCoreRpcClient:
             headers={
                 "Content-Type": "application/json",
                 "Authorization": self.auth_header(),
+                # the request `id` marks this client in the node's debug
+                # log, and `USER_AGENT` is the half a proxy and an access
+                # log see
+                "User-Agent": USER_AGENT,
             },
             timeout=timeout,
             max_body_size=max_body_size,
