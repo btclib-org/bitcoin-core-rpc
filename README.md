@@ -131,11 +131,35 @@ than a match on the text of a message.
   wrong source for the decision of where a wallet command is sent. A caller
   who does want one passes a `transport`.
 
+## Migrating from `AuthServiceProxy`
+
 It is **not** python-bitcoinrpc's `AuthServiceProxy` and not a port of it.
 That class, and the copy of it Core's test framework maintains, carry the
 LGPL-2.1 of their python-jsonrpc ancestry, where this is MIT: this is an
 implementation of the protocol and shares no line with either. Migrating
-from it is four changes, and the module docstring spells each of them out.
+from it is four changes:
+
+```python
+# a method is an argument, not an attribute: an unknown one is a value
+# that arrives at the node, not an AttributeError here
+rpc.getblock(block_id, 2)
+client.call("getblock", [block_id, 2])
+client.call("getblock", {"blockhash": block_id, "verbosity": 2})  # or named
+
+# credentials leave the url, which is what gets written into a config
+# file and printed in a traceback
+AuthServiceProxy(f"http://{user}:{password}@127.0.0.1:8332")
+BitcoinCoreRpcClient("http://127.0.0.1:8332", user=user, password=password)
+BitcoinCoreRpcClient.from_chain("main")  # or the node's cookie file
+
+# one wallet of a multi-wallet node, percent-encoded
+client.for_wallet("hot").call("getbalance")
+```
+
+`JSONRPCException` becomes three exceptions -- [When it goes
+wrong](#when-it-goes-wrong) above has the table -- and `batch_` has no
+equivalent, per [What it does not do](#what-it-does-not-do); a loop over
+`call` is the replacement.
 
 ## Testing code that calls a node
 
