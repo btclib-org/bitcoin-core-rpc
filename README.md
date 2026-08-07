@@ -2,11 +2,22 @@
 
 A standalone JSON-RPC client against Bitcoin Core.
 
+[![status](https://img.shields.io/pypi/status/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![calver: yyyy.m.d](https://img.shields.io/badge/cal_ver-yyyy.m.d-1674b1.svg?logo=calver)](https://calver.org/)
+[![PyPI](https://img.shields.io/pypi/v/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
+[![downloads](https://static.pepy.tech/badge/bitcoin-core-rpc)](https://pepy.tech/project/bitcoin-core-rpc)
+[![Python](https://img.shields.io/pypi/pyversions/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
+[![lint and format: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![lint: markdownlint-cli2](https://img.shields.io/badge/lint-markdownlint--cli2-yellowgreen.svg?logo=markdown)](https://github.com/DavidAnson/markdownlint-cli2)
+[![type-check: mypy](https://img.shields.io/badge/type--check-mypy-yellowgreen.svg?logo=mypy)](http://mypy-lang.org/)
+[![docs](https://readthedocs.org/projects/bitcoin-core-rpc/badge/?version=latest)](https://bitcoin-core-rpc.readthedocs.io)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib-bitcoin-core-rpc/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib-bitcoin-core-rpc/master)
 [![Lint](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/lint.yml)
 [![Test](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib-bitcoin-core-rpc/actions/workflows/test.yml)
-[![PyPI](https://img.shields.io/pypi/v/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
-[![Python](https://img.shields.io/pypi/pyversions/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![slack](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES)
 
 One source file with nothing but the standard library behind it, fully
 annotated and shipping `py.typed`. `BitcoinCoreRpcClient` invokes any one
