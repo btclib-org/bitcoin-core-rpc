@@ -38,6 +38,26 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Changed
 
+- **three arguments are checked where they are written**, which is
+  `_checked_url`'s rule and the three that escaped it. A `transport` that
+  is not callable built a client and failed at the first `call`, from
+  inside urllib; a `cookie_path` that is no path left through pathlib's
+  TypeError about `__fspath__`; a `wallet_name` that is not a string left
+  through urllib's about `quote_from_bytes` -- and `for_wallet(b"hot")`
+  did not fail at all, `quote` taking bytes, so it built an endpoint from
+  a name nobody spelled. Each is a `BtcRpcTypeError` naming the argument
+  now.
+
+  `cookie_path` is annotated `str | PathLike[str] | None` with that, where
+  it said `Path | str | None`. The runtime check is what `Path()` on the
+  next line accepts, and an annotation narrower than the check is the
+  disagreement that matters: a `PurePosixPath` worked and a type checker
+  said it would not. Widening a parameter breaks no caller -- `Path` is a
+  `PathLike[str]` -- and what the attribute holds is a `Path` either way.
+- **`for_wallet` builds `type(self)`**, where it named this class. A
+  subclass kept its type through `from_chain`, which builds with `cls`,
+  and lost it at the one call whose whole subject is carrying this
+  client's configuration over.
 - **the timeout bounds the whole exchange**, where it bounded each socket
   operation. A socket timeout is reset by every packet, so a peer sending
   one octet just inside it held a call open until `max_body_size` octets
