@@ -545,7 +545,12 @@ def _assert_valid_max_body_size(max_body_size: int) -> None:
 
 
 def _read_bounded(
-    response: Any, max_body_size: int, where: str, deadline: float
+    response: Any,
+    max_body_size: int,
+    where: str,
+    deadline: float,
+    *,
+    truncate: bool = False,
 ) -> bytes:
     """Return the body, having never held more than the limit of it.
 
@@ -555,6 +560,12 @@ def _read_bounded(
     the sender -- so the read is bounded as well, and by one octet more
     than the limit, which is what tells a body *at* the limit from one
     over it.
+
+    `truncate` is how the body of a *failure* is read: a diagnostic over
+    the limit is cut to it and answered, where an answer over the limit is
+    refused -- and an announced `Content-Length` over it is not grounds
+    for refusal either. An error page is still the diagnosis of why there
+    is no answer, one octet over the limit or a megabyte over it.
 
     The reads are incremental because the point is not to hold the body:
     `read1` answers with what one recv gave it, so this loops until the
@@ -578,7 +589,7 @@ def _read_bounded(
     _assert_valid_max_body_size(max_body_size)
 
     announced = response.headers.get("Content-Length")
-    if announced is not None:
+    if announced is not None and not truncate:
         # a header, so it can be anything: a value that is not a number
         # says nothing about the size and is left to the bounded read
         with suppress(ValueError):
@@ -601,6 +612,8 @@ def _read_bounded(
     body = b"".join(chunks)
 
     if len(body) > max_body_size:
+        if truncate:
+            return body[:max_body_size]
         err_msg = f"{where}: response larger than the max_body_size of {max_body_size}"
         raise FetchError(err_msg)
     return body
@@ -672,7 +685,9 @@ def http_request(
     The body of a failure is bounded separately, by `MAX_ERROR_BODY_SIZE`
     and by truncation rather than refusal -- an error page arriving one
     octet over a caller's limit for a *height* is still the diagnosis of
-    why there is no height.
+    why there is no height. In time it is bounded by `timeout`, the same
+    deadline the answer is read against: a drip is a drip whichever
+    status precedes it.
     """
     _assert_valid_max_body_size(max_body_size)
 
@@ -693,6 +708,13 @@ def http_request(
         headers=dict(headers or {}),
         method="POST" if data is not None else "GET",
     )
+    # what the body of a failure is read against, taken here and not in
+    # the `except` below, which runs once the exchange has already spent
+    # its time: this is the reading `urlopen_transport` takes for itself,
+    # and a transport of a caller's own that raises `HTTPError` is held to
+    # it too -- for the error body alone, that being the only part of such
+    # an exchange this module does the reading of
+    deadline = monotonic() + timeout
     try:
         # the limit reaches the read itself for the transport of this
         # module, which is the only one it can: `HttpTransport` is two
@@ -708,20 +730,26 @@ def http_request(
             status, body = transport(request, timeout)
     except HTTPError as e:
         # a subclass of URLError, so it has to be caught before the OSError
-        # below. It is also a response: `read` gives the body the server
-        # sent with the status, and discarding it would turn whatever
-        # diagnosis the backend offered into a bare number -- bounded,
-        # because an error page is written by whatever is in the way and
-        # is not a size this library agreed to
+        # below. It is also a response, and one `_read_bounded` can read:
+        # `HTTPError` forwards `read1` to the response it wraps and answers
+        # `headers` with the ones it was built from. Discarding that body
+        # would turn whatever diagnosis the backend offered into a bare
+        # number -- read to a bound, because an error page is written by
+        # whatever is in the way and is neither a size nor a wait this
+        # library agreed to
         try:
             try:
-                return e.code, e.read(MAX_ERROR_BODY_SIZE)
-            except (OSError, HTTPException):
+                return e.code, _read_bounded(
+                    e, MAX_ERROR_BODY_SIZE, url, deadline, truncate=True
+                )
+            except (OSError, HTTPException, FetchError):
                 # the body of the failure failed too -- a connection dropped
-                # mid-error-page is `IncompleteRead` here. The status is the
-                # part worth keeping and it is already in hand, so it goes
-                # back with no body rather than replacing a 503 a caller has
-                # a policy for with a report about reading it
+                # mid-error-page is `IncompleteRead` here, and one still
+                # arriving at the deadline is the `FetchError` the bounded
+                # read raises. The status is the part worth keeping and it
+                # is already in hand, so it goes back with no body rather
+                # than replacing a 503 a caller has a policy for with a
+                # report about reading it
                 return e.code, b""
         finally:
             # an HTTPError is a response, and a bounded read leaves it with

@@ -28,7 +28,7 @@ one, and shares no line with either.
 | Amounts | `Decimal` on replies; requests serialized through a generic fallback, so a `Decimal` could silently round through `float` | `Decimal` on replies **and** refusal of `Decimal` request parameters rather than rounding them through `float`; `NaN`/`Infinity` refused both ways |
 | Credentials | embedded in the URL (`http://user:pass@...`), so they can leak into logs, reprs and exception messages | separate `user`/`password` fields, or first-class cookie authentication (`cookie_path`, `from_chain` with datadir discovery) |
 | Errors | `JSONRPCException` wrapping raw error dicts | typed hierarchy: `RpcError` (with `.code` and `.data`, message in `str()`), `HttpError` (with `.status`), `FetchError` for transport failures |
-| Timeouts | per-connection only | per-client and **per-call** (`request_timeout`), plus a bounded response size (`max_body_size`) |
+| Timeouts | per-connection only, and spent per socket operation, which a peer dripping a body resets forever | per-client and **per-call** (`request_timeout`), bounding the whole exchange — answer and error page alike — plus a bounded response size (`max_body_size`) |
 | Concurrency | shared mutable request-id counter | `call` writes nothing on the client: one client serves any number of threads |
 | Wallet endpoints | URL string concatenation | `for_wallet()` |
 | Testability | none | pluggable `HttpTransport` |
