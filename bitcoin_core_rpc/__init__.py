@@ -586,6 +586,18 @@ def _read_bounded(
     it resets it with every packet and the limit is never reached. Checked
     before each read, so the wait is the deadline plus the one recv in
     flight when it passes.
+
+    The accumulator is one `bytearray`, grown with `extend` rather than a
+    `list` of chunks joined at the end -- a list holds every chunk as its
+    own object until the join, so a response near the limit sits in memory
+    twice over, once as the pieces and once as the joined result, for as
+    long as both are in scope. A single buffer replaces the pieces as it
+    grows instead of standing beside a second copy of them. What it cannot
+    avoid is the one copy `bytes(buffer)` makes at the end: this function
+    promises an immutable value, and a `bytearray` is not one. `max_body_size`
+    is a bound on what is read, in other words, and not on the memory one
+    call needs to read it -- that is this bound plus the one copy the
+    return type costs, whichever of the two ever exceeds it.
     """
     _assert_valid_max_body_size(max_body_size)
 
@@ -599,7 +611,7 @@ def _read_bounded(
                 err_msg += f" more than the max_body_size of {max_body_size}"
                 raise FetchError(err_msg)
 
-    chunks = []
+    buffer = bytearray()
     remaining = max_body_size + 1
     while remaining > 0:
         if monotonic() > deadline:
@@ -608,16 +620,15 @@ def _read_bounded(
         chunk = response.read1(min(remaining, _READ_CHUNK))
         if not chunk:
             break
-        chunks.append(chunk)
+        buffer.extend(chunk)
         remaining -= len(chunk)
-    body = b"".join(chunks)
 
-    if len(body) > max_body_size:
+    if len(buffer) > max_body_size:
         if truncate:
-            return body[:max_body_size]
+            return bytes(buffer[:max_body_size])
         err_msg = f"{where}: response larger than the max_body_size of {max_body_size}"
         raise FetchError(err_msg)
-    return body
+    return bytes(buffer)
 
 
 def urlopen_transport(

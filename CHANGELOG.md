@@ -65,6 +65,17 @@ carry a union merge driver that would keep both sides' numbers.
   diagnostic over `MAX_ERROR_BODY_SIZE` is cut to it and answered, and an
   announced `Content-Length` over the limit is not grounds for refusal
   under `truncate` either.
+- **`_read_bounded` accumulates into one `bytearray` now, not a `list` of
+  chunks joined at the end.** A `list` keeps every chunk alive as its own
+  object until the join, so a response near `max_body_size` sat in memory
+  twice over -- once as the pieces, once as the joined result -- for as
+  long as both stayed in scope; a single growing buffer replaces the
+  pieces instead of standing beside a second copy of them. The one copy
+  this function cannot avoid is `bytes(buffer)` at the end, since a
+  `bytearray` is not the immutable value it promises: the docstring now
+  says so directly, `max_body_size` bounding what is read and not the
+  memory reading it costs, which is that bound plus the one copy the
+  return type is worth.
 - **Three documented claims narrowed to what the code does.** The named
   parameter form was one "no attribute lookup can express", which a
   `**kwargs` façade expresses; what no attribute lookup can carry is both
