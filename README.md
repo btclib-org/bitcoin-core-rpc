@@ -218,6 +218,10 @@ error the node computed, `HttpError` for an exchange that failed and
 `FetchError` for no answer to read. All three are `FetchError`, so `except
 FetchError` is the translation that catches what the one exception caught.
 
+[COMPARISON.md](./COMPARISON.md) has the case for the switch beyond this
+rewrite guide, and what a production migration verified before trusting
+it.
+
 ## Testing code that calls a node
 
 `transport` is the seam, and it is public for this: a callable taking the
