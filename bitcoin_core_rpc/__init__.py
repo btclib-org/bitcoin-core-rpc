@@ -689,8 +689,15 @@ def http_request(
     why there is no height. In time it is bounded by `timeout`, the same
     deadline the answer is read against: a drip is a drip whichever
     status precedes it.
+
+    `timeout` is checked here and not only where `BitcoinCoreRpcClient`
+    already does, because this function is public on its own: a caller
+    reaching it directly with a transport of their own would otherwise
+    forward a zero, a negative number, `True` or a `NaN` straight to that
+    transport unexamined.
     """
     _assert_valid_max_body_size(max_body_size)
+    _assert_valid_timeout(timeout, "http timeout")
 
     scheme = urlsplit(url).scheme
     if scheme not in _SCHEMES:
