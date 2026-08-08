@@ -8,6 +8,7 @@ bitcoin-core-rpc documentation
    :caption: Contents:
 
    README <readme_link.md>
+   COMPARISON <comparison_link.md>
    PYTHON MODULE <api>
    CONTRIBUTING <contributing_link.md>
    SECURITY <security_link.md>

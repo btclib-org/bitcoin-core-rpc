@@ -21,6 +21,17 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.9 (work in progress, not released yet)
 
+### Added
+
+- **COMPARISON.md**, a review of the switch from a vendored
+  `AuthServiceProxy`: the comparison table by row, which of this client's
+  apparent gaps are documented non-goals rather than omissions, and what a
+  production migration verified before trusting it. The README's
+  ["Migrating from `AuthServiceProxy`"](./README.md#migrating-from-authserviceproxy)
+  is the line-by-line rewrite; this is why the rewrite was worth doing.
+  Linked from the README, and from `docs/source/index.rst` alongside the
+  other root documents.
+
 ### Changed
 
 - **The between-releases placeholder is the month, `2026.9`, and no longer
