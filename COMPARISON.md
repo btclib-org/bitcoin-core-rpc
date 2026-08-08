@@ -62,10 +62,96 @@ decisions rather than omissions:
   eviction policy; callers that need it can supply their own
   `HttpTransport`.
 
-Since each candidate improvement is already addressed by a documented
-decision with an extension point, no upstream issue was filed:
-re-litigating documented choices without new evidence would add noise,
-not value.
+Each was then re-examined against the source rather than against its
+stated reason. All three hold, on a criterion none of them names: the
+file is meant to be copied, so its public API is permanent and its size
+is the vendoring caller's audit burden. What is cheap to add downstream
+belongs downstream — the façade, the session, the array. Two of the
+three stated reasons, however, do not carry what is placed on them, and
+three of the supporting statements are narrower than their wording.
+
+### Dynamic dispatch
+
+The collision is a consequence of offering per-call controls, not an
+argument against dispatch: `AuthServiceProxy` offers no such controls
+and so has no collision. Two other consequences do decide it.
+
+`__getattr__` absorbs typos of the client's own surface, not only of
+method names: `client.for_walet("hot")` becomes a request to the node
+instead of an `AttributeError`. It also puts the dunder protocol behind
+a hand-written guard, without which `copy.copy`, pickling and an
+interactive shell's attribute probing each become an rpc request.
+
+And the package ships `py.typed` so that a consumer's type checker
+reads its annotations. `__getattr__` returns `Any`, which is what that
+marker exists to prevent, in a module that checks at run time that
+`method` is a `str`.
+
+The module docstring adds that the named parameter form is one "no
+attribute lookup can express". A `**kwargs` façade does express it;
+what cannot be expressed is both parameter forms *together with* the
+client's controls, which is the collision argument again.
+
+### Batching
+
+Correlation and partial failure are answered normatively by JSON-RPC
+2.0 §6 — an array of requests, responses in any order matched by `id`,
+an error object in the slot of the member that failed — and the module
+already assigns unique ids and already parses one member. The reasons
+that decide it are elsewhere.
+
+A batch buys amortisation of the round trip, and the deployment this
+client targets is a loopback node, where the round trip is already
+close to free. Against that:
+
+- one timeout would cover several node operations. The no-retry rule
+  rests on a timeout not being a deadline — the node may still be
+  executing — and a batch turns that into an unknown number of executed
+  wallet commands, of unknown identity;
+- `max_body_size` stops mapping onto an answer: the bound becomes the
+  sum of the replies, and a refusal is no longer attributable to a
+  member;
+- the legacy 1.1 reply shape for a batch is a third parsing branch, to
+  be established against Core rather than deduced from the 2.0
+  specification, in a module whose parsing is deliberately two
+  functions and not one with a flag.
+
+The documented replacement, a loop over `call`, is an equivalent on
+loopback and not over a WAN or a TLS link, which is where a batch pays.
+Nor is batching reachable through `HttpTransport`, the way keep-alive
+is: the transport receives a `Request` whose body is already a single
+object. It is reachable through public API all the same —
+`http_request` is exported and `auth_header()` is public, so a caller
+can POST the array to `client.url` through `client.transport` and match
+the replies by `id` — and that route is documented nowhere.
+
+### One connection per call
+
+The header is not this module's choice: CPython's
+`urllib.request.AbstractHTTPHandler.do_open` sets `Connection: close`
+unconditionally, its comment recording that `addinfourl` cannot hold a
+persistent connection. The decision taken was urllib, and a pool with
+its thread-safety and its eviction is the cost of leaving urllib for
+`http.client` — which is what makes the conclusion right.
+
+Alone among the three, the extension point closes the gap in full. A
+caller's transport receives the `Request` before urllib's handler chain
+runs, so a `requests` or `httpx` session keeps connections alive with
+nothing else changed.
+
+The cost is stated per call, where a loopback connect is negligible. In
+aggregate it is socket churn, and the request asks the node to be the
+side that closes, so the sockets accumulate in TIME_WAIT there. A
+caller polling at a high rate wants a transport of its own on loopback
+too, not only over TLS.
+
+### What the re-examination leaves
+
+No upstream issue was filed against the decisions, which stand. Three
+statements about them are corrections rather than re-litigation: the
+named form that "no attribute lookup can express", the unqualified
+"loop over `call` is the replacement", and a per-call cost stated as
+costing nothing.
 
 ## Verification performed during the migration
 

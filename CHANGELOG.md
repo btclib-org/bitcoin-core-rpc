@@ -26,7 +26,15 @@ carry a union merge driver that would keep both sides' numbers.
 - **COMPARISON.md**, a review of the switch from a vendored
   `AuthServiceProxy`: the comparison table by row, which of this client's
   apparent gaps are documented non-goals rather than omissions, and what a
-  production migration verified before trusting it. The README's
+  production migration verified before trusting it. Each non-goal is then
+  re-examined against the source rather than against its stated reason:
+  dynamic dispatch, batching and one connection per call all hold, two of
+  the reasons given for them do not, and three statements supporting them
+  claim more than the code does -- a named parameter form "no attribute
+  lookup can express", a loop over `call` offered as the replacement for a
+  batch without saying that a batch pays over a WAN and not on loopback,
+  and a per-call connection cost stated as costing nothing where the
+  aggregate is socket churn. The README's
   ["Migrating from `AuthServiceProxy`"](./README.md#migrating-from-authserviceproxy)
   is the line-by-line rewrite; this is why the rewrite was worth doing.
   Linked from the README, and from `docs/source/index.rst` alongside the
