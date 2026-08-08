@@ -23,20 +23,24 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Added
 
-- **COMPARISON.md**, a review of the switch from a vendored
-  `AuthServiceProxy`: the comparison table by row, which of this client's
-  apparent gaps are documented non-goals rather than omissions, and what a
-  production migration verified before trusting it. Each non-goal is then
-  re-examined against the source rather than against its stated reason:
-  dynamic dispatch, batching and one connection per call all hold, two of
-  the reasons given for them do not, and three statements supporting them
-  claim more than the code does -- a named parameter form "no attribute
-  lookup can express", a loop over `call` offered as the replacement for a
-  batch without saying that a batch pays over a WAN and not on loopback,
-  and a per-call connection cost stated as costing nothing where the
-  aggregate is socket churn. The README's
+- **COMPARISON.md**, the case for this client against `AuthServiceProxy`:
+  the comparison table row by row, the three rows that carry the weight --
+  amounts, credentials and errors, enforced by construction rather than
+  left to discipline -- and the consequence of the typed errors that
+  nothing announces, a refused connection arriving as a `FetchError` and
+  no longer as the `OSError` an `except` clause was written for. Then the
+  three features this client does not have and what decides each: dynamic
+  dispatch, which absorbs typos of the client's own surface and returns
+  `Any` where the package ships `py.typed`; batching, whose correlation
+  and partial failure JSON-RPC 2.0 section 6 settles, and whose cost is a
+  timeout covering several node operations, a `max_body_size` that stops
+  mapping onto an answer, and a third parsing branch -- reachable through
+  `http_request` and `auth_header` for the WAN link a batch pays on; and
+  one connection per call, which is CPython's `do_open` setting
+  `Connection: close` rather than a choice made here, negligible per call
+  on loopback and socket churn in aggregate. The README's
   ["Migrating from `AuthServiceProxy`"](./README.md#migrating-from-authserviceproxy)
-  is the line-by-line rewrite; this is why the rewrite was worth doing.
+  is the line-by-line rewrite; this is why the rewrite is worth doing.
   Linked from the README, and from `docs/source/index.rst` alongside the
   other root documents.
 
