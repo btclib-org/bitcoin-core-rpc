@@ -374,6 +374,12 @@ select = [
     "BLE",  # flake8-blind-except
     "C4",   # flake8-comprehensions
     "C90",  # mccabe, at ruff's default with suppressed exceptions
+    # flake8-copyright, replacing the copyright-notice pre-commit hook:
+    # a rule living inside ruff's own file-selection logic checks
+    # whatever files it is given the same way regardless of who is
+    # asking, unlike the retired hook, which checked only staged files
+    # unless given --enforce-all
+    "CPY",
     "D",    # pydocstyle
     "E",    # pycodestyle errors
     "ERA",  # eradicate: code that was commented out instead of deleted
@@ -480,3 +486,31 @@ max-doc-length = 80
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
+
+[tool.ruff.lint.flake8-copyright]
+# COPYRIGHT holds the MIT permission notice in full rather than a pointer
+# to LICENSE, and that is bitcoin_core_rpc.py's doing: the module is meant
+# to be copied out of the distribution, and a copy has no LICENSE beside
+# it, so a pointer would name a file its reader does not have. Every
+# source file carries the same notice rather than the module alone,
+# because the alternative is an exclude here and a second notice to keep
+# in step with this one -- one file, one rule, and the module's header is
+# then not a special case that an edit can quietly diverge from.
+# No year in it, MIT asking for none: a copy nobody has touched would
+# otherwise look out of date every January, and bringing one up to date is
+# a diff against the tag it was taken from rather than a year to bump.
+# LICENSE carries the range, being the file a distribution ships and
+# nobody vendors.
+# No "SPDX-License-Identifier: MIT" line above it, and not by oversight:
+# nothing reads one. The identifier a distribution is read by is
+# pyproject.toml's `license`, which PEP 639 puts in the metadata, GitHub
+# answers the same question from LICENSE, and no rule here scans a
+# source file for the tag. What would read one is a license scanner in
+# the tree a vendored copy lands in, and what it finds there is the
+# notice itself.
+# notice-rgx is that same text, escaped line by line rather than
+# searched as raw bytes: CPY001 checks the first 4096 bytes of a file
+# against the pattern, which for a notice this short is the same
+# question the retired hook's substring search asked, and a reworded or
+# trimmed copy would not match either way
+notice-rgx = "# Copyright \\(c\\) The btclib developers\\n#\\n# Permission is hereby granted, free of charge, to any person obtaining a copy\\n# of this software and associated documentation files \\(the \"Software\"\\), to deal\\n# in the Software without restriction, including without limitation the rights\\n# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\\n# copies of the Software, and to permit persons to whom the Software is\\n# furnished to do so, subject to the following conditions:\\n#\\n# The above copyright notice and this permission notice shall be included in all\\n# copies or substantial portions of the Software\\.\\n#\\n# THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\\n# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\\n# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT\\. IN NO EVENT SHALL THE\\n# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\\n# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\\n# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\\n# SOFTWARE\\."

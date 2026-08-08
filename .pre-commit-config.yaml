@@ -276,37 +276,9 @@ repos:
         # the hook declares, and that flag is the whole of what it declares,
         # so passing --offline alone would drop it
         args: [--offline, --no-progress]
-  # COPYRIGHT holds the MIT permission notice in full rather than a pointer
-  # to LICENSE, and that is bitcoin_core_rpc.py's doing: the module is meant
-  # to be copied out of the distribution, and a copy has no LICENSE beside
-  # it, so a pointer would name a file its reader does not have. Every
-  # source file carries the same notice rather than the module alone,
-  # because the alternative is an exclude here and a second notice to keep
-  # in step with this one -- one file, one hook, and the module's header is
-  # then not a special case that an edit can quietly diverge from.
-  # No year in it, MIT asking for none: a copy nobody has touched would
-  # otherwise look out of date every January, and bringing one up to date is
-  # a diff against the tag it was taken from rather than a year to bump.
-  # LICENSE carries the range, being the file a distribution ships and
-  # nobody vendors.
-  # No "SPDX-License-Identifier: MIT" line above it, and not by oversight:
-  # nothing reads one. The identifier a distribution is read by is
-  # pyproject.toml's `license`, which PEP 639 puts in the metadata, GitHub
-  # answers the same question from LICENSE, and no hook or workflow here
-  # scans a source file for the tag. What would read one is a license
-  # scanner in the tree a vendored copy lands in, and what it finds there
-  # is the notice itself.
-  # The check is a substring search over the file's bytes, so COPYRIGHT is
-  # the block to embed and nothing else -- the reasoning cannot live in it,
-  # because every byte of that file has to appear in every file it guards
-  - repo: https://github.com/leoll2/copyright_notice_precommit
-    rev: 0.1.1
-    hooks:
-      - id: copyright-notice
-        args: [--notice=COPYRIGHT, --enforce-all]
-        files: \.py$
-  # ruff replaces autoflake, bandit, black, docformatter, flake8, isort,
-  # pydocstringformatter, pydocstyle, pylint, pyupgrade, and yesqa
+  # ruff replaces autoflake, bandit, black, copyright_notice_precommit,
+  # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
+  # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.0
     hooks:
