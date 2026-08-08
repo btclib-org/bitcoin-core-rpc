@@ -361,6 +361,16 @@ exclude = [
 # target-version is inferred from project.requires-python
 
 [tool.ruff.lint]
+# selecting a rule by name below rather than by code is itself a preview
+# feature, and on its own `preview = true` would also turn on every rule
+# ruff is still designing. explicit-preview-rules takes that back off: a
+# preview rule then runs only where it is named exactly, and every entry
+# of `select` below is a family, which no preview rule can be reached
+# through -- so the gate stays the stable rule set it was, and what
+# preview buys here is an `ignore` that reads by name instead of by a
+# code its own comment has to translate
+preview = true
+explicit-preview-rules = true
 # the same selection btclib-org holds its Python to. What the survey behind
 # it rejected, with the reason rather than a count: N (uppercase math
 # symbols are a convention elsewhere in the org), COM (COM812, which ruff's
@@ -406,38 +416,47 @@ ignore = [
     # docstrings: every public module, class, method and function must
     # carry one -- D100/D104 and the D101/D102/D103 left out of this list
     # enforce exactly that. The two still ignored are the ones pep257 does
-    # not ask for: __init__ is documented by its class, and a magic method
-    # by the data model it implements
-    "D105", # undocumented-magic-method
-    "D107", # undocumented-public-init
-    "D203", # incorrect-blank-line-before-class (conflicts with D211)
-    "D213", # multi-line-summary-second-line (conflicts with D212)
-    "D301", # escape-sequence-in-docstring
-    "D405", # capitalize-section-name, and the other section rules
-    "D406", # new-line-after-section-name
-    "D407", # dashed-underline-after-section
-    "D413", # blank-line-after-last-section
+    # not ask for, for every dunder and every constructor still to be
+    # written and not only the ones already in the tree: __init__ is
+    # documented by its class, and a magic method by the data model it
+    # implements
+    "undocumented-magic-method", # D105
+    "undocumented-public-init", # D107
+    # pydocstyle's own alternatives, and neither is a finite exception:
+    # selecting D211 or D212 instead trades one violation for the other on
+    # every class and every multi-line summary the tree has or will have
+    "incorrect-blank-line-before-class", # D203, conflicts with D211
+    "multi-line-summary-second-line", # D213, conflicts with D212
     # code length is enforced by the formatter, which reflows to its 88
     # columns everything it is allowed to rewrite. What is left for E501 to
-    # find is what no width can break, almost all of it a recorded reply or
-    # a transaction on one line. The prose the formatter never touches is
-    # measured instead by max-doc-length below
-    "E501", # line-too-long
-    # ambiguous unicode (−, non-breaking space) in comments is intentional
-    "RUF003",
-    # rebinding the loop variable is used throughout the code base
-    "PLW2901", # redefined-loop-name
-    # complexity metrics: not enforced on this codebase
-    "PLR0904", # too-many-public-methods
-    "PLR0911", # too-many-return-statements
-    "PLR0912", # too-many-branches
-    "PLR0913", # too-many-arguments
-    "PLR0914", # too-many-locals
-    "PLR0915", # too-many-statements
-    "PLR0917", # too-many-positional-arguments
-    "PLR2004", # magic-value-comparison
-    # exception messages are built inline, on purpose
-    "TRY003", # raise-vanilla-args
+    # find is what no width the formatter controls can break: a url in the
+    # module's own docstring, a `# type: ignore` or `# ruff: ignore` pragma
+    # that pushes an otherwise-short line past the limit, and whatever a
+    # future recorded exchange or raw transaction adds in the same shape.
+    # The prose the formatter never touches is measured instead by
+    # max-doc-length below
+    "line-too-long", # E501
+    # every site is a public entry point -- the client's constructor, its
+    # `from_chain` alternative, `http_request` itself -- where each
+    # parameter is independently optional and keyword-only, not a function
+    # assembled from unrelated pieces that argument-clumping would fix.
+    # `uv run ruff check --select PLR0913 --no-cache .` finds 4 of them,
+    # and the same shape recurs in any entry point still to be added
+    "too-many-arguments", # PLR0913
+    # comparing against an HTTP status (200, 401, 503) or a JSON-RPC
+    # version marker is not a magic value: it is the number the HTTP or
+    # JSON-RPC specification assigns, not one this code chose and could
+    # have named instead. `uv run ruff check --select PLR2004 --no-cache .`
+    # finds 47 sites, all of that shape and spread across the module and
+    # the tests that exercise it
+    "magic-value-comparison", # PLR2004
+    # the message is built where the exception is raised because that is
+    # the only place holding what went wrong -- the status, the scheme,
+    # the size refused -- and a shared exception class could not say that
+    # without every raise site passing it back in anyway. `uv run ruff
+    # check --select TRY003 --no-cache .` finds 37 sites, spread the same
+    # way
+    "raise-vanilla-args", # TRY003
 ]
 
 [tool.ruff.lint.per-file-ignores]
