@@ -65,6 +65,15 @@ carry a union merge driver that would keep both sides' numbers.
   diagnostic over `MAX_ERROR_BODY_SIZE` is cut to it and answered, and an
   announced `Content-Length` over the limit is not grounds for refusal
   under `truncate` either.
+- **`http_request`'s `timeout` is validated at the boundary now, and not
+  only `max_body_size`.** `BitcoinCoreRpcClient` already refused a `0`, a
+  negative number, `True` or a `NaN` for its own `timeout` and
+  `request_timeout`, but `http_request` is public on its own, so a direct
+  caller with a transport of its own reached the socket layer with
+  whichever of those it passed. `_assert_valid_timeout` runs alongside
+  `_assert_valid_max_body_size` now, before the request is built, so every
+  public timeout argument is refused the same way and the transport is
+  never reached with one that cannot work.
 - **Three documented claims narrowed to what the code does.** The named
   parameter form was one "no attribute lookup can express", which a
   `**kwargs` façade expresses; what no attribute lookup can carry is both
