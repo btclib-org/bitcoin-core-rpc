@@ -65,6 +65,23 @@ carry a union merge driver that would keep both sides' numbers.
   diagnostic over `MAX_ERROR_BODY_SIZE` is cut to it and answered, and an
   announced `Content-Length` over the limit is not grounds for refusal
   under `truncate` either.
+- **Three documented claims narrowed to what the code does.** The named
+  parameter form was one "no attribute lookup can express", which a
+  `**kwargs` façade expresses; what no attribute lookup can carry is both
+  parameter forms together with the client's own per-call controls, and
+  that belongs to [COMPARISON.md](./COMPARISON.md)'s account of the
+  non-goal rather than to a migration example, so the claim is gone and
+  the example stands on its own. A loop over `call` was the replacement
+  for a batch without qualification, and it is an equivalent beside the
+  node and not over a link where the round trip costs something, which is
+  where a batch pays -- the README and the module docstring both say so
+  now, the second because a vendored copy has no README beside it. And a
+  connection per call "costs nothing" beside the node per call, while a
+  great many of them are socket churn: RFC 9112 section 9.6 has the server
+  initiating the close on `Connection: close`, so the node is what holds
+  the sockets in TIME_WAIT, and the docstring now sends a caller polling
+  in a loop to its own `transport` on loopback too and not only over
+  `https`.
 - **The between-releases placeholder is the month, `2026.9`, and no longer
   the last release with its trailing component bumped.** The old
   placeholder was shaped exactly like a release on purpose, which left one

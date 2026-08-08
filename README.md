@@ -134,7 +134,8 @@ than a match on the text of a message.
 
 - **batches.** One call is one HTTP request. A batch needs an api for
   correlating the answers and for partly failing, which is a question of
-  its own; a loop over `call` is the replacement.
+  its own; a loop over `call` is the replacement, an equivalent beside
+  the node and not over a link where the round trip costs something.
 - **notifications**, a request sent with no `id`, which a node does not
   answer.
 - **retries**, per above.
