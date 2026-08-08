@@ -461,7 +461,10 @@ class _NoRedirect(HTTPRedirectHandler):
     as the status and the bounded body of any other non-2xx.
     """
 
-    def redirect_request(
+    # the seven positional parameters are urllib's own, not chosen here:
+    # this overrides HTTPRedirectHandler.redirect_request, and a subclass
+    # matches the base method's signature rather than shortening it
+    def redirect_request(  # noqa: PLR0917
         self,
         req: Request,
         fp: IO[bytes],
