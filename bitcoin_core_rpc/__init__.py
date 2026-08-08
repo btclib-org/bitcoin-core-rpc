@@ -54,8 +54,7 @@ deliberately.
     rpc.getblock(block_id, 2)
     client.call("getblock", [block_id, 2])
 
-    # and the named form is the other structure Core takes, which no
-    # attribute lookup can express
+    # and the named form is the other structure Core takes
     client.call("getblock", {"blockhash": block_id, "verbosity": 2})
 
     # credentials leave the url, which is what gets written into a
@@ -84,7 +83,9 @@ method's, and this module's docstring says why.
 ``batch_`` is what a consumer loses: several calls in one request, which
 is a named non-goal here because a batch needs an api for correlating the
 answers and for partly failing. Core's maintained fork spells it `batch`.
-A loop over `call` is the replacement, at one HTTP request each.
+A loop over `call` is the replacement, at one HTTP request each -- an
+equivalent beside the node, where the round trip is close to free, and
+not over a link where it costs something, which is where a batch pays.
 
 Notifications -- a request sent with no `id`, which a node does not answer
 -- are a non-goal too, and no `AuthServiceProxy` consumer is giving one
@@ -1487,12 +1488,15 @@ class BitcoinCoreRpcClient:
 
     **One connection per call**, urllib holding none open: every `call`
     sends `Connection: close` and opens a socket of its own. Beside the
-    node that is a loopback connect and costs nothing. To a node reached
-    over `https` it is a TLS handshake each time, so a caller polling one
-    in a loop wants a `transport` of their own -- a `requests` session, an
-    `httpx` client -- which is what `HttpTransport` is for. Keeping a
-    connection alive here would mean a pool, its own thread-safety and its
-    own eviction, none of which one bounded request needs.
+    node that is a loopback connect, which costs nothing for one call and
+    is socket churn for a great many: RFC 9112 section 9.6 has the server
+    initiating the close on that option, so it is the node that holds the
+    sockets in TIME_WAIT. To a node reached over `https` it is a TLS
+    handshake each time. Either way a caller polling one in a loop wants a
+    `transport` of their own -- a `requests` session, an `httpx` client --
+    which is what `HttpTransport` is for. Keeping a connection alive here
+    would mean a pool, its own thread-safety and its own eviction, none of
+    which one bounded request needs.
 
     Nothing here asks the node which chain it is on, and no call does it
     on the caller's behalf: the url and the cookie path say where to ask,
