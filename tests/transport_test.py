@@ -615,6 +615,30 @@ def test_a_negative_limit_is_no_limit_at_all() -> None:
         http_request(URL, max_body_size=0, transport=Recorded((200, b"7")))
 
 
+@pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan")])
+def test_a_timeout_that_is_no_duration_is_refused(timeout: float) -> None:
+    """A zero, a negative, an infinity and a nan are not seconds to wait.
+
+    `BitcoinCoreRpcClient` already refuses these before `http_request` is
+    reached, but `http_request` is public on its own, so a direct caller
+    with a transport of their own gets the same refusal rather than
+    forwarding the value unexamined.
+    """
+    transport = Recorded((200, b"7"))
+    with pytest.raises(BtcRpcValueError, match="http timeout is not a positive"):
+        http_request(URL, timeout=timeout, transport=transport)
+    assert transport.requests == []
+
+
+@pytest.mark.parametrize("timeout", [True, "30", None])
+def test_a_non_numeric_timeout_is_refused(timeout: object) -> None:
+    """A bool is not a duration: `timeout=True` would be one second."""
+    transport = Recorded((200, b"7"))
+    with pytest.raises(BtcRpcTypeError, match="non-numeric http timeout"):
+        http_request(URL, timeout=timeout, transport=transport)  # type: ignore[arg-type]
+    assert transport.requests == []
+
+
 def test_the_default_limit_is_a_block_in_hex() -> None:
     """Twice Core's buffer bound on a block, plus room for a newline.
 
