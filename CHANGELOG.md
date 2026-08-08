@@ -46,6 +46,25 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Changed
 
+- **The timeout bounds the body of a failure too**, where
+  `MAX_ERROR_BODY_SIZE` and the socket timeout bounded it alone -- and a
+  socket timeout is per recv, so a peer sending an octet just inside it
+  holds the call for as many packets as 64 KiB takes. `http_request` takes
+  a `monotonic()` deadline before the transport call and reads the
+  `HTTPError` through `_read_bounded`: an `HTTPError` forwards `read1` to
+  the response it wraps and answers `headers` with the ones it carries, so
+  it is read as the response it is. A page still arriving at the deadline
+  goes back as its status with an empty body, which is what a page that
+  cannot be read at all already did -- the status is the part a caller has
+  a policy for. A transport of a caller's own is held to that deadline for
+  the error body alone, that being the only part of such an exchange this
+  module does the reading of.
+
+  `_read_bounded` grows a `truncate` keyword, the two bounds differing in
+  what they do at the limit: an answer over `max_body_size` is refused, a
+  diagnostic over `MAX_ERROR_BODY_SIZE` is cut to it and answered, and an
+  announced `Content-Length` over the limit is not grounds for refusal
+  under `truncate` either.
 - **The between-releases placeholder is the month, `2026.9`, and no longer
   the last release with its trailing component bumped.** The old
   placeholder was shaped exactly like a release on purpose, which left one

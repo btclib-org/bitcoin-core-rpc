@@ -243,8 +243,10 @@ assert client.call("getblockcount") == 481824
 ```
 
 What a transport of your own owes, none of which this module can check for
-it: its own bound on what it holds in memory while reading, no redirect
-followed, and its own thread safety.
+it: its own bound on what it holds in memory while reading, its own bound
+on how long it holds the call — most client libraries spend `timeout` per
+socket operation, which a peer dripping a body resets forever — no
+redirect followed, and its own thread safety.
 
 ## Type checking
 

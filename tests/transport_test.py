@@ -193,23 +193,31 @@ def test_urlopen_transport_reads_status_and_body(
 
 
 @contextmanager
-def http_error(status: int, body: bytes = b"") -> Iterator[HTTPError]:
+def http_error(
+    status: int,
+    body: bytes = b"",
+    *,
+    chunk_size: int | None = None,
+    content_length: str | None = None,
+) -> Iterator[HTTPError]:
     """Yield an HTTPError carrying a body, closed when the test is done.
 
     Built with no file object, urllib gives it a temporary file of its
     own; nobody closing it is a ResourceWarning raised from a deallocator
     at some later collection, which `filterwarnings = ["error"]` then
     fails an unrelated test with.
+
+    An HTTPError is a response as well as an exception, and the bounded
+    read reads it as one: the body is served through `read1` off a
+    `FakeResponse`, so `chunk_size` is a drip here as it is there.
     """
-    error = HTTPError(URL, status, "Internal Server Error", {}, None)  # type: ignore[arg-type]
-
-    # HTTPError is a response as well as an exception, and this is what
-    # the server sent with the status
-    def read(n: int = -1) -> bytes:
-        # as the real one does: -1 is the whole of it, a size is a size
-        return body if n < 0 else body[:n]
-
-    error.read = read  # type: ignore[method-assign]
+    headers = HTTPMessage()
+    if content_length is not None:
+        headers["Content-Length"] = content_length
+    error = HTTPError(URL, status, "Internal Server Error", headers, None)
+    # `read1` is what an HTTPError forwards to the response it wraps, so
+    # typeshed declares no such attribute to assign over
+    error.read1 = FakeResponse(status, body, chunk_size=chunk_size).read1  # type: ignore[attr-defined]
     try:
         yield error
     finally:
@@ -371,6 +379,31 @@ def test_a_body_that_drips_past_the_deadline_is_refused(
     assert response.reads == [101]
 
 
+def test_a_failure_body_that_drips_past_the_deadline_keeps_its_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The deadline covers the error page too, the status outliving it.
+
+    A drip is a drip whichever status precedes it, and the socket timeout
+    is no more of a bound here than it is on an answer: without the
+    deadline this call waits for `MAX_ERROR_BODY_SIZE` packets. The page
+    is what is lost at the deadline, the status being already in hand and
+    the part a caller has a policy for.
+    """
+    with http_error(503, b"z" * 100, chunk_size=1) as error:
+
+        def fake_open(request: Request, timeout: float) -> FakeResponse:
+            raise error
+
+        monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
+        # `http_request` reads 0.0 and sets a deadline of 1.0, the transport
+        # reads 0.5 for one of its own, 0.6 is inside both and 9.0 is past
+        monkeypatch.setattr(transport_module, "monotonic", _clock(0.0, 0.5, 0.6, 9.0))
+
+        # the ninety-nine octets still to come are not waited for
+        assert http_request(URL, timeout=1.0) == (503, b"")
+
+
 def test_the_deadline_covers_the_connect_and_not_only_the_read(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -505,9 +538,19 @@ def test_the_body_of_a_failure_is_truncated_not_refused() -> None:
     A backend's explanation of why there is no answer is worth having
     even when it arrives longer than the answer would have been allowed to
     be: a 404 page is not a 404-byte page. What it may not be is
-    unbounded, an error page being written by whatever is in the way.
+    unbounded, an error page being written by whatever is in the way. The
+    announcement is not grounds for refusal either, for the same reason:
+    the second case below says it is sending more than the bound, and the
+    bound is what it is cut to rather than what it is refused by.
     """
-    with http_error(404, b"x" * (MAX_ERROR_BODY_SIZE + 10)) as error:
+    oversized = b"x" * (MAX_ERROR_BODY_SIZE + 10)
+    with http_error(404, oversized) as error:
+        status, body = http_request(URL, max_body_size=64, transport=Recorded(error))
+    assert status == 404
+    assert len(body) == MAX_ERROR_BODY_SIZE
+
+    announced = str(MAX_ERROR_BODY_SIZE + 10)
+    with http_error(404, oversized, content_length=announced) as error:
         status, body = http_request(URL, max_body_size=64, transport=Recorded(error))
     assert status == 404
     assert len(body) == MAX_ERROR_BODY_SIZE
@@ -818,22 +861,22 @@ def test_no_redirect_target_is_followed(target: str) -> None:
 
 
 class RecordedBody(BytesIO):
-    """A response body that remembers what was read of it.
+    """A response body that remembers what the bounded read asked for.
 
-    Which is the half of the fix a status cannot show: urllib's redirect
-    handler calls `fp.read()` with no argument before following, so the
-    whole intermediate body was held whatever the caller's limit said. A
-    read of -1 in `reads` is that call.
+    Which is the half a status cannot show: the read is `read1`, and the
+    sizes in `reads` are the bound at work. A handler that followed the
+    redirect would take the whole body with `fp.read()` first, leaving
+    these sizes to add up to nothing.
     """
 
     def __init__(self, data: bytes) -> None:
         super().__init__(data)
         self.reads: list[int] = []
 
-    def read(self, size: int | None = -1, /) -> bytes:
+    def read1(self, size: int | None = -1, /) -> bytes:
         """Record the size asked for, and answer as a BytesIO does."""
         self.reads.append(-1 if size is None else size)
-        return super().read(size)
+        return super().read1(size)
 
 
 class RecordedHTTP(HTTPHandler):
@@ -919,9 +962,11 @@ def test_a_redirect_is_a_status_and_not_a_second_request(
     assert len(handler.requests) == 1
     assert handler.requests[0].full_url == URL
     assert handler.requests[0].get_header("Authorization") == CREDENTIAL
-    # and the body of the 30x was read to the bound and no further, which
-    # the `fp.read()` of a following handler would have done first
-    assert handler.body.reads == [MAX_ERROR_BODY_SIZE]
+    # and the body of the 30x was read to the bound and no further, in
+    # pieces no larger than one recv allocates -- where the `fp.read()` of
+    # a following handler would have taken the whole of it first
+    assert sum(handler.body.reads) == MAX_ERROR_BODY_SIZE + 1
+    assert max(handler.body.reads) <= _READ_CHUNK
     assert handler.body.closed
 
 
@@ -969,7 +1014,7 @@ def test_a_failure_body_that_cannot_be_read_keeps_its_status(
     """
 
     class UnreadableError(HTTPError):
-        def read(self, amt: int | None = None) -> bytes:
+        def read1(self, amt: int | None = None) -> bytes:
             raise IncompleteRead(b"", 42)
 
     error = UnreadableError(URL, 503, "busy", HTTPMessage(), None)
