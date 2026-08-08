@@ -19,7 +19,7 @@ Neither file counts its entries: `grep -c '^- '` does that, whereas a
 stated number is a line every open branch has to edit, and the two files
 carry a union merge driver that would keep both sides' numbers.
 
-## v2026.9 (work in progress, not released yet)
+## v2026.8.8
 
 ### Added
 

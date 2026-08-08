@@ -10,7 +10,22 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
-## v2026.9 (work in progress, not released yet)
+## v2026.8.8
+
+The body of a failure is bounded by `timeout` now, not only by
+`MAX_ERROR_BODY_SIZE` and the socket's own per-`recv` timeout. A peer
+answering with an error page that keeps sending, one octet inside that
+per-packet limit at a time, no longer holds the call for as long as the
+page takes to trickle in; it fails at the deadline instead, the way an
+answer already did.
+
+`http_request`'s own `timeout` is refused now where it used to reach the
+socket layer unexamined: a `0`, a negative number, `True` or a `NaN`
+raises `BtcRpcTypeError` or `BtcRpcValueError` here, the same refusal
+`BitcoinCoreRpcClient` already gave its own `timeout` and
+`request_timeout`. Only a caller passing a `transport` of their own
+straight to `http_request` reaches this — `BitcoinCoreRpcClient` never
+forwarded a bad one to begin with.
 
 ## v2026.8.7
 
