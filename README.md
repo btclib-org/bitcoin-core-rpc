@@ -219,8 +219,8 @@ error the node computed, `HttpError` for an exchange that failed and
 FetchError` is the translation that catches what the one exception caught.
 
 [COMPARISON.md](./COMPARISON.md) has the case for the switch beyond this
-rewrite guide, and what a production migration verified before trusting
-it.
+rewrite guide, and why three features this client does not have are
+decisions rather than omissions.
 
 ## Testing code that calls a node
 
