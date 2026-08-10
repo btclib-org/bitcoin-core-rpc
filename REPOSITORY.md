@@ -33,6 +33,7 @@ workflows with a job named the same thing produce one ambiguous check.
 | `test: every job passed` | `test.yml`, aggregate over the matrix |
 | `Lint and type-check` | `lint.yml`, first job |
 | `CodeQL` | code scanning default setup |
+| `rpc-smoke: every job passed` | `rpc-smoke.yml`, aggregate over 6 cells |
 | `Build the documentation` | `docs.yml`, its only job |
 
 `Build the documentation` is named on its own on purpose: a rule naming
@@ -97,10 +98,15 @@ but the one doing the renaming. Moving a job to another workflow needs none
 of this: the name is what the rule matches, and `Build the documentation`
 kept reporting when it left `lint.yml` for `docs.yml`.
 
-Neither `mutation.yml`, `links.yml`, `latest.yml` nor `rpc-smoke.yml`
-appears in the rule, and none of them must: each is expected to go red for
-reasons no pull request introduced, and a red check nobody can act on from
-a branch is noise.
+Neither `mutation.yml`, `links.yml`, `latest.yml`, `macos.yml` nor
+`published.yml` appears in the rule, and none of them must: each is
+expected to go red for reasons no pull request introduced -- an upgrade
+upstream, a link on somebody else's website, a runner image -- and a red
+check nobody can act on from a branch is noise. `rpc-smoke.yml` was in that
+list until its cost was measured rather than assumed: 90 seconds for six
+cells, a live bitcoind of two versions included, which is less than the
+matrix it now runs beside. What it answers is the one claim a recording
+cannot make, and that belongs in front of a merge.
 
 ## Branch protection
 

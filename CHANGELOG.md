@@ -80,6 +80,34 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **A pull request waits about three minutes instead of eighteen, and the
+  wait was never work.** One run of the full matrix is 45 jobs, 17 minutes
+  of compute and 212 minutes of queueing: no cell runs longer than a minute,
+  while the two macOS images wait 15.7 and 13.1 minutes on average for a
+  runner against 0.1 to 0.3 for ubuntu and windows. So `test.yml` keeps all
+  seven interpreters and drops to four platforms, and the new `macos.yml`
+  runs the two macOS images against the same lock weekly, on demand, and
+  from a release -- which is what keeps a macOS regression from being
+  published while nobody waits for one. It is scheduled the same morning as
+  `latest.yml`, half an hour before, so the two read as a difference: red in
+  both is the platform, red in `latest` alone is the upgrade
+- **`rpc-smoke.yml` gates a merge**, where it gated only a release: the
+  reason it did not was a cost the run log does not support, 12 to 24 seconds
+  a cell and about 90 seconds for the workflow, live bitcoind downloads
+  included. Its `paths` filter had to go with the promotion -- a required
+  check that never runs blocks a merge where a skipped one satisfies it --
+  so every pull request now pays those 90 seconds, and gets the one claim a
+  recorded reply cannot make. The rule names its aggregate,
+  `rpc-smoke: every job passed`, and not six cells
+- **`published.yml` is called by `release.yml`** once PyPI has accepted the
+  files, with the tag's version, and waits for the index to serve that
+  version before installing -- so it can no longer pass by testing the
+  release before this one, which is what the dispatch RELEASING.md asked for
+  by hand could do. Not a `workflow_run` trigger, which zizmor rates
+  dangerous and rightly: that runs the default branch's copy on a push
+  nobody reviewed, where a call runs inside the release that gated it. Its
+  schedule goes from weekly to monthly, the release path now answering the
+  question the weekly was standing in for
 - **Every CI job has a name, and the names say what the job answers.** The
   ids lose a suffix that distinguished nothing -- `test-py`,
   `coverage-py` and `dist-py` become `suite`, `coverage` and `dist`, there
