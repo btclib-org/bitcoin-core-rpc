@@ -191,6 +191,7 @@ __all__ = [
     "chain_from_network",
     "cookie_auth",
     "datadir_subdir_from_chain",
+    "default_datadir",
     "http_request",
     "network_from_chain",
     "rpc_port_from_chain",
@@ -955,7 +956,7 @@ still a valid one.
 """
 
 
-def _default_datadir() -> Path | None:
+def default_datadir() -> Path | None:
     """Return `~/.bitcoin`, or None where no absolute home is knowable.
 
     Two ways there is no home to name, and neither may raise: `DEFAULT_DATADIR`
@@ -983,6 +984,13 @@ def _default_datadir() -> Path | None:
     which, for a module something else imports transitively, is a moment
     the caller did not choose. An unrelated early import is no way to
     decide which credentials a later call sends.
+
+    Public rather than a `from_chain` implementation detail: a caller
+    building its own datadir-derived path -- a wallet directory, a second
+    cookie under a chain subdirectory `datadir_subdir_from_chain` names --
+    needs the same live-`HOME` answer `from_chain` uses, not the import-time
+    `DEFAULT_DATADIR` below, and had no way to ask for it short of copying
+    this function.
     """
     try:
         home = Path.home()
@@ -1001,7 +1009,7 @@ def _default_datadir() -> Path | None:
 #
 # This is the answer as it stood at import, kept for a caller who wants to
 # name the location or build a path under it. `from_chain` does not read
-# it -- it asks `_default_datadir` at the call, so that a `HOME` set after
+# it -- it asks `default_datadir` at the call, so that a `HOME` set after
 # this module was imported is the one that counts.
 #
 # `Path | None`, and that is a deliberate declaration rather than an
@@ -1010,7 +1018,7 @@ def _default_datadir() -> Path | None:
 # the relative `~/.bitcoin` that made a cwd file a credential. A caller
 # whose strict type checking now asks for the None case is being asked the
 # question the value always had
-DEFAULT_DATADIR: Path | None = _default_datadir()
+DEFAULT_DATADIR: Path | None = default_datadir()
 """`~/.bitcoin` as it stood at import, or None where no home resolves.
 
 Core's datadir on Linux and on nothing else -- macOS puts it under
@@ -1639,7 +1647,7 @@ class BitcoinCoreRpcClient:
         `DEFAULT_DATADIR`, so that the `HOME` of this call is the one that
         counts and not the one that stood at import.
         Where there is no absolute home directory to name -- see
-        `_default_datadir` -- deriving a cookie path is what this refuses,
+        `default_datadir` -- deriving a cookie path is what this refuses,
         rather than reading a relative one against whatever the working
         directory is. `cookie_path` is the answer, and the error says so.
 
@@ -1651,7 +1659,7 @@ class BitcoinCoreRpcClient:
         """
         port = rpc_port_from_chain(chain)
         if user is None and password is None and cookie_path is None:
-            datadir = _default_datadir()
+            datadir = default_datadir()
             if datadir is None:
                 err_msg = "no home directory, so no default datadir to find"
                 err_msg += " the cookie file in: pass cookie_path, or user"

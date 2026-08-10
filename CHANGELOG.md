@@ -21,6 +21,16 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.9 (work in progress, not released yet)
 
+### Changed
+
+- **`default_datadir` is public**, no longer `_default_datadir`. `from_chain`
+  already called it to find the live `HOME` at the moment of the call rather
+  than the one `DEFAULT_DATADIR` froze at import; a caller deriving its own
+  datadir-relative path -- a wallet directory, a second cookie under
+  `datadir_subdir_from_chain` -- needed that same answer and had no way to
+  ask for it short of importing the underscored name or copying the
+  function. No behavior changes; the name in `__all__` is the only diff.
+
 ## v2026.8.8
 
 ### Added
