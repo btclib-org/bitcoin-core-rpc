@@ -168,7 +168,7 @@ repos:
   # here: the skip list needs a paragraph of justification, and a hook
   # invocation is the wrong place for one
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
+    rev: v2.4.3
     hooks:
       - id: codespell
         name: codespell (prose and comments)
@@ -186,7 +186,7 @@ repos:
   # ([tool.typos]) has the whole of the reasoning and the configuration, as
   # for codespell
   - repo: https://github.com/crate-ci/typos
-    rev: v1.48.0
+    rev: v1.49.0
     hooks:
       - id: typos
         name: typos (identifiers and hyphenated words, in place fixes)
@@ -269,7 +269,7 @@ repos:
   # reads as yaml and nothing reads as a build definition, on a service
   # whose failure mode is a docs build that stops happening
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.35.0
+    rev: 0.38.0
     hooks:
       - id: check-dependabot
       - id: check-readthedocs
@@ -310,7 +310,7 @@ repos:
   # with write access. The default persona is the gate; --persona=auditor
   # adds advice and is worth running by hand rather than on every commit
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.28.0
+    rev: v1.29.0
     hooks:
       - id: zizmor
         # offline is what it does by default, said out loud: it warns about
@@ -327,7 +327,7 @@ repos:
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.0
+    rev: v0.16.2
     hooks:
       - id: ruff-check
         name: ruff check (in place fixes)
@@ -361,7 +361,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.0
+    rev: 0.12.3
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
