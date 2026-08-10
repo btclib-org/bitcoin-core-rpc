@@ -90,6 +90,15 @@ carry a union merge driver that would keep both sides' numbers.
   mutable reference "is not supported" and exits zero anyway, which is the
   difference between the warning and this hook. A commit SHA stays
   acceptable: the pattern requires a prerelease marker to end the value
+- **A merge no longer depends on bitcoincore.org answering.** The bitcoind
+  archive `rpc-smoke.yml` downloads is cached across runs, keyed by the
+  sha256 the matrix already pins rather than by the version, so a key can
+  only ever hold the bytes it names. What it saves is nine seconds a cell,
+  measured; what it removes is five fetches of Core per pull request from a
+  server nobody here runs, which arrived with that workflow becoming a
+  required check. The digest check and its negative control still run on a
+  restored archive exactly as on a downloaded one -- verified rather than
+  trusted is the property, and a cache is a mutable store
 - **A pull request waits about three minutes instead of eighteen, and the
   wait was never work.** One run of the full matrix is 45 jobs, 17 minutes
   of compute and 212 minutes of queueing: no cell runs longer than a minute,
