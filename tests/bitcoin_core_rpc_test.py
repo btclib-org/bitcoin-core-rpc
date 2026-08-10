@@ -72,10 +72,10 @@ from bitcoin_core_rpc import (
     HttpError,
     Network,
     RpcError,
-    _default_datadir,
     chain_from_network,
     cookie_auth,
     datadir_subdir_from_chain,
+    default_datadir,
     network_from_chain,
     rpc_port_from_chain,
 )
@@ -171,7 +171,7 @@ def test_from_chain_is_the_local_node_of_that_chain() -> None:
     # what `from_chain` asks at the call. None where no absolute home is
     # knowable, which is not a machine the suite runs on -- and asserting it
     # is what makes the paths below a Path
-    datadir = _default_datadir()
+    datadir = default_datadir()
     assert datadir is not None
     # the constant is the same answer, taken at import: a snapshot for a
     # caller to read, and not what the derivation goes through
@@ -210,7 +210,7 @@ def test_from_chain_reads_the_home_of_the_call_and_not_of_the_import(
 
     expected = tmp_path / "home-after" / ".bitcoin" / "regtest" / ".cookie"
     assert BitcoinCoreRpcClient.from_chain("regtest").cookie_path == expected
-    assert _default_datadir() != DEFAULT_DATADIR
+    assert default_datadir() != DEFAULT_DATADIR
 
 
 def test_from_chain_derives_no_cookie_when_told_who_is_calling(
@@ -251,18 +251,18 @@ def test_no_absolute_home_is_no_default_datadir_and_no_exception(
     others bound it to a pathlib accessor when the class was created, and
     there patching the module attribute is invisible -- written that way,
     this passed on 3.14 and did not raise at all on 3.10. What
-    `_default_datadir` reads is `Path.home`, so that is what this arranges.
+    `default_datadir` reads is `Path.home`, so that is what this arranges.
     """
 
     def no_home() -> Path:
         raise RuntimeError("Could not determine home directory.")
 
     monkeypatch.setattr(Path, "home", no_home)
-    assert _default_datadir() is None
+    assert default_datadir() is None
 
     monkeypatch.setattr(Path, "home", lambda: Path("relative/home"))
     assert Path.home().is_absolute() is False
-    assert _default_datadir() is None
+    assert default_datadir() is None
 
 
 def test_from_chain_refuses_a_datadir_it_cannot_name(
