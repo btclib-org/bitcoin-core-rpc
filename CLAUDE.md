@@ -60,12 +60,18 @@ socket — which is what keeps the suite hermetic, not the absence of a node.
 
 ## Non-obvious facts that will otherwise waste a session
 
-- **Work happens on `dev`**; `master` is the default branch and receives
-  merges from it. Dependabot and pre-commit.ci both target `dev`.
-- **A dev CI run is usually `cancelled`, not green.** `test.yml`'s
+- **`main` is the only branch**, and nothing is pushed to it directly:
+  every change lands through a pull request, Dependabot's and
+  pre-commit.ci's included, and a release is a tag on it. Branch
+  protection, and why it is what it is, is `REPOSITORY.md`.
+- **A branch's CI run can be `cancelled` rather than green.** `test.yml`'s
   concurrency group is `test-${{ github.ref }}` with cancel-in-progress, so
-  the next push to `dev` kills the run for the previous commit. The local
-  gates below are the evidence; `cancelled` is not `failure`.
+  the next push kills the run for the previous commit. The local gates
+  below are the evidence; `cancelled` is not `failure`.
+- **A draft pull request runs no CI at all**, every workflow carrying
+  `if: ${{ !github.event.pull_request.draft }}`. Mark it ready to be
+  checked; `tests-passed` is required, and a required check that never
+  reports blocks the merge rather than passing it.
 - **`.pre-commit-config.yaml` is the lint gate**, and `lint.yml`'s first
   job runs exactly it. Never add a second list of the same tools to a
   workflow. mypy is a *local* hook shelling out to uv on purpose: the
@@ -114,7 +120,7 @@ place. Reading it is fine — `git log`, `git show`, `git diff`, `gh`, and a
 
 ```shell
 WT=<scratchpad>/wt<issue>
-git worktree add -b <branch> "$WT" origin/dev
+git worktree add -b <branch> "$WT" origin/main
 cd "$WT" && uv sync --locked
 # edit, gate and commit here, then
 git push origin HEAD:refs/heads/<branch>
@@ -125,9 +131,9 @@ git worktree remove --force "$WT"     # removing it is part of finishing
 worktree isolates files, not refs, so `git stash push` pushes onto the same
 stack every other session pops from. Commit to your own branch instead.
 
-**Do not rewrite `refs/heads/dev`, or advance it with work that is not
+**Do not rewrite `refs/heads/main`, or advance it with work that is not
 yours.** Your own branch is what you push, and the pull request is what
-moves `dev`.
+moves `main`.
 
 ## Conventions to match
 

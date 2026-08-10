@@ -18,7 +18,7 @@ btclib_libsecp256k1 carry the same three lines. -->
 
 [![test workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml)
 [![lint workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/bitcoin-core-rpc/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/bitcoin-core-rpc/master)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/bitcoin-core-rpc/main.svg)](https://results.pre-commit.ci/latest/github/btclib-org/bitcoin-core-rpc/main)
 [![documentation build](https://readthedocs.org/projects/bitcoin-core-rpc/badge/?version=latest)](https://bitcoin-core-rpc.readthedocs.io)
 
 [![GitHub repository: btclib-org/bitcoin-core-rpc](https://img.shields.io/badge/GitHub-btclib--org%2Fbitcoin--core--rpc-181717?logo=github)](https://github.com/btclib-org/bitcoin-core-rpc/)
