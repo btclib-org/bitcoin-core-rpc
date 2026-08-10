@@ -84,14 +84,12 @@ jobs:
         # is the two ends of the supported range and the free-threaded
         # build, on the same operating systems test.yml already covers
         os:
-          [
-            ubuntu-latest,
-            ubuntu-24.04-arm,
-            macos-26-intel,
-            macos-latest,
-            windows-latest,
-            windows-11-arm,
-          ]
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-26-intel
+          - macos-latest
+          - windows-latest
+          - windows-11-arm
         python-version: ["3.10", "3.14", "3.14t"]
         exclude:
           # actions/setup-python has no CPython 3.10 build for Windows

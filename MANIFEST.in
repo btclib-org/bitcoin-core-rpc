@@ -5,6 +5,11 @@ include pyproject.toml
 include uv.lock
 include .python-version
 include .markdownlint.jsonc
+# taplo's, for the same reason as the config files around it: a hook the gate
+# runs reads it, and the gate has to run from an unpacked sdist. Named rather
+# than covered by a glob, the only other toml at the root being
+# pyproject.toml, which is named above
+include .taplo.toml
 # .yamllint.yaml, .pre-commit-config.yaml and .readthedocs.yaml: the lint
 # gate is runnable from an unpacked sdist, and two of these three are what
 # it reads. Written as a glob because there is no fourth yaml at the root
