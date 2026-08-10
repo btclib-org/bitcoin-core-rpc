@@ -75,6 +75,13 @@ repos:
       # - id: fix-encoding-pragma
       - id: check-yaml
       - id: check-json
+        # `.vscode` is jsonc and not json: VSCode reads a comment in its own
+        # settings.json and extensions.json, and what those two files carry
+        # besides the settings is the reason for each of them. A json parser
+        # rejects the file at the first one, so the exclude is what keeps the
+        # reasons in the file they explain -- and it is scoped to that
+        # directory, every other .json in this tree still having to parse
+        exclude: ^\.vscode/
       # no pretty-format-json, and check-hooks-apply is what settled it:
       # every .json in this tree is under tests/_data, those bodies are
       # what bitcoind writes -- `JSONRPCReplyObj` builds them compact and

@@ -200,12 +200,13 @@ packages = ["bitcoin_core_rpc"]
 bitcoin_core_rpc = ["py.typed"]
 
 [tool.check-manifest]
-# the two files whose subject the sdist does not carry. `.github` is
-# ignored by check-manifest already; these are the tracked files that would
-# otherwise be reported as missing from a distribution that has no business
-# holding them
+# what a distribution has no business holding: a link checker's exclusions
+# and an editor's workspace, neither of which is the subject of an sdist.
+# `.github` is ignored by check-manifest already; these are the tracked files
+# that would otherwise be reported as missing from it
 ignore = [
     ".lycheeignore",
+    ".vscode/*",
 ]
 
 [tool.pytest.ini_options]
