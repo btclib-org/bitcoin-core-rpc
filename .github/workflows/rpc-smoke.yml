@@ -160,6 +160,27 @@ jobs:
       # than as expressions interpolated into it, which is the convention
       # zizmor enforces and the one that keeps a shell script readable as
       # a shell script
+      # a released archive is immutable and the digest below names it, so a
+      # run that has already seen this version has nothing to fetch. The
+      # key carries the digest rather than the version alone: a key can
+      # only ever hold the bytes it names, and a version is a name upstream
+      # could in principle re-cut.
+      # What this buys is not the nine seconds a download takes. It is that
+      # a merge no longer depends on bitcoincore.org answering -- this
+      # workflow became a required check, so every pull request was
+      # fetching Core five times from a server nobody here runs, and now a
+      # warm cache fetches it none. Cross-run and cross-pull-request,
+      # because a cache written by a run on main is readable from every
+      # branch, which is why this workflow also runs on push.
+      # The five cells that want 31.1 race to save one key on a cold run:
+      # the first wins and the others log that it exists, which is not a
+      # failure. Two versions at about 50 MB is what this holds of the
+      # repository's cache budget -- `gh cache list` says how much
+      - name: Restore the bitcoind archive
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: bitcoin-${{ matrix.core }}-x86_64-linux-gnu.tar.gz
+          key: core-${{ runner.os }}-${{ matrix.core }}-${{ matrix.digest }}
       - name: Download bitcoind and verify the archive
         env:
           CORE: ${{ matrix.core }}
@@ -171,9 +192,19 @@ jobs:
           # is a change in what is being served rather than a hop to
           # follow. The digest below would catch it either way; failing
           # here says which of the two happened
-          curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
-            --output "${archive}" \
-            "https://bitcoincore.org/bin/bitcoin-core-${CORE}/${archive}"
+          # only when the cache above restored nothing: the digest check
+          # below runs either way, so a restored archive is verified rather
+          # than trusted -- the same property the download has, and the
+          # reason the check is not conditional on the cache. A restored
+          # file that fails it fails the job, which is the right answer for
+          # a cache entry that is not what its key says
+          if [ ! -f "${archive}" ]; then
+            curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+              --output "${archive}" \
+              "https://bitcoincore.org/bin/bitcoin-core-${CORE}/${archive}"
+          else
+            echo "restored ${archive} from the cache"
+          fi
           # fail closed, before the archive is unpacked and long before
           # anything in it is executed
           printf '%s  %s\n' "${DIGEST}" "${archive}" | sha256sum --check --strict -
