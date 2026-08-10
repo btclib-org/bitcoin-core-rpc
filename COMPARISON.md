@@ -1,8 +1,9 @@
 # AuthServiceProxy and bitcoin-core-rpc
 
-What differs between the two clients, row by row, and why three features
-this one does not have are decisions rather than omissions. The README's
-["Migrating from
+What differs between the two clients, row by row, and why the two features
+`BitcoinCoreRpcClient` does not have are decisions rather than omissions --
+plus a third case, dynamic dispatch, decided the other way from
+`AuthServiceProxy`'s. The README's ["Migrating from
 `AuthServiceProxy`"](./README.md#migrating-from-authserviceproxy) is the
 line-by-line rewrite; this is the case for doing it.
 
@@ -58,32 +59,44 @@ one this client absorbs.
 
 ## Non-goals
 
-Three features are absent by decision, on a criterion common to all
-three: the file is meant to be copied, so its public API is permanent and
-its size is the vendoring caller's to audit. What is cheap to add
-downstream belongs downstream — the façade, the session, the array.
+Two features are absent by decision, on a criterion common to both: the
+file is meant to be copied, so its public API is permanent and its size is
+the vendoring caller's to audit. What is cheap to add downstream belongs
+downstream — the session, the array. A third, dynamic dispatch, looks like
+the same case and is not: see below for why it is offered rather than left
+to a caller's own copy.
 
 ### Dynamic dispatch
 
-`call(method, params)` is explicit, and `client.getblockcount()` is not
-offered. Not because the client's own controls would collide with an rpc
-method's parameter names: that collision is a consequence of offering
-per-call controls at all, and a client offering none has none. What
-decides it is two other things.
+`BitcoinCoreRpcClient.call(method, params)` stays explicit: an unknown
+attribute is an `AttributeError` on the client itself, not a request —
+`client.for_walet("hot")` a typo caught at the call rather than one more
+method name sent to the node. That does not change.
 
-`__getattr__` absorbs typos of the client's own surface and not only of
-method names — `client.for_walet("hot")` becomes a request to the node
-instead of an `AttributeError` — and it puts the dunder protocol behind a
-hand-written guard, without which `copy.copy`, pickling and an
-interactive shell's attribute probing each become an rpc request. It also
-returns `Any`, in a package that ships `py.typed` so that a consumer's
-type checker reads its annotations.
+What changes is that the sugar, `client.getblockcount()`, is now offered
+as `RpcChannel`, wrapping a client rather than replacing its surface. Not
+downstream, and not because a caller could not write `__getattr__`
+themselves: two things about it are this package's to get right, not a
+vendoring caller's to rediscover.
 
-The sugar belongs in a caller's own façade over `call`, where `**kwargs`
-makes it short: the named parameter form maps onto it directly. What no
-attribute lookup can express is both parameter forms *together with* the
-client's controls — which is the collision again, at the layer that can
-settle it by not offering them.
+`call`'s own keyword-only controls — `request_timeout` and
+`max_body_size` today — have to be excluded from `params` rather than
+sent to the node as a named argument, and that list belongs to `call`,
+not to whoever wraps it: a façade written against one release is silently
+wrong against a later one that adds a third control, forwarding it to
+Core instead of catching it, and neither mypy nor a test says so. Kept
+here, the exclusion list and the method it excludes from are one change
+instead of two.
+
+The dunder protocol needs the guard `__getattr__` always needs, and needs
+it exactly, not approximately: without it, `copy.copy` and `copy.deepcopy`
+each turn into a bound call for `__setstate__` or `__deepcopy__` — verified
+by calling both against a transport that raises on any request, not
+assumed — and an interactive shell probing for `_repr_html_` becomes one
+more name `RpcChannel` would otherwise treat as a method. `RpcChannel`
+still returns `Any` for the same reason `call` does: no attribute lookup
+carries a per-method parameter type, so a caller who wants one keeps
+`call` and its explicit `params`.
 
 ### Batching
 
