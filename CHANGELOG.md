@@ -71,6 +71,30 @@ carry a union merge driver that would keep both sides' numbers.
   docstring said nothing here asks the node which chain it is on, where
   `verify_chain` above does exactly that on request.
 
+### Repository
+
+- **The distribution files attached to a GitHub release carry
+  provenance**, where until now only the copies on PyPI did: the publish
+  action generates PEP 740 attestations for what it uploads to the index,
+  and the byte-identical wheel and sdist on the releases page carried
+  nothing, so whoever pinned to a release asset url or mirrored the page
+  had no way to check where the files came from. `release.yml` gains an
+  `attest` job -- `actions/attest`, one SLSA build provenance statement
+  covering both files, signed with a short-lived Sigstore certificate --
+  and `gh attestation verify <file> --repo btclib-org/bitcoin-core-rpc`
+  is what checks it. The signed bundle is attached to the release too, so
+  `--bundle <tag>.attestation.jsonl` verifies the same signature without
+  asking the attestations API for it. The digests are the index's own,
+  the job downloading the `dist` artifact rather than rebuilding it.
+  A job of its own and not two more permissions on `github-release`:
+  `id-token: write` and `attestations: write` stay off the job that
+  writes releases, and further off the job that runs the build backend.
+  It runs after whichever publish job ran, so a dispatch from an
+  arbitrary branch signs nothing the `testpypi` environment approval did
+  not already let through -- and the TestPyPI rehearsal exercises it,
+  which on the release path would otherwise happen for the first time
+  after PyPI has the files and the tag can no longer be moved.
+
 ## v2026.8.8
 
 ### Added
