@@ -274,9 +274,9 @@ ignore-regex = '`[^`]*`'
 # syntax differs: "*/_data/*.json" matches at any depth for codespell and
 # one directory deep for typos
 extend-exclude = [
-  "**/_data/*.json",
-  ".secrets.baseline",
-  "uv.lock",
+    "**/_data/*.json",
+    ".secrets.baseline",
+    "uv.lock",
 ]
 
 [tool.typos.default]
@@ -380,11 +380,11 @@ explicit-preview-rules = true
 # .pre-commit-config.yaml records the same decision about), TC, PTH, ARG,
 # ANN, SLF (tests reaching into private members on purpose), PERF
 select = [
-    "A",    # flake8-builtins: a name that shadows a builtin
-    "B",    # flake8-bugbear
-    "BLE",  # flake8-blind-except
-    "C4",   # flake8-comprehensions
-    "C90",  # mccabe, at ruff's default with suppressed exceptions
+    "A",   # flake8-builtins: a name that shadows a builtin
+    "B",   # flake8-bugbear
+    "BLE", # flake8-blind-except
+    "C4",  # flake8-comprehensions
+    "C90", # mccabe, at ruff's default with suppressed exceptions
     # flake8-copyright, replacing the copyright-notice pre-commit hook:
     # a rule living inside ruff's own file-selection logic checks
     # whatever files it is given the same way regardless of who is
@@ -422,12 +422,12 @@ ignore = [
     # documented by its class, and a magic method by the data model it
     # implements
     "undocumented-magic-method", # D105
-    "undocumented-public-init", # D107
+    "undocumented-public-init",  # D107
     # pydocstyle's own alternatives, and neither is a finite exception:
     # selecting D211 or D212 instead trades one violation for the other on
     # every class and every multi-line summary the tree has or will have
     "incorrect-blank-line-before-class", # D203, conflicts with D211
-    "multi-line-summary-second-line", # D213, conflicts with D212
+    "multi-line-summary-second-line",    # D213, conflicts with D212
     # code length is enforced by the formatter, which reflows to its 88
     # columns everything it is allowed to rewrite. What is left for E501 to
     # find is what no width the formatter controls can break: a url in the

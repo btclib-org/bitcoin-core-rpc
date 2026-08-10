@@ -61,16 +61,31 @@
     "editor.rulers": [80]
   },
 
-  // no hook formats yaml or toml, and both extensions ship a formatter that
-  // would reflow a file the gate is happy with -- a diff the commit then
-  // carries for no reason. Off explicitly, rather than by the absence of
-  // formatOnSave, which a user setting can supply
+  // the prettier and taplo hooks, on save and by the same two tools:
+  // prettier for yaml and for the jsonc that carries a comment, taplo for
+  // toml, reading the .taplo.toml the hook reads. `yaml.format.enable`
+  // stays off -- the yaml extension embeds a prettier of its own version,
+  // and two of them formatting one file is how a diff the hook did not ask
+  // for gets in
   "yaml.format.enable": false,
   "[yaml]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  // json and jsonc are two languages to the editor, and the difference is
+  // the one the hook's allow list draws: under tests/_data are bodies
+  // bitcoind wrote, one line each, and formatting one on save would void
+  // the claim the README beside them makes about them
+  "[json]": {
     "editor.formatOnSave": false
   },
   "[toml]": {
-    "editor.formatOnSave": false
+    "editor.defaultFormatter": "tamasfe.even-better-toml",
+    "editor.formatOnSave": true
   },
 
   // trailing-whitespace, end-of-file-fixer and `mixed-line-ending --fix=lf`.
