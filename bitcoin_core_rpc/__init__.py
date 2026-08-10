@@ -28,10 +28,7 @@ updates** below is how.
 positional or named parameters: one HTTP POST per call, basic
 authentication, the result or an exception. Any method, because a caller
 with a node has every reason to ask it anything, and a client that knew a
-list of methods would only mean they write this class again. One method
-per call, though: a batch answers several at once and needs an api for
-correlating the answers and for partly failing, which is a question of its
-own and not this one.
+list of methods would only mean they write this class again.
 
 **Not python-bitcoinrpc's `AuthServiceProxy`, and not a port of it.**
 That class, and the copy of it Core's test framework maintains, carry the
@@ -43,9 +40,8 @@ attribute lookup that builds a method name is a different interface, and
 the explicit one is what makes an unknown method a value rather than a
 typo that becomes a request.
 
-**Migrating from `AuthServiceProxy`.** A migration and not a drop-in
-replacement: four things change, and each of them is the difference
-deliberately.
+**Migrating from `AuthServiceProxy`.** Four things change, and each of
+them is the difference deliberately.
 
 .. code-block:: python
 
@@ -71,27 +67,21 @@ things a caller acts on differently: `RpcError` when the node computed an
 error, with its `code`; `HttpError` when the exchange failed, with its
 `status`; `FetchError` when there was no answer to read at all. All three
 are `FetchError`, so one `except FetchError` is the equivalent of the one
-`except JSONRPCException`. What catching them apart buys is a policy on
-the status -- a 503 from a full work queue is the case where the same
-request works later, and a 401 is the case where it never will. It is not
-a rule about which failures are transient: a refused connection and an
-expired timeout arrive as a plain `FetchError` and can both clear on
-their own.
-Whether *this* call may be sent again is the caller's question and the
-method's, and this module's docstring says why.
+`except JSONRPCException`; what catching them apart buys is the status a
+retry policy reads.
 
-``batch_`` is what a consumer loses: several calls in one request, which
-is a named non-goal here because a batch needs an api for correlating the
-answers and for partly failing. Core's maintained fork spells it `batch`.
-A loop over `call` is the replacement, at one HTTP request each -- an
-equivalent beside the node, where the round trip is close to free, and
-not over a link where it costs something, which is where a batch pays.
+``batch_`` is what a consumer loses -- Core's maintained fork spells it
+`batch`. Several calls in one request is a named non-goal: a batch needs
+an api for correlating the answers and for partly failing. A loop over
+`call` is the replacement, at one HTTP request each -- an equivalent
+beside the node, where the round trip is close to free, and not over a
+link where it costs something, which is where a batch pays.
 
 Notifications -- a request sent with no `id`, which a node does not answer
 -- are a non-goal too, and no `AuthServiceProxy` consumer is giving one
 up: both implementations count an `id` into every request they build, so
-sending one at all means reaching past the public interface into
-`_request`.
+sending one at all means building the request body instead of calling
+`call`.
 
 **One call, one HTTP request, and no retry.** A 503 from bitcoind means
 its rpc work queue is full and the same request works once the queue
@@ -101,8 +91,10 @@ cannot know whether re-sending one is safe. And the timeout bounds this
 client's wait rather than the node's work: a node that stopped answering
 may still be executing the call, so a client re-sending a wallet command
 of its own accord can execute it twice. `HttpError.status` is what makes
-the caller's policy three lines rather than a match on the text of a
-message.
+that policy three lines rather than a match on the text of a message; it
+is no ruling on which failures are transient, a refused connection and an
+expired timeout arriving as a plain `FetchError` and both able to clear on
+their own.
 
 **JSON-RPC 2.0, and 1.1 read back.** Core answers 1.1 by default and 2.0
 to a request carrying the `"jsonrpc": "2.0"` marker, and the difference
@@ -123,13 +115,13 @@ rotated at every restart, readable by the user running the node and by
 nobody else.
 
 **Vendoring and updates.** `pip install bitcoin-core-rpc` is the
-supported way to get this file, and the reason it can also be copied is a
-project that ships one artifact and takes no dependency for it. Copy it
-whole from a release tag, **rename it to `bitcoin_core_rpc.py`**, keep the
-license notice above, and record the tag beside the copy. It is named
-`__init__.py` here so that `py.typed` can sit beside it and a consumer's
-type checker reads these annotations -- PEP 561 puts that marker inside a
-package directory and nowhere else -- and the rename is what that costs.
+supported way to get this file; copying it is for a project that ships one
+artifact and takes no dependency for it. Copy it whole from a release
+tag, **rename it to `bitcoin_core_rpc.py`**, keep the license notice
+above, and record the tag beside the copy. It is named `__init__.py` here
+so that `py.typed` can sit beside it and a consumer's type checker reads
+these annotations -- PEP 561 puts that marker inside a package directory
+and nowhere else -- and the rename is what that costs.
 The upstream source is
 `https://github.com/btclib-org/btclib-bitcoin-core-rpc/blob/master/bitcoin_core_rpc/__init__.py`,
 and the raw source of a release is
@@ -141,11 +133,11 @@ replacement of the whole file; this shows every behavioral change first:
 
     git diff OLD..NEW -- bitcoin_core_rpc/__init__.py
 
-A vendored copy receives no security or compatibility fix automatically, so
-its recorded tag is what tells a maintainer whether it needs replacing --
-where an installed one is a version an ordinary dependency bump moves. There
-is deliberately no embedded version constant: the release tag is the version,
-and a number inside a copied source is a second one that can drift from it.
+A vendored copy receives no fix automatically, where an installed one is a
+version an ordinary dependency bump moves, so the recorded tag is what
+tells a maintainer whether it needs replacing. There is deliberately no
+version constant in the file: the release tag is the version, and a number
+inside a copied source is a second one that can drift from it.
 """
 
 from __future__ import annotations
@@ -200,30 +192,23 @@ __all__ = [
 ]
 
 # Every exception this module raises is declared here, in the file that
-# raises it, which is what makes the file copyable at all: a module holding
-# them elsewhere would be a second import for a vendored copy to satisfy.
+# raises it: a module holding them elsewhere would be a second import for a
+# vendored copy to satisfy. Their identity does not survive that copy, and no
+# arrangement here could manage it -- these definitions execute again in the
+# copy, whose `FetchError` is its own class, so a project that both vendors
+# this file and installs the package has two, and one `except` does not catch
+# the other.
 #
-# Their identity does not survive being copied, and no arrangement here could
-# manage that: a copy is another module, these definitions execute again in
-# it, and its `FetchError` is its own class -- so a project that both
-# vendors this file and installs the package has two, and one `except` does
-# not catch the other. Installing it once is what makes the class one.
+# The three bases below the standard exceptions keep the TypeError,
+# ValueError and RuntimeError hierarchies exact: a caller who wants none of
+# the names here catches those three and still separates a caller error from
+# a failure of the exchange.
 #
-# The three bases below the standard exceptions are what keeps the
-# TypeError, ValueError and RuntimeError hierarchies exact: a caller who
-# wants none of the names here catches those three and still separates a
-# caller error from a failure of the exchange.
-#
-# `BtcRpc` and not `BTClib`, which is what they were called while this file
-# lived in btclib and is a name no consumer should have to disambiguate: a
-# consumer declaring exceptions of its own is free to call them whatever it
-# likes, and btclib does call three of them `BTClibValueError` and so on.
-# Two classes of the same name from two packages is a caught exception that
-# is silently the wrong one -- `except BTClibValueError` reads correct at
-# every call site and is wrong at half of them. btclib hit exactly that
-# while taking the dependency, in an `except` around a function of this
-# module; the names differ now, so the mistake is visible in the source
-# rather than in a test.
+# `BtcRpc` and not `BTClib`: btclib declares `BTClibValueError` and two more
+# of its own, and two classes of one name from two packages is an `except`
+# that reads correct at every call site and catches the wrong one at half of
+# them -- which btclib hit while taking this dependency. Distinct names put
+# the mistake in the source rather than in a test.
 #
 # The two carrying a field hand every constructor argument to
 # `BaseException.__init__` and compose their message in `__str__`, which is
@@ -234,13 +219,11 @@ __all__ = [
 # TypeError out of `pickle`, out of `copy.copy` and out of `copy.deepcopy` --
 # and out of a `ProcessPoolExecutor`, which cannot send the exception back and
 # reports a broken pool instead of the status the worker died of. Composing in
-# `__str__` is the half that keeps the round trip faithful rather than merely
-# possible: a message composed in `__init__` from an argument that is itself a
-# composed message gains a second `(rpc error code -5)` every time.
-#
-# The visible price is `args`, which is a tuple of the arguments now and not a
-# one-tuple of the message, and `repr`, which names the fields with it. `str`
-# is the message it always was.
+# `__str__` keeps the round trip faithful rather than merely possible: a
+# message composed in `__init__` from an argument that is itself a composed
+# message gains a second `(rpc error code -5)` every time. The price is
+# `args`, a tuple of the arguments rather than a one-tuple of the message,
+# and the `repr` that names the fields with it; `str` is unchanged.
 
 
 class BtcRpcValueError(ValueError):
@@ -258,41 +241,35 @@ class BtcRpcRuntimeError(RuntimeError):
 class FetchError(BtcRpcRuntimeError):
     """A backend did not answer, or did not answer this.
 
-    A RuntimeError and not a ValueError, which is the distinction worth
-    keeping: nothing the caller passed is wrong. The node is down, the
-    credentials are stale, the explorer sent html, the transaction is not
-    in the index -- retrying later can work, and correcting the argument
-    cannot.
+    A RuntimeError and not a ValueError: nothing the caller passed is
+    wrong. The node is down, the credentials are stale, the explorer sent
+    html, the transaction is not in the index -- retrying later can work,
+    and correcting the argument cannot.
 
-    It covers the conversion of an answer too. A backend that replies
-    with something which is not a transaction has failed, and reporting
-    that as the BtcRpcValueError the parser of the reply raised would name
-    the parser rather than the host that has to be fixed.
+    It covers the conversion of an answer too: a backend replying with
+    something that is not a transaction has failed, and reporting that as
+    the BtcRpcValueError the parser raised would name the parser rather
+    than the host that has to be fixed.
+
+    `HttpError` and `RpcError` derive from it, so one `except FetchError`
+    catches every failure of an exchange.
     """
 
 
 class HttpError(FetchError):
     """A backend failed at the HTTP layer, and `status` is what it said.
 
-    A field because acting on a status is the caller's job and this client
-    retries nothing: a 401 says the credentials are wrong and will stay
-    wrong until they are changed, while a 503 from bitcoind says its rpc
-    work queue is full and the same request works when the queue drains.
-    A caller writing that policy needs to recognise the status, and
-    matching on the text of a message is what a field spares them.
+    A field rather than something to be parsed back out of a message: the
+    retry policy that reads it is the caller's, for the reasons this
+    module's docstring gives.
 
-    Not every FetchError carries one, and that is the distinction: a
-    refused connection and an expired timeout are failures of an exchange
-    that never produced a status, and stay a plain FetchError. So does a
-    body that is no answer -- not json, not utf-8, not a reply object --
-    when it arrived with an HTTP 200: there the status says nothing and
-    the shape of the body is the whole diagnosis. The same body under a
-    non-200 is this exception instead, carrying that status: it cannot be
-    an answer the backend computed, so what is left to report is the
-    status it came with. The message states the status too -- an exception
-    is a diagnostic before it is a value.
-
-    A FetchError still, so code catching that keeps catching this.
+    Not every FetchError carries one. A refused connection and an expired
+    timeout never produced a status; neither did a body that is no answer
+    -- not json, not utf-8, not a reply object -- arriving with an HTTP
+    200, where the shape of the body is the whole diagnosis. The same body
+    under a non-200 is this exception instead: it cannot be an answer the
+    backend computed, so the status is what is left to report. The message
+    states it too -- an exception is a diagnostic before it is a value.
     """
 
     def __init__(self, message: str, status: int) -> None:
@@ -311,18 +288,14 @@ class RpcError(FetchError):
     `code` is the node's, from `src/rpc/protocol.h`: -5 is
     RPC_INVALID_ADDRESS_OR_KEY, which is what `getrawtransaction` returns
     for a transaction it cannot find -- including every non-wallet
-    transaction on a node running without `-txindex`. A caller that means
-    to tell "no such transaction" from "the node is unreachable" needs
-    the number, and parsing it back out of the message is what having a
-    field avoids.
+    transaction on a node running without `-txindex`. A caller telling "no
+    such transaction" from "the node is unreachable" needs the number.
 
     `data` is JSON-RPC's optional third member of an error object, kept
     as it arrived. Core leaves it out today, so it is None for every
-    error a node sends; a method that starts sending one -- or a proxy
-    between the two adding its own -- would otherwise have it dropped
-    here, which is the one place it cannot be recovered from.
-
-    A FetchError still, so code catching that keeps catching this.
+    error a node sends; a method that starts sending one, or a proxy
+    adding its own, would otherwise have it dropped here, which is the
+    one place it cannot be recovered from.
     """
 
     def __init__(self, message: str, code: int, data: Any = None) -> None:
@@ -337,51 +310,42 @@ class RpcError(FetchError):
 def _is_integer(value: Any) -> bool:
     """Return whether value is an integer, with a bool not being one.
 
-    `bool` being a subclass of `int`, every field whose contract is an
-    integer quantity accepts `True` as the number one unless something
-    says otherwise, and the json boundary is what makes that worth a
-    refusal rather than a shrug: `true` is what a configuration file
-    decodes to, and an rpc error code of `True` is not the code 1.
+    `bool` is a subclass of `int`, so every field whose contract is an
+    integer quantity takes `True` for the number one unless something says
+    otherwise. The json boundary is what makes that worth refusing: `true`
+    is what a configuration file decodes to, and an rpc error code of
+    `True` is not the code 1.
     """
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-# Two arguments and no more, which is what a caller's own transport is
-# owed and what it owes. What it is owed: a `Request` with its url, its
-# method, its body and its headers already built, and a timeout in
-# seconds. What it owes, none of which this module can check for it:
-#
-# - *its own* bound on what it holds in memory while reading. It is handed
-#   no `max_body_size` -- there is nowhere in two arguments to pass one --
-#   and the limit here is a per-call number applied to the bytes it hands
-#   back, which is a refusal after the allocation and not instead of it.
-#   The two are different bounds, and a transport that reads a body of any
-#   size has already spent the memory this module then declines to use;
-# - a bound on how long it holds the call. `timeout` is one number and
-#   most client libraries spend it per socket operation, which a peer
-#   dripping a body resets forever; `urlopen_transport` reads it as a
-#   deadline for the whole exchange instead;
-# - no redirect followed. The request already carries the `Authorization`
-#   for the host it names -- `_OPENER` below is what does this for the
-#   default -- and a client library that follows a 30x sends that
-#   credential to whatever the `Location` says;
-# - its own thread-safety. `BitcoinCoreRpcClient` promises that concurrent
-#   calls are safe while its configuration is not mutated, and the
-#   transport is part of that configuration: a session object that is not
-#   thread-safe makes the client not thread-safe, and only its author
-#   knows which it is.
 HttpTransport = Callable[[Request, float], tuple[int, bytes]]
 """What this module does its I/O with, and what `transport=` takes.
 
-A callable given the built `Request` and a timeout in seconds, answering
-with the HTTP status and the response body. A status rather than an
-exception, because a JSON-RPC error can arrive with a 500 and its body is
-the error object.
+A callable given the built `Request` -- url, method, body and headers all
+set -- and a timeout in seconds, answering with the HTTP status and the
+response body. A status rather than an exception, because a JSON-RPC error
+can arrive with a 500 and its body is the error object.
 
-A transport of a caller's own owes four things this module cannot check
-for it: its own bound on what it reads into memory, its own bound on how
-long it holds the call, no redirect followed, and its own thread-safety.
-`urlopen_transport` is the default and does all four.
+Two arguments and no more, so a transport of a caller's own owes four
+things this module cannot check for it. `urlopen_transport` is the default
+and does all four:
+
+- *its own* bound on what it holds in memory while reading. There is
+  nowhere in two arguments to pass `max_body_size`, and the limit applied
+  to the bytes it hands back is a refusal after the allocation rather than
+  instead of it;
+- a bound on how long it holds the call. `timeout` is one number, and most
+  client libraries spend it per socket operation, which a peer dripping a
+  body resets forever; `urlopen_transport` reads it as a deadline for the
+  whole exchange;
+- no redirect followed. The request already carries the `Authorization`
+  for the host it names, and a client library that follows a 30x sends
+  that credential to whatever the `Location` says;
+- its own thread-safety. `BitcoinCoreRpcClient` promises that concurrent
+  calls are safe while its configuration is not mutated, and the transport
+  is part of that configuration: a session object that is not thread-safe
+  makes the client not thread-safe, and only its author knows which it is.
 """
 
 # Long enough for `getrawtransaction` against a node reading from a cold
@@ -403,11 +367,10 @@ large enough to take longer than this to arrive is one of the cases for
 # refuse it. The deadline in `_read_bounded` bounds the time and not the
 # memory: a fast peer sends a great deal well inside it.
 #
-# Eight megabytes and a little: twice Core's 4,000,000-byte buffer bound on
-# a serialized block, plus room for the newline a proxy may add. A buffer
-# bound and not a consensus rule, consensus capping the weight of a block
-# rather than its size, which is why it is written out here rather than
-# named as a limit of the protocol.
+# Twice Core's 4,000,000-byte buffer bound on a serialized block, plus room
+# for the newline a proxy may add. A buffer bound and not a consensus rule,
+# consensus capping the weight of a block rather than its size, which is
+# why it is written out here rather than named as a limit of the protocol.
 _MAX_BLOCK_SERIALIZED_SIZE = 4_000_000
 DEFAULT_MAX_BODY_SIZE = 2 * _MAX_BLOCK_SERIALIZED_SIZE + 1024
 """How much of a reply this module will hold in memory, by default.
@@ -421,15 +384,14 @@ bounds at all. Those are ordinary calls, so the refusal names
 """
 
 # how much one read of the bounded read asks for. `read1` answers with one
-# recv, but it *allocates* what it was asked for, and the response narrows
-# that request only where it knows how: `HTTPResponse.read1` caps n at the
-# remaining `Content-Length`, or at the rest of the current chunk, and does
-# neither for a body the close of the connection delimits. There
-# `read1(max_body_size + 1)` would allocate the whole limit to hold a tip
-# height, which is the limit behaving backwards -- widening it to allow one
-# large answer would cost that on every small one. A fixed piece costs one
-# more loop per piece and holds what it is about to read;
-# `test_a_read_asks_for_no_more_than_a_chunk` is what keeps it fixed
+# recv but *allocates* what it was asked for, and `HTTPResponse.read1`
+# narrows that request only where it knows how: to the remaining
+# `Content-Length`, or to the rest of the current chunk, and to neither for
+# a body the close of the connection delimits. There `read1(max_body_size +
+# 1)` would allocate the whole limit to hold a tip height, so widening the
+# limit for one large answer would cost that on every small one. A fixed
+# piece costs one more loop per piece and holds what it is about to read;
+# `test_a_read_asks_for_no_more_than_a_chunk` keeps it fixed
 _READ_CHUNK = 64 * 1024
 
 # where a status stops being an answer and becomes a diagnosis: urlopen
@@ -494,34 +456,30 @@ class _NoRedirect(HTTPRedirectHandler):
 # - it calls `fp.read()` with no argument before following, so the whole
 #   intermediate body is read whatever `max_body_size` says.
 #
-# Refused rather than policed, and that is a decision: a redirect policy is
-# stripping credentials across origins, refusing a downgrade, bounding
-# every intermediate body and counting hops, which is a redirect
-# implementation inside a module whose subject is one bounded request. What
-# following a same-origin redirect would buy a caller -- an endpoint that
-# moved path -- is a url they fix once, and a 30x arrives as a FetchError
-# naming the status and the url, which is what tells them to. A caller
+# Refused rather than policed: a policy worth the name strips credentials
+# across origins, refuses a downgrade, bounds every intermediate body and
+# counts hops, which is a redirect implementation inside a module whose
+# subject is one bounded request. What a same-origin redirect would buy --
+# an endpoint that moved path -- is a url the caller fixes once, and the
+# FetchError naming the status and the url is what tells them to. A caller
 # passing a transport of their own does its own I/O, so what `requests` or
 # `httpx` does with a 30x is theirs.
 #
-# `ProxyHandler({})` is the second thing missing, and for the same reason
-# as the first. `build_opener` otherwise installs a `ProxyHandler` built
-# from `getproxies()`, i.e. from `HTTP_PROXY`, `HTTPS_PROXY` and the
-# system's proxy configuration -- so an rpc call to a node would be sent
-# to whatever host an environment variable named, carrying the `Basic`
-# credential this client puts on every request before being asked for it.
-# Ambient configuration is exactly the wrong source for that decision: the
-# variable is set for a browser or a package manager and inherited by
-# everything in the shell, while the endpoint here is a node the caller
-# named. A caller who does want a proxy has `HttpTransport` and a client
-# that reads the environment if that is what they mean.
+# `ProxyHandler({})` is the second thing missing, for the same reason.
+# `build_opener` otherwise installs a `ProxyHandler` built from
+# `getproxies()`, i.e. from `HTTP_PROXY`, `HTTPS_PROXY` and the system's
+# proxy configuration -- so an rpc call to a node would be sent to whatever
+# host an environment variable named, carrying the `Basic` credential this
+# client puts on every request before being asked for it. Those variables
+# are set for a browser or a package manager and inherited by everything in
+# the shell, where the endpoint here is a node the caller named. A caller
+# who does want a proxy has `HttpTransport`.
 #
 # An empty map does not install an inert handler, it installs none:
 # `ProxyHandler.__init__` sets one `<scheme>_open` method per entry,
 # `add_handler` keeps a handler only when it registered something, and
 # `build_opener` drops the default of a class it was handed an instance
-# of. So this argument is how the handler is *removed*, and the chain has
-# nothing in it that could proxy.
+# of. So this argument is how the handler is *removed*.
 #
 # `build_opener` and not `install_opener`: the default opener is process
 # wide, and a library that replaced it would decide this for every other
@@ -536,12 +494,9 @@ def _assert_valid_max_body_size(max_body_size: int) -> None:
     argument of a read, from underneath the library rather than through its
     exception contract; a negative limit makes the bounded read ask for
     nothing and then report every body as too large. Zero is a size and is
-    left alone: it says that only an empty body is an answer.
-
-    `_is_integer` and not a second spelling of it, so a bool is refused here
-    for the reason it is refused everywhere else: `max_body_size=True`
-    would be a limit of one octet, and `true` is what a json configuration
-    decodes to.
+    left alone: it says that only an empty body is an answer. `True` is not
+    one -- `_is_integer` says why -- a limit of one octet being nobody's
+    intention.
     """
     if not _is_integer(max_body_size):
         err_msg = f"non-integer max_body_size: {max_body_size}"
@@ -567,16 +522,9 @@ def _read_bounded(
     than the limit, which is what tells a body *at* the limit from one
     over it.
 
-    `truncate` is how the body of a *failure* is read: a diagnostic over
-    the limit is cut to it and answered, where an answer over the limit is
-    refused -- and an announced `Content-Length` over it is not grounds
-    for refusal either. An error page is still the diagnosis of why there
-    is no answer, one octet over the limit or a megabyte over it.
-
-    The reads are incremental because the point is not to hold the body:
-    `read1` answers with what one recv gave it, so this loops until the
-    limit is filled or the peer is done. Each asks for `_READ_CHUNK` at
-    most, that being what such a read allocates.
+    `truncate` is how the body of a *failure* is read: cut to the limit and
+    answered rather than refused, an announced `Content-Length` over it
+    included. `MAX_ERROR_BODY_SIZE` says why.
 
     `read1` and not `read`, and that is what makes `deadline` mean
     anything. The response reads through a `BufferedReader`, whose
@@ -584,7 +532,8 @@ def _read_bounded(
     `read(limit + 1)` is one call that returns when the whole body has
     arrived, and no check around it runs in the meantime. `read1(n)`
     returns after one underlying read, which is what puts the loop, and
-    the deadline in it, between one packet and the next.
+    the deadline in it, between one packet and the next. Each read asks
+    for `_READ_CHUNK` at most, that being what such a read allocates.
 
     `deadline` is a `monotonic()` reading, and is what a socket timeout
     cannot be: that one is per recv, so a peer sending an octet just inside
@@ -592,17 +541,13 @@ def _read_bounded(
     before each read, so the wait is the deadline plus the one recv in
     flight when it passes.
 
-    The accumulator is one `bytearray`, grown with `extend` rather than a
-    `list` of chunks joined at the end -- a list holds every chunk as its
-    own object until the join, so a response near the limit sits in memory
-    twice over, once as the pieces and once as the joined result, for as
-    long as both are in scope. A single buffer replaces the pieces as it
-    grows instead of standing beside a second copy of them. What it cannot
-    avoid is the one copy `bytes(buffer)` makes at the end: this function
-    promises an immutable value, and a `bytearray` is not one. `max_body_size`
-    is a bound on what is read, in other words, and not on the memory one
-    call needs to read it -- that is this bound plus the one copy the
-    return type costs, whichever of the two ever exceeds it.
+    The accumulator is one `bytearray` grown with `extend`, not a `list` of
+    chunks joined at the end: a list holds every chunk as its own object
+    until the join, so a response near the limit sits in memory twice over
+    for as long as both are in scope. What a single buffer cannot avoid is
+    the one copy `bytes(buffer)` makes at the end, this function promising
+    an immutable value -- so `max_body_size` bounds what is read and not
+    the memory a call needs to read it, which is this bound plus that copy.
     """
     _assert_valid_max_body_size(max_body_size)
 
@@ -651,10 +596,9 @@ def urlopen_transport(
 
     Bounded, and this is the only place a bound can be incremental: the
     limit is a keyword with a default, so this function still *is* an
-    `HttpTransport` and a caller's own transport still satisfies that
-    type. What a transport of someone else's returns is bytes it has
+    `HttpTransport`. A transport of someone else's returns bytes it has
     already read, so all `http_request` can do for those is refuse to pass
-    an oversized body on -- see its `max_body_size`.
+    an oversized body on.
 
     No redirect is followed: `_OPENER` above says why, and what a 30x
     arrives as is the `HTTPError` any other non-2xx status does.
@@ -699,12 +643,9 @@ def http_request(
     `max_body_size` is what an *answer* may weigh, and the caller sets it
     from what it asked for: a tip height is a few octets and a raw
     transaction is megabytes, so one number for both would be the larger.
-    The body of a failure is bounded separately, by `MAX_ERROR_BODY_SIZE`
-    and by truncation rather than refusal -- an error page arriving one
-    octet over a caller's limit for a *height* is still the diagnosis of
-    why there is no height. In time it is bounded by `timeout`, the same
-    deadline the answer is read against: a drip is a drip whichever
-    status precedes it.
+    The body of a failure is bounded by `MAX_ERROR_BODY_SIZE` instead, and
+    in time by `timeout`, the same deadline the answer is read against: a
+    drip is a drip whichever status precedes it.
 
     `timeout` is checked here and not only where `BitcoinCoreRpcClient`
     already does, because this function is public on its own: a caller
@@ -719,8 +660,9 @@ def http_request(
     if scheme not in _SCHEMES:
         raise BtcRpcValueError(f"invalid url scheme: '{scheme}' instead of http(s)")
 
-    # S310 asks what scheme this url can carry, and the answer is the
-    # three lines above: nothing but http and https reaches a Request
+    # S310 asks what scheme this url can carry, and the answer is the three
+    # lines above: nothing but http and https reaches a Request.
+    #
     # `data is not None` and not the truth of it: `data=b""` is a body a
     # caller passed, so the request is the POST they asked for. urllib draws
     # the same line -- an absent body is what makes a request a GET there --
@@ -732,20 +674,18 @@ def http_request(
         headers=dict(headers or {}),
         method="POST" if data is not None else "GET",
     )
-    # what the body of a failure is read against, taken here and not in
-    # the `except` below, which runs once the exchange has already spent
-    # its time: this is the reading `urlopen_transport` takes for itself,
-    # and a transport of a caller's own that raises `HTTPError` is held to
-    # it too -- for the error body alone, that being the only part of such
-    # an exchange this module does the reading of
+    # what the body of a failure is read against, taken here and not in the
+    # `except` below, which runs once the exchange has already spent its
+    # time. It is the reading `urlopen_transport` takes for itself, and a
+    # transport of a caller's own that raises `HTTPError` is held to it for
+    # the error body -- the only part of such an exchange this module reads
     deadline = monotonic() + timeout
     try:
         # the limit reaches the read itself for the transport of this
-        # module, which is the only one it can: `HttpTransport` is two
-        # positional arguments, so a caller's transport has nowhere to be
-        # told a limit and nothing to do with one it does not know about.
-        # Identity and not a subclass check because there is one such
-        # function, and it is the default this module passes on
+        # module, which is the only one it can reach: a caller's has
+        # nowhere in two arguments to be told one. Identity and not a
+        # subclass check because there is one such function, and it is the
+        # default this module passes on
         if transport is urlopen_transport:
             status, body = urlopen_transport(
                 request, timeout, max_body_size=max_body_size
@@ -758,9 +698,8 @@ def http_request(
         # `HTTPError` forwards `read1` to the response it wraps and answers
         # `headers` with the ones it was built from. Discarding that body
         # would turn whatever diagnosis the backend offered into a bare
-        # number -- read to a bound, because an error page is written by
-        # whatever is in the way and is neither a size nor a wait this
-        # library agreed to
+        # number; the bound is because an error page is neither a size nor a
+        # wait this library agreed to
         try:
             try:
                 return e.code, _read_bounded(
@@ -777,12 +716,11 @@ def http_request(
                 return e.code, b""
         finally:
             # an HTTPError is a response, and a bounded read leaves it with
-            # octets still in it: releasing the connection is nobody
-            # else's, and an unclosed one is a ResourceWarning out of a
-            # deallocator at whatever later moment the collector picks --
-            # which under `filterwarnings = ["error"]` fails an unrelated
-            # test. The `with` in `urlopen_transport` does this for the
-            # responses that are not errors
+            # octets still in it. An unclosed one is a ResourceWarning out
+            # of a deallocator at whatever later moment the collector picks
+            # -- which under `filterwarnings = ["error"]` fails an
+            # unrelated test. The `with` in `urlopen_transport` does this
+            # for the responses that are not errors
             e.close()
     except (OSError, HTTPException) as e:
         # URLError and TimeoutError derive from OSError, which is every way
@@ -797,10 +735,8 @@ def http_request(
 
     # a failure, whether it arrived as an exception above or as a status
     # from a transport that catches its own: the body is a diagnostic and
-    # not the answer, so it is bounded by truncation rather than held to
-    # the caller's limit for the answer. An explorer explaining a 404 in a
-    # paragraph of html is worth reading even when what was asked for was
-    # a tip height, sixty-four octets wide
+    # not the answer, so it is truncated rather than held to the caller's
+    # limit for an answer -- `MAX_ERROR_BODY_SIZE` says why
     if status >= _CLIENT_ERROR:
         return status, body[:MAX_ERROR_BODY_SIZE]
 
@@ -820,11 +756,10 @@ def http_request(
 # Core's chain names -- `ChainTypeToString` in src/util/chaintype.cpp,
 # which is what `-chain=` reads and what `getblockchaininfo` reports --
 # because what they index here is a port and a directory: a chain Core has
-# no default port for is an explicit url, which is the constructor.
-#
-# `test` indexes `testnet3`, which is the third vocabulary for that one
-# chain and the reason both columns are Core's: a directory name is no
-# more this module's to choose than a port number is
+# no default port for is an explicit url, which is the constructor. `test`
+# indexes `testnet3`, a third vocabulary for that one chain and the reason
+# both columns are Core's: a directory name is no more this module's to
+# choose than a port number is
 _RPC_PORT_FROM_CHAIN = {
     "main": 8332,
     "test": 18332,
@@ -875,9 +810,9 @@ def datadir_subdir_from_chain(chain: str) -> str:
 # and neither vocabulary is going to adopt the other -- a `network` there
 # names the encoding table to encode *with*, and is `testnet` for a signet
 # address, where Core's `chain` is an identity. So the pair is written down
-# once, here, this being the file that speaks Core's protocol and therefore
-# the boundary between the two: a caller holding one name and needing the
-# other has these two functions instead of a dict of their own.
+# once, in the file that speaks Core's protocol and is therefore the
+# boundary between the two: a caller holding one name and needing the other
+# has these two functions instead of a dict of their own.
 #
 # A translation of vocabulary and not a promise of availability: v31.1
 # warns that support for testnet3 is deprecated and will be removed, so
@@ -887,19 +822,18 @@ def datadir_subdir_from_chain(chain: str) -> str:
 # A Literal each, and not an Enum: both vocabularies are `str` wherever
 # they are spoken -- `-chain=` takes one, `getblockchaininfo` answers one,
 # a json body carries them -- so an enum would be an island every caller
-# converts at, and a strict type checker refuses the typo it would have
-# guarded against anyway. They annotate what these functions return and
-# not what they take, which is the same distinction: an argument arrives
-# from a config file or from a node, as a `str` no annotation narrows, and
-# a parameter of this type would buy a cast at every such call site to say
-# what the refusal below already says at runtime.
+# converts at, where a Literal still catches the typo at every call site
+# that spells the name out. They annotate what these functions return and
+# not what they take: an argument arrives from a config file or from a node
+# as a `str` no annotation narrows, and a parameter of this type would buy
+# a cast at every such call site to say what the refusal below already says
+# at runtime.
 Chain = Literal["main", "test", "testnet4", "signet", "regtest"]
 """Core's five chain names: what `-chain=` takes and `getblockchaininfo`
 reports, and what `from_chain` and the two lookups are spelled in.
 
-What `network_from_chain` takes and `chain_from_network` returns -- not
-what either is annotated as taking, a name arriving from a config file or
-from a node being a `str` no annotation narrows.
+What `chain_from_network` returns, and not what `network_from_chain` is
+annotated as taking.
 """
 
 Network = Literal["mainnet", "testnet", "testnet4", "signet", "regtest"]
@@ -958,40 +892,37 @@ still a valid one.
 
 
 def default_datadir() -> Path | None:
-    """Return `~/.bitcoin`, or None where no absolute home is knowable.
+    r"""Return `~/.bitcoin`, or None where no absolute home is knowable.
 
-    Two ways there is no home to name, and neither may raise: `DEFAULT_DATADIR`
-    below calls this at import, so an exception here fails the import itself
-    on a host that was never going to reach a node anyway.
+    That is Core's datadir on Linux and on nothing else: macOS puts it
+    under ``~/Library/Application Support/Bitcoin`` and Windows under
+    ``%APPDATA%\Bitcoin``, so a caller there passes `cookie_path` instead.
+    Guessing per platform would put two branches here that no test on a
+    third can reach, and a wrong absolute guess fails exactly as an absent
+    file does -- naming the file it looked for, which is what tells a
+    caller to pass one.
 
-    `Path.home()` raises RuntimeError when nothing resolves `~` -- no
-    `HOME` in the environment and no passwd entry for the uid, which is a
-    container run under an arbitrary one. It also answers with whatever
-    `HOME` holds, so a relative `HOME` gives a relative home and raises
-    nothing.
+    Two ways there is no home to name, and neither may raise, since
+    `DEFAULT_DATADIR` below calls this at import: `Path.home()` raises
+    RuntimeError when nothing resolves `~` -- no `HOME` in the environment
+    and no passwd entry for the uid, which is a container run under an
+    arbitrary one -- and it answers with whatever `HOME` holds, so a
+    relative `HOME` gives a relative home and raises nothing.
 
     None for both, rather than a path that is no datadir. A relative one
     would be resolved against the working directory at the moment of the
     read, so `~/.bitcoin/.cookie` would make a file a caller's cwd happens
-    to contain the credential this client presents -- a wrong guess about
-    the datadir is one thing, reading a credential from wherever the
-    process was started is another. `from_chain` refuses instead, naming
-    `cookie_path` as what to pass; a caller on macOS or Windows already
-    passes one.
+    to contain the credential this client presents. `from_chain` refuses
+    instead, naming `cookie_path` as what to pass.
 
-    Called by `from_chain` when it derives a cookie path, and not once at
-    import: `Path.home()` reads `HOME`, so a value computed at import is
-    the environment as it stood whenever this module was first imported --
-    which, for a module something else imports transitively, is a moment
-    the caller did not choose. An unrelated early import is no way to
-    decide which credentials a later call sends.
-
-    Public rather than a `from_chain` implementation detail: a caller
-    building its own datadir-derived path -- a wallet directory, a second
-    cookie under a chain subdirectory `datadir_subdir_from_chain` names --
-    needs the same live-`HOME` answer `from_chain` uses, not the import-time
-    `DEFAULT_DATADIR` below, and had no way to ask for it short of copying
-    this function.
+    `from_chain` calls this at every call rather than reading
+    `DEFAULT_DATADIR`, so that the `HOME` of the call is the one that
+    counts and not the one that stood when something first imported this
+    module. Public for the same reason: a caller building its own
+    datadir-derived path -- a wallet directory, a cookie under the
+    subdirectory `datadir_subdir_from_chain` names -- needs that live
+    answer too, and had no way to ask for it short of copying this
+    function.
     """
     try:
         home = Path.home()
@@ -1000,35 +931,17 @@ def default_datadir() -> Path | None:
     return home / ".bitcoin" if home.is_absolute() else None
 
 
-# `~/.bitcoin`, which is the datadir on Linux and on nothing else: macOS
-# puts it under ~/Library/Application Support/Bitcoin and Windows under
-# %APPDATA%\Bitcoin. Guessing per platform would put two branches here
-# that no test on a third platform can reach, and a wrong absolute guess
-# fails exactly as an absent file does; `cookie_path` is how a caller says
-# where it really is, and the unreadable-cookie error names the file it
-# looked for, which is what tells a caller on either platform to pass one
-#
-# This is the answer as it stood at import, kept for a caller who wants to
-# name the location or build a path under it. `from_chain` does not read
-# it -- it asks `default_datadir` at the call, so that a `HOME` set after
-# this module was imported is the one that counts.
-#
-# `Path | None`, and that is a deliberate declaration rather than an
-# oversight: None is what a host with no absolute home directory has, and
-# the alternatives are a `Path` that lies -- an invented absolute path -- or
-# the relative `~/.bitcoin` that made a cwd file a credential. A caller
-# whose strict type checking now asks for the None case is being asked the
-# question the value always had
+# the answer as it stood at import, kept for a caller who wants to name the
+# location or build a path under it. `Path | None` is a deliberate
+# declaration rather than an oversight: the alternatives are a `Path` that
+# lies -- an invented absolute path -- or the relative `~/.bitcoin` that
+# made a cwd file a credential, so a caller whose strict type checking asks
+# for the None case is being asked the question the value always had
 DEFAULT_DATADIR: Path | None = default_datadir()
 """`~/.bitcoin` as it stood at import, or None where no home resolves.
 
-Core's datadir on Linux and on nothing else -- macOS puts it under
-``~/Library/Application Support/Bitcoin`` and Windows under
-``%APPDATA%\\Bitcoin`` -- so a caller on either passes `cookie_path`
-instead. None rather than a relative path, which is why a strict type
-checker asks about the None case here.
-
-`from_chain` does not read this: it asks at the call, so that a `HOME` set
+`default_datadir` computes it, and says on which platform it is right.
+`from_chain` calls that rather than reading this, so that a `HOME` set
 after this module was imported is the one that counts.
 """
 
@@ -1039,14 +952,13 @@ after this module was imported is the one that counts.
 # report a missing colon afterwards
 _MAX_COOKIE_SIZE = 4096
 
-# how many random bytes make the `id` of a request this call's. Random
-# per call rather than fixed or counted: the echo check exists to catch a
-# reply that answers another request -- a caching proxy in the way -- and
-# a value reused across calls cannot tell that reply from the right one.
-# Random rather than a counter because a counter is shared mutable state,
-# which is the one thing that would make a client unsafe to call from two
-# threads. Prefixed on the way out, so a node's debug log says whose call
-# it was
+# how many random bytes make the `id` of a request this call's. Distinct
+# per call: the echo check exists to catch a reply that answers another
+# request -- a caching proxy in the way -- and a value reused across calls
+# cannot tell that reply from the right one. Random rather than counted
+# because a counter is shared mutable state, which is the one thing that
+# would make a client unsafe to call from two threads. Prefixed on the way
+# out, so a node's debug log says whose call it was
 _RPC_ID_BYTES = 8
 
 # how deep a parameter structure may nest. Both the encoder and the walk
@@ -1127,15 +1039,15 @@ def cookie_auth(cookie_path: Path) -> str:
     every start of the node. Read at each call rather than once at
     construction: a client built when the node was up and used an hour
     later would otherwise answer 401 for the rest of the process, the
-    node having been restarted in between, and the cost of not doing so
-    is one small local read against an HTTP round trip.
+    node having been restarted in between, and the cost is one small
+    local read against an HTTP round trip.
 
-    One line, ascii, and a bounded read. A path that is not a cookie file
-    is the ordinary mistake here, and a credential is the one value that
-    must not appear in the error reporting it: what the three checks buy
-    is that everything a wrong path produces -- a binary file, a log,
-    something enormous -- arrives as a FetchError naming the file, rather
-    than as a UnicodeDecodeError or as memory nobody agreed to.
+    Ascii, one line and a bounded read, because a path that is not a
+    cookie file is the ordinary mistake here and a credential is the one
+    value that must not appear in the error reporting it: what the three
+    checks buy is that a binary file, a log or something enormous arrives
+    as a FetchError naming the file, rather than as a UnicodeDecodeError
+    or as memory nobody agreed to.
     """
     try:
         with cookie_path.open("rb") as file:
@@ -1275,16 +1187,15 @@ def _json_number(token: str) -> Decimal:
     `Decimal(token)` is built in whatever decimal context the *caller* is
     running under, and that context decides whether an exponent the
     implementation cannot represent raises or is answered quietly: with
-    `InvalidOperation` untrapped -- `localcontext()` and
-    `ctx.traps[InvalidOperation] = False`, which is a reasonable thing for a
-    program doing its own arithmetic to want -- `1e999999999999999999999999999`
-    comes back as `Decimal("NaN")` instead. That is an amount that compares
-    false against itself for the rest of its life, arriving past the refusal
-    of NaN this module states, and no exception is raised anywhere for the
-    `DecimalException` normalization to catch.
+    `InvalidOperation` untrapped -- `ctx.traps[InvalidOperation] = False`,
+    which a program doing its own arithmetic has reason to want --
+    `1e999999999999999999999999999` comes back as `Decimal("NaN")`, an
+    amount that compares false against itself for the rest of its life,
+    arriving past the refusal of NaN this module states and raising nothing
+    for the `DecimalException` normalization to catch. So the value is
+    checked rather than the exception waited for.
 
-    So the value is checked rather than the exception waited for. Size is not
-    the question and is deliberately not asked: a finite number is an answer
+    Size is deliberately not the question: a finite number is an answer
     however large, which is what lets pypy's decimal build exponents
     libmpdec declines to.
     """
@@ -1374,9 +1285,8 @@ def _reply_object(where: str, status: int, payload: bytes) -> Mapping[str, Any]:
 
     The status cannot be consulted before this, which is why the rule
     lives here and not at the top of `_result`: a 1.1 error object
-    arriving with an HTTP 500 *is* a reply, and giving up on the status
-    first would report every "no such transaction" from an old node as a
-    server fault.
+    arriving with an HTTP 500 *is* a reply -- `_legacy_result` says what
+    giving up on the status first would cost.
     """
     try:
         reply = json.loads(
@@ -1492,8 +1402,7 @@ class BitcoinCoreRpcClient:
 
     Not a dataclass, and that is about the password: a generated
     `__repr__` prints every field, so the credential would appear in any
-    traceback that renders the client, and in any log line that prints
-    it.
+    traceback or log line that renders the client.
 
     Credentials or a cookie path, and not both: each of the two says who
     is calling, so a client given both would have to rank them, and a
@@ -1519,22 +1428,22 @@ class BitcoinCoreRpcClient:
     **One connection per call**, urllib holding none open: every `call`
     sends `Connection: close` and opens a socket of its own. Beside the
     node that is a loopback connect, which costs nothing for one call and
-    is socket churn for a great many: RFC 9112 section 9.6 has the server
+    is socket churn for a great many -- RFC 9112 section 9.6 has the server
     initiating the close on that option, so it is the node that holds the
-    sockets in TIME_WAIT. To a node reached over `https` it is a TLS
+    sockets in TIME_WAIT -- and to a node reached over `https` it is a TLS
     handshake each time. Either way a caller polling one in a loop wants a
-    `transport` of their own -- a `requests` session, an `httpx` client --
-    which is what `HttpTransport` is for. Keeping a connection alive here
-    would mean a pool, its own thread-safety and its own eviction, none of
-    which one bounded request needs.
+    `transport` of their own, a `requests` session or an `httpx` client.
+    Keeping a connection alive here would mean a pool, its own
+    thread-safety and its own eviction, none of which one bounded request
+    needs.
 
-    Nothing here asks the node which chain it is on, and no call does it
-    on the caller's behalf: the url and the cookie path say where to ask,
-    and what the answers mean is the caller's to hold. `getblockchaininfo`
-    is the question, its `chain` member the answer, and
-    `network_from_chain` the vocabulary to read it in -- one round trip,
-    worth asking once, because a client built for a testnet node under
-    code that believes it is on mainnet fails silently.
+    No call asks the node which chain it is on: the url and the cookie path
+    say where to ask, and what the answers mean is the caller's to hold.
+    `getblockchaininfo` is the question, its `chain` member the answer, and
+    `network_from_chain` the vocabulary to read it in -- worth the one
+    round trip, because a client built for a testnet node under code that
+    believes it is on mainnet fails silently. `from_chain`'s `verify_chain`
+    makes exactly that call once, at construction.
     """
 
     def __init__(
@@ -1567,12 +1476,12 @@ class BitcoinCoreRpcClient:
                 # formatted into the credential -- `['alice']:secret` reaching
                 # the node as a username nobody wrote.
                 #
-                # The type and not the value, which is the same reason this
-                # class has no generated `__repr__`: a rejected `password` is
-                # a credential, and putting it in an exception writes it into
-                # every traceback and log that renders one. The type is what a
-                # caller needs to see, and `bytes` is the mistake this catches
-                # most often
+                # The type and not the value: a rejected `password` is a
+                # credential, and putting it in an exception writes it into
+                # every traceback that renders one -- the same reason this
+                # class has no generated `__repr__`. The type is what a
+                # caller needs to see, `bytes` being the mistake this
+                # catches most often
                 err_msg = f"non-string rpc {name}: {type(value).__name__}"
                 raise BtcRpcTypeError(err_msg)
         if user is not None and ":" in user:
@@ -1584,14 +1493,13 @@ class BitcoinCoreRpcClient:
             # spellings encoding to the same header so that nothing
             # downstream can tell them apart. A colon on the other side is
             # unambiguous and stays valid, everything after the first one
-            # belonging to the second field by definition
-            # and the user is not quoted back either, for the reason above
-            # applied to this refusal in particular: the string being refused
-            # is one with a colon in it, so the likeliest thing it holds is
-            # `user:password` written into the first argument -- which is a
-            # credential, and would go into the traceback with it.
-            # `_checked_url` refuses a url with userinfo in it without echoing
-            # the url, and this is the same rule
+            # belonging to the second field by definition.
+            #
+            # The user is not quoted back: the string being refused has a
+            # colon in it, so the likeliest thing it holds is `user:password`
+            # written into the first argument -- a credential, and one that
+            # would go into the traceback with it. `_checked_url` refuses a
+            # url with userinfo in it without echoing the url either
             err_msg = "colon in the rpc user. The credential is user:password"
             err_msg += " and the node splits it at the first colon, so a user"
             err_msg += " containing one names a different user than intended"
@@ -1633,13 +1541,11 @@ class BitcoinCoreRpcClient:
 
         The convenience of not writing out a loopback url, a port and a
         datadir: all three come from Core's own tables, and everything
-        else is the constructor's. `chain` is spelled as Core spells it --
-        the string `-chain=` takes and `getblockchaininfo` reports, so
-        `main` where BIP32 and BIP173 say `mainnet` -- because what it
-        indexes here is a port and a directory, and Core names both.
-        `chain_from_network` translates for a caller holding a BIP name; a
-        chain Core has no default port for is an explicit url with a
-        `cookie_path`, which is the constructor.
+        else is the constructor's. `chain` is spelled as Core spells it, so
+        `main` where BIP32 and BIP173 say `mainnet`; `chain_from_network`
+        translates for a caller holding a BIP name, and a chain Core has no
+        default port for is an explicit url with a `cookie_path`, which is
+        the constructor.
 
         It asks the node nothing, so it is no claim that one is listening
         on that port, nor that it serves this chain if it is. The first
@@ -1647,25 +1553,19 @@ class BitcoinCoreRpcClient:
         that call now, with `getblockchaininfo`, and compare its `chain`
         field to this one.
 
-        Off by default, because a cookie only authenticates that the node
-        is the one this call was told about -- a file only that node
-        could have written -- and says nothing about which chain it is
-        running: `-chain=test` and a `main` cookie both exist, and cookie
-        authentication cannot tell them apart. A caller for whom that gap
-        matters -- a cookie path or a datadir carried over from a
+        Off by default, because a cookie authenticates only that the node
+        is the one this call was told about -- a file only that node could
+        have written -- and says nothing about which chain it is running:
+        `-chain=test` and a `main` cookie both exist. A caller for whom
+        that gap matters -- a cookie path or a datadir carried over from a
         differently-configured host, an environment variable naming the
         wrong chain -- opts in and gets `BtcRpcValueError` naming both
-        chains instead of a wrong-network call succeeding silently. The
-        round trip is the cost, paid once here rather than trusted to
-        every call this client makes afterwards.
+        chains instead of a wrong-network call succeeding silently, at the
+        cost of one round trip here rather than trust in every call after.
 
-        The datadir is asked for here rather than read off
-        `DEFAULT_DATADIR`, so that the `HOME` of this call is the one that
-        counts and not the one that stood at import.
-        Where there is no absolute home directory to name -- see
-        `default_datadir` -- deriving a cookie path is what this refuses,
-        rather than reading a relative one against whatever the working
-        directory is. `cookie_path` is the answer, and the error says so.
+        The datadir comes from `default_datadir` at this call, and where
+        there is no absolute home directory to name, deriving a cookie path
+        is what this refuses -- naming `cookie_path` as the answer.
 
         Nothing is derived when the caller said who is calling: a `user` or
         a `password`, either of them, is an answer to that question, and
@@ -1713,8 +1613,7 @@ class BitcoinCoreRpcClient:
 
         `type(self)` and not this class by name, as `from_chain` builds
         with `cls`: a subclass that derives a wallet client keeps whatever
-        it added, rather than losing it at the one call that looks like it
-        preserves everything.
+        it added.
         """
         if not isinstance(wallet_name, str):
             # `quote` takes `bytes` as well, so this is a refusal and not a
@@ -1778,18 +1677,14 @@ class BitcoinCoreRpcClient:
         replies large enough to take a while on the wire; the alternative
         is a second client whose wider timeout applies to everything.
 
-        `max_body_size` is what the reply may weigh, and its default fits
-        a block as hex. Widen it for the answers that are larger --
-        `getblock` at verbosity 2, `listunspent` on a large wallet -- and
-        tighten it where the reply is a number, this being the caller's
-        node and the caller's memory.
+        `max_body_size` is what the reply may weigh: widen it for the
+        answers larger than the default, which `DEFAULT_MAX_BODY_SIZE`
+        names, and tighten it where the reply is a number, this being the
+        caller's node and the caller's memory.
 
         There is no retry: one call is one HTTP request, whatever comes
-        back. `HttpError.status` is what a caller's own policy reads --
-        503 from a full work queue is worth another attempt, 401 never is
-        -- and the reason the policy is theirs is in this module's
-        docstring: any method may be carried here, and a timeout does not
-        say the node stopped executing one.
+        back. `HttpError.status` is what a caller's own policy reads, and
+        this module's docstring says why the policy is theirs.
         """
         request_id = _rpc_id()
         if not isinstance(method, str):
@@ -1870,16 +1765,13 @@ class RpcChannel:
     per call and not both at once.
 
     `request_timeout` and `max_body_size`, `call`'s own keyword-only
-    controls, are reserved here the same way they are reserved there:
-    caught by the wrapper and passed to `call` itself, rather than
-    travelling to the node as a named rpc parameter. That reservation is
-    the reason this class lives here rather than in a caller's own
-    script: it has to know which names are `call`'s own to keep them out
-    of `params`, that list is this module's to grow, and a copy written
-    against one release is silently wrong against a later one that adds
-    a third control -- neither mypy nor a test catches a keyword that
-    now reaches Core instead of this class. One copy, kept current by
-    the package that defines what it must exclude.
+    controls, are caught by the wrapper and passed to `call` rather than
+    travelling to the node as named rpc parameters. That reservation is why
+    this class lives here rather than in a caller's own script: it has to
+    know which names are `call`'s own, that list is this module's to grow,
+    and a copy written against one release is silently wrong against a
+    later one that adds a third control -- neither mypy nor a test catches
+    a keyword that now reaches Core instead of this class.
 
     A hand-written guard sits in front of every name starting with `_`,
     dunders included. Without it, `copy.deepcopy`, a pickling path this

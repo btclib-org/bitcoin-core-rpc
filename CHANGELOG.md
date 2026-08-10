@@ -57,6 +57,19 @@ carry a union merge driver that would keep both sides' numbers.
 - **COMPARISON.md's "Dynamic dispatch"** no longer calls the façade a
   vendoring caller's own to write: `RpcChannel` above is the reason, and
   the section now says why it is offered here instead.
+- **The module's docstrings and comments are shorter**, and no reason is
+  stated twice: each now sits in one place and is pointed at from the
+  others -- the retry policy in the module docstring, which `HttpError` and
+  `call` refer to; the four obligations of a caller's transport in
+  `HttpTransport`, where the comment above it repeated them; the
+  truncation of a failure's body in `MAX_ERROR_BODY_SIZE`; the datadir and
+  the platforms it is right on in `default_datadir`, which
+  `DEFAULT_DATADIR` and `from_chain` refer to. `FetchError` names its two
+  subclasses once, rather than each of them repeating that it is one. Two
+  statements were also wrong: the notifications paragraph named a
+  `_request` function this module does not have, and the client's class
+  docstring said nothing here asks the node which chain it is on, where
+  `verify_chain` above does exactly that on request.
 
 ## v2026.8.8
 
