@@ -83,29 +83,25 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          [
-            ubuntu-latest,
-            ubuntu-24.04-arm,
-            macos-26-intel,
-            macos-latest,
-            windows-latest,
-            windows-11-arm,
-          ]
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-26-intel
+          - macos-latest
+          - windows-latest
+          - windows-11-arm
         # 3.14t is the free-threaded interpreter, and it belongs here for
         # what this module promises: concurrent calls are supported while
         # the configuration is not mutated, and a build without the GIL is
         # the one that would report a shared counter or a cached credential
         # if either existed
         python:
-          [
-            "3.10",
-            "3.11",
-            "3.12",
-            "3.13",
-            "3.14",
-            "3.14t",
-            "pypy3.11",
-          ]
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+          - "3.14t"
+          - "pypy3.11"
     # far above what a run of the suite needs: what it bounds is a hung
     # job holding a runner for six hours
     timeout-minutes: 30
