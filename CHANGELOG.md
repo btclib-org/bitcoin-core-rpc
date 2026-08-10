@@ -21,6 +21,30 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.9 (work in progress, not released yet)
 
+### Added
+
+- **`RpcChannel`**, an opt-in attribute-style façade over a client's
+  `call`: `channel.getblockcount()` for `client.call("getblockcount")`,
+  positional arguments the sequence form of `params` and named ones the
+  mapping form, never both at once. `request_timeout` and `max_body_size`,
+  `call`'s own keyword-only controls, are reserved and forwarded to `call`
+  rather than reaching the node as a named parameter, and every name
+  starting with `_` -- dunders included -- is an `AttributeError` instead
+  of a request: without that guard `copy.copy` and `copy.deepcopy` turn
+  into a bound call for `__setstate__` or `__deepcopy__`, verified against
+  a transport that raises on any request rather than assumed.
+  `BitcoinCoreRpcClient` itself keeps its explicit `call(method, params)`
+  surface unchanged; see COMPARISON.md's "Dynamic dispatch" for why the
+  façade lives here rather than in a vendoring caller's own copy.
+- **`verify_chain`**, an opt-in keyword on `from_chain`: after building
+  the client, calls `getblockchaininfo` and compares its `chain` field to
+  the one `from_chain` was given, raising `BtcRpcValueError` on a
+  mismatch. Off by default, since `from_chain` otherwise asks the node
+  nothing; a cookie or a datadir authenticates the node it names, not the
+  chain it is running, and `-chain=test` under a cookie or a datadir
+  carried over from a `main` setup is what this catches instead of a
+  wrong-network call succeeding silently.
+
 ### Changed
 
 - **`default_datadir` is public**, no longer `_default_datadir`. `from_chain`
@@ -30,6 +54,9 @@ carry a union merge driver that would keep both sides' numbers.
   `datadir_subdir_from_chain` -- needed that same answer and had no way to
   ask for it short of importing the underscored name or copying the
   function. No behavior changes; the name in `__all__` is the only diff.
+- **COMPARISON.md's "Dynamic dispatch"** no longer calls the façade a
+  vendoring caller's own to write: `RpcChannel` above is the reason, and
+  the section now says why it is offered here instead.
 
 ## v2026.8.8
 

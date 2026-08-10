@@ -74,6 +74,18 @@ client = BitcoinCoreRpcClient(
 )
 ```
 
+A cookie or a datadir only authenticates the node that wrote it, not the
+chain it is running: `-chain=test` and a `main` cookie both exist. `main`
+is `from_chain`'s own default, so a caller who names it and gets `test`
+back either passed the wrong name or reused a cookie carried over from
+elsewhere — `verify_chain` asks `getblockchaininfo` once and raises
+`BtcRpcValueError` if the two disagree, rather than trusting the port and
+the datadir name to have agreed with the node underneath them.
+
+```python
+client = BitcoinCoreRpcClient.from_chain("main", verify_chain=True)
+```
+
 ## Calling
 
 `params` is one value, shaped as JSON-RPC shapes it: a sequence for the
@@ -96,6 +108,29 @@ balance = client.for_wallet("hot").call("getbalance")   # Decimal, exact
 `for_wallet` is the `/wallet/<name>` endpoint of a node with several
 wallets loaded, with the name percent-encoded — a wallet is a directory and
 may be called anything a filesystem accepts.
+
+## Attribute-style calls
+
+`RpcChannel` wraps a client for a caller who wants `rpc.getblockcount()`
+over `client.call("getblockcount")` and has weighed the trade in
+[COMPARISON.md](./COMPARISON.md#dynamic-dispatch): an unknown method is a
+request to the node rather than an `AttributeError` here.
+
+```python
+from bitcoin_core_rpc import BitcoinCoreRpcClient, RpcChannel
+
+rpc = RpcChannel(BitcoinCoreRpcClient.from_chain("main"))
+print(rpc.getblockcount())
+print(rpc.getblock(blockhash=block_id, verbosity=2))
+```
+
+Positional arguments become the sequence form of `params`, named ones the
+mapping form — never both at once, json-rpc having one shape per call.
+`request_timeout` and `max_body_size`, `call`'s own keyword-only controls,
+reach `call` rather than travelling to the node as a named parameter; every
+other name starting with `_`, dunders included, is an `AttributeError`
+instead of a request, which is what keeps `copy.deepcopy` and an
+interactive shell's attribute probing from becoming one.
 
 ## When it goes wrong
 
@@ -220,8 +255,9 @@ error the node computed, `HttpError` for an exchange that failed and
 FetchError` is the translation that catches what the one exception caught.
 
 [COMPARISON.md](./COMPARISON.md) has the case for the switch beyond this
-rewrite guide, and why three features this client does not have are
-decisions rather than omissions.
+rewrite guide, and why the features this client does not have — and the
+one, dynamic dispatch, offered differently instead — are decisions rather
+than omissions.
 
 ## Testing code that calls a node
 
