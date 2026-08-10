@@ -25,7 +25,7 @@ name: rpc-smoke
 # A workflow of its own and not a job in test.yml, whose matrix is
 # interpreters: this one is bitcoind versions, and two nodes plus two
 # downloads is minutes where that workflow is seconds. It therefore does
-# not appear in master's required checks, and must not -- that rule lives
+# not appear in main's required checks, and must not -- that rule lives
 # outside the repository and names its checks as literal strings.
 
 on:
@@ -70,14 +70,9 @@ jobs:
       ${{ matrix.protocol && format('Smoke the rpc client against Core {0}', matrix.core)
           || format('Start Core {0} on {1} and check it answers', matrix.core, matrix.chain) }}
     # a draft pull request is work in progress and spends no runner
-    # here either, the release pull request excepted: dev -> master is
-    # a draft from one release to the next, and its runs are what
-    # checks a commit merged into dev. The same condition lint.yml and
-    # test.yml carry, and ready_for_review is a trigger type above for
-    # the same reason
-    if: >-
-      ${{ !github.event.pull_request.draft
-      || github.base_ref == 'master' }}
+    # here either: the same condition lint.yml and test.yml carry, and
+    # ready_for_review is a trigger type above for the same reason
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     # a download, a node and a hundred blocks of regtest, all of it local:
     # a run past this is a node that never opened its rpc port. The four

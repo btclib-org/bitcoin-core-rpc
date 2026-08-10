@@ -12,6 +12,15 @@ in this file — read it before upgrading, rather than a digit.
 
 ## v2026.9 (work in progress, not released yet)
 
+The repository's default branch is `main`, and it is the only one: `master`
+was renamed to it and `dev` is gone. GitHub redirects the old links and
+retargets open pull requests, so nothing breaks on its own; a clone follows
+with `git fetch origin && git remote set-head origin -a`, and a branch
+still based on `dev` is rebased onto `main`. The upstream url in the module
+docstring — the one a vendored copy is asked to record beside itself —
+names `main`, and the repository name this one was renamed from is
+corrected with it.
+
 ## v2026.8.8
 
 The body of a failure is bounded by `timeout` now, not only by

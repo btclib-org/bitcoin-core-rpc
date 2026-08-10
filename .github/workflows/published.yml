@@ -65,14 +65,9 @@ jobs:
       ${{ matrix.no-binary && 'Build' || 'Install' }}
       ${{ matrix.python-version }} from PyPI on ${{ matrix.os }}
     # a draft pull request is work in progress and spends no runner
-    # here either, the release pull request excepted: dev -> master is
-    # a draft from one release to the next, and its runs are what
-    # checks a commit merged into dev. The same condition lint.yml and
-    # test.yml carry, and ready_for_review is a trigger type above for
-    # the same reason
-    if: >-
-      ${{ !github.event.pull_request.draft
-      || github.base_ref == 'master' }}
+    # here either: the same condition lint.yml and test.yml carry, and
+    # ready_for_review is a trigger type above for the same reason
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:

@@ -298,26 +298,22 @@ commits the review is attached to: the reviewer loses the diff they read,
 check starts again from a commit nobody has seen. Add the fix on top, with
 a message saying what it fixes, and reply to the comment with the sha.
 
-Nothing is lost in `dev`'s history by doing so, because **a pull request
-into `dev` is merged with "Squash and merge"**: the branch becomes one
-commit whose subject is the PR title with its number, so the review's
-commits are the record of the review and `dev` keeps one commit per landed
-change.
-
-**The pull request that takes `dev` into `master` is merged with "Rebase
-and merge"**. Read the button before clicking it: all three methods are
-enabled on the repository, and GitHub offers whichever was used last. A
-squash there would fold every change `dev` has landed since the previous
-merge into a single commit, and that history would then be on `dev` alone.
+Nothing is lost in `main`'s history by doing so, because **a pull request
+is merged with "Squash and merge"**: the branch becomes one commit whose
+subject is the PR title with its number, so the review's commits are the
+record of the review and `main` keeps one commit per landed change. Read
+the button before clicking it: all three methods are enabled on the
+repository, and GitHub offers whichever was used last.
 
 The one force-push that stays right is the one that carries no new work: a
-`git rebase origin/dev` on a branch whose base has moved, which is how a
+`git rebase origin/main` on a branch whose base has moved, which is how a
 stale pull request is refreshed. Re-run the gates after it, never only
 before it, and say in the pull request that the head moved and why.
 
-Work happens on `dev`; `master` is the default branch and receives merges
-from it. Dependabot and pre-commit.ci both target `dev`.
-[RELEASING.md](./RELEASING.md) is what happens after that.
+**`main` is the only branch**, and every change reaches it through a pull
+request — a contributor's, a maintainer's, Dependabot's and
+pre-commit.ci's alike. A release is a tag on it rather than a branch of
+its own; [RELEASING.md](./RELEASING.md) is what happens after that.
 
 ## Your PR is merged
 
