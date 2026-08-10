@@ -80,6 +80,19 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **The distribution files are reproducible**: a rebuild of a released tag
+  is the same bytes as what was published, so the provenance attestation
+  can be verified against a file the verifier built rather than one they
+  downloaded. `release.yml` exports `SOURCE_DATE_EPOCH` from the commit
+  date, which is the whole of it for the wheel, and runs
+  `.github/scripts/normalize_sdist.py` for the sdist -- setuptools stages
+  that archive in a directory it creates at build time and tars it as the
+  first member, whose sub-second timestamp `SOURCE_DATE_EPOCH` does not
+  reach and whose PAX record therefore changes length between two builds
+  of one commit. The script rewrites member metadata and no content.
+  RELEASING.md has the rebuild command, and the two bounds on the
+  guarantee: the build backend is resolved rather than pinned, and a
+  TestPyPI rehearsal is a different version by construction
 - **The distribution files attached to a GitHub release carry
   provenance**, where until now only the copies on PyPI did: the publish
   action generates PEP 740 attestations for what it uploads to the index,

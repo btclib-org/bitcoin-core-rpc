@@ -175,6 +175,17 @@ jobs:
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           enable-cache: false
+      # what makes the wheel this job publishes reproducible: without it
+      # setuptools stamps the zip entries with the mtimes of the checkout,
+      # so the same commit built twice gives two digests and the
+      # attestation below vouches for bytes nobody else can obtain. The
+      # commit date, not the tag's: `git log -1` on a shallow clone reads
+      # the tip, which is the commit the tag points at, and a lightweight
+      # tag has no date of its own to prefer.
+      # RELEASING.md has the command that rebuilds a released tag and
+      # compares it against what PyPI serves
+      - name: Pin the build timestamp to the commit
+        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
       # TestPyPI refuses a version it has already seen: the rehearsal
       # appends .dev<run number>, unique per dispatch and sorted before
       # the release it rehearses (PEP 440). Re-running a finished
@@ -246,6 +257,19 @@ jobs:
       # too
       - name: Build the distribution files
         run: uv build
+      # SOURCE_DATE_EPOCH reaches every entry of the wheel and every
+      # *file* of the sdist, and stops at the directory setuptools stages
+      # the sdist in: that member keeps the build clock, to sub-second
+      # precision, in a PAX record whose length changes with it. The script
+      # rewrites member metadata and no content, and its docstring has the
+      # measurement. --no-project, so this runs on the interpreter uv
+      # already fetched and installs nothing into the tree it is about to
+      # publish
+      - name: Make the sdist reproducible too
+        run: |
+          uv run --no-project --python 3.14 \
+            .github/scripts/normalize_sdist.py dist/
+          sha256sum dist/*
       # before anything is installed, and that ordering is the point: the
       # step below runs third-party code -- a `.pth` file in a dependency
       # executes at interpreter startup, before the first import -- while

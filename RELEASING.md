@@ -373,6 +373,39 @@ wrong — it says the next bump is going to be work.
    one landed change at a time, and opening it now is what keeps the next
    cycle's body from being reconstructed from the diff on release day.
 
+## Rebuild a release from its tag
+
+The release job exports `SOURCE_DATE_EPOCH` from the commit date and
+normalizes the sdist, so a rebuild of a released tag is the same bytes as
+what was published. Anyone can check that, and the check is one command
+short of the provenance one above: verify the *rebuilt* file rather than a
+downloaded one, and it can only pass if the digests agree.
+
+```shell
+git checkout v2026.8.8
+SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) uv build
+uv run --no-project --python 3.14 .github/scripts/normalize_sdist.py dist/
+repo=btclib-org/bitcoin-core-rpc
+gh attestation verify dist/bitcoin_core_rpc-2026.8.8-py3-none-any.whl \
+  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
+gh attestation verify dist/bitcoin_core_rpc-2026.8.8.tar.gz \
+  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
+```
+
+Two things bound that guarantee, and both are worth knowing before
+reading a mismatch as tampering:
+
+- **the build backend is resolved, not pinned.** `[build-system] requires`
+  asks for `setuptools>=77` and an isolated build takes whatever is
+  current, so a rebuild months later runs a setuptools the release never
+  saw. A mismatch dates the rebuild before it accuses anyone; pinning the
+  backend to a version is the fix, and the cost is a floor that ages.
+- **the rehearsal is a different version, by construction.** A TestPyPI
+  dispatch appends `.dev<run number>` to the version, so its files are not
+  a second build of the release's — they are their own artifact, published
+  where they say they are. The attestation the rehearsal writes covers
+  those, and no digest is shared with the release.
+
 ## If something goes wrong
 
 - The workflow failed before the `publish-pypi` job: nothing was
