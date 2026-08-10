@@ -187,6 +187,7 @@ __all__ = [
     "HttpError",
     "HttpTransport",
     "Network",
+    "RpcChannel",
     "RpcError",
     "chain_from_network",
     "cookie_auth",
@@ -1626,6 +1627,7 @@ class BitcoinCoreRpcClient:
         cookie_path: str | PathLike[str] | None = None,
         timeout: float = DEFAULT_TIMEOUT,
         transport: HttpTransport = urlopen_transport,
+        verify_chain: bool = False,
     ) -> BitcoinCoreRpcClient:
         """Return a client for the local node of one of Core's chains.
 
@@ -1641,7 +1643,21 @@ class BitcoinCoreRpcClient:
 
         It asks the node nothing, so it is no claim that one is listening
         on that port, nor that it serves this chain if it is. The first
-        `call` is what finds out.
+        `call` is what finds out -- unless `verify_chain` says to make
+        that call now, with `getblockchaininfo`, and compare its `chain`
+        field to this one.
+
+        Off by default, because a cookie only authenticates that the node
+        is the one this call was told about -- a file only that node
+        could have written -- and says nothing about which chain it is
+        running: `-chain=test` and a `main` cookie both exist, and cookie
+        authentication cannot tell them apart. A caller for whom that gap
+        matters -- a cookie path or a datadir carried over from a
+        differently-configured host, an environment variable naming the
+        wrong chain -- opts in and gets `BtcRpcValueError` naming both
+        chains instead of a wrong-network call succeeding silently. The
+        round trip is the cost, paid once here rather than trusted to
+        every call this client makes afterwards.
 
         The datadir is asked for here rather than read off
         `DEFAULT_DATADIR`, so that the `HOME` of this call is the one that
@@ -1666,7 +1682,7 @@ class BitcoinCoreRpcClient:
                 err_msg += " and password"
                 raise BtcRpcValueError(err_msg)
             cookie_path = datadir / datadir_subdir_from_chain(chain) / ".cookie"
-        return cls(
+        client = cls(
             f"http://127.0.0.1:{port}",
             user=user,
             password=password,
@@ -1674,6 +1690,13 @@ class BitcoinCoreRpcClient:
             timeout=timeout,
             transport=transport,
         )
+        if verify_chain:
+            reported = client.call("getblockchaininfo")["chain"]
+            if reported != chain:
+                err_msg = f"node at {client.url} reports chain {reported!r},"
+                err_msg += f" not the {chain!r} this client was built for"
+                raise BtcRpcValueError(err_msg)
+        return client
 
     def for_wallet(self, wallet_name: str) -> BitcoinCoreRpcClient:
         """Return a client for this node's `/wallet/<name>` endpoint.
@@ -1835,3 +1858,77 @@ class BitcoinCoreRpcClient:
             err_msg += " nor the legacy reply that carries no version at all"
             raise FetchError(err_msg)
         return _v2_result(where, request_id, status, reply)
+
+
+class RpcChannel:
+    """Attribute-style convenience over a client's `call`.
+
+    `channel.getblockcount()` is `client.call("getblockcount")`.
+    `channel.getblock(block_hash, 2)` passes the positional form,
+    `channel.getblock(blockhash=block_hash, verbosity=2)` the named one
+    -- whichever the caller wrote, since json-rpc has one params shape
+    per call and not both at once.
+
+    `request_timeout` and `max_body_size`, `call`'s own keyword-only
+    controls, are reserved here the same way they are reserved there:
+    caught by the wrapper and passed to `call` itself, rather than
+    travelling to the node as a named rpc parameter. That reservation is
+    the reason this class lives here rather than in a caller's own
+    script: it has to know which names are `call`'s own to keep them out
+    of `params`, that list is this module's to grow, and a copy written
+    against one release is silently wrong against a later one that adds
+    a third control -- neither mypy nor a test catches a keyword that
+    now reaches Core instead of this class. One copy, kept current by
+    the package that defines what it must exclude.
+
+    A hand-written guard sits in front of every name starting with `_`,
+    dunders included. Without it, `copy.deepcopy`, a pickling path this
+    object does not otherwise reach, and an interactive shell probing
+    for `_repr_html_` or `_ipython_canary_method_should_not_exist_`
+    would each turn into a bound method for an rpc call of that name --
+    and calling one is not the same failure as an `AttributeError` a
+    caller can catch by name.
+
+    `client`, the one public attribute, is reserved for the same reason:
+    it is how a caller reaches the `BitcoinCoreRpcClient` this channel
+    wraps, and an rpc method named `client` -- Core has none -- would
+    otherwise shadow it.
+
+    Not `BitcoinCoreRpcClient.__getattr__`: that class stays the explicit
+    surface `call(method, params)` is, where an unknown attribute is an
+    `AttributeError` and `for_walet("hot")` a typo caught at the call
+    rather than one more method name sent to the node. This is the
+    opt-in beside it, for a caller who has weighed that trade the other
+    way for a given script.
+    """
+
+    __slots__ = ("client",)
+
+    def __init__(self, client: BitcoinCoreRpcClient) -> None:
+        self.client = client
+
+    def __getattr__(self, method: str) -> Callable[..., Any]:
+        """Return a bound call to `method`, unless its name starts with `_`."""
+        if method.startswith("_"):
+            raise AttributeError(method)
+
+        def bound_call(
+            *args: Any,
+            request_timeout: float | None = None,
+            max_body_size: int = DEFAULT_MAX_BODY_SIZE,
+            **kwargs: Any,
+        ) -> Any:
+            if args and kwargs:
+                err_msg = f"{method}: positional and named arguments together,"
+                err_msg += " json-rpc params being one shape or the other"
+                raise BtcRpcValueError(err_msg)
+            params: Sequence[Any] | Mapping[str, Any] | None
+            params = kwargs or (list(args) if args else None)
+            return self.client.call(
+                method,
+                params,
+                request_timeout=request_timeout,
+                max_body_size=max_body_size,
+            )
+
+        return bound_call

@@ -71,6 +71,7 @@ from bitcoin_core_rpc import (
     FetchError,
     HttpError,
     Network,
+    RpcChannel,
     RpcError,
     chain_from_network,
     cookie_auth,
@@ -322,6 +323,72 @@ def test_from_chain_takes_credentials_instead_of_a_cookie() -> None:
     )
     assert endpoint.cookie_path is None
     assert endpoint.user == RPC_USER
+
+
+def test_from_chain_does_not_verify_the_chain_by_default() -> None:
+    """No call is made unless `verify_chain` asks for one.
+
+    A transport that raises on any request is how this is checked: the
+    node -- or whatever answers in its place -- is never reached, which
+    is the promise `from_chain`'s docstring makes about the constructor
+    on its own.
+    """
+
+    def refuses(  # pragma: no cover -- never called is the point of the test
+        _request: Request, _timeout: float
+    ) -> tuple[int, bytes]:
+        err_msg = "from_chain reached the node without being asked to"
+        raise AssertionError(err_msg)
+
+    endpoint = BitcoinCoreRpcClient.from_chain(
+        "regtest", user=RPC_USER, password=RPC_PASSWORD, transport=refuses
+    )
+    assert endpoint.user == RPC_USER
+
+
+def test_from_chain_can_verify_the_chain_it_reaches() -> None:
+    """`verify_chain` asks `getblockchaininfo` and compares its `chain`.
+
+    A cookie only authenticates the node that wrote it, not which chain
+    that node is running, so this is the one call `from_chain` makes when
+    told to -- and the client it returns is the same client a matching
+    chain always builds.
+    """
+    reply = json.dumps({"result": {"chain": "regtest"}, "error": None, "id": "x"})
+    transport = Echoing((200, reply.encode()))
+    endpoint = BitcoinCoreRpcClient.from_chain(
+        "regtest",
+        user=RPC_USER,
+        password=RPC_PASSWORD,
+        transport=transport,
+        verify_chain=True,
+    )
+    assert endpoint.user == RPC_USER
+    assert len(transport.requests) == 1
+    assert json.loads(transport.body)["method"] == "getblockchaininfo"
+
+
+def test_from_chain_refuses_a_node_on_the_wrong_chain() -> None:
+    """A cookie or a datadir carried over from elsewhere, caught at the call.
+
+    `-chain=test` and a cookie or a datadir written for `main` both exist,
+    and cookie authentication cannot tell them apart -- `verify_chain` is
+    the caller's way of finding out instead of a wrong-network call
+    succeeding silently.
+    """
+    reply = json.dumps({"result": {"chain": "test"}, "error": None, "id": "x"})
+    transport = Echoing((200, reply.encode()))
+    with pytest.raises(
+        BtcRpcValueError,
+        match="reports chain 'test', not the 'main' this client was built for",
+    ):
+        BitcoinCoreRpcClient.from_chain(
+            "main",
+            user=RPC_USER,
+            password=RPC_PASSWORD,
+            transport=transport,
+            verify_chain=True,
+        )
 
 
 def test_connection_controls_are_keyword_only() -> None:
@@ -1910,3 +1977,101 @@ def test_a_custom_transport_owns_its_allocation_bound() -> None:
     # and the same answer is fine when the call allows its weight, which
     # is what says the limit is the caller's and not the transport's
     assert len(endpoint.call("getblockcount", max_body_size=4096)) == 2048
+
+
+def test_channel_calls_with_no_arguments() -> None:
+    """`channel.getblockcount()` is `client.call("getblockcount")`."""
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    assert RpcChannel(endpoint).getblockcount() == TIP_HEIGHT
+    request = sent(endpoint)
+    assert request["method"] == "getblockcount"
+    assert request["params"] == []
+
+
+def test_channel_calls_with_positional_arguments() -> None:
+    """Positional arguments become the sequence form of `params`."""
+    reply = json.dumps({"result": None, "error": None, "id": "x"}).encode()
+    endpoint = client((200, reply))
+    RpcChannel(endpoint).getblock(TX_ID, 2)
+    request = sent(endpoint)
+    assert request["method"] == "getblock"
+    assert request["params"] == [TX_ID, 2]
+
+
+def test_channel_calls_with_named_arguments() -> None:
+    """Named arguments become the mapping form, json-rpc's other shape."""
+    reply = json.dumps({"result": None, "error": None, "id": "x"}).encode()
+    endpoint = client((200, reply))
+    RpcChannel(endpoint).getblock(blockhash=TX_ID, verbosity=2)
+    request = sent(endpoint)
+    assert request["method"] == "getblock"
+    assert request["params"] == {"blockhash": TX_ID, "verbosity": 2}
+
+
+def test_channel_refuses_positional_and_named_together() -> None:
+    """json-rpc has one params shape per call, not both at once."""
+    channel = RpcChannel(client())
+    with pytest.raises(BtcRpcValueError, match="positional and named arguments"):
+        channel.getblock(TX_ID, verbosity=2)
+
+
+def test_channel_reserves_calls_own_controls() -> None:
+    """`request_timeout` and `max_body_size` reach `call`, not the node.
+
+    A method that happened to be named one of them would be unreachable
+    through the attribute form -- the same reservation `call` already
+    makes for its own signature, so the channel does not open a hole `call`
+    itself does not have.
+    """
+    oversized = b'{"jsonrpc":"2.0","result":' + b"9" * 1100 + b',"id":"x"}'
+    channel = RpcChannel(client((200, oversized)))
+    with pytest.raises(FetchError, match="more than the max_body_size of 1024"):
+        channel.getblockcount(max_body_size=1024)
+
+    reply = json.dumps({"result": TIP_HEIGHT, "error": None, "id": "x"}).encode()
+    endpoint = client((200, reply))
+    channel = RpcChannel(endpoint)
+    assert channel.getblockcount(request_timeout=5) == TIP_HEIGHT
+    assert sent(endpoint)["params"] == []
+
+
+def test_channel_client_is_the_wrapped_client() -> None:
+    """`client`, the one public attribute, reaches the object it wraps.
+
+    Reserved rather than derived through `__getattr__`, so a node method
+    named `client` -- Core has none -- would not shadow it.
+    """
+    endpoint = client()
+    assert RpcChannel(endpoint).client is endpoint
+
+
+def test_channel_guards_every_name_starting_with_underscore() -> None:
+    """No underscored name reaches the node, dunders included.
+
+    `copy.deepcopy`, absent an explicit `__deepcopy__`, asks the instance
+    for one before falling back to its own generic reconstruction --
+    which is what makes an unguarded `__getattr__` turn that lookup into a
+    bound call for an rpc method literally named `__deepcopy__`. A
+    transport that raises on any request is how this is checked: nothing
+    here may reach it.
+    """
+
+    def refuses(  # pragma: no cover -- never called is the point of the test
+        _request: Request, _timeout: float
+    ) -> tuple[int, bytes]:
+        err_msg = "an underscored attribute reached the node"
+        raise AssertionError(err_msg)
+
+    endpoint = BitcoinCoreRpcClient(
+        URL, user=RPC_USER, password=RPC_PASSWORD, transport=refuses
+    )
+    channel = RpcChannel(endpoint)
+    assert getattr(channel, "__deepcopy__", None) is None
+    assert getattr(channel, "__copy__", None) is None
+    with pytest.raises(AttributeError):
+        channel._private  # noqa: B018 -- the access is the point of the test
+
+    # neither reaches the node: the guard raises AttributeError for both
+    # names before `copy` falls back to its own generic reconstruction
+    copy.deepcopy(channel)
+    copy.copy(channel)
