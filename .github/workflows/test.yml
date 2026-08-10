@@ -78,11 +78,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # four, and macos.yml carries the other two: on one run of the
+        # full six every cell finished in under a minute while the macOS
+        # cells waited 15.7 and 13.1 minutes on average for a runner,
+        # against 0.1 to 0.3 here -- so two rows of twelve set the whole
+        # wait of a pull request. What they sample is the standard library
+        # on a platform this module has no branch for, which is worth a
+        # week rather than worth a review's patience
         os:
           - ubuntu-latest
           - ubuntu-24.04-arm
-          - macos-26-intel
-          - macos-latest
           - windows-latest
           - windows-11-arm
         # 3.14t is the free-threaded interpreter, and it belongs here for

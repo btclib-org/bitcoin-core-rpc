@@ -13,8 +13,8 @@ against TestPyPI. A rehearsal is never tagged.
 
 **A workflow GitHub has not registered cannot be dispatched, and it
 registers one only once its file has reached the default branch.** That
-makes `release.yml`, `latest.yml` and `published.yml` — `schedule` and
-`workflow_dispatch` only, so nothing else ever triggers them — answer
+makes `release.yml`, `latest.yml`, `macos.yml` and `published.yml` — no
+trigger among them that a commit or a pull request fires — answer
 `gh: Not Found (HTTP 404)` until the pull request adding it is merged. It
 bites once, on the first release after any of them is written, and it
 inverts the order below: the TestPyPI rehearsal that this file asks for
@@ -140,16 +140,17 @@ PyPI.
    attached anywhere — and the attestation it records names a `.dev`
    version nothing resolves.
 
-## Ask a live node first
+## A live node has already been asked
 
-The recorded replies say what Core sent when they were recorded. Before a
-release, ask two live nodes whether it still sends that: Actions →
-rpc-smoke → Run workflow, which downloads a pinned bitcoind of each version
-in its matrix, verifies the archive against a digest written in the
-workflow, and runs `.github/scripts/rpc_smoke.py` against a regtest chain
-it generates. CONTRIBUTING.md has the same command for a node of your own.
+The recorded replies say what Core sent when they were recorded, and whether
+Core still sends that is checked on every pull request: `rpc-smoke.yml` is a
+required check, and `release.yml` calls it again on the tag. Nothing to
+dispatch here, and nothing to remember -- the step this section used to be
+is what the required check replaced.
 
-It gates nothing automatically, which is why it is a step here.
+Dispatch it by hand only to ask about a Core version the matrix does not
+carry, or when a run needs repeating without a push: Actions → rpc-smoke →
+Run workflow. CONTRIBUTING.md has the same command for a node of your own.
 
 ## Release to PyPI
 
@@ -310,14 +311,17 @@ wrong — it says the next bump is going to be work.
    https://github.com/btclib-org/bitcoin-core-rpc` checks the
    signature rather than merely its presence.
 
-1. Dispatch the `published` workflow (Actions → published → Run workflow)
-   and expect it green: it installs what was just uploaded from PyPI, on
-   every platform test.yml builds for and at both ends of the supported
-   interpreter range, and round-trips a JSON-RPC call against it. From
-   then on it runs weekly on its own, and a failure means the outside
-   world moved, not this repository — a new runner image, an interpreter
-   release, PyPI serving a file that does not match its own hash — which
-   is why it is a workflow of its own rather than a job of this one.
+1. Read the `published` job of the release run, which needs no dispatch:
+   `release.yml` calls that workflow once PyPI has accepted the files, with
+   the tag's version, and it waits for the index to serve that version
+   before installing anything — so it cannot pass by testing the release
+   before this one. It installs from PyPI on every platform test.yml builds
+   for and at both ends of the supported interpreter range, and round-trips
+   a JSON-RPC call against it. From then on it runs monthly on its own, and
+   a failure means the outside world moved, not this repository — a new
+   runner image, an interpreter release, PyPI serving a file that does not
+   match its own hash — which is why it is a workflow of its own rather
+   than a job of this one.
 
 1. Check the GitHub release the previous step's workflow run created: its
    notes are the tag's section of HISTORY.md, and the distribution files

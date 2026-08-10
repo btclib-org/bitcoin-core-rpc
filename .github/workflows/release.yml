@@ -182,6 +182,16 @@ jobs:
     name: Run the docs workflow
     uses: ./.github/workflows/docs.yml
 
+  # and the platform the merge gate does not wait for: macos.yml runs
+  # weekly, so a regression there could otherwise sit on main until the
+  # Thursday after the tag. Not gated on version-check either, being one
+  # more cheap parallel answer -- cheap in work, that is: it is the slowest
+  # call here in wall clock, and a release is the one place that is worth
+  # paying for
+  macos:
+    name: Run the macos workflow
+    uses: ./.github/workflows/macos.yml
+
   build:
     name: Build the wheel and the sdist
     needs: version-check
@@ -340,7 +350,7 @@ jobs:
 
   publish-testpypi:
     name: Publish to TestPyPI
-    needs: [test, lint, docs, build]
+    needs: [test, lint, docs, macos, build]
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.repository == 'btclib-org/bitcoin-core-rpc'
@@ -366,7 +376,7 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [test, lint, docs, build]
+    needs: [test, lint, docs, macos, build]
     if: >-
       github.event_name == 'push' &&
       github.repository == 'btclib-org/bitcoin-core-rpc'
@@ -410,6 +420,20 @@ jobs:
   # permission and an API that would otherwise be exercised for the first
   # time on release day, where a failure lands after PyPI has the files
   # and the tag can no longer be moved
+  # what RELEASING.md used to ask for by hand, right here: the sentinel on
+  # what the index serves, against the version this run just published. It
+  # waits for the file to be served before installing, so it cannot pass by
+  # testing the previous release, and it runs beside github-release rather
+  # than before it -- a release announcing files that do not install is
+  # worse than a release announced a minute later, but the announcement is
+  # not what makes them installable
+  published:
+    name: Install the published version from PyPI
+    needs: publish-pypi
+    uses: ./.github/workflows/published.yml
+    with:
+      version: ${{ github.ref_name }}
+
   attest:
     name: Attest the distribution files
     needs: [publish-pypi, publish-testpypi]

@@ -1,0 +1,111 @@
+---
+name: macos
+
+# the platform the merge gate does not wait for. test.yml runs four
+# operating systems on every pull request and this one runs the two macOS
+# images, weekly and before a release, because macOS is where the wait came
+# from: measured on one pull request run of the full six, each cell finishes
+# in under a minute while the macOS cells wait 15.7 and 13.1 minutes on
+# average for a runner, against 0.1 to 0.3 for ubuntu and windows. 45 jobs,
+# 17 minutes of work, 212 minutes of queueing. The command that re-derives
+# it, for whoever doubts the split later:
+#
+#     id=$(gh run list --workflow=test.yml --limit 1 \
+#         --json databaseId --jq '.[0].databaseId')
+#     gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100"
+#
+# What these cells buy is narrower than the count suggests, and the reason
+# is in the client: there is no platform-conditional branch in it at all --
+# `default_datadir` returns `~/.bitcoin` and says so, since "guessing per
+# platform would put two branches here that no test on a third can reach",
+# and the coverage job in test.yml records the same property from the other
+# side, no sys.platform and no sys.version_info anywhere. So what runs here
+# is the standard library under the module -- `Path.home()`, `pathlib`,
+# `decimal`, `urllib` -- on the one platform family the gate no longer
+# samples.
+#
+# A workflow of its own rather than a row in latest.yml, and that is the
+# whole design: this one holds the dependencies at the lock and moves the
+# platform, latest.yml moves the dependencies over every platform, and the
+# two are scheduled on the same morning half an hour apart. A red macOS
+# column in latest.yml with this workflow green is an upgrade; red in both
+# is macOS. One variable each, and the pair reads as a difference.
+#
+# It gates no commit and no merge -- a macOS regression sits on main for at
+# most a week -- but release.yml calls it, so one cannot be published
+
+on:
+  schedule:
+    # Thursday, the morning latest.yml also runs, and thirty minutes before
+    # it: the two answer halves of the same question and are worth reading
+    # together. A minute that is not the hour, as every schedule here, so
+    # that the run does not queue behind everything else cron starts.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "13 4 * * 4"
+  # lets release.yml gate a publication on this platform too, which is what
+  # keeps a weekly sentinel from being the only thing that ever asks
+  workflow_call:
+  # the escape hatch: the platform on demand, for a branch that touches
+  # anything a path or a home directory reaches
+  workflow_dispatch:
+
+# least privilege for the GITHUB_TOKEN: everything running in a job
+# (actions, dependencies) can read the token, so it must not be able to
+# write to the repository
+permissions:
+  contents: read
+
+# cancel superseded runs: the subject here is the commit, which a newer one
+# supersedes. Named literally rather than with github.workflow, which in a
+# called workflow is the caller's name -- release.yml calls this one
+# alongside test.yml, and with that expression the two would share a group
+# and cancel each other
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suite-macos:
+    name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # every cell to the end: which interpreter fails on which image is
+      # the whole answer, and stopping at the first one hides the rest
+      fail-fast: false
+      matrix:
+        # the two images test.yml no longer carries. Both, and not the
+        # newest alone: one is Apple silicon and the other Intel, and what
+        # differs between them is the architecture the interpreter targets
+        os:
+          - macos-26-intel
+          - macos-latest
+        # the interpreter set test.yml runs, unchanged: this workflow moves
+        # the platform and nothing else, so a difference between the two is
+        # attributable to the platform
+        python:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+          - "3.14t"
+          - "pypy3.11"
+    # far above what a run of the suite needs, and it bounds a hung job
+    # rather than a slow one: the queueing this workflow exists to move
+    # happens before a job starts and is not counted here
+    timeout-minutes: 30
+    steps:
+      # the three steps of test.yml's suite job, and each `with:` there
+      # carries the reason for itself
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      - name: Run pytest
+        run: uv run --locked --no-default-groups --group test pytest
