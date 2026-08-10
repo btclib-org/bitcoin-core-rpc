@@ -93,6 +93,15 @@ carry a union merge driver that would keep both sides' numbers.
   RELEASING.md has the rebuild command, and the two bounds on the
   guarantee: the build backend is resolved rather than pinned, and a
   TestPyPI rehearsal is a different version by construction
+- **The documentation build is a workflow of its own**, `docs.yml`, where it
+  was the second job of `lint.yml`: a failed sphinx build and a failed hook
+  are two different verdicts, and a workflow each is what gives them a badge
+  each and a line each in the checks list. The job keeps its name, `Build the
+  documentation`, so the required check on `main` did not have to move -- a
+  context is matched by name and not by the workflow that reported it, which
+  is what makes moving a job free where renaming one is not. `release.yml`
+  calls the new workflow alongside `test.yml` and `lint.yml`, so a tag still
+  cannot publish docstrings that read the docs would fail to render
 - **The distribution files attached to a GitHub release carry
   provenance**, where until now only the copies on PyPI did: the publish
   action generates PEP 740 attestations for what it uploads to the index,
