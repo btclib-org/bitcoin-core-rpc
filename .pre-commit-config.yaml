@@ -197,7 +197,7 @@ repos:
   # ([tool.typos]) has the whole of the reasoning and the configuration, as
   # for codespell
   - repo: https://github.com/crate-ci/typos
-    rev: v1.49.0
+    rev: v1
     hooks:
       - id: typos
         name: typos (identifiers and hyphenated words, in place fixes)
@@ -392,6 +392,6 @@ repos:
         args: [--no-build-isolation]
         additional_dependencies: [setuptools]
   - repo: https://github.com/regebro/pyroma
-    rev: "5.0.1"
+    rev: "5.1b1"
     hooks:
       - id: pyroma
