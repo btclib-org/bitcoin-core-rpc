@@ -70,7 +70,8 @@ socket — which is what keeps the suite hermetic, not the absence of a node.
   below are the evidence; `cancelled` is not `failure`.
 - **A draft pull request runs no CI at all**, every workflow carrying
   `if: ${{ !github.event.pull_request.draft }}`. Mark it ready to be
-  checked; `tests-passed` is required, and a required check that never
+  checked; `test: every job passed` is required, and a required check that
+  never
   reports blocks the merge rather than passing it.
 - **`.pre-commit-config.yaml` is the lint gate**, and `lint.yml`'s first
   job runs exactly it. Never add a second list of the same tools to a

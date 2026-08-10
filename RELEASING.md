@@ -99,7 +99,7 @@ one, and TestPyPI's rehearsal does the same there.
 ## Rehearse on TestPyPI
 
 A rehearsal runs the identical pipeline — lint gate, test matrix, the
-packaging checks of the `dist-py` job (twine, check-wheel-contents,
+packaging checks of the `dist` job (twine, check-wheel-contents,
 pyroma), build, wheel smoke test — and publishes to
 [TestPyPI](https://test.pypi.org/project/bitcoin-core-rpc/) instead of
 PyPI.

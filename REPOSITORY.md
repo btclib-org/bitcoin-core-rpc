@@ -20,15 +20,17 @@ being unmetered.
 
 **Never name matrix contexts in the branch rule.** The rule lives outside
 the repository, so a context that stops being produced blocks every merge
-with nothing in the tree to explain why. `tests-passed` is an aggregate job
-at the end of `test.yml` that `needs` the matrix; a new job in `test.yml`
-belongs in that job's `needs`, or it gates nothing.
+with nothing in the tree to explain why. `test: every job passed` is an
+aggregate job at the end of `test.yml` that `needs` the matrix; a new job in
+`test.yml` belongs in that job's `needs`, or it gates nothing. The name
+carries the workflow because a context is keyed by name alone: two
+workflows with a job named the same thing produce one ambiguous check.
 
 `main` requires four checks, and only four:
 
 | Check | Produced by |
 | --- | --- |
-| `tests-passed` | `test.yml`, aggregate over the matrix |
+| `test: every job passed` | `test.yml`, aggregate over the matrix |
 | `Lint and type-check` | `lint.yml`, first job |
 | `CodeQL` | code scanning default setup |
 | `Build the documentation` | `docs.yml`, its only job |
@@ -70,6 +72,30 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 **PATCH that sub-endpoint, never PUT the whole protection object**: a
 partial PUT drops the signatures and the rest. Repeat `strict: true` in
 the body, which replaces the object rather than merging into it.
+
+Renaming a required check is the one change that cannot be made in a pull
+request. The rule names a context by the job's display name, so the pull
+request that renames the job stops producing the old name and never
+produces a check the rule is still waiting for -- and with
+`enforce_admins` on there is nothing to override. The rule moves first,
+against the branch, and then the pull request that renames the job reports
+the name the rule now wants:
+
+```shell
+branch=repos/btclib-org/bitcoin-core-rpc/branches/main
+gh api -X PATCH "$branch"/protection/required_status_checks \
+  -F strict=true \
+  -f 'checks[][app_id]=15368' -f 'checks[][context]=test: every job passed' \
+  -f 'checks[][app_id]=15368' -f 'checks[][context]=Lint and type-check' \
+  -f 'checks[][app_id]=57789' -f 'checks[][context]=CodeQL' \
+  -f 'checks[][app_id]=15368' -f 'checks[][context]=Build the documentation'
+```
+
+Between the two, every open pull request that predates the rename is
+blocked until it is rebased, which is the reason to do it with none open
+but the one doing the renaming. Moving a job to another workflow needs none
+of this: the name is what the rule matches, and `Build the documentation`
+kept reporting when it left `lint.yml` for `docs.yml`.
 
 Neither `mutation.yml`, `links.yml`, `latest.yml` nor `rpc-smoke.yml`
 appears in the rule, and none of them must: each is expected to go red for

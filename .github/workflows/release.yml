@@ -18,6 +18,18 @@ on:
 permissions:
   contents: read
 
+# never two runs of this workflow at once, and never a cancellation: the
+# other workflows cancel a superseded run because their subject is the
+# commit, and a newer commit supersedes the answer. Here the subject is a
+# publication -- a version on an index, an attestation, a release -- so a
+# second run is a second attempt at the same side effects, and cancelling
+# one halfway is how a version reaches PyPI with no release cut for it.
+# Named literally, as everywhere else: github.workflow in a called workflow
+# is the caller's name, and this one calls three
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   # what a version cannot survive being wrong about, checked before
   # anything is built and long before anything is uploaded: a version is
@@ -38,7 +50,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the test-py job in test.yml
+          # see the checkout of the suite job in test.yml
           persist-credentials: false
       # caching off in this workflow, unlike every other: a cache entry is
       # written by whichever run populated it, and read here through the
@@ -151,6 +163,7 @@ jobs:
 
   # the whole build/test matrix, exactly as a pull request runs it
   test:
+    name: Run the test workflow
     needs: version-check
     uses: ./.github/workflows/test.yml
 
@@ -158,6 +171,7 @@ jobs:
   # push could publish code the pre-commit hooks reject. Not gated on
   # version-check: this is the cheap one, and it runs in parallel with it
   lint:
+    name: Run the lint workflow
     uses: ./.github/workflows/lint.yml
 
   # and the documentation build, for the reason the lint call above gives: a
@@ -165,9 +179,11 @@ jobs:
   # build that would fail there fails here first. It has a workflow of its
   # own now, so calling lint.yml no longer covers it
   docs:
+    name: Run the docs workflow
     uses: ./.github/workflows/docs.yml
 
   build:
+    name: Build the wheel and the sdist
     needs: version-check
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -242,14 +258,14 @@ jobs:
           # uv.lock, which otherwise declared the unsuffixed version inside
           # a distribution named for the suffixed one
           uv lock
-      # one thing the rehearsal does not cover, deliberately: dist-py, in
+      # one thing the rehearsal does not cover, deliberately: the dist job, in
       # the workflow this one calls, validates the tree as committed, while
       # this job ships the suffixed version, so twine and pyroma never see
       # the metadata that reaches TestPyPI. What they judge is metadata
       # syntax, README rendering and metadata quality, and a .dev<N> suffix
       # is valid PEP 440 that changes none of them. The smoke test below is
       # the exception, and the reason it is below rather than left to
-      # dist-py: it installs the suffixed wheel itself. Should a packaging
+      # that job: it installs the suffixed wheel itself. Should a packaging
       # check ever become version-sensitive, the suffix has to be plumbed
       # into test.yml as a workflow_call input instead
       # uv build builds the sdist first and then the wheel from it, not
@@ -257,7 +273,7 @@ jobs:
       # from source takes is therefore the one that produced the wheel,
       # which is why no separate "install from the sdist" job is needed.
       # What this job does not do is inspect what it builds: twine,
-      # check-wheel-contents and pyroma run in the dist-py job of the
+      # check-wheel-contents and pyroma run in the dist job of the
       # test workflow, which this workflow calls, so they gate every
       # pull request as well as this one tag. check-manifest is a
       # pre-commit hook, gated by the lint workflow, which this one calls
@@ -289,13 +305,13 @@ jobs:
         with:
           name: dist
           path: dist/
-      # dist-py installs a wheel too, but not this one: it builds its own
+      # the dist job installs a wheel too, but not this one: it builds its own
       # copy, on another runner and -- in a rehearsal -- from another
       # version, the step above having patched pyproject.toml and
       # re-locked. What reaches an index is this artifact, so this one is
       # imported, from an empty directory so the import resolves to the
       # wheel and not to the bitcoin_core_rpc/ package in the source tree.
-      # The assertions are dist-py's, and there for the same reasons: a
+      # The assertions are the dist job's, and there for the same reasons: a
       # wheel can ship no metadata, an import proves only that the module
       # parses, and `Requires-Dist` is the one line that says whether this
       # is still a distribution with nothing behind it
@@ -323,6 +339,7 @@ jobs:
           "
 
   publish-testpypi:
+    name: Publish to TestPyPI
     needs: [test, lint, docs, build]
     if: >-
       github.event_name == 'workflow_dispatch' &&
@@ -348,6 +365,7 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
 
   publish-pypi:
+    name: Publish to PyPI
     needs: [test, lint, docs, build]
     if: >-
       github.event_name == 'push' &&
@@ -393,6 +411,7 @@ jobs:
   # time on release day, where a failure lands after PyPI has the files
   # and the tag can no longer be moved
   attest:
+    name: Attest the distribution files
     needs: [publish-pypi, publish-testpypi]
     # always(), the other publish job being skipped rather than run, and
     # a skipped job is one `needs` treats as failed
@@ -453,6 +472,7 @@ jobs:
   # version published and no release cut, which `gh run rerun --failed`
   # finishes without rebuilding anything
   github-release:
+    name: Attach the files to the GitHub release
     needs: [publish-pypi, attest]
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -71,13 +71,13 @@ read by every checkout of this repository.
 Each command below is the one a CI job runs, verbatim. Keep this section
 true when a workflow changes.
 
-`test.yml`, the `test-py` job — the suite, on one cell of the matrix:
+`test.yml`, the `suite` job — the suite, on one cell of the matrix:
 
 ```shell
 uv run --locked --no-default-groups --group test pytest
 ```
 
-`test.yml`, the `coverage-py` job — the same suite under the 100% ratchet,
+`test.yml`, the `coverage` job — the same suite under the 100% ratchet,
 which a bare `pytest` does not enforce:
 
 ```shell
@@ -86,7 +86,7 @@ uv run --locked --no-default-groups --group test \
     --cov=bitcoin_core_rpc --cov=tests
 ```
 
-`test.yml`, the `dist-py` job — build the distribution files and check
+`test.yml`, the `dist` job — build the distribution files and check
 them:
 
 ```shell

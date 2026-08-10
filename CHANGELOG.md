@@ -80,6 +80,24 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **Every CI job has a name, and the names say what the job answers.** The
+  ids lose a suffix that distinguished nothing -- `test-py`,
+  `coverage-py` and `dist-py` become `suite`, `coverage` and `dist`, there
+  being one language and one package here -- while the suffix that does name
+  a variant stays, `suite-latest` and `install-published` among them. Every
+  job of `test.yml` and `release.yml` now declares a display name, where
+  eleven of them showed their id in the checks list beside the sentences the
+  other workflows wrote. The aggregate gate is `test: every job passed`,
+  which carries its workflow because branch protection keys a context by
+  name alone and two workflows with a job named the same thing produce one
+  ambiguous check; REPOSITORY.md has the `PATCH` that moves the rule and the
+  reason a rename cannot be done in a pull request
+- **`release.yml` has a concurrency group**, the last workflow without one
+  and the only one whose runs have side effects: two runs at once are two
+  attempts at the same publication. `cancel-in-progress: false`, against
+  every other workflow here, and the rule behind both is now written down --
+  a superseded run is cancelled where its subject is the commit, and kept
+  where its subject is a version on an index, an attestation or a release
 - **The distribution files are reproducible**: a rebuild of a released tag
   is the same bytes as what was published, so the provenance attestation
   can be verified against a file the verifier built rather than one they
