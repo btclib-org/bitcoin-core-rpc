@@ -31,13 +31,16 @@ belongs in that job's `needs`, or it gates nothing.
 | `tests-passed` | `test.yml`, aggregate over the matrix |
 | `Lint and type-check` | `lint.yml`, first job |
 | `CodeQL` | code scanning default setup |
-| `Build the documentation` | `lint.yml`, second job |
+| `Build the documentation` | `docs.yml`, its only job |
 
 `Build the documentation` is named on its own on purpose: a rule naming
 `Lint and type-check` alone would leave a red docs build outside the
-required checks entirely. `lint.yml` triggers on `pull_request` with no
-branch and no `paths` filter, so both its jobs report on every pull
-request, forks included.
+required checks entirely. It moved from `lint.yml` to a workflow of its own
+without the rule changing, which is worth knowing before renaming anything:
+a context is matched by name, not by the workflow that reported it, so
+moving a job is free and renaming one is not. `lint.yml` and `docs.yml` both
+trigger on `pull_request` with no branch and no `paths` filter, so both
+report on every pull request, forks included.
 
 `CodeQL` comes from the default setup rather than from a workflow in this
 tree, which is why no `codeql.yml` is here to find: it is a repository

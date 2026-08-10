@@ -103,7 +103,7 @@ second list of tools anywhere:
 uv run --locked --only-group lint pre-commit run --all-files
 ```
 
-`lint.yml`, the `docs` job — and this one is worth running even when every
+`docs.yml`, the `docs` job — and this one is worth running even when every
 hook passes, because no hook reads reStructuredText: a docstring docutils
 cannot parse fails the workflow while pre-commit is green.
 

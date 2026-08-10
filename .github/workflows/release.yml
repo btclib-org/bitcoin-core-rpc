@@ -160,6 +160,13 @@ jobs:
   lint:
     uses: ./.github/workflows/lint.yml
 
+  # and the documentation build, for the reason the lint call above gives: a
+  # tag publishes the docstrings read the docs will render from it, so the
+  # build that would fail there fails here first. It has a workflow of its
+  # own now, so calling lint.yml no longer covers it
+  docs:
+    uses: ./.github/workflows/docs.yml
+
   build:
     needs: version-check
     runs-on: ubuntu-latest
@@ -316,7 +323,7 @@ jobs:
           "
 
   publish-testpypi:
-    needs: [test, lint, build]
+    needs: [test, lint, docs, build]
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.repository == 'btclib-org/bitcoin-core-rpc'
@@ -341,7 +348,7 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
 
   publish-pypi:
-    needs: [test, lint, build]
+    needs: [test, lint, docs, build]
     if: >-
       github.event_name == 'push' &&
       github.repository == 'btclib-org/bitcoin-core-rpc'

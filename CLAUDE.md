@@ -80,7 +80,7 @@ socket — which is what keeps the suite hermetic, not the absence of a node.
   `import bitcoin_core_rpc` in a test would be `Any` and every assertion
   about it would pass vacuously.
 - **`pre-commit` passing is not the lint gate passing: run sphinx too.**
-  `lint.yml`'s second job runs it with `-W`, so a docstring docutils cannot
+  `docs.yml` runs it with `-W`, so a docstring docutils cannot
   parse fails the workflow while every hook passes — a name ending in an
   underscore is a reference to a link target (``mult_``, and the fix is
   those very backticks). Reproduce it before claiming the gate is green:
