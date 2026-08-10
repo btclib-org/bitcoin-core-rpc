@@ -80,6 +80,16 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **A pre-commit rev that is not a released version fails the gate.** The
+  weekly autoupdate pull request has twice offered the same two moves this
+  configuration must not take -- typos onto `v1`, a floating major tag its
+  repository keeps beside the versioned one, and pyroma onto `5.1b1`, 5.1
+  having no released tag -- and twice they were caught by hand, the second
+  time after the merge, which is why the commit is reverted here. A local
+  pygrep hook now names them by line instead. pre-commit itself warns that a
+  mutable reference "is not supported" and exits zero anyway, which is the
+  difference between the warning and this hook. A commit SHA stays
+  acceptable: the pattern requires a prerelease marker to end the value
 - **A pull request waits about three minutes instead of eighteen, and the
   wait was never work.** One run of the full matrix is 45 jobs, 17 minutes
   of compute and 212 minutes of queueing: no cell runs longer than a minute,

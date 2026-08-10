@@ -35,6 +35,37 @@ repos:
     hooks:
       - id: check-hooks-apply
       - id: check-useless-excludes
+  # this file checking itself further, on the two moves `autoupdate` makes
+  # that it must not take. A rev naming only a major version follows every
+  # future release of that major, which is the one thing a rev is here to
+  # prevent -- and a prerelease is not a release.
+  #
+  # Not hypothetical, and not once: pre-commit.ci's weekly pull request has
+  # offered both twice, typos onto `v1` -- its repository keeps a floating
+  # major tag beside the versioned one, and autoupdate prefers the shorter
+  # name -- and pyroma onto 5.1b1, 5.1 having no released tag at all. Both
+  # were caught by hand, once before merging and once after; this hook is
+  # what stops the third time from depending on somebody reading a two-line
+  # diff carefully. The bot's pull request goes red instead, which is what a
+  # rule enforced has over a rule written down.
+  #
+  # pre-commit says the first half itself -- "appears to be a mutable
+  # reference (moving tag / branch) ... not supported" -- on stderr, as a
+  # warning, on a run that then exits zero: which is the whole difference
+  # this hook makes, and the reason it is worth its lines.
+  #
+  # A commit SHA stays acceptable, should a hook ever want one: the pattern
+  # requires the prerelease marker and its digits to end the value, which
+  # forty hex characters do not. Verified against every rev in this file,
+  # none of which it matches, and against `v1` and 5.1b1, both of which it
+  # names by line
+  - repo: local
+    hooks:
+      - id: pinned-rev
+        name: every pre-commit rev names a released version
+        language: pygrep
+        entry: '^ *rev: "?v?([0-9]+|[0-9][0-9.]*(a|b|rc|dev)[0-9]+)"?$'
+        files: ^\.pre-commit-config\.yaml$
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
@@ -197,7 +228,7 @@ repos:
   # ([tool.typos]) has the whole of the reasoning and the configuration, as
   # for codespell
   - repo: https://github.com/crate-ci/typos
-    rev: v1
+    rev: v1.49.0
     hooks:
       - id: typos
         name: typos (identifiers and hyphenated words, in place fixes)
@@ -392,6 +423,6 @@ repos:
         args: [--no-build-isolation]
         additional_dependencies: [setuptools]
   - repo: https://github.com/regebro/pyroma
-    rev: "5.1b1"
+    rev: "5.0.1"
     hooks:
       - id: pyroma
