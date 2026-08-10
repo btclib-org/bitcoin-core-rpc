@@ -60,7 +60,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test-published:
+  install-published:
     name: >-
       ${{ matrix.no-binary && 'Build' || 'Install' }}
       ${{ matrix.python-version }} from PyPI on ${{ matrix.os }}

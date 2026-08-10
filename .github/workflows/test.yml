@@ -19,7 +19,8 @@ on:
     # CONTRIBUTING.md is checked by markdownlint, which is the lint
     # workflow's business.
     # Only on push: the same list on pull_request would be wrong, because
-    # tests-passed is a required check on main and a required check that
+    # "test: every job passed" is a required check on main, and a required
+    # check that
     # produces no run at all blocks the merge instead of passing it
     paths-ignore:
       - "*.md"
@@ -65,7 +66,8 @@ jobs:
   # image, native arm64 for the versions it caches and emulated x86-64
   # for the ones uv has to download, and nothing here is compiled for
   # either
-  test-py:
+  suite:
+    name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
     # a draft pull request is work in progress: every push to one spends
     # the whole matrix on a tree its author is not asking anyone to
     # review yet. The gate below carries the same condition, so a draft
@@ -131,7 +133,8 @@ jobs:
   # The number is a gate rather than a report: fail_under, in
   # tool.coverage.report, fails this job on a regression. It needs no
   # secret and no third party, and it applies to every run
-  coverage-py:
+  coverage:
+    name: Measure coverage, gated at 100%
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -165,7 +168,8 @@ jobs:
   # carries it, and then only yankable. The release workflow calls this
   # one, so it runs these checks too, and its build job builds only what
   # it publishes
-  dist-py:
+  dist:
+    name: Build the distribution and install it
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -253,8 +257,16 @@ jobs:
   # until someone remembers where the rule lives.
   # This job depends on the others instead, so the rule names one thing
   # that never changes and adding a job here is enough to gate on it
-  tests-passed:
-    needs: [test-py, coverage-py, dist-py]
+  test-passed:
+    # the name and not the id is what branch protection matches, and it
+    # carries the workflow on purpose: a context is keyed by name alone, so
+    # two workflows with a job named "every job passed" would produce one
+    # ambiguous check. `lint` and `docs` need no aggregate of their own
+    # while they have one job each -- the job *is* the context there -- and
+    # the day either grows a second one, this pattern and a change to the
+    # rule are what that costs
+    name: "test: every job passed"
+    needs: [suite, coverage, dist]
     # not success(): a job whose dependencies failed is skipped, and a
     # skipped check reports "skipped", which branch protection counts as
     # satisfied. The gate has to run to be able to fail
