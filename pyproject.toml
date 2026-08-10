@@ -307,7 +307,7 @@ skip_covered = true
 precision = 2
 # a local threshold rather than a coveralls.io upload: no secret, no third
 # party service, and enforced on every run instead of only on pull requests
-# targeting master.
+# targeting main.
 # 100 is not the same rule with the bar raised: coverage special-cases it,
 # so `round(total, precision) < fail_under` does not apply and nothing
 # short of an exact 100.00% passes -- 99.999% is a red build, where 99.99

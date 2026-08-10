@@ -15,11 +15,11 @@ against TestPyPI. A rehearsal is never tagged.
 registers one only once its file has reached the default branch.** That
 makes `release.yml`, `latest.yml` and `published.yml` — `schedule` and
 `workflow_dispatch` only, so nothing else ever triggers them — answer
-`gh: Not Found (HTTP 404)` until the release pull request is merged. It
+`gh: Not Found (HTTP 404)` until the pull request adding it is merged. It
 bites once, on the first release after any of them is written, and it
 inverts the order below: the TestPyPI rehearsal that this file asks for
 *before* the merge can only happen after it, still before the tag. It also
-means such a workflow reaches `master` having never run.
+means such a workflow reaches `main` having never run.
 
 ## Which version string is which
 
@@ -27,7 +27,7 @@ Telling these apart is most of what can go wrong when cutting a release.
 
 - **`pyproject.toml`'s own `version`** takes three shapes over one cycle,
   never two at once: `2026.9`, month only, between releases — the
-  placeholder "Open the next cycle" sets, so a checkout of `dev` reports
+  placeholder "Open the next cycle" sets, so a checkout of `main` reports
   itself as work in progress rather than as a release it is not;
   `2026.8.6`, with the day added on release day — calendar versioning,
   `YYYY.M.D` — which is what gets published; and `2026.8.6.1`, a fourth
@@ -105,16 +105,16 @@ pyroma), build, wheel smoke test — and publishes to
 PyPI.
 
 1. On GitHub, Actions → release → Run workflow, and pick the branch to
-   rehearse (usually `dev`).
+   rehearse (usually `main`).
 
 1. The workflow appends `.dev<run number>` to whatever `pyproject.toml`
    declares on the branch dispatched — the outgoing cycle's placeholder if
-   `dev` has not yet been bumped to the version about to ship, which
-   publishes something like `2026.9.dev4` and still tests the identical
-   pipeline the tag will run; the number is not what is being asked about.
+   the version about to ship has not landed yet, which publishes something
+   like `2026.9.dev4` and still tests the identical pipeline the tag will
+   run; the number is not what is being asked about.
    Every rehearsal is unique on TestPyPI this way. It sorts before the
    release it rehearses once that release's own version is the one
-   declared, which is what the rehearsal from `master` below runs on; a
+   declared, which is what the rehearsal after the merge below runs on; a
    placeholder naming a later month sorts after the day it rehearses
    instead, which costs nothing — `.dev` is a pre-release no plain install
    resolves, and the release itself never reaches TestPyPI. Re-running a
@@ -153,6 +153,12 @@ It gates nothing automatically, which is why it is a step here.
 
 ## Release to PyPI
 
+**A release is a tag on `main`, and everything below that edits a file
+does so on a branch of its own.** Nothing is pushed to `main` directly,
+this release included: the steps that retitle the notes and set the
+version are one pull request, the one that opens the next cycle is
+another, and the tag names the commit the first of them left behind.
+
 `latest` is worth dispatching before the tag rather than waiting for its
 cron, because what it answers is cheaper to know before a version is
 consumed than after. It gates nothing, so it will not stop you: reading it
@@ -188,7 +194,7 @@ wrong — it says the next bump is going to be work.
    spelling.
 
    Not a hook and not a job of `lint.yml`, deliberately: the comparison is
-   against the previous *release*, so a break lands on `dev` on purpose and
+   against the previous *release*, so a break lands on `main` on purpose and
    remains a finding until the release that announces it, leaving every
    pull request in between red for something no branch introduced. It exits
    1 on a finding, so the day that reasoning stops holding — a cycle that
@@ -207,89 +213,51 @@ wrong — it says the next bump is going to be work.
    uv lock
    ```
 
-1. Give the pull request that merges `dev` into `master` its title and its
-   body, before merging it and not after. The title is the version; the
-   body says what the release is — what moved, what did not, and which of
-   the two a user would notice. A rebase leaves no merge commit, so none
-   of that reaches `master`'s history: the pull request is where it stays,
-   and where a reader of any commit in it arrives. A template left
-   unfilled, or a bot's summary of the diff, is not a substitute — the
-   summary can stay, but what the diff cannot say has to be written, and
-   what a reader should not have to discover at the button belongs there
-   too.
+1. Give the release pull request its title and its body, before merging it
+   and not after. The title is the version; the body says what the release
+   is — what moved, what did not, and which of the two a user would
+   notice. A squash leaves one commit whose message is that title, so the
+   pull request is where the rest stays, and where a reader arriving from
+   that commit lands. A template left unfilled, or a bot's summary of the
+   diff, is not a substitute — the summary can stay, but what the diff
+   cannot say has to be written, and what a reader should not have to
+   discover at the button belongs there too.
 
-   The previous cycle's last step opened this pull request asking for the
-   body to fill in one merged pull request at a time, and said so itself:
-   "a promise kept only if someone remembers to keep it." Check it against
-   `git log v<previous version>..dev --oneline` regardless of how current
+   The work-in-progress section of HISTORY.md is what that body is written
+   from, and the reason it is filled in one landed change at a time rather
+   than reconstructed from the diff on release day. Check it against
+   `git log v<previous version>..main --oneline` regardless of how current
    it looks, rather than trust that every line landed when it should have.
-   Griffe's result and the rpc-smoke run belong here too, each a line
-   rather than a screenshot — both are steps nothing else enforces, and a
-   pull request that never mentions them reads exactly like one that
+   Griffe's result and the rpc-smoke run belong in the body too, each a
+   line rather than a screenshot — both are steps nothing else enforces,
+   and a pull request that never mentions them reads exactly like one that
    skipped them.
 
 1. Run `uv run pre-commit run --all-files` and `uv run pytest --cov`
-   before pressing anything. The local gates are the evidence here in a
-   way they are not on an ordinary branch: `test.yml` and `lint.yml`
-   trigger on `pull_request` and on a push to `master` alone,
-   deliberately, so that a branch with an open pull request is not tested
-   twice — which means **a commit pushed straight to `dev` runs neither**,
-   and the next CI it meets is the push to `master`. Correcting the
-   release branch after the pull request is merged is exactly that case.
-
-   Then verify the
+   before pressing anything, then verify the
    [read the docs](https://readthedocs.org/projects/bitcoin-core-rpc/builds/)
    build renders. Read the *builds* page and not only the rendered one: a
    site that answers 200 may be serving the last build that succeeded,
    the webhook having quietly refused every delivery since.
 
-1. Merge `dev` into `master` with **"Rebase and merge"**, never *"Squash
-   and merge"* — read the button, GitHub offers whichever method was used
-   last, and a squash there would fold every landed change into one
-   commit, leaving `master` with one line where `dev` carried the
-   reasoning one decision at a time. That cannot be undone afterwards: a
-   tag on the squashed commit, and the attestations bound to it, outlive
-   any attempt to rewrite the history back.
+1. Merge it with **"Squash and merge"**, as every other pull request here
+   — read the button, GitHub offers whichever method was used last.
 
-   **Past 100 commits there is no button at all.** "Rebase and merge" is
-   [limited to 100 commits](https://docs.github.com/en/repositories/creating-and-managing-repositories/repository-limits),
-   and answers `This branch can't be rebased` above it. The limit belongs
-   to the feature, so no branch rule and no administrator bypasses it, and
-   the other two buttons are barred by the paragraph above and by
-   `master`'s required linear history. What is left is the command line
-   the button wraps:
+   Then read `lint` and `test` on the commit `main` ends up at before
+   tagging, rather than trust the pull request's own green run:
 
    ```shell
-   git fetch origin
-   git merge-base --is-ancestor origin/master origin/dev && echo fast-forward
-   git push origin origin/dev:master
+   gh run list --commit "$(git rev-parse origin/main)"
    ```
 
-   Read that middle line before pushing, because it decides the realign
-   step below too. If `master` is already an ancestor of `dev` — which it
-   is whenever nothing has landed on `master` alone since the previous
-   release, the realign step having left the two equal — the push is a
-   **fast-forward**: every commit keeps its sha, `dev` and `master` end on
-   the same commit, and the realign has nothing to do. A rebase, replaying
-   commits under new shas, is what makes it necessary; a fast-forward is
-   what makes it moot. `git diff origin/master origin/dev` answers which
-   happened rather than leaving it to be assumed.
+   a squash creates a commit that is not the one the pull request tested,
+   and the push to `main` fires both workflows again from their own `push`
+   trigger — a run of its own, not the `pull_request` run already green a
+   moment earlier. That trigger is the whole reason `main` keeps one.
 
-   Either way, read `lint` and `test` on the commit `master` ends up at
-   before tagging, rather than trust the pull request's own green run:
+1. Rehearse on TestPyPI (see above) from `main`.
 
-   ```shell
-   gh run list --commit "$(git rev-parse origin/master)"
-   ```
-
-   the merge pushes to `master`, and that push fires both workflows again
-   from their own `push` trigger — a run of its own, not the
-   `pull_request` run already green a moment earlier, and the paragraph
-   above on the local gates is why there is no third one to fall back on.
-
-1. Rehearse on TestPyPI (see above) from `master`.
-
-1. Tag the release commit on `master` and push the tag. **Name the
+1. Tag the release commit on `main` and push the tag. **Name the
    commit**, and read the tag back before pushing it:
 
    ```shell
@@ -387,135 +355,23 @@ wrong — it says the next bump is going to be work.
    `gh attestation trusted-root > trusted_root.jsonl` fetched it earlier
    and `--custom-trusted-root` points at it.
 
-1. Realign `dev` onto `master`, before anything else is committed to it —
-   **if the merge was a rebase.** Ask first, because a fast-forward needs
-   none of what follows:
-
-   ```shell
-   git fetch origin
-   git rev-parse origin/master origin/dev    # the same sha? then skip this step
-   ```
-
-   after a fast-forward the two branches *are* one commit, the merge base
-   is that commit, and there is nothing to archive or move. The rest of
-   this step is for the other case.
-
-   "Rebase and merge" replays `dev`'s
-   commits onto `master` with new SHAs, so `dev`'s old ones and
-   `master`'s are equal in content and unequal in identity — the two
-   branches hold the same tree through different histories, and their
-   merge base stops advancing right here. Left alone this is not the
-   cosmetic issue it looks like: a two-commit `dev`/`master` set up
-   exactly this way, tested by hand, made GitHub itself report the
-   *next* dev-to-master pull request as `CONFLICTING`, and
-   `gh pr merge --rebase` on it as `the merge commit cannot be cleanly
-   created`. GitHub's rebase-merge does not drop a commit whose patch is
-   already upstream the way a local `git rebase` does — it tries to
-   reapply it, and reapplying "add this file" or "add this line" where
-   it already exists is a conflict, not a no-op. Archive what is about
-   to become unreachable, then move the branch:
-
-   ```shell
-   git fetch origin
-   git tag -a history/dev-<version> dev -m "dev's own commits for <version>"
-   git push origin history/dev-<version>
-   git switch dev && git reset --hard origin/master
-   git push --force-with-lease origin dev
-   ```
-
-   the tag must not start with `v`, `release.yml` triggering on
-   `tags: ["v*"]`. Nothing in the working tree changes, the two trees
-   already being identical, and `git diff origin/master origin/dev` is
-   how to say so rather than assume it.
-
-   `git switch dev` assumes a checkout free to hold it, which the
-   convention this repository asks every session to follow — its own
-   worktree, never the primary checkout — does not give a worktree
-   already busy with a branch of its own, and should not be made to have
-   by switching branches inside it. Without a local checkout of `dev` at
-   all:
-
-   ```shell
-   git push --force-with-lease=refs/heads/dev:<old dev sha> origin \
-     origin/master:refs/heads/dev
-   ```
-
-   pushes the read-only remote-tracking ref `origin/master` straight to
-   `refs/heads/dev`, the lease keyed to the `dev` tip a `git fetch`
-   already holds rather than to a branch checked out locally.
-
-   That last push can fail on its own: `dev`'s branch protection blocking
-   force pushes is not one of the rules "Include administrators" being
-   off exempts an administrator from — that toggle covers required
-   reviews, required status checks, required signatures and required
-   linear history, and blocking force pushes is a rule of its own that
-   GitHub applies to every push over the git protocol regardless of who
-   is pushing. This repository's own v2026.8.6 is where it was learned:
-   the maintainer's own push, run by hand as an administrator, came back
-   `remote: - Cannot force-push to this branch`. What worked was flipping
-   the setting itself, immediately before the push and immediately
-   after, reading its other fields back first so the PUT does not
-   silently drop them:
-
-   ```shell
-   branch=repos/btclib-org/bitcoin-core-rpc/branches/dev/protection
-   gh api "$branch" --jq \
-     '{required_status_checks, enforce_admins: .enforce_admins.enabled,
-       required_pull_request_reviews, restrictions,
-       required_linear_history: .required_linear_history.enabled,
-       allow_force_pushes: true, allow_deletions: .allow_deletions.enabled,
-       block_creations: .block_creations.enabled,
-       required_conversation_resolution:
-         .required_conversation_resolution.enabled,
-       lock_branch: .lock_branch.enabled,
-       allow_fork_syncing: .allow_fork_syncing.enabled}' \
-     | gh api -X PUT "$branch" --input -
-   ```
-
-   push, then set `allow_force_pushes` back to `false` through the same
-   PUT at once — the setting, not only this one push, is what stands open
-   in between.
-
-   Every branch still open against `dev` has had its base moved out from
-   under it, and reports the whole release as its own diff until it is
-   rebased:
-
-   ```shell
-   git rebase --onto origin/master <the old dev tip> <branch>
-   ```
-
-   GitHub's own `mergeable`/`mergeStateStatus` on that branch's pull
-   request can still read `CONFLICTING`/`DIRTY` for a few seconds after
-   the force-push that follows, before it finishes recomputing against
-   the new tip — worth a second look rather than read as the rebase
-   above having failed.
-
-   this comes before the next step rather than after it: that step's
-   change is on `dev`, and the force update above would discard it.
-
-1. Open the next cycle: set a generic next version without the day (e.g.
-   after 2026.8.6, use 2026.9) in `pyproject.toml`, and start a new "work
-   in progress" section in HISTORY.md and CHANGELOG.md. Two components is
-   the shape nothing tagged can have, so a checkout of `dev` between
-   releases reports itself as work in progress rather than as a release it
-   is not, and `version-check` refuses it should it ever reach a tag —
-   which is a second guard behind the heading check, not a replacement for
-   it. Re-lock so `uv.lock` agrees:
+1. Open the next cycle, in a pull request of its own and before anything
+   else lands: set a generic next version without the day (e.g. after
+   2026.8.6, use 2026.9) in `pyproject.toml`, and start a new "work in
+   progress" section in HISTORY.md and CHANGELOG.md. Two components is the
+   shape nothing tagged can have, so a checkout of `main` between releases
+   reports itself as work in progress rather than as a release it is not,
+   and `version-check` refuses it should it ever reach a tag — which is a
+   second guard behind the heading check, not a replacement for it.
+   Re-lock so `uv.lock` agrees:
 
    ```shell
    uv lock
    ```
 
-1. Open a draft pull request from `dev` to `master` for the cycle just
-   opened, title included, and leave its body for what the merge step
-   above already asks for: written before the release is cut, not
-   reconstructed from the diff at the last minute. A draft one is what
-   that step could not be until now — everything that lands on `dev`
-   between one release and the next has a place to be described as it
-   lands, rather than a promise kept only if someone remembers to keep
-   it. Marking it ready and pressing **Rebase and merge** is what that
-   step still is; this one is what makes reaching it with a body already
-   written the ordinary case rather than the exception.
+   That empty section is what the next release's notes are written into,
+   one landed change at a time, and opening it now is what keeps the next
+   cycle's body from being reconstructed from the diff on release day.
 
 ## If something goes wrong
 

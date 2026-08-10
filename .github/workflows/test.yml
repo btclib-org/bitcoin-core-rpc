@@ -3,23 +3,23 @@ name: test
 
 on:
   push:
-    # master only: a push to a branch that has an open pull request would
+    # main only: a push to a branch that has an open pull request would
     # run this workflow twice, once per event, and the two runs land in
-    # different concurrency groups (refs/heads/dev against
+    # different concurrency groups (refs/heads/<branch> against
     # refs/pull/N/merge) so neither cancels the other. The pull_request
     # run is the one worth keeping, because it tests the merge commit and
     # is the only run a fork's pull request produces at all.
-    # master keeps a trigger of its own because a merge creates a commit
+    # main keeps a trigger of its own because a merge creates a commit
     # that is not the one the pull request tested, and nothing else would
     # ever test it. Tag pushes are covered by the release workflow
-    branches: [master]
+    branches: [main]
     # a documentation-only commit would otherwise run the whole matrix.
     # None of these files is imported by the module or read by a test --
     # README.md is the PyPI long description, not a doctest source, and
     # CONTRIBUTING.md is checked by markdownlint, which is the lint
     # workflow's business.
     # Only on push: the same list on pull_request would be wrong, because
-    # tests-passed is a required check on master and a required check that
+    # tests-passed is a required check on main and a required check that
     # produces no run at all blocks the merge instead of passing it
     paths-ignore:
       - "*.md"
@@ -70,14 +70,8 @@ jobs:
     # the whole matrix on a tree its author is not asking anyone to
     # review yet. The gate below carries the same condition, so a draft
     # skips uniformly and the gate does not read that skip as a job that
-    # should have run.
-    # The exception is by base branch, and it is the release pull
-    # request: dev -> master stays a draft from one release to the
-    # next, and nothing here triggers on a push to dev, so without it
-    # a commit merged into dev would be tested by nothing at all
-    if: >-
-      ${{ !github.event.pull_request.draft
-      || github.base_ref == 'master' }}
+    # should have run
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -138,9 +132,7 @@ jobs:
   # tool.coverage.report, fails this job on a regression. It needs no
   # secret and no third party, and it applies to every run
   coverage-py:
-    if: >-
-      ${{ !github.event.pull_request.draft
-      || github.base_ref == 'master' }}
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -174,9 +166,7 @@ jobs:
   # one, so it runs these checks too, and its build job builds only what
   # it publishes
   dist-py:
-    if: >-
-      ${{ !github.event.pull_request.draft
-      || github.base_ref == 'master' }}
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -252,7 +242,7 @@ jobs:
           assert len(replies) == 1
           "
 
-  # the single check master's branch protection requires from this
+  # the single check main's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal
   # strings, stored outside the repository. The matrix above produces one
   # per (runner label, interpreter) pair -- a count that moves whenever the
@@ -270,9 +260,7 @@ jobs:
     # satisfied. The gate has to run to be able to fail
     # and the draft condition every job above carries, so a draft
     # skips uniformly rather than tripping the skip check below
-    if: >-
-      ${{ always() && (!github.event.pull_request.draft
-      || github.base_ref == 'master') }}
+    if: ${{ always() && !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

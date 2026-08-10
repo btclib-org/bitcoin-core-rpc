@@ -16,7 +16,7 @@ on the free plan, and the API says so rather than failing quietly —
 feature (HTTP 403)`. Everything below depends on it, and so does Actions
 being unmetered.
 
-## Required checks on master
+## Required checks on main
 
 **Never name matrix contexts in the branch rule.** The rule lives outside
 the repository, so a context that stops being produced blocks every merge
@@ -24,7 +24,7 @@ with nothing in the tree to explain why. `tests-passed` is an aggregate job
 at the end of `test.yml` that `needs` the matrix; a new job in `test.yml`
 belongs in that job's `needs`, or it gates nothing.
 
-`master` requires four checks, and only four:
+`main` requires four checks, and only four:
 
 | Check | Produced by |
 | --- | --- |
@@ -60,51 +60,49 @@ Each check is bound to the app that produces it — `checks` with an
 for CodeQL — so nothing else can satisfy one.
 
 ```shell
-gh api repos/btclib-org/bitcoin-core-rpc/branches/master/protection \
+gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
   --jq '.required_status_checks'   # PATCH that sub-endpoint to change
 ```
 
 **PATCH that sub-endpoint, never PUT the whole protection object**: a
-partial PUT drops the reviews, the signatures and the rest. Repeat
-`strict: true` in the body, which replaces the object rather than merging
-into it.
+partial PUT drops the signatures and the rest. Repeat `strict: true` in
+the body, which replaces the object rather than merging into it.
 
 Neither `mutation.yml`, `links.yml`, `latest.yml` nor `rpc-smoke.yml`
 appears in the rule, and none of them must: each is expected to go red for
 reasons no pull request introduced, and a red check nobody can act on from
 a branch is noise.
 
-## Branch protection, both branches
+## Branch protection
 
-Both branches are protected, and differently on purpose.
+`main` is the only branch, and everything reaches it through a pull
+request: those four checks with `strict`, **required signatures**, linear
+history, no force pushes, no deletions,
+`required_conversation_resolution`, and `enforce_admins` *on* — the rule
+holds for an administrator too, which is what makes it a rule.
 
-`master`: those four checks with `strict`, one approving review,
-`dismiss_stale_reviews`, **required signatures**, linear history, no force
-pushes, no deletions, `required_conversation_resolution`, and
-`enforce_admins` *off* — an administrator can bypass all of it.
+**No approving review is required**, and that omission is the deliberate
+half of the setup. A review cannot be satisfied by the author, GitHub not
+allowing self-approval, so on a solo-maintainer repository it is a stop
+rather than a speed bump: either nothing merges, or an administrator waves
+it through on every pull request and the rule teaches its own bypass. The
+four checks gate instead, and they cannot be self-approved either — they
+are earned by the tree.
 
-`dev`: no force pushes, no deletions, linear history and
-`required_conversation_resolution`, and nothing else — no required check,
-no review, no signature, so a direct push still works, which is what both
-bots rely on.
+Required signatures cost nothing because the only thing writing to `main`
+is a merge GitHub performs itself, and GitHub signs those with its
+web-flow key. Said from the other side: a maintainer with no signing key
+configured cannot push straight to `main`, which is the rule working
+rather than the rule in the way.
 
-That asymmetry is a choice rather than an oversight, and each half of it
-has its own reason. Commits reaching `dev` are unsigned — the bots' are,
-and so is a maintainer's without a signing key configured — so
-`required_signatures` there would reject every push; on `master` it holds
-because the only thing that writes there is a merge GitHub performs
-itself, and GitHub signs those with its web-flow key. And one approving
-review cannot be satisfied by the author, GitHub not allowing
-self-approval, so on a solo-maintainer branch it is a stop rather than a
-speed bump — which is why `enforce_admins` is off.
+`strict` means a pull request merges only from a head up to date with
+`main`, so landing one asks the next to update and re-run. That is a queue
+rather than a cost at this traffic, and it is one `PATCH` away if it stops
+being.
 
-What `dev` buys is that Dependabot targets it for both ecosystems,
-pre-commit.ci autoupdates it, and Dependabot security updates are on, so
-bot-authored commits reach `master` through it — and the branch cannot be
-rewritten or deleted under them.
-
-Requiring the four checks on `dev` as well is the next step if one is
-wanted, and it costs the direct push.
+Dependabot, its security updates and pre-commit.ci all open pull requests
+here, none of them naming a target branch: what they get is the default
+branch, and it is the only branch there is.
 
 ## Head branches after a merge
 
@@ -116,16 +114,13 @@ gh api repos/btclib-org/bitcoin-core-rpc --jq '.delete_branch_on_merge'
 
 GitHub deletes the head branch of a pull request when it is merged, which
 is what keeps the branch list a list of live work rather than a history of
-every change ever made. It was turned on after a sweep that removed three
-merged head branches from here, none of which anybody could tell from live
-work without comparing each against `dev` commit by commit.
+every change ever made: a merged head branch is indistinguishable from
+live work without comparing it against `main` commit by commit.
 
-Two cases it does not cover, both deliberate. A protected branch is never
-deleted, protection winning over this setting, so the release pull request
-that merges `dev` into `master` leaves `dev` where it is. And a pull
-request **closed without merging** keeps its head branch: GitHub cannot
-know whether that work was abandoned or is waiting, so those are the ones
-still worth looking at now and then.
+The case it does not cover is deliberate. A pull request **closed without
+merging** keeps its head branch, GitHub not being able to know whether
+that work was abandoned or is waiting, so those are the ones worth looking
+at now and then.
 
 ## Token permissions
 

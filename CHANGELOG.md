@@ -70,6 +70,13 @@ carry a union merge driver that would keep both sides' numbers.
   `_request` function this module does not have, and the client's class
   docstring said nothing here asks the node which chain it is on, where
   `verify_chain` above does exactly that on request.
+- **The upstream url in the module docstring is right again**: it named
+  the repository `btclib-bitcoin-core-rpc`, which this one was renamed
+  from, and the `master` branch, which is now `main`. Both spellings still
+  redirect, so nothing was broken by them -- but that url is what a
+  vendored copy is asked to record beside itself, and a copy is not a
+  thing to leave depending on a redirect. The raw url for a release, on
+  the same line, carried the same stale repository name.
 
 ### Repository
 
@@ -94,6 +101,34 @@ carry a union merge driver that would keep both sides' numbers.
   not already let through -- and the TestPyPI rehearsal exercises it,
   which on the release path would otherwise happen for the first time
   after PyPI has the files and the tag can no longer be moved.
+- **`main` is the only branch**, renamed from `master` and now the whole
+  of the model: `dev` is gone, every change reaches the trunk through a
+  pull request -- a contributor's, a maintainer's, Dependabot's and
+  pre-commit.ci's alike -- and a release is a tag on `main` rather than a
+  branch merged into it. What two branches bought was somewhere bot
+  commits could land with no required check in front of them; what they
+  cost was a permanently draft release pull request, a rebase merge whose
+  new SHAs left the two branches equal in content and unequal in identity,
+  and the realign that then had to force-update `dev` behind a rule
+  blocking force pushes that an administrator is not exempt from. One
+  branch pays none of that, and gates every commit on the same four
+  checks. Dependabot declares no `target-branch` and pre-commit.ci no
+  `autoupdate_branch`, both taking the default branch; the draft exemption
+  the release pull request needed (`|| github.base_ref == 'master'`, in
+  five workflows) goes with it, so a draft runs no CI at all and nothing
+  is exempt; `test.yml` and `lint.yml` push-trigger on `main`.
+  `REPOSITORY.md` holds what the branch rule requires and why,
+  `CONTRIBUTING.md` how a change lands, `RELEASING.md` how a release is
+  cut from one branch.
+- **`main`'s branch rule requires no approving review, and applies to
+  administrators.** The four checks are unchanged and `strict` with them,
+  as are required signatures, linear history, blocked force pushes and
+  blocked deletions; what goes is the one approving review, which GitHub
+  does not let an author give themselves -- on a solo-maintainer
+  repository it either stops every merge or is waved through on every
+  merge, and a rule whose normal operation is its own bypass gates nothing
+  while reading as though it does. `enforce_admins` is on in its place, so
+  what is left holds for everyone.
 
 ## v2026.8.8
 
