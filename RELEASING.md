@@ -131,6 +131,15 @@ PyPI.
      python -c "import bitcoin_core_rpc; print(bitcoin_core_rpc.DEFAULT_TIMEOUT)"
    ```
 
+1. Check that the `attest` job is green. It signs a rehearsal's files too,
+   which is what it is here for: the release path attests after PyPI has
+   the distribution files and the tag can no longer be moved, so a
+   permission or an API that only works on release day is one this job
+   would find there. What it produces here goes no further than an
+   artifact of the run — no release is cut from a dispatch, so nothing is
+   attached anywhere — and the attestation it records names a `.dev`
+   version nothing resolves.
+
 ## Ask a live node first
 
 The recorded replies say what Core sent when they were recorded. Before a
@@ -344,11 +353,39 @@ wrong — it says the next bump is going to be work.
 
 1. Check the GitHub release the previous step's workflow run created: its
    notes are the tag's section of HISTORY.md, and the distribution files
-   are attached. A run that logs `HISTORY.md has no v<version> section`
-   generated the notes from the merged pull requests instead — the
-   fallback `version-check` exists to make unreachable, not a second way
-   to write release notes — and they are worth replacing by hand if it
-   ever fires.
+   are attached, `<tag>.attestation.jsonl` beside them. A run that logs
+   `HISTORY.md has no v<version> section` generated the notes from the
+   merged pull requests instead — the fallback `version-check` exists to
+   make unreachable, not a second way to write release notes — and they
+   are worth replacing by hand if it ever fires.
+
+1. Verify the provenance of an asset, which is the release's own and not
+   the PEP 740 attestations checked two steps up: those cover the copies
+   on the index, these the copies attached here. Both forms, the same
+   signature read two ways:
+
+   ```shell
+   gh release download v2026.8.8 --repo btclib-org/bitcoin-core-rpc
+   wheel=bitcoin_core_rpc-2026.8.8-py3-none-any.whl
+   repo=btclib-org/bitcoin-core-rpc
+   gh attestation verify "$wheel" --repo "$repo" \
+     --signer-workflow "$repo/.github/workflows/release.yml"
+   gh attestation verify "$wheel" --repo "$repo" \
+     --bundle v2026.8.8.attestation.jsonl
+   ```
+
+   the first asks the attestations API for the signed statement, the
+   second reads it from the asset and asks nothing — which is what the
+   bundle is attached for, mirroring the releases page being the case it
+   answers. One attestation covers both files, so the sdist verifies
+   against the same bundle.
+
+   `--signer-workflow` is the flag that makes the check say *which*
+   workflow signed: without it a valid attestation from any workflow in
+   the repository passes. Neither form is offline on its own — the
+   Sigstore trusted root comes over the network unless
+   `gh attestation trusted-root > trusted_root.jsonl` fetched it earlier
+   and `--custom-trusted-root` points at it.
 
 1. Realign `dev` onto `master`, before anything else is committed to it —
    **if the merge was a rebase.** Ask first, because a fast-forward needs

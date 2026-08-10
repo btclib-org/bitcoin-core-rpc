@@ -131,9 +131,20 @@ still worth looking at now and then.
 
 **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
 needing more must declare it. Only `release.yml`'s `github-release` does
-(`contents: write`), plus `id-token: write` on the two publish jobs. The
+(`contents: write`), plus `id-token: write` on the two publish jobs and
+`id-token: write` with `attestations: write` on `attest`. The
 workflow-level `permissions: contents: read` is belt and braces; keep it,
 it is what makes the intent readable in the file.
+
+One elevation per job, and none of them holding another's: the job that
+signs the distribution files writes no release, the job that writes the
+release holds no OIDC token, and neither builds anything. `attest` is
+where that costs a job rather than two lines, and it is the shape to
+keep.
+
+Artifact attestations are free on public repositories on every current
+plan, and unavailable on a private one outside Enterprise Cloud — so
+making this repository private would break `attest` and nothing else.
 
 ## Publishing
 
