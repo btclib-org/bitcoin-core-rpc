@@ -54,10 +54,12 @@ report on every pull request, forks included.
 
 Code scanning comes from `.github/workflows/codeql.yml`, and the repository
 setting that would otherwise perform it — code scanning **default setup** —
-has to stay off: the two are exclusive, and while the setting is configured
-GitHub refuses to run an advanced workflow at all. The `PATCH` below is what
-turns the setting off, and the state it leaves behind is the one this file
-describes.
+has to stay off: the two are exclusive, and the collision is at the upload
+rather than at the start. An advanced workflow runs while the setting is
+configured, and its results are refused — "Upload was rejected because
+CodeQL default setup is enabled for code scanning" — so the workflow reports
+*failure*, not nothing. The `PATCH` below turns the setting off, and the
+state it leaves behind is the one this file describes.
 
 ```shell
 gh api -X PATCH -F state=not-configured \
@@ -74,17 +76,28 @@ list, 15368 for Actions — so nothing else can satisfy one.
 
 ### Turning default setup off without deadlocking
 
-Default setup produces a check named `CodeQL`; `codeql.yml` produces
-`codeql: every job passed`. Only one of the two can be running, so the rule
-naming a check nothing is producing is the state to avoid: with
-`enforce_admins` on there is nothing to override it with. The order that
-never reaches it drops the old context before the setting, and adds the new
-one after the merge:
+Default setup produces `CodeQL`, and it is worth knowing which app does:
+the Actions jobs it runs report `Analyze (actions)` and `Analyze (python)`,
+while the required context comes from the `github-advanced-security` app as
+a check named `CodeQL` with conclusion `neutral`, and only on a pull
+request's head commit —
+
+```shell
+sha=$(gh api repos/btclib-org/bitcoin-core-rpc/pulls/<n> --jq '.head.sha')
+gh api "repos/btclib-org/bitcoin-core-rpc/commits/$sha/check-runs" \
+  --jq '.check_runs[] | [.name, .app.id, .conclusion] | @tsv'
+```
+
+`codeql.yml` produces `codeql: every job passed` instead, from Actions.
+Disabling the setting stops the first, so the rule naming a check nothing
+produces is the state to avoid: with `enforce_admins` on there is nothing to
+override it with. The order that never reaches it drops the old context
+before the setting, and adds the new one after the merge:
 
 1. patch the rule to drop `CodeQL`, the other four contexts staying;
 1. disable default setup with the `PATCH` above;
-1. re-run the checks on the pull request carrying `codeql.yml`, which now
-   runs and reports `codeql: every job passed`;
+1. re-run the checks on the pull request carrying `codeql.yml`, whose
+   analysis was red for the upload refusal above and now passes;
 1. merge it;
 1. patch the rule to add `codeql: every job passed`.
 

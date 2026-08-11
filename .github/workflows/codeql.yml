@@ -18,11 +18,15 @@ name: codeql
 # `schedule: weekly`, and the matrix, the init step and the cron below are
 # those three.
 #
-# Default setup and an advanced workflow are exclusive: while the setting
-# is configured GitHub refuses to run this file, so it reports nothing
-# until a human disables the setting. REPOSITORY.md carries the order that
-# does not deadlock, the rule naming a check that is not being produced
-# being the way to block every merge.
+# Default setup and an advanced workflow are exclusive, and the way they
+# collide is worth knowing before reading a red check here: the jobs below
+# run, and the upload at the end of them is refused -- "Upload was rejected
+# because CodeQL default setup is enabled for code scanning", which GitHub
+# documents as a SARIF upload failure rather than as a workflow it declines
+# to start. So while the setting is configured this workflow reports failure
+# rather than nothing, and only disabling the setting makes it green.
+# REPOSITORY.md carries the order that switches the two over without ever
+# leaving the branch rule waiting on a check nothing produces.
 
 on:
   push:

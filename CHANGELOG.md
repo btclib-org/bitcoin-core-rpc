@@ -91,12 +91,15 @@ carry a union merge driver that would keep both sides' numbers.
   weekly`, and those are the matrix, the unset `queries` input and the
   Tuesday cron. One job per language, so a failure names the language, and
   `codeql: every job passed` aggregates them for a rule that has to name an
-  outcome rather than a matrix cell. The two are exclusive, GitHub declining
-  to run an advanced workflow while default setup is configured, so this
-  costs a five-step switch a person performs: REPOSITORY.md's "Turning
-  default setup off without deadlocking" is the order, and dropping the
-  `CodeQL` context before disabling the setting is what keeps the rule from
-  waiting on a check nothing produces
+  outcome rather than a matrix cell. The two are exclusive at the upload and
+  not at the start -- an advanced workflow runs while the setting is
+  configured and its results are refused, "Upload was rejected because
+  CodeQL default setup is enabled for code scanning" -- so this costs a
+  five-step switch a person performs, and the analysis is red until step 2
+  of it. REPOSITORY.md's "Turning default setup off without deadlocking" is
+  the order; dropping the `CodeQL` context before disabling the setting is
+  what keeps the rule from waiting on a check nothing produces, that context
+  being the `github-advanced-security` app's and stopping with the setting
 - **CONTRIBUTING.md's workflow table names what `release` calls** instead of
   counting it. The count said six where `grep -n 'uses: ./.github/workflows'
   .github/workflows/release.yml` finds five, and a row added above it would
