@@ -143,13 +143,13 @@ PyPI.
 ## A live node has already been asked
 
 The recorded replies say what Core sent when they were recorded, and whether
-Core still sends that is checked on every pull request: `rpc-smoke.yml` is a
+Core still sends that is checked on every pull request: `integration.yml` is a
 required check, and `release.yml` calls it again on the tag. Nothing to
 dispatch here, and nothing to remember -- the step this section used to be
 is what the required check replaced.
 
 Dispatch it by hand only to ask about a Core version the matrix does not
-carry, or when a run needs repeating without a push: Actions → rpc-smoke →
+carry, or when a run needs repeating without a push: Actions → integration →
 Run workflow. CONTRIBUTING.md has the same command for a node of your own.
 
 ## Release to PyPI
@@ -229,7 +229,7 @@ wrong — it says the next bump is going to be work.
    than reconstructed from the diff on release day. Check it against
    `git log v<previous version>..main --oneline` regardless of how current
    it looks, rather than trust that every line landed when it should have.
-   Griffe's result and the rpc-smoke run belong in the body too, each a
+   Griffe's result and the integration run belong in the body too, each a
    line rather than a screenshot — both are steps nothing else enforces,
    and a pull request that never mentions them reads exactly like one that
    skipped them.

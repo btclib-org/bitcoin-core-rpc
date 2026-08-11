@@ -196,12 +196,12 @@ jobs:
   # still answers the way tests/_data says it does. It gates every pull
   # request already, so the commits under a tag have been asked -- but the
   # tag's own tree has not, and a release is the last moment where the
-  # answer is still cheap to act on. rpc-smoke.yml has declared
+  # answer is still cheap to act on. integration.yml has declared
   # workflow_call for this since it became a gate; until now nothing called
   # it, which made that trigger a promise the file kept and this one did not
-  rpc-smoke:
-    name: Run the rpc-smoke workflow
-    uses: ./.github/workflows/rpc-smoke.yml
+  integration:
+    name: Run the integration workflow
+    uses: ./.github/workflows/integration.yml
 
   build:
     name: Build the wheel and the sdist
@@ -361,7 +361,7 @@ jobs:
 
   publish-testpypi:
     name: Publish to TestPyPI
-    needs: [test, lint, docs, macos, rpc-smoke, build]
+    needs: [test, lint, docs, macos, integration, build]
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.repository == 'btclib-org/bitcoin-core-rpc'
@@ -387,7 +387,7 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [test, lint, docs, macos, rpc-smoke, build]
+    needs: [test, lint, docs, macos, integration, build]
     if: >-
       github.event_name == 'push' &&
       github.repository == 'btclib-org/bitcoin-core-rpc'

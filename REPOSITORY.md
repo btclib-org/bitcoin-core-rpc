@@ -40,7 +40,7 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 | `Lint and type-check` | `lint.yml`, first job |
 | `Build the documentation` | `docs.yml`, its only job |
 | `test: every job passed` | `test.yml`, aggregate over the matrix |
-| `rpc-smoke: every job passed` | `rpc-smoke.yml`, aggregate over its matrix |
+| `integration: every job passed` | `integration.yml`, over its cells |
 | `codeql: every job passed` | `codeql.yml`, aggregate over its matrix |
 
 `codeql: every job passed` is last because it was added last, by step 5 of
@@ -151,7 +151,7 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
             {"context": "codeql: every job passed", "app_id": 15368},
             {"context": "Build the documentation", "app_id": 15368},
             {"context": "test: every job passed", "app_id": 15368},
-            {"context": "rpc-smoke: every job passed", "app_id": 15368}]}
+            {"context": "integration: every job passed", "app_id": 15368}]}
 JSON
 ```
 
@@ -172,7 +172,7 @@ Neither `mutation.yml`, `links.yml`, `latest.yml`, `macos.yml` nor
 `published.yml` appears in the rule, and none of them must: each is
 expected to go red for reasons no pull request introduced -- an upgrade
 upstream, a link on somebody else's website, a runner image -- and a red
-check nobody can act on from a branch is noise. `rpc-smoke.yml` was in that
+check nobody can act on from a branch is noise. `integration.yml` was in that
 list until its cost was measured rather than assumed: 90 seconds for six
 cells, a live bitcoind of two versions included, which is less than the
 matrix it now runs beside. What it answers is the one claim a recording

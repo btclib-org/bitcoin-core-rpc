@@ -80,6 +80,25 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **The gate that talks to a live node is `integration`**, the name btclib
+  gives its own, where it was `rpc-smoke`: `integration.yml`, an
+  `integration` job, an `integration: every job passed` aggregate and a
+  required context of that name. `rpc-smoke` described two of the six cells
+  -- the two that grow a regtest chain and read the replies off the wire --
+  while the other four start Core on the chains regtest is not and check
+  only that `-chain=<name>` is accepted, so a reader holding the two
+  repositories side by side had two names for one question. What the
+  workflow runs keeps its own name, `.github/scripts/rpc_smoke.py` being a
+  smoke script and not what the rule names. Renaming a required check is
+  the change a pull request cannot make alone: REPOSITORY.md has the order,
+  and the rule moved first
+- **The weekly sentinels run on btclib's days.** `latest.yml` and
+  `macos.yml` move from Thursday to Wednesday and dependabot from Friday to
+  Thursday, keeping the day between them that made the pairing worth
+  having: the sentinel reports, and the pull requests open the morning
+  after, so each is a diff whose result is already known. What changes is
+  which weekday that is, and only so that the same question is asked on the
+  same day across the three repositories instead of on two calendars
 - **REPOSITORY.md's branch protection is read back from the rule** rather
   than remembered. It said `enforce_admins` was on -- "the rule holds for
   an administrator too, which is what makes it a rule" -- and that no

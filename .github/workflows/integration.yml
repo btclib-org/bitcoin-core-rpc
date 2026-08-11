@@ -1,5 +1,5 @@
 ---
-name: rpc-smoke
+name: integration
 
 # The one claim the suite cannot make. Every reply under tests/_data is
 # Core's own and the suite classifies all of them without opening a socket,
@@ -27,7 +27,7 @@ name: rpc-smoke
 # "two nodes plus two downloads is minutes", was either never measured or
 # has been overtaken by the runners; what is true today is in the run log:
 #
-#     gh run list --workflow=rpc-smoke.yml --limit 1
+#     gh run list --workflow=integration.yml --limit 1
 #
 # Being required is also why the pull_request trigger below carries no
 # `paths`: a required check that never runs blocks a merge, where a skipped
@@ -68,11 +68,11 @@ permissions:
 # github.workflow, as everywhere else here: in a called workflow that
 # expression is the caller's name
 concurrency:
-  group: rpc-smoke-${{ github.ref }}
+  group: integration-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  rpc-smoke:
+  integration:
     name: >-
       ${{ matrix.protocol && format('Smoke the rpc client against Core {0}', matrix.core)
           || format('Start Core {0} on {1} and check it answers', matrix.core, matrix.chain) }}
@@ -258,9 +258,9 @@ jobs:
   # six matrix cells whose names carry a Core version and a chain. The name
   # carries the workflow because a context is keyed by name alone -- see
   # test.yml's own gate, which is this pattern's other instance
-  smoke-passed:
-    name: "rpc-smoke: every job passed"
-    needs: [rpc-smoke]
+  integration-passed:
+    name: "integration: every job passed"
+    needs: [integration]
     # not success(): a job whose dependencies failed is skipped, and a
     # skipped check reports "skipped", which branch protection counts as
     # satisfied. The gate has to run to be able to fail. And the draft
