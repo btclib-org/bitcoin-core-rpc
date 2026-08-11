@@ -78,7 +78,7 @@ read by every checkout of this repository.
 | `latest` | Thursday | 6 platforms × 7, deps upgraded |
 | `links`, `mutation` | weekly | — |
 | `published` | monthly, a release | what PyPI serves |
-| `release` | a tag | calls `test`, `lint`, `docs`, `macos`, `published` |
+| `release` | a tag | calls the five gates above it, and `published` |
 
 The first four rows are what a merge waits for, about three minutes between
 them. macOS is not among them on purpose: it is the one platform whose
