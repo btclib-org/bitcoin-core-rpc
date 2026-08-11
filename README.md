@@ -51,15 +51,19 @@ print(client.call("getblockchaininfo")["chain"])
 
 The credential is the cookie file bitcoind rewrites at every start, read at
 each call rather than held: a client built when the node was up still works
-an hour and a restart later. Where the datadir is somewhere else — macOS
-and Windows put it outside `~/.bitcoin` — say so:
+an hour and a restart later. The datadir it is looked for under is Core's
+own for the platform running — `%APPDATA%\Bitcoin` on Windows,
+`~/Library/Application Support/Bitcoin` on macOS, `~/.bitcoin` elsewhere —
+so `from_chain` needs no help on any of the three. A node started with
+`-datadir=` somewhere else is what nothing can derive, and there the path
+is an argument:
 
 ```python
 from pathlib import Path
 
 client = BitcoinCoreRpcClient(
     "http://127.0.0.1:8332",
-    cookie_path=Path.home() / "Library/Application Support/Bitcoin/.cookie",
+    cookie_path=Path("/srv/bitcoin/.cookie"),
 )
 ```
 

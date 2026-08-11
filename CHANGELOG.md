@@ -47,6 +47,28 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Changed
 
+- **`default_datadir` answers Core's datadir for the platform it runs on**,
+  not Linux's on all of them: `%APPDATA%\Bitcoin` on Windows,
+  `~/Library/Application Support/Bitcoin` on macOS, `~/.bitcoin` on
+  everything else, which is `GetDefaultDataDir` in Core's
+  src/common/args.cpp -- the `#else` branch there being what a platform
+  absent from the table takes here. So `from_chain` derives a cookie path
+  Core actually writes on the three, where on two of them it derived one no
+  node was ever going to have written and failed with a "no such file" that
+  reads as a node that is down. `None` is still the answer where there is no
+  absolute directory to hang the datadir off, and Windows has one more way
+  to be in that state than a home directory does: `APPDATA` unset, which
+  `Path.home()`'s fall back to the passwd database has no equivalent of.
+  `from_chain`'s refusal names it.
+  The argument the old docstring made against this -- "guessing per platform
+  would put two branches here that no test on a third can reach" -- is
+  answered by the shape rather than waved away: the three directories are a
+  table keyed on `sys.platform`, read at the call, so one run of the suite
+  patches its way through all three rows and the coverage gate stays at 100
+  on a single operating system. A chain of `sys.platform ==` comparisons
+  would not have done: mypy narrows those to the platform it is aimed at and
+  stops type checking the rest, and a table is what keeps every row in front
+  of the checker as well as the runner.
 - **`default_datadir` is public**, no longer `_default_datadir`. `from_chain`
   already called it to find the live `HOME` at the moment of the call rather
   than the one `DEFAULT_DATADIR` froze at import; a caller deriving its own

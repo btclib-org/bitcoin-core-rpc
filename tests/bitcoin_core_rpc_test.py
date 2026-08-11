@@ -45,6 +45,7 @@ import copy
 import json
 import pickle
 import re
+import sys
 from base64 import b64decode
 from decimal import Decimal, InvalidOperation, localcontext
 from io import BytesIO
@@ -206,7 +207,13 @@ def test_from_chain_reads_the_home_of_the_call_and_not_of_the_import(
     that constant is the frozen answer, and patching it would pass against
     either implementation. The home is what moves here, and the derivation
     has to follow it.
+
+    The platform is pinned to the branch the home is the base of, so that
+    the property this states is what the run reads on every row of the
+    matrix: on Windows the base is `APPDATA`, and moving the home there
+    would move nothing.
     """
+    monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.setattr(Path, "home", lambda: tmp_path / "home-after")
 
     expected = tmp_path / "home-after" / ".bitcoin" / "regtest" / ".cookie"
@@ -235,6 +242,41 @@ def test_from_chain_derives_no_cookie_when_told_who_is_calling(
             BitcoinCoreRpcClient.from_chain(**kwargs)  # type: ignore[arg-type]
 
 
+def test_the_datadir_is_cores_own_on_each_platform(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    r"""The three directories `GetDefaultDataDir` writes, from one run.
+
+    Core's src/common/args.cpp: ``%APPDATA%\Bitcoin`` on Windows,
+    ``~/Library/Application Support/Bitcoin`` on macOS, ``~/.bitcoin`` on
+    everything else -- the `#else` branch, which is what a platform absent
+    from the table takes here and why one that is not among the three is
+    asserted too rather than left to the reader.
+
+    `sys.platform` is patched, which is what lets one row of the matrix
+    state all three: `default_datadir` reads it at the call, so the branch
+    a run cannot take natively is still a branch this reaches. The paths
+    hang off `tmp_path`, absolute on whichever platform is running, since
+    a Windows literal is a relative path to a POSIX `Path` and would be
+    refused rather than compared.
+    """
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setenv("APPDATA", str(tmp_path / "AppData" / "Roaming"))
+
+    monkeypatch.setattr(sys, "platform", "win32")
+    assert default_datadir() == tmp_path / "AppData" / "Roaming" / "Bitcoin"
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+    expected = tmp_path / "Library" / "Application Support" / "Bitcoin"
+    assert default_datadir() == expected
+
+    monkeypatch.setattr(sys, "platform", "linux")
+    assert default_datadir() == tmp_path / ".bitcoin"
+
+    monkeypatch.setattr(sys, "platform", "freebsd14")
+    assert default_datadir() == tmp_path / ".bitcoin"
+
+
 def test_no_absolute_home_is_no_default_datadir_and_no_exception(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -253,16 +295,48 @@ def test_no_absolute_home_is_no_default_datadir_and_no_exception(
     there patching the module attribute is invisible -- written that way,
     this passed on 3.14 and did not raise at all on 3.10. What
     `default_datadir` reads is `Path.home`, so that is what this arranges.
+
+    The platform is one whose base is the home, `Path.home` being what
+    there is to make fail: `APPDATA` is the Windows base and has its own
+    test below.
     """
 
     def no_home() -> Path:
         raise RuntimeError("Could not determine home directory.")
 
+    monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.setattr(Path, "home", no_home)
     assert default_datadir() is None
 
     monkeypatch.setattr(Path, "home", lambda: Path("relative/home"))
     assert Path.home().is_absolute() is False
+    assert default_datadir() is None
+
+
+def test_no_absolute_appdata_is_no_default_datadir_on_windows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    r"""The Windows base answers None the two ways the home does, and one more.
+
+    `APPDATA` is an environment variable and can simply be unset, where a
+    home directory is resolved from the passwd database when `HOME` is not
+    there. Relative is the other way, and the reason is the one that makes
+    a relative home None: the path would be read against the working
+    directory of the moment, and a `Bitcoin\\.cookie` under whatever
+    directory a caller happens to be in is not a credential to present to a
+    node.
+
+    The home is made to fail the test if it is consulted, since on this
+    platform it is not the base and reading it would mean the table was
+    not what answered.
+    """
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(Path, "home", lambda: pytest.fail("home consulted"))
+
+    monkeypatch.delenv("APPDATA", raising=False)
+    assert default_datadir() is None
+
+    monkeypatch.setenv("APPDATA", "AppData/Roaming")
     assert default_datadir() is None
 
 
@@ -283,7 +357,8 @@ def test_from_chain_refuses_a_datadir_it_cannot_name(
 
     `Path.home` is what raises here, not a patched `DEFAULT_DATADIR`: the
     derivation asks at the call, so this is the whole path a host with no
-    home directory takes.
+    home directory takes -- on a platform whose base is the home, which is
+    what the planted `~/.bitcoin` is the layout of.
     """
 
     def no_home() -> Path:
@@ -293,6 +368,7 @@ def test_from_chain_refuses_a_datadir_it_cannot_name(
     planted.parent.mkdir(parents=True)
     planted.write_text(f"{COOKIE_USER}:planted\n", encoding="ascii")
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.setattr(Path, "home", no_home)
 
     with pytest.raises(BtcRpcValueError, match="pass cookie_path"):

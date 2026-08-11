@@ -12,6 +12,25 @@ in this file — read it before upgrading, rather than a digit.
 
 ## v2026.9 (work in progress, not released yet)
 
+`from_chain` works on macOS and Windows. `default_datadir` answers Core's
+own datadir for the platform it runs on — `%APPDATA%\Bitcoin` on Windows,
+`~/Library/Application Support/Bitcoin` on macOS, `~/.bitcoin` on
+everything else — where it answered the last of those everywhere, so on the
+first two the derived cookie path was one no node writes and every bare
+`from_chain()` failed with a "no such file" that reads as a node that is
+down. Nothing to do to get the fix, and a caller passing `cookie_path` or
+`user`/`password` is untouched: that path is derived only when neither was
+given. What to check is a macOS or Windows setup that was made to agree
+with the old answer — a node started with `-datadir=~/.bitcoin` there, or a
+symlink standing in for one. It is still reachable, by the `cookie_path`
+that setup no longer needs to be a workaround for.
+
+`from_chain`'s refusal when there is no directory to derive from names
+`APPDATA` now, that being the Windows base and one an environment can
+simply not have. Only its wording changed; it is the same
+`BtcRpcValueError`, for the same reason, and still names `cookie_path` as
+the answer.
+
 The repository's default branch is `main`, and it is the only one: `master`
 was renamed to it and `dev` is gone. GitHub redirects the old links and
 retargets open pull requests, so nothing breaks on its own; a clone follows
