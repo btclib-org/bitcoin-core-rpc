@@ -146,9 +146,14 @@ carry a union merge driver that would keep both sides' numbers.
   `CodeQL`, and both analyses report green. REPOSITORY.md's "Turning default
   setup off without deadlocking" is the order it went in and the order to
   repeat if the setting comes back; dropping the `CodeQL` context before
-  disabling the setting is what keeps the rule from waiting on a check
-  nothing produces, that context being the `github-advanced-security` app's
-  and stopping with the setting
+  disabling the setting is what keeps the rule from waiting on a check whose
+  result is not the tree's to produce, that context being the
+  `github-advanced-security` app's. It does not stop with the setting: it
+  still reports on a pull request's head, `neutral` and summarised
+  `1 configuration not found`. A generated
+  `dynamic/github-code-scanning/codeql` workflow outlives it too, uploading
+  code quality results rather than security ones -- a separate setting the
+  `code-scanning` endpoint does not report
 - **CONTRIBUTING.md's workflow table names what `release` calls** instead of
   counting it. The count said six where `grep -n 'uses: ./.github/workflows'
   .github/workflows/release.yml` finds five, and a row added above it would

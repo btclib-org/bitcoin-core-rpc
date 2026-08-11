@@ -107,8 +107,9 @@ gh api "repos/btclib-org/bitcoin-core-rpc/commits/$sha/check-runs" \
 ```
 
 `codeql.yml` produces `codeql: every job passed` instead, from Actions.
-Disabling the setting stops the first, so the rule naming a check nothing
-produces is the state to avoid: `enforce_admins` is off, so an
+Disabling the setting takes the meaning out of the first without taking the
+check away — see below — so the rule naming a context whose result is not
+yours to produce is the state to avoid: `enforce_admins` is off, so an
 administrator can merge past it, but a merge that overrides a check nobody
 can produce is not the rule working. The order that never reaches it drops
 the old context before the setting, and adds the new one after the merge:
@@ -130,6 +131,26 @@ The five have been performed, which is why the table above ends in
 kept because the setting can be configured again from the repository's code
 security settings, and this is the order that takes it off again without
 leaving the rule waiting on a check nothing produces.
+
+Two things outlive the switch, and a reader meets both with nothing in the
+tree to explain them. GitHub keeps a generated
+`dynamic/github-code-scanning/codeql` workflow, still `active` and still
+running, which now uploads *code quality* results rather than security ones
+— `python.quality.sarif` in its log, where the security analysis produced
+`python.sarif` and `actions.sarif`. That is a separate setting, and the
+`code-scanning/default-setup` endpoint does not report it:
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc/actions/workflows \
+  --jq '.workflows[] | select(.path | startswith("dynamic/"))
+        | {name, path, state}'
+```
+
+And the `CodeQL` context did not stop with the setting: it still reports on
+a pull request's head commit, now `neutral` with the summary
+`1 configuration not found`. Whether a rule naming it would be satisfied by
+that has not been tested, and testing it means deadlocking `main` to find
+out — which is the argument for the order above, not against it.
 
 **PATCH that sub-endpoint, never PUT the whole protection object**: a
 partial PUT drops the signatures and the rest. Repeat `strict: true` in
