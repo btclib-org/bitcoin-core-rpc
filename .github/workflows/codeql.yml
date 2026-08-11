@@ -9,14 +9,14 @@ name: codeql
 # pinned to commit SHAs. Here the languages, the suite, the schedule and
 # the action versions are read the way the rest of CI is read.
 #
-# The two settings default setup holds are reproduced rather than chosen,
-# so that moving the analysis into the tree does not also change it:
+# What default setup held is reproduced rather than chosen, so that moving
+# the analysis into the tree does not also change it:
 #
 #     gh api repos/btclib-org/bitcoin-core-rpc/code-scanning/default-setup
 #
 # answers `languages: [actions, python]`, `query_suite: default` and
-# `schedule: weekly`, and the matrix, the init step and the cron below are
-# those three.
+# `schedule: weekly`, which are the matrix, the init step and the cron
+# below.
 #
 # Default setup and an advanced workflow are exclusive, and the way they
 # collide is worth knowing before reading a red check here: the jobs below
