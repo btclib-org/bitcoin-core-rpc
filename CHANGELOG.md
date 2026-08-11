@@ -80,6 +80,30 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **Code scanning is a workflow in the tree**, `.github/workflows/codeql.yml`,
+  rather than GitHub's default setup. It was the only required check whose
+  definition a diff could not review: the setting generates a workflow it
+  does not show, where every other check on `main` is a file here with its
+  actions pinned to commit SHAs. What the setting held is reproduced rather
+  than re-chosen -- `gh api
+  repos/btclib-org/bitcoin-core-rpc/code-scanning/default-setup` answers
+  `languages: [actions, python]`, `query_suite: default` and `schedule:
+  weekly`, and those are the matrix, the unset `queries` input and the
+  Tuesday cron. One job per language, so a failure names the language, and
+  `codeql: every job passed` aggregates them for a rule that has to name an
+  outcome rather than a matrix cell. The two are exclusive, GitHub declining
+  to run an advanced workflow while default setup is configured, so this
+  costs a five-step switch a person performs: REPOSITORY.md's "Turning
+  default setup off without deadlocking" is the order, and dropping the
+  `CodeQL` context before disabling the setting is what keeps the rule from
+  waiting on a check nothing produces
+- **CONTRIBUTING.md's workflow table names what `release` calls** instead of
+  counting it. The count said six where `grep -n 'uses: ./.github/workflows'
+  .github/workflows/release.yml` finds five, and a row added above it would
+  have made "the six above it" wrong a second way. The `workflow_dispatch`
+  sentence beside it went the same way: it excepted the gates, and
+  `grep -c workflow_dispatch: .github/workflows/*.yml` reports every
+  workflow taking it
 - **The `PATCH` REPOSITORY.md documents for the required-check list runs**,
   where the spelling it carried could not: `gh api -f` sends every value as
   a string and that endpoint types `app_id` as an integer, so
