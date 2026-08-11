@@ -50,7 +50,7 @@ uv run pre-commit install     # so a commit runs the lint gate
 
 The suite opens no socket and needs no node: every client in it is built
 with a `transport=` that answers from bytes committed under `tests/_data`.
-What a *live* node answers is a separate question, asked by the rpc-smoke
+What a *live* node answers is a separate question, asked by the integration
 workflow and by the command under [A live node](#a-live-node) below.
 
 ### The editor
@@ -72,11 +72,12 @@ read by every checkout of this repository.
 | --- | --- | --- |
 | `test` | pull request, push | 4 platforms × 7 interpreters |
 | `lint`, `docs` | pull request, push | — |
-| `rpc-smoke` | pull request, push | 2 Core versions, 4 chains |
+| `integration` | pull request, push | 2 Core versions, 4 chains |
 | `codeql` | pull request, push, Tuesday | 2 languages |
-| `macos` | Thursday, a release | 2 macOS images × 7 interpreters |
-| `latest` | Thursday | 6 platforms × 7, deps upgraded |
-| `links`, `mutation` | weekly | — |
+| `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
+| `latest` | Wednesday | 6 platforms × 7, deps upgraded |
+| `links` | Monday | — |
+| `mutation` | Sunday | — |
 | `published` | monthly, a release | what PyPI serves |
 | `release` | a tag | calls the five gates above it, and `published` |
 
@@ -182,7 +183,7 @@ afterwards, so nothing else may read the file while it runs.
 
 ### A live node
 
-`rpc-smoke.yml` is the one claim the recorded replies cannot make. Against
+`integration.yml` is the one claim the recorded replies cannot make. Against
 a `bitcoind` of your own — it runs on a regtest chain in a temporary
 datadir, on Core's own rpc port, and leaves nothing behind:
 

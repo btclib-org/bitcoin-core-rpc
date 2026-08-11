@@ -23,7 +23,7 @@ without `-txindex`, verbatim, including the trailing sentence
 `JSONRPCError` appends.
 
 Nothing here was invented; nothing here was captured either, and a node's
-answer is what settles a disagreement. `.github/workflows/rpc-smoke.yml` is
+answer is what settles a disagreement. `.github/workflows/integration.yml` is
 where that question is asked of two live bitcoind versions.
 
 ## What they carry is chain data, and it verifies itself

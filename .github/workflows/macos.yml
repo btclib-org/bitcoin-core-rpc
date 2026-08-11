@@ -36,13 +36,13 @@ name: macos
 
 on:
   schedule:
-    # Thursday, the morning latest.yml also runs, and thirty minutes before
+    # Wednesday, the morning latest.yml also runs, and thirty minutes before
     # it: the two answer halves of the same question and are worth reading
     # together. A minute that is not the hour, as every schedule here, so
     # that the run does not queue behind everything else cron starts.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "13 4 * * 4"
+    - cron: "13 4 * * 3"
   # lets release.yml gate a publication on this platform too, which is what
   # keeps a weekly sentinel from being the only thing that ever asks
   workflow_call:
