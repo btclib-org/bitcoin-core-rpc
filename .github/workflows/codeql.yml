@@ -19,12 +19,15 @@ name: codeql
 # below.
 #
 # Default setup and an advanced workflow are exclusive, and the way they
-# collide is worth knowing before reading a red check here: the jobs below
-# run, and the upload at the end of them is refused -- "Upload was rejected
-# because CodeQL default setup is enabled for code scanning", which GitHub
-# documents as a SARIF upload failure rather than as a workflow it declines
-# to start. So while the setting is configured this workflow reports failure
-# rather than nothing, and only disabling the setting makes it green.
+# collide is worth knowing before reading a red check here: `init` succeeds,
+# the database is built, and the upload at the end is refused --
+#
+#     Code Scanning could not process the submitted SARIF file:
+#     CodeQL analyses from advanced configurations cannot be processed
+#     when the default setup is enabled
+#
+# So while the setting is configured this workflow reports failure rather
+# than nothing, and only disabling the setting makes it green.
 # REPOSITORY.md carries the order that switches the two over without ever
 # leaving the branch rule waiting on a check nothing produces.
 
