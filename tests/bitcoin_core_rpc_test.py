@@ -69,6 +69,7 @@ from bitcoin_core_rpc import (
     BtcRpcTypeError,
     BtcRpcValueError,
     Chain,
+    CookieNotFoundError,
     FetchError,
     HttpError,
     Network,
@@ -76,6 +77,7 @@ from bitcoin_core_rpc import (
     RpcError,
     chain_from_network,
     cookie_auth,
+    cookie_path_from_chain,
     datadir_subdir_from_chain,
     default_datadir,
     network_from_chain,
@@ -189,6 +191,80 @@ def test_from_chain_is_the_local_node_of_that_chain() -> None:
     assert from_chain().cookie_path == datadir / ".cookie"
     assert from_chain("test").cookie_path == datadir / "testnet3" / ".cookie"
     assert from_chain("regtest").cookie_path == datadir / "regtest" / ".cookie"
+
+
+def test_the_cookie_path_is_the_datadir_the_subdir_and_the_filename(
+    tmp_path: Path,
+) -> None:
+    """A node's datadir composes with Core's table into the cookie path.
+
+    The three facts of the path, and the reason the function exists: two
+    are published tables and the third is the name Core gives the file.
+    `main` keeps it in the datadir itself, the rest a subdirectory down.
+    """
+    assert cookie_path_from_chain("main", tmp_path) == tmp_path / ".cookie"
+    assert cookie_path_from_chain("test", tmp_path) == tmp_path / "testnet3" / ".cookie"
+    assert (
+        cookie_path_from_chain("regtest", tmp_path) == tmp_path / "regtest" / ".cookie"
+    )
+    # a datadir as a string, which is how one arrives from a config file
+    assert cookie_path_from_chain("signet", str(tmp_path)) == (
+        tmp_path / "signet" / ".cookie"
+    )
+
+
+def test_the_cookie_path_defaults_to_the_datadir_of_this_call(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """No datadir given is `default_datadir`, asked now and not at import.
+
+    The same property `from_chain` has, and for the same reason: a module
+    imported transitively is imported at a moment the caller did not
+    choose, so the environment of the call is the one that counts.
+
+    The platform is pinned to the branch the home is the base of, as it is
+    for `from_chain` above: on Windows the base is `APPDATA`, and moving
+    the home there would move nothing.
+    """
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "home-after")
+
+    expected = tmp_path / "home-after" / ".bitcoin" / "regtest" / ".cookie"
+    assert cookie_path_from_chain("regtest") == expected
+
+
+def test_the_cookie_path_refuses_a_datadir_it_cannot_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No base for a datadir is a refusal naming `datadir`, not a relative path.
+
+    `from_chain` refuses the same case naming `cookie_path`, which is what
+    a caller of *that* passes instead; the remedy is what differs, and it
+    is why the constructor resolves the datadir itself rather than leaving
+    it to this default.
+
+    The platform is pinned for the same reason as above: the home is the
+    base on every row but Windows, where `APPDATA` is, so patching one of
+    the two makes the answer None only on the row it is the base of.
+    """
+
+    def no_home() -> Path:
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(Path, "home", no_home)
+    with pytest.raises(BtcRpcValueError, match="pass datadir"):
+        cookie_path_from_chain("main")
+
+
+def test_the_cookie_path_of_an_unknown_chain_is_no_path(tmp_path: Path) -> None:
+    """A chain Core has no directory for is the table's refusal, unchanged.
+
+    `mainnet` is the BIP name of `main` and the mistake this catches;
+    `chain_from_network` is the translation.
+    """
+    with pytest.raises(BtcRpcValueError, match="unknown Core chain"):
+        cookie_path_from_chain("mainnet", tmp_path)
 
 
 def test_from_chain_reads_the_home_of_the_call_and_not_of_the_import(
@@ -752,20 +828,69 @@ def test_the_cookie_is_read_at_every_call_not_at_construction(
     assert endpoint.auth_header() != first
 
 
-def test_an_absent_cookie_file_says_which_file(tmp_path: Path) -> None:
-    """Verify the unreadable-cookie error names the missing file.
+def test_an_absent_cookie_file_says_which_file_and_that_none_was_written(
+    tmp_path: Path,
+) -> None:
+    """A missing cookie names the file, and says a node writes it.
 
-    Which is also what tells a caller on macOS or Windows to pass a
-    `cookie_path`: the default is `~/.bitcoin`, Core's datadir on Linux
-    and on neither of those.
+    Naming it is what tells a caller looking in the wrong place -- a node
+    started with `-datadir=` elsewhere, a `cookie_path` carried over from
+    another host -- which place was looked in.
+
+    `CookieNotFoundError` and not the FetchError the other four cookie
+    failures are: nothing is at the path, so there is no file to go and
+    look at, and the node starting is what fixes it. A FetchError all the
+    same, so a caller catching that alone still catches this.
     """
     absent = tmp_path / "no-such-datadir" / ".cookie"
     # escaped because `match` is a regex and a path is not: the windows
     # separator is a backslash, so a tmp_path under C:\Users carries an
     # incomplete \U escape and the pattern does not even compile
-    expected = re.escape(f"unreadable rpc cookie file {absent}")
-    with pytest.raises(FetchError, match=expected):
+    expected = re.escape(f"no rpc cookie file {absent}")
+    with pytest.raises(CookieNotFoundError, match=expected):
         cookie_auth(absent)
+    with pytest.raises(FetchError, match="bitcoind writes one while it runs"):
+        cookie_auth(absent)
+
+
+def test_a_cookie_path_that_cannot_be_opened_is_not_a_missing_one(
+    tmp_path: Path,
+) -> None:
+    """Something at the path that will not open is the unreadable failure.
+
+    A directory is the case every platform has: POSIX refuses the open
+    with EISDIR and Windows with EACCES, and both are a file to go and
+    look at rather than a node to start -- which is the line
+    `CookieNotFoundError` draws.
+    """
+    expected = re.escape(f"unreadable rpc cookie file {tmp_path}")
+    with pytest.raises(FetchError, match=expected) as raised:
+        cookie_auth(tmp_path)
+    assert not isinstance(raised.value, CookieNotFoundError)
+
+
+def test_a_client_says_the_cookie_is_missing_before_it_opens_a_socket(
+    tmp_path: Path,
+) -> None:
+    """The credential is read while the request is built, so this comes first.
+
+    What makes a missing cookie a diagnosis of the node being down rather
+    than the refused connection that would follow it -- and what a caller
+    checking for the file itself before constructing a client would be
+    doing instead. A transport that raises on any request is how it is
+    checked: nothing here may reach it.
+    """
+
+    def refuses(  # pragma: no cover -- never called is the point of the test
+        _request: Request, _timeout: float
+    ) -> tuple[int, bytes]:
+        err_msg = "a call was sent with no credential to present"
+        raise AssertionError(err_msg)
+
+    absent = tmp_path / ".cookie"
+    endpoint = BitcoinCoreRpcClient(URL, cookie_path=absent, transport=refuses)
+    with pytest.raises(CookieNotFoundError, match="no rpc cookie file"):
+        endpoint.call("getblockcount")
 
 
 def test_a_cookie_file_without_a_colon_is_not_one(tmp_path: Path) -> None:

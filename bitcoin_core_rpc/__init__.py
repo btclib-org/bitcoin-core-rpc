@@ -176,6 +176,7 @@ __all__ = [
     "BtcRpcTypeError",
     "BtcRpcValueError",
     "Chain",
+    "CookieNotFoundError",
     "FetchError",
     "HttpError",
     "HttpTransport",
@@ -184,6 +185,7 @@ __all__ = [
     "RpcError",
     "chain_from_network",
     "cookie_auth",
+    "cookie_path_from_chain",
     "datadir_subdir_from_chain",
     "default_datadir",
     "http_request",
@@ -252,8 +254,8 @@ class FetchError(BtcRpcRuntimeError):
     the BtcRpcValueError the parser raised would name the parser rather
     than the host that has to be fixed.
 
-    `HttpError` and `RpcError` derive from it, so one `except FetchError`
-    catches every failure of an exchange.
+    `HttpError`, `RpcError` and `CookieNotFoundError` derive from it, so
+    one `except FetchError` catches every failure of an exchange.
     """
 
 
@@ -306,6 +308,23 @@ class RpcError(FetchError):
 
     def __str__(self) -> str:
         return f"{self.args[0]} (rpc error code {self.code})"
+
+
+class CookieNotFoundError(FetchError):
+    """There is no cookie file where one was looked for.
+
+    A FetchError like the others, and for the same reason: nothing the
+    caller passed is wrong, and the node starting is what fixes it. A
+    class of its own because it is the one cookie failure that is
+    ordinarily no fault at all -- bitcoind writes the file while it runs
+    and removes it when it stops, so an absent one is a node that is not
+    running, or one whose rpc server is off, which is `bitcoin-qt` without
+    `server=1`. Every other cookie failure is a file to go and look at.
+
+    A caller that reports the two the same way tells an operator to
+    inspect a file that was never written; one holding them apart says
+    "start the node" for this and names the file for the rest.
+    """
 
 
 def _is_integer(value: Any) -> bool:
@@ -795,9 +814,9 @@ def datadir_subdir_from_chain(chain: str) -> str:
 
     Empty for `main`, which keeps its cookie in the datadir itself, and
     `testnet3` for `test`: the two the chain name does not give away.
-    `from_chain` derives a cookie path under the default datadir, and a
-    node started with `-datadir=` elsewhere is what this is for -- that
-    directory, this subdirectory, `.cookie`.
+    `cookie_path_from_chain` composes it with a datadir and the name of
+    the cookie file; what is left for this is a caller naming something
+    else under the same directory -- a wallet, a `debug.log`.
     """
     if chain not in _DATADIR_SUBDIR_FROM_CHAIN:
         known = ", ".join(_DATADIR_SUBDIR_FROM_CHAIN)
@@ -940,10 +959,9 @@ def default_datadir() -> Path | None:
     `DEFAULT_DATADIR`, so that the `HOME` of the call is the one that
     counts and not the one that stood when something first imported this
     module. Public for the same reason: a caller building its own
-    datadir-derived path -- a wallet directory, a cookie under the
-    subdirectory `datadir_subdir_from_chain` names -- needs that live
-    answer too, and had no way to ask for it short of copying this
-    function.
+    datadir-derived path -- a wallet directory, or the cookie
+    `cookie_path_from_chain` derives -- needs that live answer too, and had
+    no way to ask for it short of copying this function.
     """
     base_var, subdirs = _DATADIR_FROM_PLATFORM.get(sys.platform, _DATADIR_ELSEWHERE)
     if base_var is None:
@@ -972,6 +990,49 @@ DEFAULT_DATADIR: Path | None = default_datadir()
 gets. `from_chain` calls that rather than reading this, so that a `HOME`
 set after this module was imported is the one that counts.
 """
+
+
+def cookie_path_from_chain(
+    chain: str, datadir: str | PathLike[str] | None = None
+) -> Path:
+    """Return the path of the cookie file bitcoind writes for one chain.
+
+    Under `datadir`, the directory the node was started with, defaulting
+    to `default_datadir` -- asked at this call, so that the environment of
+    the call is what counts, and where it has no base to answer with this
+    refuses with `BtcRpcValueError` naming `datadir` rather than deriving
+    a path against the working directory. Then the subdirectory
+    `datadir_subdir_from_chain` names, and `.cookie`, which is
+    `COOKIEAUTH_FILE` in Core's `src/rpc/request.cpp`.
+
+    What `from_chain` builds its `cookie_path` out of, and what the caller
+    it cannot serve otherwise assembles by hand: a node started with
+    `-datadir=` somewhere else, or one reached at a url of the caller's,
+    which is the constructor and derives nothing. Two of the three facts
+    were published as tables and the name of the file was not, so
+    assembling it meant writing that name out.
+
+    A node started with `-rpccookiefile` writes the file somewhere else
+    again: that is a path the caller already holds, and nothing derives
+    it.
+
+    A path and no read, `cookie_auth` being what reads one -- and a client
+    re-reads it at every call, the node rotating the credential at every
+    restart.
+    """
+    if datadir is None:
+        datadir = default_datadir()
+        if datadir is None:
+            err_msg = "no absolute home directory (APPDATA on Windows), so"
+            err_msg += " no default datadir to find the cookie file in:"
+            err_msg += " pass datadir"
+            raise BtcRpcValueError(err_msg)
+    # `Path` refuses a type that is no path itself, with a TypeError of
+    # pathlib's naming what it takes; the constructor checks `cookie_path`
+    # by hand because `quote` accepts `bytes` and built an endpoint out of
+    # one, which is a wrong value passing rather than a refusal
+    return Path(datadir) / datadir_subdir_from_chain(chain) / ".cookie"
+
 
 # what a cookie file may weigh. bitcoind writes one line of some seventy
 # octets, so a bound three orders of magnitude above that refuses nothing
@@ -1076,11 +1137,24 @@ def cookie_auth(cookie_path: Path) -> str:
     checks buy is that a binary file, a log or something enormous arrives
     as a FetchError naming the file, rather than as a UnicodeDecodeError
     or as memory nobody agreed to.
+
+    A file that is not there is `CookieNotFoundError`, which is a
+    FetchError too: it says the node wrote no cookie, where the rest say
+    something is at the path and it is not a cookie.
     """
     try:
         with cookie_path.open("rb") as file:
             raw = file.read(_MAX_COOKIE_SIZE + 1)
+    except FileNotFoundError as e:
+        err_msg = f"no rpc cookie file {cookie_path}: bitcoind writes one"
+        err_msg += " while it runs with its rpc server enabled"
+        raise CookieNotFoundError(err_msg) from e
     except OSError as e:
+        # every other way the open fails is a file to look at: a directory
+        # at the path, a mode that excludes this user, a datadir that is no
+        # directory. `FileNotFoundError` alone above, and not `ENOTDIR`
+        # with it -- a path component that is a file is a datadir the
+        # caller configured wrong, which the node starting does not fix
         raise FetchError(f"unreadable rpc cookie file {cookie_path}: {e}") from e
     if len(raw) > _MAX_COOKIE_SIZE:
         err_msg = f"oversized rpc cookie file {cookie_path}:"
@@ -1604,13 +1678,18 @@ class BitcoinCoreRpcClient:
         """
         port = rpc_port_from_chain(chain)
         if user is None and password is None and cookie_path is None:
+            # the datadir is resolved here, rather than left to
+            # `cookie_path_from_chain`'s own default, because the remedy
+            # differs: that function names `datadir`, which this
+            # constructor does not take, where what a caller of this one
+            # passes instead is a `cookie_path`, or credentials
             datadir = default_datadir()
             if datadir is None:
                 err_msg = "no absolute home directory (APPDATA on Windows),"
                 err_msg += " so no default datadir to find the cookie file"
                 err_msg += " in: pass cookie_path, or user and password"
                 raise BtcRpcValueError(err_msg)
-            cookie_path = datadir / datadir_subdir_from_chain(chain) / ".cookie"
+            cookie_path = cookie_path_from_chain(chain, datadir)
         client = cls(
             f"http://127.0.0.1:{port}",
             user=user,

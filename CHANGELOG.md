@@ -44,6 +44,29 @@ carry a union merge driver that would keep both sides' numbers.
   chain it is running, and `-chain=test` under a cookie or a datadir
   carried over from a `main` setup is what this catches instead of a
   wrong-network call succeeding silently.
+- **`cookie_path_from_chain`**, the path of the cookie file a chain's node
+  writes: a datadir, the subdirectory `datadir_subdir_from_chain` names,
+  and `.cookie`, which is `COOKIEAUTH_FILE` in Core's
+  `src/rpc/request.cpp`. The datadir defaults to `default_datadir`, asked
+  at the call as `from_chain` asks it, and where there is no absolute base
+  to answer with, `BtcRpcValueError` naming `datadir` rather than a path
+  resolved against the working directory. `from_chain` derives its own
+  `cookie_path` with it; what it is for is the caller `from_chain` cannot
+  serve -- a node started with `-datadir=` somewhere else, or one reached
+  at a url of the caller's, which is the constructor and derives nothing
+  -- who had the two tables published and the name of the file to write
+  out, that being the one of the three facts no function here stated.
+- **`CookieNotFoundError`**, a `FetchError` for a cookie file that is not
+  there. bitcoind writes one while it runs with its rpc server enabled, so
+  an absent cookie is a node that is not running -- or `bitcoin-qt`
+  without `server=1` -- where the four other cookie failures (unreadable,
+  oversized, non-ascii, malformed) are a file to go and look at. Since it
+  derives from `FetchError`, an `except FetchError` catches it as before;
+  what the class buys is the caller that says "start the node" for this one
+  and names the file for the rest, instead of reporting both as a file to
+  inspect. `cookie_auth` raises it for `FileNotFoundError` alone: ENOTDIR
+  stays the unreadable failure, a datadir that is no directory being
+  configuration the node starting does not fix.
 
 ### Changed
 
@@ -69,6 +92,14 @@ carry a union merge driver that would keep both sides' numbers.
   would not have done: mypy narrows those to the platform it is aimed at and
   stops type checking the rest, and a table is what keeps every row in front
   of the checker as well as the runner.
+- **An absent cookie file is reported as absent**: `no rpc cookie file
+  <path>: bitcoind writes one while it runs with its rpc server enabled`,
+  where it was `unreadable rpc cookie file <path>: [Errno 2] No such file
+  or directory` -- a message that says the file was found and would not
+  open, for the case where nothing is at the path at all, and that leaves
+  the reader to work out from an errno what a node writing the file would
+  have meant. `CookieNotFoundError` above is the class it now carries; a
+  caller matching on the text of the old message is what this breaks.
 - **`default_datadir` is public**, no longer `_default_datadir`. `from_chain`
   already called it to find the live `HOME` at the moment of the call rather
   than the one `DEFAULT_DATADIR` froze at import; a caller deriving its own
