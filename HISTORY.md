@@ -31,6 +31,23 @@ simply not have. Only its wording changed; it is the same
 `BtcRpcValueError`, for the same reason, and still names `cookie_path` as
 the answer.
 
+A cookie file that is not there raises `CookieNotFoundError` now, with the
+message `no rpc cookie file <path>: bitcoind writes one while it runs with
+its rpc server enabled`. It is a `FetchError`, so `except FetchError`
+catches it as before; code matching on the text has one to update, the case
+previously arriving as `unreadable rpc cookie file <path>: [Errno 2] No
+such file or directory`. Everything else at that path — a directory, a mode
+that excludes this user, a file that is no cookie — keeps the
+`unreadable` message and the plain `FetchError`, that being a file to go and
+look at where an absent cookie is a node to start.
+
+`cookie_path_from_chain(chain, datadir)` is what derives such a path: the
+datadir, the chain's subdirectory and `.cookie`, which `from_chain` builds
+its own with. Use it instead of assembling the path by hand wherever
+`from_chain` does not do it for you — a node started with `-datadir=`
+somewhere else, or one reached at a url of your own, which is the
+constructor and derives nothing.
+
 The repository's default branch is `main`, and it is the only one: `master`
 was renamed to it and `dev` is gone. GitHub redirects the old links and
 retargets open pull requests, so nothing breaks on its own; a clone follows
