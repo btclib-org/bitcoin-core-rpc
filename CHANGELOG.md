@@ -80,6 +80,23 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **REPOSITORY.md's branch protection is read back from the rule** rather
+  than remembered. It said `enforce_admins` was on -- "the rule holds for
+  an administrator too, which is what makes it a rule" -- and that no
+  approving review was required, calling that omission the deliberate half
+  of the setup. `gh api
+  repos/btclib-org/bitcoin-core-rpc/branches/main/protection` answers
+  `enforce_admins: false` and one approving review with
+  `dismiss_stale_reviews`: the opposite arrangement, where the review is
+  required and the administrator bypass is what lets the maintainer's own
+  pull request merge past a review nobody can give it, GitHub not allowing
+  self-approval. The paragraphs that argued from the old shape argue from
+  this one, and the two that reasoned "with `enforce_admins` on there is
+  nothing to override" -- the deadlock warning and the rename procedure --
+  say what the bypass costs instead. The rest of the file was checked the
+  same way and holds: the five contexts with their app bindings,
+  `delete_branch_on_merge`, the `pypi` environment's `v*` tag policy,
+  release.yml's one elevation per job, and the six security settings
 - **Code scanning is a workflow in the tree**, `.github/workflows/codeql.yml`,
   rather than GitHub's default setup. It was the only required check whose
   definition a diff could not review: the setting generates a workflow it
