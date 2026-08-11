@@ -90,9 +90,10 @@ gh api "repos/btclib-org/bitcoin-core-rpc/commits/$sha/check-runs" \
 
 `codeql.yml` produces `codeql: every job passed` instead, from Actions.
 Disabling the setting stops the first, so the rule naming a check nothing
-produces is the state to avoid: with `enforce_admins` on there is nothing to
-override it with. The order that never reaches it drops the old context
-before the setting, and adds the new one after the merge:
+produces is the state to avoid: `enforce_admins` is off, so an
+administrator can merge past it, but a merge that overrides a check nobody
+can produce is not the rule working. The order that never reaches it drops
+the old context before the setting, and adds the new one after the merge:
 
 1. patch the rule to drop `CodeQL`, the other four contexts staying;
 1. disable default setup with the `PATCH` above;
@@ -113,10 +114,10 @@ the body, which replaces the object rather than merging into it.
 Renaming a required check is the one change that cannot be made in a pull
 request. The rule names a context by the job's display name, so the pull
 request that renames the job stops producing the old name and never
-produces a check the rule is still waiting for -- and with
-`enforce_admins` on there is nothing to override. The rule moves first,
-against the branch, and then the pull request that renames the job reports
-the name the rule now wants:
+produces a check the rule is still waiting for -- and the administrator
+bypass that could merge it anyway is the same bypass this file argues
+against relying on. The rule moves first, against the branch, and then the
+pull request that renames the job reports the name the rule now wants:
 
 ```shell
 branch=repos/btclib-org/bitcoin-core-rpc/branches/main
@@ -156,24 +157,27 @@ cannot make, and that belongs in front of a merge.
 ## Branch protection
 
 `main` is the only branch, and everything reaches it through a pull
-request: the checks above with `strict`, **required signatures**, linear
-history, no force pushes, no deletions,
-`required_conversation_resolution`, and `enforce_admins` *on* — the rule
-holds for an administrator too, which is what makes it a rule.
+request: the checks above with `strict`, one approving review,
+`dismiss_stale_reviews`, **required signatures**, linear history, no force
+pushes, no deletions, `required_conversation_resolution`, and
+`enforce_admins` *off* — an administrator can bypass all of it.
 
-**No approving review is required**, and that omission is the deliberate
-half of the setup. A review cannot be satisfied by the author, GitHub not
-allowing self-approval, so on a solo-maintainer repository it is a stop
-rather than a speed bump: either nothing merges, or an administrator waves
-it through on every pull request and the rule teaches its own bypass. The
-required checks gate instead, and they cannot be self-approved either —
-they are earned by the tree.
+That last one is what carries the review. A review cannot be satisfied by
+its author, GitHub not allowing self-approval, so on a solo-maintainer
+repository the rule as written stops every pull request the maintainer
+opens, and the bypass is what lets one merge at all. The trade is the
+review's other half: it is there for a contributor's pull request, where
+there *is* somebody else to ask, and for the bots', which nobody
+self-approves either.
 
-Required signatures cost nothing because the only thing writing to `main`
-is a merge GitHub performs itself, and GitHub signs those with its
-web-flow key. Said from the other side: a maintainer with no signing key
-configured cannot push straight to `main`, which is the rule working
-rather than the rule in the way.
+The required checks are the half that holds regardless, because they are
+earned by the tree rather than granted: a bypass is a decision somebody
+makes on a pull request in front of them, where a green matrix is not.
+
+Required signatures cost the maintainer nothing for the same reason
+nothing here pushes to `main` directly: the only thing writing to it is a
+merge GitHub performs itself, and GitHub signs those with its web-flow
+key.
 
 `strict` means a pull request merges only from a head up to date with
 `main`, so landing one asks the next to update and re-run. That is a queue
