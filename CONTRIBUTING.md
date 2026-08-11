@@ -73,20 +73,28 @@ read by every checkout of this repository.
 | `test` | pull request, push | 4 platforms × 7 interpreters |
 | `lint`, `docs` | pull request, push | — |
 | `rpc-smoke` | pull request, push | 2 Core versions, 4 chains |
+| `codeql` | pull request, push, Tuesday | 2 languages |
 | `macos` | Thursday, a release | 2 macOS images × 7 interpreters |
 | `latest` | Thursday | 6 platforms × 7, deps upgraded |
 | `links`, `mutation` | weekly | — |
 | `published` | monthly, a release | what PyPI serves |
-| `release` | a tag | calls the six above it |
+| `release` | a tag | calls `test`, `lint`, `docs`, `macos`, `published` |
 
-The first three rows are what a merge waits for, about three minutes between
+The first four rows are what a merge waits for, about three minutes between
 them. macOS is not among them on purpose: it is the one platform whose
 runners queue — 15.7 and 13.1 minutes of mean wait against 0.1 to 0.3
 elsewhere, on cells that each run in under a minute — so it answers weekly,
 and before a release, rather than before a review. `macos` and `latest` share
 a morning half an hour apart, which is what makes the pair readable: red in
-both is the platform, red in `latest` alone is the upgrade. Everything but
-the first three rows also takes `workflow_dispatch`.
+both is the platform, red in `latest` alone is the upgrade. Every workflow
+here also takes `workflow_dispatch`, gates included —
+`grep -c workflow_dispatch: .github/workflows/*.yml` is what says so.
+
+`codeql` is on a weekly schedule as well as on every pull request, and the
+two ask different questions: a pull request analyses what it changed, and
+the Tuesday run analyses an unchanged tree against query packs that have
+moved since. It is the one gate `release` does not call, a tag publishing
+the tree those checks already passed.
 
 ### Reproducing what CI runs
 
@@ -133,6 +141,12 @@ cannot parse fails the workflow while pre-commit is green.
 uv run --locked --no-default-groups --group docs \
     sphinx-build -W --keep-going -b html docs/source docs/build/html
 ```
+
+`codeql.yml` has no line here, and it is the one gate that cannot: its jobs
+run `github/codeql-action` and no command of this project's, so reproducing
+it locally means the CodeQL CLI and a database rather than a `uv run`. What
+a branch can do instead is ask for the analysis it would get —
+`gh workflow run codeql.yml --ref <branch>`.
 
 Another interpreter, which is what the matrix varies. Prefix it with
 `UV_PROJECT_ENVIRONMENT`, or `uv run --python <version>` rebuilds `.venv`

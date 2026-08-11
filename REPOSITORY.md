@@ -38,7 +38,7 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 | Check | Produced by |
 | --- | --- |
 | `Lint and type-check` | `lint.yml`, first job |
-| `CodeQL` | code scanning default setup |
+| `codeql: every job passed` | `codeql.yml`, aggregate over its matrix |
 | `Build the documentation` | `docs.yml`, its only job |
 | `test: every job passed` | `test.yml`, aggregate over the matrix |
 | `rpc-smoke: every job passed` | `rpc-smoke.yml`, aggregate over its matrix |
@@ -52,25 +52,59 @@ moving a job is free and renaming one is not. `lint.yml` and `docs.yml` both
 trigger on `pull_request` with no branch and no `paths` filter, so both
 report on every pull request, forks included.
 
-`CodeQL` comes from the default setup rather than from a workflow in this
-tree, which is why no `codeql.yml` is here to find: it is a repository
-setting, `actions` and `python` at the default query suite, and the
-`PATCH` below is what turns it on.
+Code scanning comes from `.github/workflows/codeql.yml`, and the repository
+setting that would otherwise perform it — code scanning **default setup** —
+has to stay off: the two are exclusive, and the collision is at the upload
+rather than at the start. An advanced workflow runs while the setting is
+configured, and its results are refused — "Upload was rejected because
+CodeQL default setup is enabled for code scanning" — so the workflow reports
+*failure*, not nothing. The `PATCH` below turns the setting off, and the
+state it leaves behind is the one this file describes.
 
 ```shell
-setup='{"state":"configured","query_suite":"default",'
-setup="${setup}"'"languages":["actions","python"]}'
-gh api -X PATCH --input - \
-  repos/btclib-org/bitcoin-core-rpc/code-scanning/default-setup \
-  <<<"${setup}"
+gh api -X PATCH -F state=not-configured \
+  repos/btclib-org/bitcoin-core-rpc/code-scanning/default-setup
 ```
 
 `PATCH`, not `PUT`: that endpoint answers a PUT with a bare 404, which
 reads as "no such repository" and is not.
 
-Each check is bound to the app that produces it — `checks` with an
-`app_id` rather than the bare `contexts` list, 15368 for Actions and 57789
-for CodeQL — so nothing else can satisfy one.
+Every required check is therefore an Actions check, which is what makes the
+`app_id` below one number rather than two: each check is bound to the app
+that produces it — `checks` with an `app_id` rather than the bare `contexts`
+list, 15368 for Actions — so nothing else can satisfy one.
+
+### Turning default setup off without deadlocking
+
+Default setup produces `CodeQL`, and it is worth knowing which app does:
+the Actions jobs it runs report `Analyze (actions)` and `Analyze (python)`,
+while the required context comes from the `github-advanced-security` app as
+a check named `CodeQL` with conclusion `neutral`, and only on a pull
+request's head commit —
+
+```shell
+sha=$(gh api repos/btclib-org/bitcoin-core-rpc/pulls/<n> --jq '.head.sha')
+gh api "repos/btclib-org/bitcoin-core-rpc/commits/$sha/check-runs" \
+  --jq '.check_runs[] | [.name, .app.id, .conclusion] | @tsv'
+```
+
+`codeql.yml` produces `codeql: every job passed` instead, from Actions.
+Disabling the setting stops the first, so the rule naming a check nothing
+produces is the state to avoid: with `enforce_admins` on there is nothing to
+override it with. The order that never reaches it drops the old context
+before the setting, and adds the new one after the merge:
+
+1. patch the rule to drop `CodeQL`, the other four contexts staying;
+1. disable default setup with the `PATCH` above;
+1. re-run the checks on the pull request carrying `codeql.yml`, whose
+   analysis was red for the upload refusal above and now passes;
+1. merge it;
+1. patch the rule to add `codeql: every job passed`.
+
+Between steps 1 and 5 code scanning gates nothing, which is the cost of the
+switch and the reason it is five steps rather than two. Steps 1, 2 and 5 are
+`gh api` calls a person makes; the two `PATCH` bodies are the list in full,
+that endpoint replacing the object rather than merging into it.
 
 **PATCH that sub-endpoint, never PUT the whole protection object**: a
 partial PUT drops the signatures and the rest. Repeat `strict: true` in
@@ -89,7 +123,7 @@ branch=repos/btclib-org/bitcoin-core-rpc/branches/main
 gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
 {"strict": true,
  "checks": [{"context": "Lint and type-check", "app_id": 15368},
-            {"context": "CodeQL", "app_id": 57789},
+            {"context": "codeql: every job passed", "app_id": 15368},
             {"context": "Build the documentation", "app_id": 15368},
             {"context": "test: every job passed", "app_id": 15368},
             {"context": "rpc-smoke: every job passed", "app_id": 15368}]}
@@ -205,7 +239,12 @@ this list is the whole of them:
 | Private vulnerability reporting | enabled |
 | Secret scanning | enabled |
 | Secret scanning push protection | enabled |
-| Code scanning default setup (CodeQL) | configured |
+| Code scanning default setup (CodeQL) | not configured |
+
+Code scanning itself is enabled, and the row above says the opposite of
+that: what performs it is `codeql.yml`, which GitHub declines to run while
+the setting is configured. "Required checks on main" above has the switch
+and the `gh api` that reads the setting back.
 
 Private vulnerability reporting is what `SECURITY.md` sends a reporter to,
 and the link in `.github/ISSUE_TEMPLATE/config.yml` is the same door: with
