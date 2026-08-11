@@ -97,6 +97,15 @@ carry a union merge driver that would keep both sides' numbers.
   same way and holds: the five contexts with their app bindings,
   `delete_branch_on_merge`, the `pypi` environment's `v*` tag policy,
   release.yml's one elevation per job, and the six security settings
+- **The suite runs serially again.** `-n auto --dist worksteal` cost more than
+  it saved here: nine interleaved runs each put the medians at 0.50s serial
+  against 0.90s parallel, and 0.65s against 1.23s under coverage, with CI
+  agreeing on ubuntu and on the coverage job. 298 tests that open no socket
+  finish before ten workers have started, which is the opposite of the
+  condition the flag exists for -- checksig's suite starts a node per test
+  and gains about 4.5x from the same setting. pytest-xdist stays installed
+  because the mutation session passes `-n0`, and without the plugin pytest
+  rejects the flag rather than ignoring it
 - **Code scanning is a workflow in the tree**, `.github/workflows/codeql.yml`,
   rather than GitHub's default setup. It was the only required check whose
   definition a diff could not review: the setting generates a workflow it

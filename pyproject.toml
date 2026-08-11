@@ -229,7 +229,25 @@ testpaths = ["tests"]
 # this module: `DEFAULT_DATADIR` is computed at import and several tests
 # patch `Path.home`, so a test reading the constant after another has moved
 # the home is exactly the ordering a fixed order would hide
-addopts = "-ra --durations=8 -n auto --dist worksteal --strict-config --strict-markers"
+#
+# no `-n auto`, and its absence is measured rather than an omission: on this
+# suite a worker pool costs more than it saves, because the suite opens no
+# socket and 298 tests finish before ten workers have started. Nine
+# interleaved runs each, medians, all of them green:
+#
+#     serial 0.50s against 0.90s parallel, and under coverage 0.65s
+#     against 1.23s -- 1.8x and 1.9x the wrong way
+#
+# and in CI the same, ubuntu 0.68s against 0.85s with the coverage job 0.90s
+# against 1.30s. Windows looked like a win at one run per configuration
+# across a spread wider than the difference, which is not a claim. The
+# command that re-derives it is `pytest --durations=0`, and the criterion
+# this family applies is in checksig's docs/test-parallelism.md: the pool
+# pays where the suite is long enough to amortise starting it, which there
+# means node-starting tests at a second each and here means nothing.
+# pytest-xdist stays in the test group: the mutation session passes `-n0`,
+# and without the plugin pytest rejects the flag rather than ignoring it
+addopts = "-ra --durations=8 --strict-config --strict-markers"
 # a test that was expected to fail and passed is a fixed bug still marked
 # as broken: strict turns it red instead of reporting xpass
 xfail_strict = true
