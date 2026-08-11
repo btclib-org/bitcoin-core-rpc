@@ -38,10 +38,13 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 | Check | Produced by |
 | --- | --- |
 | `Lint and type-check` | `lint.yml`, first job |
-| `codeql: every job passed` | `codeql.yml`, aggregate over its matrix |
 | `Build the documentation` | `docs.yml`, its only job |
 | `test: every job passed` | `test.yml`, aggregate over the matrix |
 | `rpc-smoke: every job passed` | `rpc-smoke.yml`, aggregate over its matrix |
+| `codeql: every job passed` | `codeql.yml`, aggregate over its matrix |
+
+`codeql: every job passed` is last because it was added last, by step 5 of
+the switch below, and that endpoint appends rather than sorts.
 
 `Build the documentation` is named on its own on purpose: a rule naming
 `Lint and type-check` alone would leave a red docs build outside the
@@ -65,8 +68,16 @@ CodeQL analyses from advanced configurations cannot be processed when
 the default setup is enabled
 ```
 
-The `PATCH` below turns the setting off, and the state it leaves behind is
-the one this file describes.
+It is off, and `state` is what says so rather than the absence of a
+complaint:
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc/code-scanning/default-setup \
+  --jq .state
+```
+
+answers `not-configured`. The `PATCH` that puts it there is the one to
+repeat if the setting is ever switched back on:
 
 ```shell
 gh api -X PATCH -F state=not-configured \
@@ -113,6 +124,12 @@ Between steps 1 and 5 code scanning gates nothing, which is the cost of the
 switch and the reason it is five steps rather than two. Steps 1, 2 and 5 are
 `gh api` calls a person makes; the two `PATCH` bodies are the list in full,
 that endpoint replacing the object rather than merging into it.
+
+The five have been performed, which is why the table above ends in
+`codeql: every job passed` and the setting reads `not-configured`. They are
+kept because the setting can be configured again from the repository's code
+security settings, and this is the order that takes it off again without
+leaving the rule waiting on a check nothing produces.
 
 **PATCH that sub-endpoint, never PUT the whole protection object**: a
 partial PUT drops the signatures and the rest. Repeat `strict: true` in
@@ -253,9 +270,10 @@ this list is the whole of them:
 | Code scanning default setup (CodeQL) | not configured |
 
 Code scanning itself is enabled, and the row above says the opposite of
-that: what performs it is `codeql.yml`, which GitHub declines to run while
-the setting is configured. "Required checks on main" above has the switch
-and the `gh api` that reads the setting back.
+that: what performs it is `codeql.yml`, and configuring the setting would
+not stop that workflow running — it would refuse the results at the upload.
+"Required checks on main" above has the switch and the `gh api` that reads
+the setting back.
 
 Private vulnerability reporting is what `SECURITY.md` sends a reporter to,
 and the link in `.github/ISSUE_TEMPLATE/config.yml` is the same door: with

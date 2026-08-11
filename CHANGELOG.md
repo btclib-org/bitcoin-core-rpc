@@ -120,12 +120,16 @@ carry a union merge driver that would keep both sides' numbers.
   outcome rather than a matrix cell. The two are exclusive at the upload and
   not at the start -- `init` succeeds and `analyze` is refused, "CodeQL
   analyses from advanced configurations cannot be processed when the default
-  setup is enabled" -- so this costs a five-step switch a person performs,
-  and the analysis is red until step 2 of it. REPOSITORY.md's "Turning
-  default setup off without deadlocking" is the order; dropping the `CodeQL`
-  context before disabling the setting is what keeps the rule from waiting on
-  a check nothing produces, that context being the
-  `github-advanced-security` app's and stopping with the setting
+  setup is enabled" -- so this cost a five-step switch a person performed,
+  the analysis red until step 2 of it. That switch is done: default setup
+  answers `not-configured`, the rule ends in `codeql: every job passed` at
+  `app_id` 15368 where it named the `github-advanced-security` context
+  `CodeQL`, and both analyses report green. REPOSITORY.md's "Turning default
+  setup off without deadlocking" is the order it went in and the order to
+  repeat if the setting comes back; dropping the `CodeQL` context before
+  disabling the setting is what keeps the rule from waiting on a check
+  nothing produces, that context being the `github-advanced-security` app's
+  and stopping with the setting
 - **CONTRIBUTING.md's workflow table names what `release` calls** instead of
   counting it. The count said six where `grep -n 'uses: ./.github/workflows'
   .github/workflows/release.yml` finds five, and a row added above it would
