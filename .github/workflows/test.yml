@@ -58,7 +58,9 @@ jobs:
   # `http.client` under it are the largest part of what this module does
   # and the part that moves most between releases; `Path.home()` resolves
   # through the registry on Windows and through the passwd database
-  # elsewhere, which is what `_default_datadir` reads; `decimal` is
+  # elsewhere, and `%APPDATA%` is what `default_datadir` reads there
+  # instead, so the Windows rows are the one place either is asked for
+  # real rather than patched; `decimal` is
   # libmpdec on CPython and a Python implementation on PyPI, and the exact
   # parsing of an amount is a promise this client makes.
   # windows-11-arm needs no special handling, and that is worth a word:
@@ -83,8 +85,9 @@ jobs:
         # cells waited 15.7 and 13.1 minutes on average for a runner,
         # against 0.1 to 0.3 here -- so two rows of twelve set the whole
         # wait of a pull request. What they sample is the standard library
-        # on a platform this module has no branch for, which is worth a
-        # week rather than worth a review's patience
+        # under the one branch this module takes per platform, whose macOS
+        # row every run of the suite already asserts by patching
+        # `sys.platform`: worth a week rather than a review's patience
         os:
           - ubuntu-latest
           - ubuntu-24.04-arm
@@ -131,9 +134,10 @@ jobs:
         run: uv run --locked --no-default-groups --group test pytest
 
   # coverage is measured once, not once per matrix job: the code base has
-  # no platform- or version-conditional branch (no sys.platform, no
-  # sys.version_info) and no conditional skip, so every job walks the very
-  # same lines. Per-job measurement would buy only the instrumentation
+  # no version-conditional branch and no conditional skip, and its one
+  # sys.platform branch -- the datadir table in `default_datadir` -- is
+  # driven by patching `sys.platform`, so every job walks the very same
+  # lines. Per-job measurement would buy only the instrumentation
   # overhead.
   # The number is a gate rather than a report: fail_under, in
   # tool.coverage.report, fails this job on a regression. It needs no

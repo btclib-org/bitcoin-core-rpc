@@ -143,13 +143,14 @@ inside a copied source is a second one that can drift from it.
 from __future__ import annotations
 
 import json
+import sys
 from base64 import b64encode
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from decimal import Decimal, DecimalException
 from http.client import HTTPException, HTTPMessage
 from math import isfinite
-from os import PathLike
+from os import PathLike, environ
 from pathlib import Path
 from secrets import token_hex
 from time import monotonic
@@ -891,29 +892,49 @@ still a valid one.
 """
 
 
+# Core's default datadir per platform, from `GetDefaultDataDir` in
+# src/common/args.cpp: the directory below hanging off a base, which is the
+# home directory except on Windows, where Core asks the shell for
+# CSIDL_APPDATA -- the folder `%APPDATA%` names, and the environment
+# variable is how a Python process asks for it. Keyed by `sys.platform`,
+# with everything not in the table taking Core's `#else`, the Unix branch:
+# a table rather than a chain of comparisons because mypy narrows
+# `sys.platform ==` to the platform it is aimed at and stops checking the
+# rest, so the two branches a Linux run of the checker would not look at
+# are the two this table keeps in front of it.
+_DATADIR_FROM_PLATFORM: dict[str, tuple[str | None, tuple[str, ...]]] = {
+    "darwin": (None, ("Library", "Application Support", "Bitcoin")),
+    "win32": ("APPDATA", ("Bitcoin",)),
+}
+_DATADIR_ELSEWHERE: tuple[str | None, tuple[str, ...]] = (None, (".bitcoin",))
+
+
 def default_datadir() -> Path | None:
-    r"""Return `~/.bitcoin`, or None where no absolute home is knowable.
+    r"""Return Core's datadir for this platform, or None where it has no base.
 
-    That is Core's datadir on Linux and on nothing else: macOS puts it
-    under ``~/Library/Application Support/Bitcoin`` and Windows under
-    ``%APPDATA%\Bitcoin``, so a caller there passes `cookie_path` instead.
-    Guessing per platform would put two branches here that no test on a
-    third can reach, and a wrong absolute guess fails exactly as an absent
-    file does -- naming the file it looked for, which is what tells a
-    caller to pass one.
+    What Core's own `GetDefaultDataDir` answers: ``%APPDATA%\Bitcoin`` on
+    Windows, ``~/Library/Application Support/Bitcoin`` on macOS,
+    ``~/.bitcoin`` on everything else. The three are a table here, so the
+    branch a checker or a coverage run on one platform does not take is
+    still a line both of them read; `sys.platform` and the environment are
+    read at the call, which is what a test drives to reach the other two.
 
-    Two ways there is no home to name, and neither may raise, since
+    Three ways there is no base to hang that off, and none may raise, since
     `DEFAULT_DATADIR` below calls this at import: `Path.home()` raises
     RuntimeError when nothing resolves `~` -- no `HOME` in the environment
     and no passwd entry for the uid, which is a container run under an
     arbitrary one -- and it answers with whatever `HOME` holds, so a
-    relative `HOME` gives a relative home and raises nothing.
+    relative `HOME` gives a relative home and raises nothing. On Windows
+    `APPDATA` is the base, and it can be unset or relative in the same way.
 
-    None for both, rather than a path that is no datadir. A relative one
-    would be resolved against the working directory at the moment of the
-    read, so `~/.bitcoin/.cookie` would make a file a caller's cwd happens
-    to contain the credential this client presents. `from_chain` refuses
-    instead, naming `cookie_path` as what to pass.
+    None for all of them, rather than a path that is no datadir. A relative
+    one would be resolved against the working directory at the moment of
+    the read, so `~/.bitcoin/.cookie` would make a file a caller's cwd
+    happens to contain the credential this client presents. `from_chain`
+    refuses instead, naming `cookie_path` as what to pass.
+
+    A default and not a discovery: a node started with `-datadir=` is
+    somewhere this cannot know, and `cookie_path` is the answer for one.
 
     `from_chain` calls this at every call rather than reading
     `DEFAULT_DATADIR`, so that the `HOME` of the call is the one that
@@ -924,11 +945,18 @@ def default_datadir() -> Path | None:
     answer too, and had no way to ask for it short of copying this
     function.
     """
-    try:
-        home = Path.home()
-    except RuntimeError:
-        return None
-    return home / ".bitcoin" if home.is_absolute() else None
+    base_var, subdirs = _DATADIR_FROM_PLATFORM.get(sys.platform, _DATADIR_ELSEWHERE)
+    if base_var is None:
+        try:
+            base = Path.home()
+        except RuntimeError:
+            return None
+    else:
+        named = environ.get(base_var)
+        if named is None:
+            return None
+        base = Path(named)
+    return base.joinpath(*subdirs) if base.is_absolute() else None
 
 
 # the answer as it stood at import, kept for a caller who wants to name the
@@ -938,11 +966,11 @@ def default_datadir() -> Path | None:
 # made a cwd file a credential, so a caller whose strict type checking asks
 # for the None case is being asked the question the value always had
 DEFAULT_DATADIR: Path | None = default_datadir()
-"""`~/.bitcoin` as it stood at import, or None where no home resolves.
+"""Core's datadir for this platform as it stood at import, or None.
 
-`default_datadir` computes it, and says on which platform it is right.
-`from_chain` calls that rather than reading this, so that a `HOME` set
-after this module was imported is the one that counts.
+`default_datadir` computes it, and says which directory each platform
+gets. `from_chain` calls that rather than reading this, so that a `HOME`
+set after this module was imported is the one that counts.
 """
 
 # what a cookie file may weigh. bitcoind writes one line of some seventy
@@ -1563,9 +1591,10 @@ class BitcoinCoreRpcClient:
         chains instead of a wrong-network call succeeding silently, at the
         cost of one round trip here rather than trust in every call after.
 
-        The datadir comes from `default_datadir` at this call, and where
-        there is no absolute home directory to name, deriving a cookie path
-        is what this refuses -- naming `cookie_path` as the answer.
+        The datadir comes from `default_datadir` at this call, which is
+        Core's own for the platform underneath; where there is no absolute
+        directory to hang it off, deriving a cookie path is what this
+        refuses -- naming `cookie_path` as the answer.
 
         Nothing is derived when the caller said who is calling: a `user` or
         a `password`, either of them, is an answer to that question, and
@@ -1577,9 +1606,9 @@ class BitcoinCoreRpcClient:
         if user is None and password is None and cookie_path is None:
             datadir = default_datadir()
             if datadir is None:
-                err_msg = "no home directory, so no default datadir to find"
-                err_msg += " the cookie file in: pass cookie_path, or user"
-                err_msg += " and password"
+                err_msg = "no absolute home directory (APPDATA on Windows),"
+                err_msg += " so no default datadir to find the cookie file"
+                err_msg += " in: pass cookie_path, or user and password"
                 raise BtcRpcValueError(err_msg)
             cookie_path = datadir / datadir_subdir_from_chain(chain) / ".cookie"
         client = cls(

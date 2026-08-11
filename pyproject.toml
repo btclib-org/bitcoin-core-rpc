@@ -336,9 +336,11 @@ precision = 2
 # which is what the transport tests already do to `_OPENER` -- or it
 # carries a `pragma: no cover` with the reason beside it. Neither of those
 # is a build left red.
-# Measured on one interpreter, 3.14, and that is enough at 100: there is no
-# sys.version_info and no sys.platform branch in this tree, so every job
-# walks the same lines
+# Measured on one interpreter, 3.14, and on one operating system, and that
+# is enough at 100: there is no sys.version_info branch in this tree, and
+# the one sys.platform branch -- the datadir table in `default_datadir` --
+# is driven by patching `sys.platform`, so a run on any of them walks all
+# three of its rows
 fail_under = 100.0
 
 [tool.mypy]

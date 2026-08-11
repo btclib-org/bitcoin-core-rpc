@@ -15,14 +15,13 @@ name: macos
 #     gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100"
 #
 # What these cells buy is narrower than the count suggests, and the reason
-# is in the client: there is no platform-conditional branch in it at all --
-# `default_datadir` returns `~/.bitcoin` and says so, since "guessing per
-# platform would put two branches here that no test on a third can reach",
-# and the coverage job in test.yml records the same property from the other
-# side, no sys.platform and no sys.version_info anywhere. So what runs here
-# is the standard library under the module -- `Path.home()`, `pathlib`,
-# `decimal`, `urllib` -- on the one platform family the gate no longer
-# samples.
+# is in the client: the one platform-conditional branch in it is the datadir
+# table in `default_datadir`, which the suite drives by patching
+# `sys.platform` -- so the macOS row of that table is already asserted on
+# every run, here and everywhere else. What is left for these cells is the
+# `Path.home()` under it and the rest of the standard library the module is
+# built out of -- `pathlib`, `decimal`, `urllib` -- on the one platform
+# family the gate no longer samples.
 #
 # A workflow of its own rather than a row in latest.yml, and that is the
 # whole design: this one holds the dependencies at the lock and moves the
