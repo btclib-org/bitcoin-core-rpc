@@ -49,7 +49,7 @@ on:
     # failure is noticed later.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "43 4 * * 4"
+    - cron: "43 4 * * 3"
   workflow_dispatch:
 
 # least privilege for the GITHUB_TOKEN: everything running in a job
