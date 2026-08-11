@@ -26,15 +26,22 @@ aggregate job at the end of `test.yml` that `needs` the matrix; a new job in
 carries the workflow because a context is keyed by name alone: two
 workflows with a job named the same thing produce one ambiguous check.
 
-`main` requires four checks, and only four:
+`main` requires these checks and nothing else. The rule is what says so and
+this table is a copy of it, in the order the rule holds them so that the two
+can be read side by side:
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
+  --jq '.required_status_checks'   # PATCH that sub-endpoint to change
+```
 
 | Check | Produced by |
 | --- | --- |
-| `test: every job passed` | `test.yml`, aggregate over the matrix |
 | `Lint and type-check` | `lint.yml`, first job |
 | `CodeQL` | code scanning default setup |
-| `rpc-smoke: every job passed` | `rpc-smoke.yml`, aggregate over 6 cells |
 | `Build the documentation` | `docs.yml`, its only job |
+| `test: every job passed` | `test.yml`, aggregate over the matrix |
+| `rpc-smoke: every job passed` | `rpc-smoke.yml`, aggregate over its matrix |
 
 `Build the documentation` is named on its own on purpose: a rule naming
 `Lint and type-check` alone would leave a red docs build outside the
@@ -65,11 +72,6 @@ Each check is bound to the app that produces it — `checks` with an
 `app_id` rather than the bare `contexts` list, 15368 for Actions and 57789
 for CodeQL — so nothing else can satisfy one.
 
-```shell
-gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
-  --jq '.required_status_checks'   # PATCH that sub-endpoint to change
-```
-
 **PATCH that sub-endpoint, never PUT the whole protection object**: a
 partial PUT drops the signatures and the rest. Repeat `strict: true` in
 the body, which replaces the object rather than merging into it.
@@ -84,13 +86,22 @@ the name the rule now wants:
 
 ```shell
 branch=repos/btclib-org/bitcoin-core-rpc/branches/main
-gh api -X PATCH "$branch"/protection/required_status_checks \
-  -F strict=true \
-  -f 'checks[][app_id]=15368' -f 'checks[][context]=test: every job passed' \
-  -f 'checks[][app_id]=15368' -f 'checks[][context]=Lint and type-check' \
-  -f 'checks[][app_id]=57789' -f 'checks[][context]=CodeQL' \
-  -f 'checks[][app_id]=15368' -f 'checks[][context]=Build the documentation'
+gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
+{"strict": true,
+ "checks": [{"context": "Lint and type-check", "app_id": 15368},
+            {"context": "CodeQL", "app_id": 57789},
+            {"context": "Build the documentation", "app_id": 15368},
+            {"context": "test: every job passed", "app_id": 15368},
+            {"context": "rpc-smoke: every job passed", "app_id": 15368}]}
+JSON
 ```
+
+The body arrives on stdin because `-f 'checks[][app_id]=15368'` cannot
+work: `-f` sends every value as a string, where the endpoint types
+`app_id` as an integer, and what comes back is `422 Invalid request. For
+'properties/app_id', "15368" is not a null or integer`. A shell variable
+holds the path for the same reason the JSON is not on one line — 80
+columns.
 
 Between the two, every open pull request that predates the rename is
 blocked until it is rebased, which is the reason to do it with none open
@@ -111,7 +122,7 @@ cannot make, and that belongs in front of a merge.
 ## Branch protection
 
 `main` is the only branch, and everything reaches it through a pull
-request: those four checks with `strict`, **required signatures**, linear
+request: the checks above with `strict`, **required signatures**, linear
 history, no force pushes, no deletions,
 `required_conversation_resolution`, and `enforce_admins` *on* — the rule
 holds for an administrator too, which is what makes it a rule.
@@ -121,8 +132,8 @@ half of the setup. A review cannot be satisfied by the author, GitHub not
 allowing self-approval, so on a solo-maintainer repository it is a stop
 rather than a speed bump: either nothing merges, or an administrator waves
 it through on every pull request and the rule teaches its own bypass. The
-four checks gate instead, and they cannot be self-approved either — they
-are earned by the tree.
+required checks gate instead, and they cannot be self-approved either —
+they are earned by the tree.
 
 Required signatures cost nothing because the only thing writing to `main`
 is a merge GitHub performs itself, and GitHub signs those with its

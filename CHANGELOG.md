@@ -80,6 +80,19 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **The `PATCH` REPOSITORY.md documents for the required-check list runs**,
+  where the spelling it carried could not: `gh api -f` sends every value as
+  a string and that endpoint types `app_id` as an integer, so
+  `-f 'checks[][app_id]=15368'` earns `422 Invalid request. For
+  'properties/app_id', "15368" is not a null or integer`. The body is JSON
+  on stdin instead, `--input -`. Where that command is used is what makes an
+  unrun one expensive: renaming a required check cannot be done in a pull
+  request, so the rule moves first and by hand, and a 422 at that moment
+  invites the whole-object `PUT` the same file warns drops the signatures.
+  The list in it is the rule's own, read back by the `gh api` now beside the
+  table -- `rpc-smoke: every job passed` was in that table and missing from
+  the command, so the command as written would have dropped a required check
+  rather than moved one
 - **A pre-commit rev that is not a released version fails the gate.** The
   weekly autoupdate pull request has twice offered the same two moves this
   configuration must not take -- typos onto `v1`, a floating major tag its
