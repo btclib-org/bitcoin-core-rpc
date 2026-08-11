@@ -47,6 +47,17 @@ The last row is whichever context was added most recently, that endpoint
 appending rather than sorting — so the tail of this table moves whenever a
 check is renamed, a rename being a drop and an add.
 
+**Two of the five are job names and three are aggregates**, and that is a
+rule rather than an inconsistency: a workflow with one job needs no
+aggregate, the job *being* the context. It is also the answer to why
+btclib's live-node check is `Regtest against Bitcoin Core` where this
+one is `integration: every job passed`. The two workflows ask the same
+question of a real node and are governed by the same rule; there it is one
+job and here it is six matrix cells, so there the job name is the context
+and here an aggregate has to be. Making the two strings match would mean
+inventing a job whose only purpose is to be named, or naming a matrix cell
+in the rule — which is the first thing this section forbids.
+
 `Build the documentation` is named on its own on purpose: a rule naming
 `Lint and type-check` alone would leave a red docs build outside the
 required checks entirely. It moved from `lint.yml` to a workflow of its own
