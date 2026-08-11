@@ -40,11 +40,12 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 | `Lint and type-check` | `lint.yml`, first job |
 | `Build the documentation` | `docs.yml`, its only job |
 | `test: every job passed` | `test.yml`, aggregate over the matrix |
-| `integration: every job passed` | `integration.yml`, over its cells |
 | `codeql: every job passed` | `codeql.yml`, aggregate over its matrix |
+| `integration: every job passed` | `integration.yml`, over its cells |
 
-`codeql: every job passed` is last because it was added last, by step 5 of
-the switch below, and that endpoint appends rather than sorts.
+The last row is whichever context was added most recently, that endpoint
+appending rather than sorting — so the tail of this table moves whenever a
+check is renamed, a rename being a drop and an add.
 
 `Build the documentation` is named on its own on purpose: a rule naming
 `Lint and type-check` alone would leave a red docs build outside the
@@ -169,9 +170,9 @@ branch=repos/btclib-org/bitcoin-core-rpc/branches/main
 gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
 {"strict": true,
  "checks": [{"context": "Lint and type-check", "app_id": 15368},
-            {"context": "codeql: every job passed", "app_id": 15368},
             {"context": "Build the documentation", "app_id": 15368},
             {"context": "test: every job passed", "app_id": 15368},
+            {"context": "codeql: every job passed", "app_id": 15368},
             {"context": "integration: every job passed", "app_id": 15368}]}
 JSON
 ```
