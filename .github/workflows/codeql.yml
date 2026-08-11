@@ -9,22 +9,25 @@ name: codeql
 # pinned to commit SHAs. Here the languages, the suite, the schedule and
 # the action versions are read the way the rest of CI is read.
 #
-# The two settings default setup holds are reproduced rather than chosen,
-# so that moving the analysis into the tree does not also change it:
+# What default setup held is reproduced rather than chosen, so that moving
+# the analysis into the tree does not also change it:
 #
 #     gh api repos/btclib-org/bitcoin-core-rpc/code-scanning/default-setup
 #
 # answers `languages: [actions, python]`, `query_suite: default` and
-# `schedule: weekly`, and the matrix, the init step and the cron below are
-# those three.
+# `schedule: weekly`, which are the matrix, the init step and the cron
+# below.
 #
 # Default setup and an advanced workflow are exclusive, and the way they
-# collide is worth knowing before reading a red check here: the jobs below
-# run, and the upload at the end of them is refused -- "Upload was rejected
-# because CodeQL default setup is enabled for code scanning", which GitHub
-# documents as a SARIF upload failure rather than as a workflow it declines
-# to start. So while the setting is configured this workflow reports failure
-# rather than nothing, and only disabling the setting makes it green.
+# collide is worth knowing before reading a red check here: `init` succeeds,
+# the database is built, and the upload at the end is refused --
+#
+#     Code Scanning could not process the submitted SARIF file:
+#     CodeQL analyses from advanced configurations cannot be processed
+#     when the default setup is enabled
+#
+# So while the setting is configured this workflow reports failure rather
+# than nothing, and only disabling the setting makes it green.
 # REPOSITORY.md carries the order that switches the two over without ever
 # leaving the branch rule waiting on a check nothing produces.
 
@@ -104,8 +107,10 @@ jobs:
         # add: the tree is Python, workflows, markdown and toml, and CodeQL
         # supports the first two of those
         language: [actions, python]
-    # generous against the two minutes the pair takes here: what it bounds
-    # is a hung job holding a runner for six hours
+    # far above what an analysis of this tree needs, the same way test.yml
+    # bounds the suite: what it buys is that a hung job releases the runner
+    # rather than holding it for six hours.
+    # `gh run list --workflow=codeql.yml --limit 1` is what re-measures it
     timeout-minutes: 30
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a

@@ -55,11 +55,18 @@ report on every pull request, forks included.
 Code scanning comes from `.github/workflows/codeql.yml`, and the repository
 setting that would otherwise perform it — code scanning **default setup** —
 has to stay off: the two are exclusive, and the collision is at the upload
-rather than at the start. An advanced workflow runs while the setting is
-configured, and its results are refused — "Upload was rejected because
-CodeQL default setup is enabled for code scanning" — so the workflow reports
-*failure*, not nothing. The `PATCH` below turns the setting off, and the
-state it leaves behind is the one this file describes.
+rather than at the start. An advanced workflow runs to completion while the
+setting is configured and its results are refused, so the workflow reports
+*failure* rather than nothing:
+
+```text
+Code Scanning could not process the submitted SARIF file:
+CodeQL analyses from advanced configurations cannot be processed when
+the default setup is enabled
+```
+
+The `PATCH` below turns the setting off, and the state it leaves behind is
+the one this file describes.
 
 ```shell
 gh api -X PATCH -F state=not-configured \
@@ -95,7 +102,7 @@ administrator can merge past it, but a merge that overrides a check nobody
 can produce is not the rule working. The order that never reaches it drops
 the old context before the setting, and adds the new one after the merge:
 
-1. patch the rule to drop `CodeQL`, the other four contexts staying;
+1. patch the rule to drop `CodeQL`, every other context staying;
 1. disable default setup with the `PATCH` above;
 1. re-run the checks on the pull request carrying `codeql.yml`, whose
    analysis was red for the upload refusal above and now passes;
