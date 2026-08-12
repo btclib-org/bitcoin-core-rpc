@@ -105,6 +105,23 @@ carry a union merge driver that would keep both sides' numbers.
   a `FetchError`, and neither inside `except FetchError`. The mismatch of a
   well-formed reply is still the `BtcRpcValueError` naming both chains: that
   one is the caller's configuration, where this is what the node sent.
+- **`for_wallet` refuses a client that is already a wallet endpoint**, where
+  it appended a second one: `client.for_wallet("hot").for_wallet("cold")`
+  built `http://127.0.0.1:8332/wallet/hot/wallet/cold`, a path Core does not
+  serve, so the mistake surfaced as an `HttpError` from the node about a
+  path rather than as a refusal at the line that made it. The message names
+  the client to call it on -- "call for_wallet on the client it was derived
+  from" -- that arrangement, one client per wallet derived from the one
+  built for the node, being what `for_wallet` recommends and what deriving
+  from a wallet client is the mistaken form of. A url a caller wrote by hand
+  ending in `/wallet/hot` is refused by the same check, the constructor
+  taking the endpoint of a node; a wallet *named* `wallet` is still a name
+  to add, `/wallet/wallet` being the endpoint of a wallet a filesystem
+  allows. Replacing the trailing segment instead of refusing is rejected on
+  the grounds the rest of this class refuses on: it would make
+  `for_wallet("hot")` and `for_wallet("hot").for_wallet("cold")` two
+  spellings of one endpoint, and nothing tells a caller who meant that from
+  one who lost track of which client they were holding.
 - **`default_datadir` answers Core's datadir for the platform it runs on**,
   not Linux's on all of them: `%APPDATA%\Bitcoin` on Windows,
   `~/Library/Application Support/Bitcoin` on macOS, `~/.bitcoin` on

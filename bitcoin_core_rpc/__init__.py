@@ -1759,7 +1759,10 @@ class BitcoinCoreRpcClient:
 
         The credentials, the timeout and the transport are this client's,
         the endpoint being the only difference -- so a caller working on
-        several wallets builds one client and derives the rest.
+        several wallets builds one client and derives the rest, each from
+        that one client and not from another wallet's: a client that is
+        already a wallet endpoint is one this refuses to extend, naming the
+        client to call it on.
 
         `type(self)` and not this class by name, as `from_chain` builds
         with `cls`: a subclass that derives a wallet client keeps whatever
@@ -1772,6 +1775,34 @@ class BitcoinCoreRpcClient:
             # urllib's about `quote_from_bytes`
             err_msg = f"rpc wallet name that is not a string: {wallet_name!r}"
             raise BtcRpcTypeError(err_msg)
+        # a wallet endpoint takes no second one. `/wallet/hot/wallet/cold`
+        # is not a path Core serves, so composing the two fails at the node
+        # with an HttpError about a path, where every other wrong argument
+        # to this class is refused while the caller is still looking at the
+        # line that supplied it -- `_checked_url` refuses a query or a
+        # fragment for that reason, and the name above is checked for it.
+        # The mistake belongs to the arrangement this method recommends,
+        # one client per wallet: deriving the second wallet's client from
+        # the first, rather than from the client both came from.
+        #
+        # Refused rather than repaired. Replacing the trailing segment
+        # would make `for_wallet("hot")` and
+        # `for_wallet("hot").for_wallet("cold")` two spellings of one
+        # endpoint, and nothing tells a caller who meant the second from
+        # one who lost track of which client they were holding.
+        #
+        # The last two segments of the path, with a trailing slash not
+        # counting as one: what that admits is a wallet *named* `wallet`,
+        # which a filesystem allows and which this builds `/wallet/wallet`
+        # for, since the segment is then the name rather than the marker
+        # before it. A url a caller wrote by hand ending in `/wallet/hot`
+        # is refused by the same check, and correctly: the constructor
+        # takes the endpoint of a node, and the wallet is what this adds
+        if "wallet" in urlsplit(self.url).path.rstrip("/").split("/")[-2:]:
+            err_msg = "this client is already the /wallet/<name> endpoint of"
+            err_msg += " a node: call for_wallet on the client it was derived"
+            err_msg += " from"
+            raise BtcRpcValueError(err_msg)
         url = f"{self.url.rstrip('/')}/wallet/{quote(wallet_name, safe='')}"
         return type(self)(
             url,
