@@ -543,6 +543,31 @@ def test_from_chain_refuses_a_node_on_the_wrong_chain() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "result",
+    [[], {}, {"chain": None}, {"chain": 7}, "regtest"],
+    ids=["array", "no chain", "null chain", "numeric chain", "string result"],
+)
+def test_from_chain_refuses_a_reply_with_no_chain_to_read(result: Any) -> None:
+    """An untrusted reply is interpreted here, so it is read and not indexed.
+
+    `result["chain"]` on an array is a TypeError about list indices and on
+    a mapping without the member a KeyError, each arriving from underneath
+    a library that reports every other unreadable answer as a FetchError.
+    The mismatch above stays a `BtcRpcValueError`: that one is the caller's
+    configuration, where this is the backend's reply.
+    """
+    reply = json.dumps({"result": result, "error": None, "id": "x"})
+    with pytest.raises(FetchError, match="no string chain in the .* result"):
+        BitcoinCoreRpcClient.from_chain(
+            "regtest",
+            user=RPC_USER,
+            password=RPC_PASSWORD,
+            transport=Echoing((200, reply.encode())),
+            verify_chain=True,
+        )
+
+
 def test_connection_controls_are_keyword_only() -> None:
     """Credentials cannot be mistaken for positional connection arguments."""
     constructor: Any = BitcoinCoreRpcClient

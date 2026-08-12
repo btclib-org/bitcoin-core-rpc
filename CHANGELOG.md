@@ -96,6 +96,15 @@ carry a union merge driver that would keep both sides' numbers.
   after the resource had been opened rather than instead of opening it. The
   refusals are `http_request`'s own, in the same words; nothing about
   `http_request` changes.
+- **`verify_chain` reads the `getblockchaininfo` reply rather than indexing
+  it**, so a result that is no mapping, or one whose `chain` is not a
+  string, is a `FetchError` naming the unreadable reply: `result["chain"]`
+  on an array is `TypeError: list indices must be integers or slices, not
+  str` and on a mapping without the member a `KeyError`, both arriving from
+  underneath a library whose every other unreadable answer from a backend is
+  a `FetchError`, and neither inside `except FetchError`. The mismatch of a
+  well-formed reply is still the `BtcRpcValueError` naming both chains: that
+  one is the caller's configuration, where this is what the node sent.
 - **`default_datadir` answers Core's datadir for the platform it runs on**,
   not Linux's on all of them: `%APPDATA%\Bitcoin` on Windows,
   `~/Library/Application Support/Bitcoin` on macOS, `~/.bitcoin` on

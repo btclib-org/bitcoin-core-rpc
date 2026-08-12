@@ -1690,6 +1690,9 @@ class BitcoinCoreRpcClient:
         wrong chain -- opts in and gets `BtcRpcValueError` naming both
         chains instead of a wrong-network call succeeding silently, at the
         cost of one round trip here rather than trust in every call after.
+        A reply with no chain to read -- a result that is not a mapping, or
+        one whose `chain` is not a string -- is a `FetchError`, this being
+        an interpretation of an untrusted reply like any other.
 
         The datadir comes from `default_datadir` at this call, which is
         Core's own for the platform underneath; where there is no absolute
@@ -1725,7 +1728,20 @@ class BitcoinCoreRpcClient:
             transport=transport,
         )
         if verify_chain:
-            reported = client.call("getblockchaininfo")["chain"]
+            result = client.call("getblockchaininfo")
+            # the shape of the result is the node's and not a given, so it
+            # is read rather than indexed: `result["chain"]` on an array is
+            # a TypeError about list indices and on a mapping without the
+            # member a KeyError, both from underneath a library that
+            # reports every other unreadable answer as a FetchError. A
+            # mismatch stays a BtcRpcValueError below: that one is a node
+            # this client was built for the wrong chain of, which is the
+            # caller's configuration, where this is the backend's reply
+            reported = result.get("chain") if isinstance(result, Mapping) else None
+            if not isinstance(reported, str):
+                err_msg = f"getblockchaininfo at {client.url}: no string"
+                err_msg += f" chain in the {type(result).__name__} result"
+                raise FetchError(err_msg)
             if reported != chain:
                 err_msg = f"node at {client.url} reports chain {reported!r},"
                 err_msg += f" not the {chain!r} this client was built for"
