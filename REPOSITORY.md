@@ -245,6 +245,47 @@ Dependabot, its security updates and pre-commit.ci all open pull requests
 here, none of them naming a target branch: what they get is the default
 branch, and it is the only branch there is.
 
+## Merge methods
+
+**Squash is the only method enabled**, so it is a setting and not only the
+convention CONTRIBUTING.md states:
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc \
+  --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge}'
+```
+
+answers `true` for the first and `false` for the other two.
+
+The merge commit was refused by the required linear history above already,
+so turning it off takes away a button that could not have worked. The
+rebase merge could have, and that is the one this removes: it replays a
+branch's commits onto `main`, where the rule is one commit per landed
+change and the steps of a review belong to the pull request that carries
+them.
+
+What a single method buys is not the button on a pull request somebody is
+looking at. GitHub preselects whichever method was used last, and the
+dialog that switches auto-merge on carries the same dropdown — so the
+answer can be given hours before anything merges, by whoever switched it
+on, with nothing asking again. One method is one entry: there is no wrong
+one to preselect, and nothing to read before pressing.
+
+Two fields shape the commit it writes, and both are GitHub's defaults:
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc \
+  --jq '{squash_merge_commit_title, squash_merge_commit_message}'
+```
+
+`COMMIT_OR_PR_TITLE` is the subject: the pull request title with its
+number, or the subject of the single commit where a branch has one, which
+the convention of writing the two alike keeps the same text.
+`COMMIT_MESSAGES` is the body, and `BLANK` is what would cost something —
+a `Co-Authored-By` trailer is written in the commits of the branch, and
+the squash body is the only place it survives one commit standing for all
+of them.
+
 ## Head branches after a merge
 
 `delete_branch_on_merge` is on, since 7 August 2026:

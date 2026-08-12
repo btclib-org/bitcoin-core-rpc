@@ -242,7 +242,8 @@ wrong — it says the next bump is going to be work.
    the webhook having quietly refused every delivery since.
 
 1. Merge it with **"Squash and merge"**, as every other pull request here
-   — read the button, GitHub offers whichever method was used last.
+   — the only method the repository enables, so the button offers no
+   other.
 
    Then read `lint` and `test` on the commit `main` ends up at before
    tagging, rather than trust the pull request's own green run:
