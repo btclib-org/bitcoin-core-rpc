@@ -84,6 +84,18 @@ carry a union merge driver that would keep both sides' numbers.
   `FetchError` holds for that exception too -- the same one carrying an
   `HTTPMessage` was always read as intended, which is why nothing in the
   suite reached it.
+- **`urlopen_transport` checks the scheme, the timeout and the limit before
+  it opens anything.** It is public and it takes a `Request` a caller
+  built, where `http_request` checks the url it is handed and then builds
+  one -- so a caller reaching the transport directly had no scheme boundary
+  at all: `urlopen_transport(Request(Path("LICENSE").resolve().as_uri()),
+  ...)` read the local file and answered with its bytes, `urlopen` speaking
+  `file:` and `data:` as well as http(s). A url that reaches configuration
+  or untrusted input could therefore turn this transport into a local-file
+  reader, and a `timeout` of zero or a negative `max_body_size` was refused
+  after the resource had been opened rather than instead of opening it. The
+  refusals are `http_request`'s own, in the same words; nothing about
+  `http_request` changes.
 - **`default_datadir` answers Core's datadir for the platform it runs on**,
   not Linux's on all of them: `%APPDATA%\Bitcoin` on Windows,
   `~/Library/Application Support/Bitcoin` on macOS, `~/.bitcoin` on
