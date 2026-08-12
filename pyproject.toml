@@ -27,13 +27,9 @@ name = "bitcoin-core-rpc"
 # and release.yml compares the tag to this string literally, so a padded
 # one would be a tag no release matches
 #
-# between releases this declares the next one, not the last: the version
-# just released, with its trailing component bumped by one, or `.1`
-# appended if it had none. Shaped exactly like a release on purpose --
-# release.yml's version-check job does not tell the two apart by shape,
-# and does not have to, that job also refusing to publish a tag whose
-# HISTORY.md and CHANGELOG.md section still reads "(work in progress, not
-# released yet)"
+# which string is which -- what this declares between releases, and what a
+# release day adds to it -- is RELEASING.md's "Which version string is
+# which", and release.yml's version-check job is what enforces it
 version = "2026.9"
 description = "A standalone JSON-RPC client against Bitcoin Core"
 readme = "README.md"
@@ -232,7 +228,7 @@ testpaths = ["tests"]
 #
 # no `-n auto`, and its absence is measured rather than an omission: on this
 # suite a worker pool costs more than it saves, because the suite opens no
-# socket and 298 tests finish before ten workers have started. Nine
+# socket and the whole of it finishes before ten workers have started. Nine
 # interleaved runs each, medians, all of them green:
 #
 #     serial 0.50s against 0.90s parallel, and under coverage 0.65s
@@ -461,21 +457,21 @@ ignore = [
     # `from_chain` alternative, `http_request` itself -- where each
     # parameter is independently optional and keyword-only, not a function
     # assembled from unrelated pieces that argument-clumping would fix.
-    # `uv run ruff check --select PLR0913 --no-cache .` finds 4 of them,
-    # and the same shape recurs in any entry point still to be added
+    # `uv run ruff check --select PLR0913 --no-cache .` lists them, and the
+    # same shape recurs in any entry point still to be added
     "too-many-arguments", # PLR0913
     # comparing against an HTTP status (200, 401, 503) or a JSON-RPC
     # version marker is not a magic value: it is the number the HTTP or
     # JSON-RPC specification assigns, not one this code chose and could
     # have named instead. `uv run ruff check --select PLR2004 --no-cache .`
-    # finds 47 sites, all of that shape and spread across the module and
+    # lists the sites, all of that shape and spread across the module and
     # the tests that exercise it
     "magic-value-comparison", # PLR2004
     # the message is built where the exception is raised because that is
     # the only place holding what went wrong -- the status, the scheme,
     # the size refused -- and a shared exception class could not say that
     # without every raise site passing it back in anyway. `uv run ruff
-    # check --select TRY003 --no-cache .` finds 37 sites, spread the same
+    # check --select TRY003 --no-cache .` lists the sites, spread the same
     # way
     "raise-vanilla-args", # TRY003
 ]
