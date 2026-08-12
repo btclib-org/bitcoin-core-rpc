@@ -1,0 +1,139 @@
+# Copyright (c) The btclib developers
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+"""Tests for the sdist normalizer of `.github/scripts`.
+
+`normalize` exists for one property -- two archives whose content agrees
+normalize to the same bytes, whatever the metadata of their members said --
+and that is what is asserted here, on archives staged by hand rather than
+on a build of this tree: a build carries the modes of the checkout it ran
+in, so it can only ever show the one case the runner happens to produce.
+RELEASING.md's "Rebuild a release from its tag" is what the property is
+for, a verifier's digest having to agree with the published one.
+
+The script is loaded by path, `.github/scripts` being no package.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import io
+import tarfile
+from pathlib import Path
+from types import ModuleType
+
+import pytest
+
+_SCRIPT = Path(__file__).parents[1] / ".github" / "scripts" / "normalize_sdist.py"
+# what the release job exports, and what a normalized member's mtime is:
+# any fixed reading does, this one being the epoch of a commit
+_EPOCH = 1786392620
+_CONTENT = b"# a member of the archive\n"
+
+
+@pytest.fixture(scope="module")
+def normalizer() -> ModuleType:
+    """Return the script, imported by path."""
+    spec = importlib.util.spec_from_file_location("normalize_sdist", _SCRIPT)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _staged_sdist(archive: Path, *, mode: int, mtime: float) -> None:
+    """Write an sdist of one directory and one file, with these member bits.
+
+    Two members because the mode a directory takes is not the one a file
+    takes, and the staging directory setuptools tars first is what the
+    script exists for. `mtime` is a float on purpose: a sub-second
+    timestamp is what writes the PAX record whose length moves the
+    checksum.
+    """
+    with tarfile.open(archive, "w:gz", format=tarfile.PAX_FORMAT) as tar:
+        directory = tarfile.TarInfo("pkg-1.0")
+        directory.type = tarfile.DIRTYPE
+        directory.mode = mode | 0o111
+        directory.mtime = mtime
+        tar.addfile(directory)
+        member = tarfile.TarInfo("pkg-1.0/README.md")
+        member.size = len(_CONTENT)
+        member.mode = mode
+        member.mtime = mtime
+        member.uid = member.gid = 501
+        member.uname = member.gname = "somebody"
+        tar.addfile(member, io.BytesIO(_CONTENT))
+
+
+def _members(archive: Path) -> list[tuple[str, int, float, int, str]]:
+    """Return the metadata this script rewrites, member by member."""
+    with tarfile.open(archive, "r:gz") as tar:
+        return [(m.name, m.mode, m.mtime, m.uid, m.uname) for m in tar.getmembers()]
+
+
+def test_two_archives_differing_only_in_a_mode_normalize_alike(
+    normalizer: ModuleType, tmp_path: Path
+) -> None:
+    """The property the script exists for, across the umask of a checkout.
+
+    A checkout under a umask of 002 carries group write where the runner's
+    carries 022, and the content of every file agrees: the archives are the
+    same source tree, so the digests a verifier compares have to agree too.
+    """
+    theirs = tmp_path / "umask-022.tar.gz"
+    ours = tmp_path / "umask-002.tar.gz"
+    _staged_sdist(theirs, mode=0o644, mtime=_EPOCH + 0.4787617)
+    _staged_sdist(ours, mode=0o664, mtime=_EPOCH + 1.1946435)
+    assert theirs.read_bytes() != ours.read_bytes()
+
+    normalizer.normalize(theirs, _EPOCH)
+    normalizer.normalize(ours, _EPOCH)
+
+    assert theirs.read_bytes() == ours.read_bytes()
+
+
+def test_normalizing_rewrites_the_metadata_and_keeps_the_content(
+    normalizer: ModuleType, tmp_path: Path
+) -> None:
+    """One mode for files, one for directories, and root with no names.
+
+    The mode says what a rebuild no longer depends on; the rest is what the
+    script already promised, asserted beside it because a member is rewritten
+    as a whole and a check on one field alone would not notice the others
+    being dropped.
+    """
+    archive = tmp_path / "sdist.tar.gz"
+    _staged_sdist(archive, mode=0o664, mtime=_EPOCH + 0.5)
+
+    normalizer.normalize(archive, _EPOCH)
+
+    assert _members(archive) == [
+        ("pkg-1.0", 0o755, _EPOCH, 0, ""),
+        ("pkg-1.0/README.md", 0o644, _EPOCH, 0, ""),
+    ]
+    with tarfile.open(archive, "r:gz") as tar:
+        extracted = tar.extractfile("pkg-1.0/README.md")
+        assert extracted is not None
+        assert extracted.read() == _CONTENT
+    # the gzip header carries the epoch as well, and not the moment of the
+    # compression: four octets at offset 4, little-endian, which is RFC 1952
+    # section 2.3's MTIME field
+    assert int.from_bytes(archive.read_bytes()[4:8], "little") == _EPOCH

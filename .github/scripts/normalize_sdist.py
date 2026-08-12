@@ -36,9 +36,19 @@ length:
 What is *in* the archive is already deterministic; what is not is the
 metadata of the members. This rewrites that metadata and nothing else:
 every timestamp becomes `SOURCE_DATE_EPOCH`, ownership becomes root
-with no names, and the gzip header carries the same timestamp instead
-of the moment it was compressed. The order of the members and every
-byte of their content are the archive's own.
+with no names, every mode becomes 0644 or 0755, and the gzip header
+carries the same timestamp instead of the moment it was compressed. The
+order of the members and every byte of their content are the archive's
+own.
+
+The mode is normalized because it otherwise comes from the working
+tree, which puts the umask of the checkout in the published archive: a
+verifier whose files carry group write rebuilds a tag and reads a
+digest mismatch as a newer setuptools or as tampering, where the
+content matches byte for byte. Nothing in the sdist needs the
+executable bit -- no source file here opens with a shebang, which
+`.pre-commit-config.yaml` records as a decision rather than an accident
+-- so one mode for files and one for directories is the whole of it.
 
 `PAX_FORMAT` with the extended headers cleared, rather than
 `USTAR_FORMAT`: an integral timestamp needs no PAX record, so the two
@@ -82,6 +92,11 @@ def normalize(archive: Path, epoch: int) -> None:
             member.mtime = epoch
             member.uid = member.gid = 0
             member.uname = member.gname = ""
+            # beside the ownership, and for the same reason: what the
+            # archive found here came from the working tree, so the umask of
+            # the checkout reached the published bytes. Digest-preserving
+            # for what CI publishes, a runner's checkout carrying these two
+            member.mode = 0o755 if member.isdir() else 0o644
             # the records this exists to remove: tarfile writes one per
             # field it cannot express in the ustar header, and the
             # sub-second mtime above was such a field. Replaced rather than
