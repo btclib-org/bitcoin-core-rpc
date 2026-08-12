@@ -430,9 +430,11 @@ height is still the diagnosis of why there is no height.
 
 # http and https, and nothing else. `urlopen` also speaks `file:` and
 # `data:`, so a url taken from configuration could make this client read
-# the local disk and report the bytes as a node's answer. Refusing the
-# scheme here is what makes the suppression in `urlopen_transport` true
-# rather than hopeful
+# the local disk and report the bytes as a node's answer. Both public
+# entry points refuse against this, each on the url it is handed --
+# `http_request` on the string, `urlopen_transport` on the one inside a
+# `Request` a caller built -- which is what makes the S310 suppression
+# true rather than hopeful
 _SCHEMES = ("http", "https")
 
 
@@ -626,11 +628,26 @@ def urlopen_transport(
     `timeout` bounds the exchange and not each socket operation: the
     deadline is taken before the connect, so a peer that drips a body one
     octet at a time cannot hold this call open past it.
+
+    The scheme, the timeout and the limit are checked here and not only
+    where `http_request` already checks them, for the reason that function
+    gives for its own copy: this one is public too, and it takes a
+    `Request` a caller built. `urlopen` speaks `file:` and `data:` as well,
+    so a request whose url came from configuration would otherwise make
+    this transport read the local disk and report the bytes as a node's
+    answer -- and an invalid control would be refused after the resource
+    was opened rather than instead of opening it.
     """
+    _assert_valid_timeout(timeout, "http timeout")
+    _assert_valid_max_body_size(max_body_size)
+    scheme = urlsplit(request.full_url).scheme
+    if scheme not in _SCHEMES:
+        raise BtcRpcValueError(f"invalid url scheme: '{scheme}' instead of http(s)")
+
     deadline = monotonic() + timeout
-    # what reaches the opener is http or https: `http_request` is the only
-    # thing that builds a Request, it checks the scheme first, and a
-    # redirect cannot introduce a second url
+    # so what reaches the opener is http or https, whoever built the
+    # request: the three lines above are what says so here, and a redirect
+    # cannot introduce a second url
     with _OPENER.open(request, timeout=timeout) as response:
         body = _read_bounded(response, max_body_size, request.full_url, deadline)
         return response.status, body

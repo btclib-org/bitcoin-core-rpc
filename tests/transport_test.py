@@ -780,6 +780,94 @@ def test_only_http_and_https_are_opened(url: str) -> None:
     assert transport.requests == []
 
 
+def _recording_opener(monkeypatch: pytest.MonkeyPatch) -> Recorded:
+    """Install an opener that records what it was asked, and return it.
+
+    What the refusals below are worth is that they come before anything is
+    opened, and the exception alone does not say that -- it is the same
+    either side of `_OPENER.open`. So the requests this recorded are the
+    assertion, as they are for `http_request`'s own scheme test. It answers
+    with a `(status, body)` pair, which is no response at all: a refusal
+    that stopped refusing would reach the `with` and fail on the tuple
+    rather than pass quietly.
+    """
+    opener = Recorded((200, b"never reached"))
+    monkeypatch.setattr(transport_module, "_OPENER", _opener(opener))
+    return opener
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "file:///etc/passwd",
+        "data:text/plain,0100000001",
+        "ftp://example.com/tx",
+        "127.0.0.1:8332",
+    ],
+)
+def test_the_transport_opens_nothing_but_http_and_https(
+    url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The scheme check of the transport, on a `Request` a caller built.
+
+    `urlopen_transport` is public and takes the request rather than the
+    url, so `http_request`'s check above is not the boundary for a caller
+    who reaches this function directly: without one here, a `file:` request
+    read the local file and answered with its bytes, the status coming back
+    as None because a file response has none.
+    """
+    opener = _recording_opener(monkeypatch)
+    with pytest.raises(BtcRpcValueError, match="invalid url scheme"):
+        # the scheme this builds a request for is the subject of the test,
+        # which is what S310 asks about and what the refusal answers
+        urlopen_transport(Request(url), DEFAULT_TIMEOUT)  # noqa: S310
+    assert opener.requests == []
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan")])
+def test_the_transport_refuses_a_timeout_that_is_no_duration(
+    timeout: float, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """And before the connect, the deadline being taken from this number."""
+    opener = _recording_opener(monkeypatch)
+    with pytest.raises(BtcRpcValueError, match="http timeout is not a positive"):
+        urlopen_transport(Request(URL), timeout)
+    assert opener.requests == []
+
+
+@pytest.mark.parametrize("timeout", [True, "30", None])
+def test_the_transport_refuses_a_non_numeric_timeout(
+    timeout: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`timeout=True` is not one second here either."""
+    opener = _recording_opener(monkeypatch)
+    with pytest.raises(BtcRpcTypeError, match="non-numeric http timeout"):
+        urlopen_transport(Request(URL), timeout)  # type: ignore[arg-type]
+    assert opener.requests == []
+
+
+def test_the_transport_refuses_a_limit_that_is_no_size(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Instead of refusing it once the response is open.
+
+    `_read_bounded` checks the limit too, and that check is where a
+    non-integer one was caught: after `_OPENER.open`, so the request had
+    been sent and the response had to be closed to report an argument the
+    caller could have been refused for.
+    """
+    opener = _recording_opener(monkeypatch)
+    with pytest.raises(BtcRpcTypeError, match="non-integer max_body_size"):
+        urlopen_transport(
+            Request(URL),
+            DEFAULT_TIMEOUT,
+            max_body_size=64.0,  # type: ignore[arg-type]
+        )
+    with pytest.raises(BtcRpcValueError, match="negative max_body_size: -1"):
+        urlopen_transport(Request(URL), DEFAULT_TIMEOUT, max_body_size=-1)
+    assert opener.requests == []
+
+
 def test_an_http_error_is_a_status_and_a_body_not_an_exception() -> None:
     """Where bitcoind's 1.1 error object under an HTTP 500 comes from."""
     with http_error(500, b'{"result":null,"error":{"code":-5}}') as error:
