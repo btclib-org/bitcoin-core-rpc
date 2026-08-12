@@ -48,6 +48,16 @@ its own with. Use it instead of assembling the path by hand wherever
 somewhere else, or one reached at a url of your own, which is the
 constructor and derives nothing.
 
+`for_wallet` on a client that is already a wallet endpoint raises
+`BtcRpcValueError` now, where it appended a second one and built
+`/wallet/hot/wallet/cold` — a path no node serves, so the call that used it
+failed at the node. Derive every wallet's client from the client built for
+the node: `node.for_wallet("hot")` and `node.for_wallet("cold")`, not
+`node.for_wallet("hot").for_wallet("cold")`. A url passed to the constructor
+ending in `/wallet/<name>` is refused by the same check — pass the node's
+endpoint and let `for_wallet` add the wallet. A wallet named `wallet` is
+unaffected: that is a name to add, not one already added.
+
 The repository's default branch is `main`, and it is the only one: `master`
 was renamed to it and `dev` is gone. GitHub redirects the old links and
 retargets open pull requests, so nothing breaks on its own; a clone follows

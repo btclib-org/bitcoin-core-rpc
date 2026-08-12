@@ -110,7 +110,10 @@ balance = client.for_wallet("hot").call("getbalance")   # Decimal, exact
 
 `for_wallet` is the `/wallet/<name>` endpoint of a node with several
 wallets loaded, with the name percent-encoded — a wallet is a directory and
-may be called anything a filesystem accepts.
+may be called anything a filesystem accepts. Every wallet's client is
+derived from the client built for the node: calling it on a client that is
+already a wallet endpoint is refused rather than composing
+`/wallet/hot/wallet/cold`, which is no path Core serves.
 
 ## Attribute-style calls
 

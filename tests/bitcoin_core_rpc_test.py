@@ -1982,6 +1982,58 @@ def test_a_wallet_name_that_is_not_a_string_is_refused(name: object) -> None:
         untyped(name)
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        f"{URL}/wallet/hot",
+        f"{URL}/wallet/hot/",
+        f"{URL}/wallet/",
+        f"{URL}/node/wallet/hot",
+    ],
+)
+def test_a_wallet_client_cannot_be_given_a_second_wallet(url: str) -> None:
+    """`/wallet/a/wallet/b` is not an endpoint, so it is not composed.
+
+    Core serves neither path, so the composed client failed at the node
+    with an `HttpError` about a path -- where every other wrong argument
+    to this class is refused while the caller is still looking at the line
+    that supplied it. A url written by hand is refused by the same check:
+    the constructor takes the endpoint of a node, and the wallet is what
+    `for_wallet` adds to it.
+    """
+    endpoint = BitcoinCoreRpcClient(url, user=RPC_USER, password=RPC_PASSWORD)
+    with pytest.raises(BtcRpcValueError, match="already the /wallet/<name>"):
+        endpoint.for_wallet("cold")
+
+
+def test_deriving_a_second_wallet_names_the_client_to_derive_it_from() -> None:
+    """The arrangement `for_wallet` recommends, and the mistake it invites.
+
+    One client per wallet, each derived from the client built for the node:
+    `client.for_wallet("hot").for_wallet("cold")` is the same intention
+    written from the wrong client, and the message says which one.
+    """
+    endpoint = BitcoinCoreRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD)
+    hot = endpoint.for_wallet("hot")
+    with pytest.raises(BtcRpcValueError, match="the client it was derived from"):
+        hot.for_wallet("cold")
+    assert endpoint.for_wallet("cold").url == f"{URL}/wallet/cold"
+
+
+def test_a_wallet_named_wallet_is_still_a_name_to_add() -> None:
+    """`/wallet/wallet` is the endpoint of a wallet a filesystem allows.
+
+    The check reads the segment before the last as the marker, so the word
+    in the name is a name; the client this returns is a wallet client, and
+    deriving from *it* is what the check refuses.
+    """
+    endpoint = BitcoinCoreRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD)
+    named = endpoint.for_wallet("wallet")
+    assert named.url == f"{URL}/wallet/wallet"
+    with pytest.raises(BtcRpcValueError, match="already the /wallet/<name>"):
+        named.for_wallet("cold")
+
+
 def test_a_subclass_derives_a_wallet_client_of_its_own_class() -> None:
     """`type(self)`, as `from_chain` builds with `cls`.
 
