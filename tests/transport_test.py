@@ -199,6 +199,7 @@ def http_error(
     *,
     chunk_size: int | None = None,
     content_length: str | None = None,
+    no_headers: bool = False,
 ) -> Iterator[HTTPError]:
     """Yield an HTTPError carrying a body, closed when the test is done.
 
@@ -210,11 +211,27 @@ def http_error(
     An HTTPError is a response as well as an exception, and the bounded
     read reads it as one: the body is served through `read1` off a
     `FakeResponse`, so `chunk_size` is a drip here as it is there.
+
+    `no_headers` passes `None` for the `hdrs` argument, which is what
+    `HTTPError.headers` then answers: the shape a caller writing a test
+    double of their own produces, and the one every other helper here
+    hides by always building an `HTTPMessage`.
     """
     headers = HTTPMessage()
     if content_length is not None:
         headers["Content-Length"] = content_length
-    error = HTTPError(URL, status, "Internal Server Error", headers, None)
+    # typeshed declares `hdrs` as a Message and not an optional one, where
+    # `HTTPError.__init__` stores whatever it was handed and `headers`
+    # answers it -- so the None this passes is the runtime shape the
+    # annotation does not admit, which is why the module under test cannot
+    # rely on that annotation either
+    error = HTTPError(
+        URL,
+        status,
+        "Internal Server Error",
+        None if no_headers else headers,  # type: ignore[arg-type]
+        None,
+    )
     # `read1` is what an HTTPError forwards to the response it wraps, so
     # typeshed declares no such attribute to assign over
     error.read1 = FakeResponse(status, body, chunk_size=chunk_size).read1  # type: ignore[attr-defined]
@@ -1049,6 +1066,27 @@ def test_a_failure_body_that_cannot_be_read_keeps_its_status(
     monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
 
     assert http_request(URL) == (503, b"")
+
+
+def test_an_http_error_with_no_headers_keeps_its_status_and_body() -> None:
+    """`HTTPError.headers` can be None, and the announced size is a courtesy.
+
+    `HTTPError` answers `headers` with the `hdrs` it was built from, so an
+    exception a caller's transport raised has `None` there wherever the
+    author had no opinion about the field -- and the `Content-Length` read
+    off it is the sender's claim, checked before the first octet and absent
+    from every chunked reply already. So the status and the bounded body
+    come back as they do for the same exception carrying an `HTTPMessage`,
+    rather than through the AttributeError that is outside the FetchError
+    `http_request` promises for everything below the status.
+    """
+    page = b"the work queue is full"
+    with http_error(503, page, no_headers=True) as error:
+
+        def transport(request: Request, timeout: float) -> tuple[int, bytes]:
+            raise error
+
+        assert http_request(URL, data=b"{}", transport=transport) == (503, page)
 
 
 def test_an_explicitly_empty_body_is_still_a_post() -> None:

@@ -70,6 +70,20 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Changed
 
+- **An `HTTPError` with no headers is a status and a body**, where
+  `http_request` left it as `AttributeError: 'NoneType' object has no
+  attribute 'get'` -- from reading the announced `Content-Length` off
+  headers that are not there. `HTTPError.headers` answers the `hdrs` it was
+  built with, so the shape comes from a transport of a caller's own, which
+  the module docstring invites onto that path: a test double standing in for
+  a busy node is the ordinary way to write one, and `None` is what gets
+  passed for a field the double has no opinion about. The announced size is
+  now read only where there is something to read it from, the bounded read
+  being unchanged and absent `Content-Length` already the ordinary case for
+  a chunked reply. So the promise that everything below the HTTP status is a
+  `FetchError` holds for that exception too -- the same one carrying an
+  `HTTPMessage` was always read as intended, which is why nothing in the
+  suite reached it.
 - **`default_datadir` answers Core's datadir for the platform it runs on**,
   not Linux's on all of them: `%APPDATA%\Bitcoin` on Windows,
   `~/Library/Application Support/Bitcoin` on macOS, `~/.bitcoin` on
