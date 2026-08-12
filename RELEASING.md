@@ -241,9 +241,57 @@ wrong — it says the next bump is going to be work.
    site that answers 200 may be serving the last build that succeeded,
    the webhook having quietly refused every delivery since.
 
-1. Merge it with **"Squash and merge"**, as every other pull request here
-   — the only method the repository enables, so the button offers no
-   other.
+1. Merge it, keeping the commit signed by you rather than by GitHub.
+
+   "Squash and merge" is the only method the repository enables, but its
+   button is unusable here: branch protection requires one approving
+   review, GitHub does not let a pull request's author approve their own,
+   and there is no second maintainer to ask — so the button stays
+   permanently disabled, and even a bypass of that review would still
+   compose the commit server-side and sign it with GitHub's web-flow key,
+   not yours, defeating the point before the review question is reached.
+   Land the release the way every other maintainer-only commit on this
+   repository lands: squash it locally, sign it as yourself, and push
+   straight to `main`, one worktree for the whole session rather than one
+   per pull request:
+
+   ```shell
+   WT=<scratchpad>/wt-land
+   git worktree add --detach "$WT" origin/main
+   cd "$WT" && uv sync --locked
+
+   git fetch origin
+   git reset --hard origin/main
+   git merge --squash origin/<release-branch>
+   git diff --cached                        # read it -- CHANGELOG.md and
+                                             # HISTORY.md are merge=union,
+                                             # which fuses silently
+   git commit -m "<pull request title> (#<pull request number>)"
+   git log -1 --format='%G? %GS'            # must read G <your name>,
+                                             # never proceed past an N
+   uv run pre-commit run --all-files
+   uv run pytest --cov=bitcoin_core_rpc --cov=tests
+   git push origin HEAD:refs/heads/main
+   ```
+
+   `enforce_admins: false` is what makes the push land rather than bounce:
+   an administrator may push past the *review-count* rule, and GitHub's
+   response names it — `Bypassed rule violations: ... approving review is
+   required` — text that confirms the push went through rather than being
+   silently refused. What does not bend, admin or not, is the repository
+   ruleset one layer below branch protection: a verified signature, linear
+   history, no force push and no branch deletion are enforced with no
+   bypass actor at all, so the commit above still has to be yours and the
+   push above still has to be a fast-forward. Close out what the merge
+   button would otherwise have done — the pull request, and the branch it
+   came from:
+
+   ```shell
+   gh pr close <pull request number> \
+     --comment "Landed on main as $(git rev-parse --short HEAD)."
+   git push origin :refs/heads/<release-branch>
+   git worktree remove --force "$WT"
+   ```
 
    Then read `lint` and `test` on the commit `main` ends up at before
    tagging, rather than trust the pull request's own green run:
@@ -294,6 +342,18 @@ wrong — it says the next bump is going to be work.
    already there in minutes instead. Retagging is the right answer only
    when the failure happened before those artifacts existed — see "If
    something goes wrong" below.
+
+   A job that sits `queued` with no runner assigned for tens of minutes,
+   on an ordinary `ubuntu-latest` label, past the point where the
+   environment approval has already gone through, is not this repository's
+   problem to fix: the org's GitHub Actions concurrency is shared across
+   every `btclib-org` repository, and a burst of CI elsewhere (`btclib`,
+   `btclib-libsecp256k1`) is enough to queue this one behind it. Confirm
+   there is nothing to fix rather than assume it — githubstatus.com green,
+   no `pending_deployments` left on the run, no concurrency group of this
+   repository's own blocking it — then wait; cancelling or re-dispatching
+   a job that is merely queued, not failed, risks a second attempt racing
+   the first one into `publish-pypi`.
 
 1. Install what was just published, in an environment of its own rather
    than one that may already hold it, and run something with it:
@@ -451,3 +511,40 @@ reading a mismatch as tampering:
 - Only the `github-release` job failed: the PyPI upload is already done;
   re-run the failed job, or create the release by hand from the `dist`
   artifact of the run.
+
+- `github-release` shows **`skipped`** rather than failed, though both of
+  its needs — `publish-pypi` and `attest` — report `success`: measured
+  once on a real tag rather than assumed, and worth reporting to GitHub
+  support if seen again, since nothing in the workflow file explains it
+  and `gh run rerun --job` refuses a skipped job outright (`cannot be
+  rerun`), unlike a failed one. Re-running the whole workflow is not the
+  fix either: `publish-pypi` would attempt the upload a second time, and
+  while PyPI would refuse the existing file names rather than accept a
+  duplicate, the attempt itself asks for a fresh approval of the `pypi`
+  environment and gates the run on nothing this repository controls. Skip
+  the workflow entirely and do by hand exactly what the job's own script
+  does, from the artifacts already sitting on the run:
+
+  ```shell
+  gh run download <run id> -n dist -D dist
+  gh run download <run id> -n attestation -D attestation
+  shasum -a 256 dist/*                     # compare against PyPI's own
+  curl -s https://pypi.org/pypi/bitcoin-core-rpc/<version>/json \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin)
+  [print(u["filename"], u["digests"]["sha256"]) for u in d["urls"]]'
+
+  git show v<version>:HISTORY.md | awk -v tag="v<version>" '
+    $0 ~ "^## " tag "( |$)" {found=1; next}
+    /^## / && found {exit}
+    found {print}
+  ' > notes.md
+  cp attestation/attestation.jsonl v<version>.attestation.jsonl
+  gh release create v<version> dist/* v<version>.attestation.jsonl \
+    --title v<version> --notes-file notes.md
+  ```
+
+  The digest comparison is not optional: it is what stands in for the
+  provenance a second, unwanted publish attempt would otherwise have to
+  establish, confirming the files a human is about to attach are the
+  exact bytes the token exchange already accepted rather than a fresh
+  local build that merely claims to be.
