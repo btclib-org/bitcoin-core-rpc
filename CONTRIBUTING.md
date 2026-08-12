@@ -325,13 +325,28 @@ fenced blocks split with `\`.
 
 Commit the changes to your fork once you are happy with them.
 
+Every commit that reaches `main` needs a [verified
+signature](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification)
+— GPG, SSH or S/MIME — together with linear history, no force push and no
+branch deletion. A GitHub ruleset enforces the four on every push that
+reaches `main`, regardless of who makes it and with no bypass actor: a
+commit that is unsigned or that rewrites history is rejected before it is
+something to review. REPOSITORY.md has the branch protection
+configuration.
+
 ## Pull Request
 
 When you're finished with the changes, create a pull request (PR).
 
+Every change starts with an open issue: file one before opening the pull
+request that closes it, not after.
+
 - Don't forget to
   [link PR to issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue)
-  if you are solving one.
+  if you are solving one — `Closes #N` in the description is what closes
+  the issue once a reviewed pull request merges.
+- A pull request merges only after an approving review from somebody
+  other than its author: GitHub does not allow self-approval.
 - Enable the checkbox to
   [allow maintainer edits](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/allowing-changes-to-a-pull-request-branch-created-from-a-fork)
   so the branch can be updated for a merge.
