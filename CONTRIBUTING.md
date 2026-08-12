@@ -351,9 +351,10 @@ a message saying what it fixes, and reply to the comment with the sha.
 Nothing is lost in `main`'s history by doing so, because **a pull request
 is merged with "Squash and merge"**: the branch becomes one commit whose
 subject is the PR title with its number, so the review's commits are the
-record of the review and `main` keeps one commit per landed change. Read
-the button before clicking it: all three methods are enabled on the
-repository, and GitHub offers whichever was used last.
+record of the review and `main` keeps one commit per landed change. It is
+the only method the repository enables, so there is no other button to
+read; REPOSITORY.md has the setting and what the other two would have
+cost.
 
 The one force-push that stays right is the one that carries no new work: a
 `git rebase origin/main` on a branch whose base has moved, which is how a

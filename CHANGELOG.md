@@ -363,6 +363,19 @@ carry a union merge driver that would keep both sides' numbers.
   merge, and a rule whose normal operation is its own bypass gates nothing
   while reading as though it does. `enforce_admins` is on in its place, so
   what is left holds for everyone.
+- **Squash is the only merge method the repository enables.** The merge
+  commit was refused by `main`'s required linear history already, so
+  turning it off takes away a button that could not have worked; the
+  rebase merge could have, and what it would have done is replay a
+  branch's commits onto a trunk whose rule is one commit per landed
+  change. What a single method takes away is not the choice on a pull
+  request in front of somebody: GitHub preselects whichever was used last
+  and offers the same dropdown in the dialog that switches auto-merge on,
+  hours before anything merges and with nothing asking again -- so "read
+  the button before pressing it" was advice three files gave and none
+  could enforce. REPOSITORY.md gains the section, with the two fields that
+  shape the commit a squash writes; CONTRIBUTING.md and RELEASING.md said
+  all three methods were enabled and say what holds instead.
 
 ## v2026.8.8
 
