@@ -540,7 +540,9 @@ def _read_bounded(
     read. It is not believed, though -- it is the sender's claim about
     the sender -- so the read is bounded as well, and by one octet more
     than the limit, which is what tells a body *at* the limit from one
-    over it.
+    over it. A response with no headers at all carries none: `HTTPError`
+    answers `headers` with the `hdrs` it was built from, and a caller's
+    transport raising one has no opinion to put there.
 
     `truncate` is how the body of a *failure* is read: cut to the limit and
     answered rather than refused, an announced `Content-Length` over it
@@ -571,7 +573,14 @@ def _read_bounded(
     """
     _assert_valid_max_body_size(max_body_size)
 
-    announced = response.headers.get("Content-Length")
+    # the announced size where there is something to read it from. urllib's
+    # own responses always carry headers; an `HTTPError` a caller's
+    # transport raised carries whatever it was built with, and `None` is
+    # what a test double standing in for a busy node passes for a field it
+    # has no opinion about -- which reached `.get` and left through an
+    # AttributeError, outside the FetchError `http_request` promises
+    headers = getattr(response, "headers", None)
+    announced = None if headers is None else headers.get("Content-Length")
     if announced is not None and not truncate:
         # a header, so it can be anything: a value that is not a number
         # says nothing about the size and is left to the bounded read
