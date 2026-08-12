@@ -202,6 +202,24 @@ carry a union merge driver that would keep both sides' numbers.
   for, on archives staged by hand: two whose members differ only in a mode
   normalize to the same bytes, which no build of this tree can check on its
   own, carrying the modes of the checkout it ran in.
+- **`pyproject.toml` says where the version is declared and stops there.**
+  The comment above `version` also restated the convention for the
+  placeholder between releases -- "the version just released, with its
+  trailing component bumped by one, or `.1` appended if it had none", which
+  would be `2026.8.9` where the declared value is `2026.9`, the month -- and
+  went on to say the placeholder is shaped like a release on purpose, where
+  `release.yml`'s version-check job says the opposite in the job itself and
+  refuses a tag of that shape. RELEASING.md's "Which version string is
+  which" states the convention correctly and is now the one place that
+  answers it. The calendar-versioning note and the no-leading-zero note are
+  true of this file and stay.
+- **Three stated counts are gone from `pyproject.toml`**, the command that
+  re-derives each of them staying: the parallelism note's test count, which
+  moves with every merge and said 298 against 306, and the site counts of
+  the `PLR2004` and `TRY003` ignore entries, which said 47 and 37 against 48
+  and 38. `PLR0913`'s said 4 and still measures 4, and goes with them for
+  the same reason: what argues for those three waivers is the shape of the
+  finding, and a number nothing checks is a claim waiting to be false.
 - **The gate that talks to a live node is `integration`**, the name btclib
   gives its own, where it was `rpc-smoke`: `integration.yml`, an
   `integration` job, an `integration: every job passed` aggregate and a
