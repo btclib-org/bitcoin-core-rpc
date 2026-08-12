@@ -185,6 +185,23 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`normalize_sdist.py` normalizes the member modes too**, 0644 for a file
+  and 0755 for a directory, beside the timestamp and the ownership it
+  already rewrote. The mode came from the working tree, so the umask of the
+  checkout reached the published archive: a verifier following RELEASING.md's
+  "Rebuild a release from its tag" from a checkout whose files carry group
+  write got a digest mismatch on an archive whose content matches byte for
+  byte, and is told to read a mismatch as a rebuild that ran a newer
+  setuptools, or as tampering. It is digest-preserving for what CI
+  publishes, a runner's checkout carrying those two modes already, so the
+  digests already attested stay the digests a rebuild produces. Nothing in
+  the sdist needs the executable bit -- no source file here opens with a
+  shebang, which `.pre-commit-config.yaml` records as a decision -- so one
+  mode for files and one for directories is the whole of it.
+  `tests/normalize_sdist_test.py` asserts the property the script exists
+  for, on archives staged by hand: two whose members differ only in a mode
+  normalize to the same bytes, which no build of this tree can check on its
+  own, carrying the modes of the checkout it ran in.
 - **The gate that talks to a live node is `integration`**, the name btclib
   gives its own, where it was `rpc-smoke`: `integration.yml`, an
   `integration` job, an `integration: every job passed` aggregate and a
