@@ -89,6 +89,27 @@ the datadir name to have agreed with the node underneath them.
 client = BitcoinCoreRpcClient.from_chain("main", verify_chain=True)
 ```
 
+Signet is the case a name cannot settle: Core answers `signet` for the
+default signet and for every custom one alike, so the challenge is what
+tells two of them apart. Pass the one you mean, hex or bytes, as
+`-signetchallenge` takes it; the comparison is of the p2p magic it derives,
+which is what makes the same challenge in upper case the same challenge.
+
+```python
+client = BitcoinCoreRpcClient.from_chain(
+    "signet", verify_chain=True, signet_challenge="512102...ae"
+)
+```
+
+`assert_chain` is that check on its own, for a client built at a url of your
+own — a node on another host, or behind a proxy — where there is no
+`from_chain` to ask for it.
+
+```python
+client = BitcoinCoreRpcClient("https://node.example/", user="u", password="p")
+client.assert_chain("signet", signet_challenge="512102...ae")
+```
+
 ## Calling
 
 `params` is one value, shaped as JSON-RPC shapes it: a sequence for the

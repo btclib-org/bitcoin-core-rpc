@@ -21,6 +21,54 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.9 (work in progress, not released yet)
 
+### Added
+
+- **`assert_chain`**, the check `verify_chain` makes, as a method a caller
+  can invoke at a moment of its own: a client built against an explicit url
+  -- a node on another host, one behind a proxy -- gets what `from_chain`
+  would have asked for it. `from_chain(verify_chain=True)` is now this
+  method, so there is one implementation and not a second copy in whatever
+  library wraps this one.
+- **signet is identified by its challenge**, which is the half of that
+  check a chain name cannot make. Core reports `signet` for the default
+  signet and for every custom one alike, so two nodes sharing nothing but
+  the shape of a challenge answer the same string; `assert_chain` compares
+  the p2p magic the challenge derives, taking the node's from the
+  `signet_challenge` member of `getblockchaininfo` and the caller's from
+  the new `signet_challenge` keyword, or from the default signet when none
+  is given. A challenge off signet is refused before the round trip, there
+  being nothing a reply could settle; one passed with `verify_chain` off is
+  refused as well, being the one argument that would otherwise quietly do
+  nothing -- every signet answers on 38332 and keeps its cookie in the same
+  subdirectory, so the challenge changes nothing but the check. A node too
+  old to report the member, or reporting one that is not hex, is a
+  `FetchError`: the check could not be made, which is not the same as
+  making it and passing.
+- **`magic_from_chain`** and **`magic_from_signet_challenge`**, the two
+  facts that check rests on, published for a caller with a use of their
+  own -- a p2p handshake, a comparison against another implementation's
+  table. `_MAGIC_FROM_CHAIN` is `pchMessageStart` per chain from Core's
+  `src/kernel/chainparams.cpp`, in the byte order Core writes it there, and
+  keyed by Core's chain names like the port and the datadir subdirectory
+  beside it. `magic_from_signet_challenge` is `SigNetParams`' own rule --
+  the first four bytes of the sha256d of the challenge script serialized
+  with its CompactSize length -- and takes hex or the bytes it spells,
+  refusing anything else: `bytes(71)` is 71 zero bytes rather than an
+  error, so a challenge that arrived as a number would have been hashed as
+  a script of that length. The table's signet entry is a copy of the
+  constant Core states, with a test deriving it from
+  `DEFAULT_SIGNET_CHALLENGE` -- so the constant and the rule are held to
+  agreeing, rather than the entry being a computation nothing would catch
+  being wrong. A challenge above 65535 bytes is refused rather than
+  serialized: consensus caps a script at 10000, so the longer CompactSize
+  forms cannot arise for one, and refusing keeps the two forms written here
+  the whole of the encoding.
+- **`DEFAULT_SIGNET_CHALLENGE`**, the block challenge of the signet
+  everyone means by "signet" -- the `bin` a node started without
+  `-signetchallenge` uses, from `SigNetParams`. What makes it worth
+  publishing is that it is the one signet a caller can name rather than
+  describe.
+
 ## v2026.8.12
 
 ### Added

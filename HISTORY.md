@@ -12,6 +12,25 @@ in this file — read it before upgrading, rather than a digit.
 
 ## v2026.9 (work in progress, not released yet)
 
+`from_chain("signet", verify_chain=True)` now holds the node to the
+*default* signet, where it accepted any node answering `signet`. Core
+reports that one string for every signet there is, so the old check passed
+for a node on somebody else's chain. If that is your case, pass the
+challenge you mean: `from_chain("signet", verify_chain=True,
+signet_challenge=...)`, hex or bytes, as `-signetchallenge` takes it. The
+comparison is of the p2p magic the challenge derives, so upper case and
+lower case are the same challenge.
+
+Two things are refused that were previously accepted, both of them a check
+that would not be made: a `signet_challenge` with `verify_chain` off, and
+one for a chain that is no signet. Both are `BtcRpcValueError` at the call,
+before a client is built or a node is reached.
+
+`assert_chain(chain, signet_challenge=...)` is that check as a method, for
+a client built against an explicit url — a node on another host, or behind
+a proxy — where `from_chain` was the only way to get it. Nothing to do if
+you already call `from_chain(verify_chain=True)`: that is now this method.
+
 ## v2026.8.12
 
 `from_chain` works on macOS and Windows. `default_datadir` answers Core's
