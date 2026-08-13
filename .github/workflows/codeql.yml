@@ -32,36 +32,41 @@ name: codeql
 # which is the order to repeat if it ever goes back on.
 
 on:
+  # main and the schedule below, and no pull_request trigger: this analysis
+  # is the one gate that was worth trading for the slots it held. GitHub
+  # Free gives an organization twenty concurrent jobs, shared across every
+  # repository in it, and this workflow's three of them were held while a
+  # pull request waited -- so the analysis lands on the merge commit rather
+  # than before it, and the aggregate below is no longer a required check
+  # on main. REPOSITORY.md's "Required checks on main" is where that rule
+  # is written down, and dropping the context there is a token operation
+  # that had to come first.
+  # What still reads a branch before it merges is lint.yml: zizmor is a
+  # pre-commit hook and reads exactly these files for an injected
+  # expression, which is the finding this workflow would otherwise be alone
+  # in making. What a merge defers is the rest -- the python queries -- for
+  # the time between that merge and the next run, which for main is the
+  # merge itself
   push:
-    # main only, for the reason lint.yml and docs.yml give at the same key:
-    # a push to a branch with an open pull request would run this twice, in
-    # two concurrency groups that do not cancel each other, and the
-    # pull_request run -- which analyses the merge result, and is the only
-    # run a fork's pull request produces -- is the one worth keeping.
-    # main keeps a trigger of its own because a merge creates a commit that
-    # is not the one the pull request analysed, and because an alert is
-    # attributed to a branch: the default branch is where code scanning
-    # reports what is open
+    # a merge creates a commit that no pull request analysed, and an alert
+    # is attributed to a branch: the default branch is where code scanning
+    # reports what is open, so without a run here there is no baseline
     branches: [main]
-  pull_request:
-    # ready_for_review, so a pull request marked ready gets the run the
-    # draft condition below withheld while it was a draft: the default
-    # types do not include it, and without it a readied pull request would
-    # wait for its next push to be analysed at all
-    types: [opened, reopened, synchronize, ready_for_review]
   schedule:
     # Tuesdays, 04:27 UTC. A weekly run is what default setup performed and
     # what a pull request trigger cannot replace: a query pack updates
     # without anybody touching the repository, so the analysis of an
     # unchanged tree is a different answer this week than last.
-    # Not on the hour, and on a day the other four schedules here leave
-    # free -- Monday is links, Thursday macos and latest, Sunday mutation:
+    # Not on the hour, and on a day the other schedules here leave free --
+    # Monday is links, Wednesday macos and latest, Saturday windows-arm,
+    # Sunday mutation:
     # GitHub queues scheduled workflows across every repository that asked
     # for the same minute, and the run can be dropped outright when the
     # queue is long
     - cron: "27 4 * * 2"
-  # the escape hatch: an analysis on demand for a branch whose pull request
-  # is not open yet.
+  # the escape hatch, and with no pull_request trigger above it is the only
+  # way to analyse a branch before it is merged: worth reaching for on one
+  # that touches a workflow, which is what the actions queries read.
   # No workflow_call, unlike the four gates release.yml reuses: a tag
   # publishes the tree those four already passed, and re-analysing it would
   # upload a second set of alerts against the same commit
@@ -87,10 +92,10 @@ jobs:
     # job per language, so a red check names which analysis broke instead of
     # a matrix cell to open. It also lets the two run at once
     name: Analyze ${{ matrix.language }} with CodeQL
-    # a draft pull request is work in progress, and the gate below carries
-    # the same condition so a draft skips uniformly rather than tripping the
-    # skip check
-    if: ${{ !github.event.pull_request.draft }}
+    # no draft condition, where every job of test.yml carries one: this
+    # workflow no longer runs on a pull request at all, so there is no draft
+    # to skip and `github.event.pull_request.draft` is an expression that
+    # could only read empty here
     runs-on: ubuntu-latest
     permissions:
       # where the alerts are uploaded to; the one write in this workflow
@@ -149,25 +154,27 @@ jobs:
           # the first rather than adding to it
           category: /language:${{ matrix.language }}
 
-  # the single check main's branch protection requires from this workflow,
-  # for the reason test.yml's aggregate states: the rule names its checks as
-  # literal strings stored outside the repository, and the matrix above
-  # produces one context per language -- a set that moves whenever CodeQL
-  # gains a language worth adding. This job depends on the matrix instead,
-  # so the rule names one thing that never changes
+  # one answer to read per commit rather than one per language, which is
+  # what this job is for now that main's branch protection does not require
+  # it -- REPOSITORY.md's table is where that changed, and why. Kept rather
+  # than deleted because the name is then still produced: requiring this
+  # workflow again is a patch to the rule and nothing in the tree, which is
+  # the half of the exchange that cannot be made in a pull request.
+  # The matrix above produces one context per language, a set that moves
+  # whenever CodeQL gains a language worth adding; this job depends on the
+  # matrix instead, so adding one is enough to be covered by it
   codeql-passed:
     # the name and not the id is what branch protection matches, and it
     # carries the workflow because a context is keyed by name alone: two
     # workflows with a job named "every job passed" would produce one
-    # ambiguous check
+    # ambiguous check -- and test.yml's aggregate is still required, so the
+    # two names must not converge
     name: "codeql: every job passed"
     needs: [analyze]
     # not success(): a job whose dependencies failed is skipped, and a
-    # skipped check reports "skipped", which branch protection counts as
-    # satisfied. The gate has to run to be able to fail.
-    # And the draft condition the job above carries, so a draft skips
-    # uniformly rather than tripping the skip check below
-    if: ${{ always() && !github.event.pull_request.draft }}
+    # skipped check reports "skipped", which reads as satisfied wherever a
+    # check is read at all. The gate has to run to be able to fail
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

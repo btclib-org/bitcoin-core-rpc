@@ -23,6 +23,34 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **A pull request asks for thirty-three jobs instead of forty-four**, and
+  the number that decided it is a ceiling rather than a wall clock: GitHub
+  Free gives an organization twenty concurrent jobs, shared across every
+  repository in it, so a commit here and a commit in btclib compete for the
+  same twenty. Measured on one pull request run, this workflow set asked
+  for forty-four jobs and 16.9 runner-minutes for work that finishes in 212
+  seconds. Three changes, and each moves an answer off the review path
+  rather than dropping it:
+    - the seven `windows-11-arm` cells become `windows-arm.yml`, weekly on
+    Saturday and called by `release.yml`, exactly as `macos.yml` already
+    holds the macOS ones. The fourteen Windows cells were 9.4 of the 16.9
+    runner-minutes, and that image is the slower half of them, 40 to 77
+    seconds a cell against 29 to 34 on `windows-latest`. **`windows-latest`
+    stays**: the datadir table in `default_datadir` is the one
+    platform-conditional branch here, the suite drives every row of it but
+    the running one by patching `sys.platform`, and a real Windows runner
+    is where `%APPDATA%` and the `Path.home()` under it are asked for real.
+    - `codeql.yml` loses its `pull_request` trigger and keeps `main` and its
+    Tuesday schedule, so `codeql: every job passed` is no longer one of
+    main's required checks -- four now, and REPOSITORY.md carries the rule
+    and the `gh api` patch that dropped the context. `zizmor` is a
+    pre-commit hook, so `lint.yml` still audits these workflows for an
+    injected expression on every pull request.
+    - the `(3.14, ubuntu-latest)` cell of `test.yml`'s matrix is excluded,
+    because the `coverage` job beside it is that cell: same image, same
+    interpreter, the same suite, and the only difference is the
+    instrumentation.
+
 - **RELEASING.md reads what is open before it tags.** A pull request
   touching `release.yml` or a workflow it calls is one the tag is about to
   run, so leaving it in review runs the defect it fixes on the release

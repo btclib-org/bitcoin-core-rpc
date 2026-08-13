@@ -1,0 +1,115 @@
+---
+name: windows-arm
+
+# the second image the merge gate does not wait for, and the argument is
+# macos.yml's applied to the row beside it rather than a new one.
+#
+# The constraint is a ceiling and not a wall clock: GitHub Free gives an
+# organization twenty concurrent jobs, shared across every repository in it,
+# and this one asked for forty-four on every commit while btclib asked for
+# thirty-nine. Measured on one pull request run of the full four rows, the
+# fourteen Windows cells were 9.4 of the 16.9 runner-minutes -- more than
+# ubuntu's twenty-eight cells and every other job together -- and
+# windows-11-arm is the slower half of them, 40 to 77 seconds a cell against
+# 29 to 34 on windows-latest. The command that re-derives it, for whoever
+# doubts the split later:
+#
+#     id=$(gh run list --workflow=test.yml --limit 1 \
+#         --json databaseId --jq '.[0].databaseId')
+#     gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100"
+#
+# **windows-latest stays in test.yml**, and that is the whole of why this
+# file carries one image where macos.yml carries two. The one
+# platform-conditional branch in the client is the datadir table in
+# `default_datadir`, whose rows the suite drives by patching `sys.platform`
+# -- every row but the running one, so `%APPDATA%` and the `Path.home()`
+# under it are asked for real only on a Windows runner. A gate with no
+# Windows row would stop asking; a gate with one row asks completely, and
+# that question does not vary with the architecture the interpreter targets.
+#
+# What this image adds over that one is therefore what test.yml's own
+# comment says of it: nothing here is compiled, so which architecture the
+# interpreter targets -- native arm64 for the versions the runner image
+# caches, emulated x86-64 for the ones uv downloads -- is a property of the
+# standard library under the module rather than of the module. Worth a week
+# rather than a review's patience.
+#
+# It gates no commit and no merge -- a regression here sits on main for at
+# most a week -- but release.yml calls it, so one cannot be published
+
+on:
+  schedule:
+    # Saturday, the day nothing else here asks for -- the mutation session
+    # Sunday, links Monday, codeql Tuesday, latest and macos Wednesday,
+    # Dependabot Thursday -- so a failure notification still names the
+    # workflow by the day it arrived. A minute that is not the hour, as
+    # every schedule here, so the run does not queue behind everything else
+    # cron starts; 21 is unused by the others.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "21 4 * * 6"
+  # lets release.yml gate a publication on this image too, which is what
+  # keeps a weekly sentinel from being the only thing that ever asks
+  workflow_call:
+  # the escape hatch: the image on demand, for a branch that touches a path,
+  # a home directory or anything the datadir table reaches
+  workflow_dispatch:
+
+# least privilege for the GITHUB_TOKEN: everything running in a job
+# (actions, dependencies) can read the token, so it must not be able to
+# write to the repository
+permissions:
+  contents: read
+
+# cancel superseded runs: the subject here is the commit, which a newer one
+# supersedes. Named literally rather than with github.workflow, which in a
+# called workflow is the caller's name -- release.yml calls this one
+# alongside test.yml, and with that expression the two would share a group
+# and cancel each other
+concurrency:
+  group: windows-arm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suite-windows-arm:
+    name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # every cell to the end: which interpreter fails is the whole answer,
+      # and stopping at the first one hides the rest
+      fail-fast: false
+      matrix:
+        # one image, for the reason the header gives at length: the row
+        # test.yml keeps is what asks the datadir question, and this one
+        # asks about the architecture under it
+        os:
+          - windows-11-arm
+        # the interpreter set test.yml runs, unchanged: this workflow moves
+        # the image and nothing else, so a difference between the two is
+        # attributable to the image
+        python:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+          - "3.14t"
+          - "pypy3.11"
+    # far above what a run of the suite needs, and it bounds a hung job
+    # rather than a slow one: the queueing this workflow exists to move
+    # happens before a job starts and is not counted here
+    timeout-minutes: 30
+    steps:
+      # the three steps of test.yml's suite job, and each `with:` there
+      # carries the reason for itself
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      - name: Run pytest
+        run: uv run --locked --no-default-groups --group test pytest
