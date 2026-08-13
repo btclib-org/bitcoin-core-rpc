@@ -1,6 +1,7 @@
 # bitcoin-core-rpc
 
 A standalone JSON-RPC client against Bitcoin Core.
+As used by the btclib library.
 
 <!-- The badges are what the reader decides with: the first line says what
 this is and whether it can be used, the second whether it works, the third

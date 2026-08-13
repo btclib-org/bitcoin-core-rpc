@@ -69,6 +69,13 @@ carry a union merge driver that would keep both sides' numbers.
   publishing is that it is the one signet a caller can name rather than
   describe.
 
+### Repository
+
+- **The README says who uses this client**: btclib, which declares it a
+  dependency in its own `pyproject.toml`. A reader deciding on a package
+  that depends on nothing has its tests and its badges to judge it by, and
+  neither of those says whether anything runs it.
+
 ## v2026.8.12
 
 ### Added
