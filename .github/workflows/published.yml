@@ -140,6 +140,7 @@ jobs:
       # the input is empty on every other trigger
       - name: Wait for the index to serve the released version
         if: inputs.version != ''
+        shell: bash
         env:
           TAG: ${{ inputs.version }}
         run: |
