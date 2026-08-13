@@ -48,6 +48,7 @@ import re
 import sys
 from base64 import b64decode
 from decimal import Decimal, InvalidOperation, localcontext
+from hashlib import sha256
 from io import BytesIO
 from pathlib import Path, PurePosixPath
 from typing import Any, get_args
@@ -58,11 +59,13 @@ import pytest
 from bitcoin_core_rpc import (
     _CHAIN_FROM_NETWORK,
     _DATADIR_SUBDIR_FROM_CHAIN,
+    _MAGIC_FROM_CHAIN,
     _NETWORK_FROM_CHAIN,
     _RPC_PORT_FROM_CHAIN,
     COOKIE_USER,
     DEFAULT_DATADIR,
     DEFAULT_MAX_BODY_SIZE,
+    DEFAULT_SIGNET_CHALLENGE,
     DEFAULT_TIMEOUT,
     USER_AGENT,
     BitcoinCoreRpcClient,
@@ -80,6 +83,8 @@ from bitcoin_core_rpc import (
     cookie_path_from_chain,
     datadir_subdir_from_chain,
     default_datadir,
+    magic_from_chain,
+    magic_from_signet_challenge,
     network_from_chain,
     rpc_port_from_chain,
 )
@@ -565,6 +570,179 @@ def test_from_chain_refuses_a_reply_with_no_chain_to_read(result: Any) -> None:
             password=RPC_PASSWORD,
             transport=Echoing((200, reply.encode())),
             verify_chain=True,
+        )
+
+
+def chaininfo(**members: object) -> tuple[int, bytes]:
+    """Return a `getblockchaininfo` reply carrying these members.
+
+    Written rather than recorded: Core's reply carries a dozen members
+    beyond the two the check reads, so a recording would be a fixture to
+    re-take whenever Core adds one, and every test below would then be
+    edited to change the one member it is about.
+    """
+    reply = json.dumps({"result": members, "error": None, "id": "x"})
+    return 200, reply.encode()
+
+
+# two challenges that are scripts and are nothing else: no node would
+# accept a solution for either. What matters here is that they differ from
+# each other and from the default, which is what a signet is identified by
+CUSTOM_CHALLENGE = "51"
+OTHER_CHALLENGE = "52"
+
+
+def test_assert_chain_is_the_check_from_chain_makes() -> None:
+    """The same question, asked by a caller at a moment of its own.
+
+    `from_chain(verify_chain=True)` is this method, so a client built
+    against an explicit url -- a node on another host, behind a proxy --
+    has the check `from_chain` would have made for it.
+    """
+    endpoint = client(chaininfo(chain="main"))
+    endpoint.assert_chain("main")
+
+    endpoint = client(chaininfo(chain="test"))
+    with pytest.raises(BtcRpcValueError, match="reports chain 'test', not the 'main'"):
+        endpoint.assert_chain("main")
+
+
+def test_a_signet_is_identified_by_its_challenge_and_not_by_its_name() -> None:
+    """`signet` alone means the default signet, and refuses every other.
+
+    Core reports `signet` for the default signet and for every custom one
+    alike, so the name is the one answer that cannot settle this: the magic
+    the challenge derives is compared instead, and a node on somebody
+    else's signet is a disagreement rather than a pass.
+    """
+    endpoint = client(
+        chaininfo(chain="signet", signet_challenge=DEFAULT_SIGNET_CHALLENGE)
+    )
+    endpoint.assert_chain("signet")
+
+    endpoint = client(chaininfo(chain="signet", signet_challenge=CUSTOM_CHALLENGE))
+    with pytest.raises(BtcRpcValueError, match="on a signet this client is not"):
+        endpoint.assert_chain("signet")
+
+
+def test_a_custom_signet_is_the_challenge_the_caller_passes() -> None:
+    """`signet_challenge` is which signet, and the default is then refused.
+
+    The check is symmetric: a caller on a signet of their own is told about
+    a node on the default one exactly as the other way round.
+    """
+    endpoint = client(chaininfo(chain="signet", signet_challenge=CUSTOM_CHALLENGE))
+    endpoint.assert_chain("signet", signet_challenge=CUSTOM_CHALLENGE)
+
+    # the challenge as hex in either case, and the comparison is of the
+    # derived magic, so the case it is written in is not part of the answer
+    endpoint = client(
+        chaininfo(chain="signet", signet_challenge=DEFAULT_SIGNET_CHALLENGE)
+    )
+    endpoint.assert_chain("signet", signet_challenge=DEFAULT_SIGNET_CHALLENGE.upper())
+
+    endpoint = client(chaininfo(chain="signet", signet_challenge=OTHER_CHALLENGE))
+    with pytest.raises(BtcRpcValueError, match="on a signet this client is not"):
+        endpoint.assert_chain("signet", signet_challenge=CUSTOM_CHALLENGE)
+
+
+def test_the_magic_is_read_on_signet_and_nowhere_else() -> None:
+    """A `signet_challenge` member off signet is not a member to compare.
+
+    Core reports one on signet alone; a node reporting one on regtest is
+    answering something this check has nothing to hold it against, and
+    reading it there would make the reply's extra members part of the
+    verdict.
+    """
+    endpoint = client(chaininfo(chain="regtest", signet_challenge=OTHER_CHALLENGE))
+    endpoint.assert_chain("regtest")
+
+
+def test_a_signet_node_with_no_challenge_to_read_is_a_fetch_error() -> None:
+    """A node too old to report one is a reply this cannot answer for.
+
+    Not a pass: the member is what the check compares, so its absence is
+    the check failing to be made rather than being made and succeeding.
+    """
+    endpoint = client(chaininfo(chain="signet"))
+    with pytest.raises(FetchError, match="no string signet_challenge"):
+        endpoint.assert_chain("signet")
+
+    endpoint = client(chaininfo(chain="signet", signet_challenge=7))
+    with pytest.raises(FetchError, match="no string signet_challenge"):
+        endpoint.assert_chain("signet")
+
+
+def test_a_challenge_the_node_reports_wrong_is_a_fetch_error() -> None:
+    """Unreadable, and therefore the reply's fault and not the chain's.
+
+    `BtcRpcValueError` is reserved for the disagreement, which is the
+    caller's configuration to fix; a challenge that is not hex, or one no
+    node would have taken, is an answer that cannot be interpreted.
+    """
+    endpoint = client(chaininfo(chain="signet", signet_challenge="not hex"))
+    with pytest.raises(FetchError, match="unreadable signet_challenge"):
+        endpoint.assert_chain("signet")
+
+    endpoint = client(chaininfo(chain="signet", signet_challenge=""))
+    with pytest.raises(FetchError, match="unreadable signet_challenge"):
+        endpoint.assert_chain("signet")
+
+
+def test_a_challenge_off_signet_is_refused_before_the_node_is_asked() -> None:
+    """A caller with a signet in mind and a client on no signet at all.
+
+    Which of the two is wrong is the caller's to say, so neither is
+    guessed: the round trip is not made, there being nothing a reply could
+    settle.
+    """
+
+    def refuses(  # pragma: no cover -- never called is the point of the test
+        _request: Request, _timeout: float
+    ) -> tuple[int, bytes]:
+        err_msg = "assert_chain reached the node with nothing to compare"
+        raise AssertionError(err_msg)
+
+    endpoint = BitcoinCoreRpcClient(
+        URL, user=RPC_USER, password=RPC_PASSWORD, transport=refuses
+    )
+    with pytest.raises(BtcRpcValueError, match="challenge for chain 'main'"):
+        endpoint.assert_chain("main", signet_challenge=CUSTOM_CHALLENGE)
+
+
+def test_from_chain_verifies_the_signet_the_challenge_names() -> None:
+    """The custom signet reaching `from_chain`, which is where a caller is.
+
+    Every signet answers on the same port and keeps its cookie in the same
+    subdirectory, so the challenge changes nothing about the client built
+    -- it is the check it is passed for.
+    """
+    transport = Echoing(chaininfo(chain="signet", signet_challenge=CUSTOM_CHALLENGE))
+    endpoint = BitcoinCoreRpcClient.from_chain(
+        "signet",
+        user=RPC_USER,
+        password=RPC_PASSWORD,
+        transport=transport,
+        verify_chain=True,
+        signet_challenge=CUSTOM_CHALLENGE,
+    )
+    assert endpoint.url == "http://127.0.0.1:38332"
+    assert json.loads(transport.body)["method"] == "getblockchaininfo"
+
+
+def test_a_challenge_with_no_verification_asked_for_is_refused() -> None:
+    """It would be the one argument that quietly does nothing.
+
+    A caller passing a challenge is asking for the node to be held to it,
+    and `verify_chain` off is that check not being made -- so the
+    combination is refused where it was written, before a client is built.
+    """
+    with pytest.raises(BtcRpcValueError, match="checks nothing with it off"):
+        BitcoinCoreRpcClient.from_chain(
+            "signet",
+            user=RPC_USER,
+            password=RPC_PASSWORD,
+            signet_challenge=CUSTOM_CHALLENGE,
         )
 
 
@@ -2180,6 +2358,105 @@ def test_the_port_and_the_subdirectory_are_refused_a_bip_name() -> None:
         rpc_port_from_chain("mainnet")
     with pytest.raises(BtcRpcValueError, match="unknown Core chain: mainnet"):
         datadir_subdir_from_chain("mainnet")
+
+
+def test_the_magic_of_each_chain_is_the_one_core_writes() -> None:
+    """`pchMessageStart` per chain, from Core's src/kernel/chainparams.cpp.
+
+    Four copied constants and, for signet, the default challenge's -- in
+    Core's own byte order, the one a p2p message begins with, so that a
+    caller comparing against a packet or against another implementation's
+    table is comparing the same four bytes the other way round.
+    """
+    assert magic_from_chain("main").hex() == "f9beb4d9"
+    assert magic_from_chain("test").hex() == "0b110907"
+    assert magic_from_chain("testnet4").hex() == "1c163f28"
+    assert magic_from_chain("signet").hex() == "0a03cf40"
+    assert magic_from_chain("regtest").hex() == "fabfb5da"
+
+    # keyed by Core's vocabulary, like the port and the subdirectory: a BIP
+    # name is refused rather than answered for the chain it names
+    assert set(_MAGIC_FROM_CHAIN) == set(get_args(Chain))
+    with pytest.raises(BtcRpcValueError, match="unknown Core chain: mainnet"):
+        magic_from_chain("mainnet")
+
+
+def test_the_default_signet_magic_is_derived_and_not_only_copied() -> None:
+    """The table's signet entry against the rule that produced it.
+
+    Core: "message start is defined as the first 4 bytes of the sha256d of
+    the block script", the script serialized with its CompactSize length.
+    The entry is a constant so that a reader can compare it with
+    chainparams.cpp; this is what says the constant and the derivation
+    agree, which is what makes the derivation usable for every other
+    signet.
+    """
+    assert len(bytes.fromhex(DEFAULT_SIGNET_CHALLENGE)) == 71
+    assert magic_from_signet_challenge(DEFAULT_SIGNET_CHALLENGE) == magic_from_chain(
+        "signet"
+    )
+
+
+def test_a_challenge_is_hex_or_the_bytes_it_spells() -> None:
+    """Both spellings of the same script, and nothing else.
+
+    Hex is how a challenge is written in a config file and reported by
+    `getblockchaininfo`; bytes is what anything that has parsed one holds.
+    A number is neither, and `bytes(71)` would have hashed 71 zero bytes as
+    if they were the script.
+    """
+    script = bytes.fromhex(DEFAULT_SIGNET_CHALLENGE)
+    expected = magic_from_chain("signet")
+    assert magic_from_signet_challenge(script) == expected
+    assert magic_from_signet_challenge(bytearray(script)) == expected
+    assert magic_from_signet_challenge(DEFAULT_SIGNET_CHALLENGE.upper()) == expected
+
+    untyped: Any = magic_from_signet_challenge
+    with pytest.raises(BtcRpcTypeError, match="signet challenge that is no script: 71"):
+        untyped(71)
+
+
+def test_a_challenge_past_the_one_byte_length_carries_a_two_byte_one() -> None:
+    """The second CompactSize form, which no real challenge has reached.
+
+    A script of 253 bytes and over is serialized `fd` and the length in two
+    little-endian bytes, and the digest is taken over that -- so the prefix
+    is not something the length alone can be substituted for. Computed here
+    rather than recorded: what is being pinned is the serialization, and
+    writing it out is what a recorded digest would hide.
+    """
+    script = bytes(range(1, 254))
+    assert len(script) == 253
+    serialized = b"\xfd" + len(script).to_bytes(2, "little") + script
+    expected = sha256(sha256(serialized).digest()).digest()[:4]
+    assert magic_from_signet_challenge(script) == expected
+
+    # and the one-byte form stops one byte earlier, which is the boundary
+    # a `<=` instead of a `<` would move
+    shorter = script[:252]
+    serialized = bytes([252]) + shorter
+    assert (
+        magic_from_signet_challenge(shorter)
+        == (sha256(sha256(serialized).digest()).digest()[:4])
+    )
+
+
+def test_a_challenge_no_node_would_take_is_refused() -> None:
+    """Empty, not hex, or longer than a script can be.
+
+    Core takes at least one byte for `-signetchallenge`, and consensus caps
+    a script at 10000 bytes -- so the CompactSize forms above two bytes
+    cannot arise, and this refuses them rather than writing an encoding no
+    challenge will be serialized with.
+    """
+    with pytest.raises(BtcRpcValueError, match="empty signet challenge"):
+        magic_from_signet_challenge("")
+    with pytest.raises(BtcRpcValueError, match="empty signet challenge"):
+        magic_from_signet_challenge(b"")
+    with pytest.raises(BtcRpcValueError, match="signet challenge that is no hex"):
+        magic_from_signet_challenge("not hex")
+    with pytest.raises(BtcRpcValueError, match="more than the 65535 this serializes"):
+        magic_from_signet_challenge(bytes(0x10000))
 
 
 def test_every_chain_with_a_port_has_a_datadir_and_a_name() -> None:
