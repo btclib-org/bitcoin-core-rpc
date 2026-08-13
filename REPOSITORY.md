@@ -40,14 +40,13 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 | `Lint and type-check` | `lint.yml`, first job |
 | `Build the documentation` | `docs.yml`, its only job |
 | `test: every job passed` | `test.yml`, aggregate over the matrix |
-| `codeql: every job passed` | `codeql.yml`, aggregate over its matrix |
 | `integration: every job passed` | `integration.yml`, over its cells |
 
 The last row is whichever context was added most recently, that endpoint
 appending rather than sorting — so the tail of this table moves whenever a
 check is renamed, a rename being a drop and an add.
 
-**Two of the five are job names and three are aggregates**, and that is a
+**Two of the four are job names and two are aggregates**, and that is a
 rule rather than an inconsistency: a workflow with one job needs no
 aggregate, the job *being* the context. It is also the answer to why
 btclib's live-node check is `Regtest against Bitcoin Core` where this
@@ -57,6 +56,22 @@ job and here it is six matrix cells, so there the job name is the context
 and here an aggregate has to be. Making the two strings match would mean
 inventing a job whose only purpose is to be named, or naming a matrix cell
 in the rule — which is the first thing this section forbids.
+
+`codeql: every job passed` is not among them, and that is the one place a
+check was traded for the slots it held. GitHub Free gives an organization
+twenty concurrent jobs, shared across every repository in it: this one asked
+for forty-four on every commit and btclib for thirty-nine, so a pull request
+in either waited for a slot rather than for the work. `codeql.yml` now runs
+on `main` and on its Tuesday schedule, the analysis landing on the merge
+commit rather than ahead of it, and it still produces that aggregate — the
+name is available, so requiring it again is a patch to the rule and nothing
+in the tree.
+
+What still reads a branch before it merges is the workflow half of the same
+question: `zizmor` is a pre-commit hook, so `lint.yml` audits these very
+files for an injected expression on every pull request, and that check is
+required. What a merge defers is the rest of the analysis, for the time
+between that merge and the next run — which for `main` is the merge itself.
 
 `Build the documentation` is named on its own on purpose: a rule naming
 `Lint and type-check` alone would leave a red docs build outside the
@@ -130,19 +145,22 @@ the old context before the setting, and adds the new one after the merge:
 1. disable default setup with the `PATCH` above;
 1. re-run the checks on the pull request carrying `codeql.yml`, whose
    analysis was red for the upload refusal above and now passes;
-1. merge it;
-1. patch the rule to add `codeql: every job passed`.
+1. merge it.
 
-Between steps 1 and 5 code scanning gates nothing, which is the cost of the
-switch and the reason it is five steps rather than two. Steps 1, 2 and 5 are
-`gh api` calls a person makes; the two `PATCH` bodies are the list in full,
-that endpoint replacing the object rather than merging into it.
+There is no fifth step adding `codeql: every job passed` to the rule: the
+section above is why that context is not required, so what the rule holds
+is what step 1 leaves it with. Between step 1 and the merge code scanning
+gates nothing, which was the cost of the switch; it gates nothing now
+either, which was the trade made afterwards and deliberately.
 
-The five have been performed, which is why the table above ends in
-`codeql: every job passed` and the setting reads `not-configured`. They are
-kept because the setting can be configured again from the repository's code
-security settings, and this is the order that takes it off again without
-leaving the rule waiting on a check nothing produces.
+Steps 1 and 2 are `gh api` calls a person makes; the `PATCH` body is the
+list in full, that endpoint replacing the object rather than merging into
+it.
+
+The four have been performed, and the setting reads `not-configured`. They
+are kept because the setting can be configured again from the repository's
+code security settings, and this is the order that takes it off again
+without leaving the rule waiting on a check nothing produces.
 
 Two things outlive the switch, and a reader meets both with nothing in the
 tree to explain them. GitHub keeps a generated
@@ -183,7 +201,6 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
  "checks": [{"context": "Lint and type-check", "app_id": 15368},
             {"context": "Build the documentation", "app_id": 15368},
             {"context": "test: every job passed", "app_id": 15368},
-            {"context": "codeql: every job passed", "app_id": 15368},
             {"context": "integration: every job passed", "app_id": 15368}]}
 JSON
 ```

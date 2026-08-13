@@ -59,15 +59,10 @@ jobs:
   # and the part that moves most between releases; `Path.home()` resolves
   # through the registry on Windows and through the passwd database
   # elsewhere, and `%APPDATA%` is what `default_datadir` reads there
-  # instead, so the Windows rows are the one place either is asked for
-  # real rather than patched; `decimal` is
-  # libmpdec on CPython and a Python implementation on PyPI, and the exact
-  # parsing of an amount is a promise this client makes.
-  # windows-11-arm needs no special handling, and that is worth a word:
-  # which architecture the interpreter targets there is up to the runner
-  # image, native arm64 for the versions it caches and emulated x86-64
-  # for the ones uv has to download, and nothing here is compiled for
-  # either
+  # instead, so a Windows row is the one place either is asked for real
+  # rather than patched; `decimal` is libmpdec on CPython and a Python
+  # implementation on PyPy, and the exact parsing of an amount is a promise
+  # this client makes.
   suite:
     name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
     # a draft pull request is work in progress: every push to one spends
@@ -80,19 +75,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # four, and macos.yml carries the other two: on one run of the
-        # full six every cell finished in under a minute while the macOS
-        # cells waited 15.7 and 13.1 minutes on average for a runner,
-        # against 0.1 to 0.3 here -- so two rows of twelve set the whole
-        # wait of a pull request. What they sample is the standard library
-        # under the one branch this module takes per platform, whose macOS
-        # row every run of the suite already asserts by patching
-        # `sys.platform`: worth a week rather than a review's patience
+        # three, and macos.yml and windows-arm.yml carry the other three,
+        # each with its measurement in its own header. What a row costs a
+        # pull request is a slot out of the twenty GitHub Free gives an
+        # organization, shared with every other repository in it; what it
+        # buys is the standard library under the one branch this module
+        # takes per platform. The macOS and Windows rows of that branch are
+        # asserted on every run by patching `sys.platform`, so what a real
+        # runner adds is the `Path.home()` under the table and the library
+        # around it -- once per platform family, which is what
+        # windows-latest is still here for
         os:
           - ubuntu-latest
           - ubuntu-24.04-arm
           - windows-latest
-          - windows-11-arm
         # 3.14t is the free-threaded interpreter, and it belongs here for
         # what this module promises: concurrent calls are supported while
         # the configuration is not mutated, and a build without the GIL is
@@ -106,6 +102,16 @@ jobs:
           - "3.14"
           - "3.14t"
           - "pypy3.11"
+        # the one cell the coverage job below already is: same runner image,
+        # same interpreter, the same suite, and the only difference is the
+        # instrumentation. Running both asks one question twice and holds two
+        # of the twenty concurrent jobs GitHub Free gives an organization,
+        # which is what a pull request's wall clock is made of here. Nothing
+        # else is excluded: that job is pinned to this pair, for the reason
+        # its own comment gives, so this is the only overlap there can be
+        exclude:
+          - os: ubuntu-latest
+            python: "3.14"
     # far above what a run of the suite needs: what it bounds is a hung
     # job holding a runner for six hours
     timeout-minutes: 30
@@ -141,7 +147,10 @@ jobs:
   # overhead.
   # The number is a gate rather than a report: fail_under, in
   # tool.coverage.report, fails this job on a regression. It needs no
-  # secret and no third party, and it applies to every run
+  # secret and no third party, and it applies to every run.
+  # It is also the (3.14, ubuntu-latest) cell of the matrix above, which is
+  # why that pair is excluded there: a suite that passes is what this job
+  # reports before it reads a number, so the pair needs no job of its own
   coverage:
     name: Measure coverage, gated at 100%
     if: ${{ !github.event.pull_request.draft }}

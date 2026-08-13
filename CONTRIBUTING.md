@@ -70,32 +70,55 @@ read by every checkout of this repository.
 
 | workflow | when | what it varies |
 | --- | --- | --- |
-| `test` | pull request, push | 4 platforms × 7 interpreters |
+| `test` | pull request, push | 3 platforms × 7 interpreters |
 | `lint`, `docs` | pull request, push | — |
 | `integration` | pull request, push | 2 Core versions, 4 chains |
-| `codeql` | pull request, push, Tuesday | 2 languages |
+| `codeql` | push to main, Tuesday | 2 languages |
 | `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
+| `windows-arm` | Saturday, a release | `windows-11-arm` × 7 interpreters |
 | `latest` | Wednesday | 6 platforms × 7, deps upgraded |
 | `links` | Monday | — |
 | `mutation` | Sunday | — |
 | `published` | monthly, a release | what PyPI serves |
-| `release` | a tag | calls the five gates above it, and `published` |
+| `release` | a tag | calls the six workflows above it, and `published` |
 
 The first four rows are what a merge waits for, about three minutes between
-them. macOS is not among them on purpose: it is the one platform whose
-runners queue — 15.7 and 13.1 minutes of mean wait against 0.1 to 0.3
-elsewhere, on cells that each run in under a minute — so it answers weekly,
-and before a release, rather than before a review. `macos` and `latest` share
-a morning half an hour apart, which is what makes the pair readable: red in
-both is the platform, red in `latest` alone is the upgrade. Every workflow
-here also takes `workflow_dispatch`, gates included —
-`grep -c workflow_dispatch: .github/workflows/*.yml` is what says so.
+them.
 
-`codeql` is on a weekly schedule as well as on every pull request, and the
-two ask different questions: a pull request analyses what it changed, and
-the Tuesday run analyses an unchanged tree against query packs that have
-moved since. It is the one gate `release` does not call, a tag publishing
-the tree those checks already passed.
+What the rows below them have in common is one number: GitHub Free gives an
+organization twenty concurrent jobs, shared across every repository in it.
+A commit here asked for forty-four and one in btclib for thirty-nine, so a
+pull request in either spent its wall clock waiting for a slot rather than
+running anything. An image therefore earns a place before a review only if
+it is cheap to wait for, and two are not: macOS queues 15.7 and 13.1 minutes
+on average against 0.1 to 0.3 elsewhere, on cells that each run in under a
+minute; and the fourteen Windows cells were 9.4 of the run's 16.9
+runner-minutes, `windows-11-arm` the slower half of them at 40 to 77 seconds
+a cell against 29 to 34 on `windows-latest`.
+
+`windows-latest` stays in `test`, and that is not an oversight. The one
+platform-conditional branch in this client is the datadir table in
+`default_datadir`, whose rows the suite drives by patching `sys.platform` —
+every row but the running one, so `%APPDATA%` and the `Path.home()` under it
+are asked for real only on a Windows runner. One row asks that completely,
+and the question does not vary with the architecture the interpreter targets.
+
+`macos` and `latest` share a morning half an hour apart, which is what makes
+the pair readable: red in both is the platform, red in `latest` alone is the
+upgrade. `windows-arm` takes a morning of its own, Saturday being the day
+nothing else here asks for. Every workflow here also takes
+`workflow_dispatch`, gates included —
+`grep -c workflow_dispatch: .github/workflows/*.yml` is what says so, and
+for `codeql` and the two image workflows it is the only way to ask about a
+branch at all.
+
+`codeql` runs on `main` and on its Tuesday schedule and not on a pull
+request, which is the same arithmetic as the rows above: three slots held
+while a review waits. What still reads a branch before it merges is
+`zizmor`, a `pre-commit` hook and therefore part of `lint`, which audits
+these workflows for an injected expression. `REPOSITORY.md` has the trade in
+full. It is also the one gate `release` does not call, a tag publishing the
+tree those checks already passed.
 
 ### Reproducing what CI runs
 

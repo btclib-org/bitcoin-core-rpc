@@ -182,15 +182,19 @@ jobs:
     name: Run the docs workflow
     uses: ./.github/workflows/docs.yml
 
-  # and the platform the merge gate does not wait for: macos.yml runs
-  # weekly, so a regression there could otherwise sit on main until the
-  # Thursday after the tag. Not gated on version-check either, being one
-  # more cheap parallel answer -- cheap in work, that is: it is the slowest
-  # call here in wall clock, and a release is the one place that is worth
-  # paying for
+  # and the two images the merge gate does not wait for: each runs weekly,
+  # so a regression there could otherwise sit on main until the morning
+  # after the tag. Neither is gated on version-check, both being cheap
+  # parallel answers -- cheap in work, that is: they are the slowest calls
+  # here in wall clock, and a release is the one place that is worth paying
+  # for
   macos:
     name: Run the macos workflow
     uses: ./.github/workflows/macos.yml
+
+  windows-arm:
+    name: Run the windows-arm workflow
+    uses: ./.github/workflows/windows-arm.yml
 
   # and the one claim a recorded reply cannot make: that a live bitcoind
   # still answers the way tests/_data says it does. It gates every pull
@@ -361,7 +365,7 @@ jobs:
 
   publish-testpypi:
     name: Publish to TestPyPI
-    needs: [test, lint, docs, macos, integration, build]
+    needs: [test, lint, docs, macos, windows-arm, integration, build]
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.repository == 'btclib-org/bitcoin-core-rpc'
@@ -387,7 +391,7 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [test, lint, docs, macos, integration, build]
+    needs: [test, lint, docs, macos, windows-arm, integration, build]
     if: >-
       github.event_name == 'push' &&
       github.repository == 'btclib-org/bitcoin-core-rpc'
