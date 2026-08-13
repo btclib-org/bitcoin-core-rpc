@@ -10,7 +10,7 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
-## v2026.9 (work in progress, not released yet)
+## v2026.8.13
 
 `from_chain("signet", verify_chain=True)` now holds the node to the
 *default* signet, where it accepted any node answering `signet`. Core
