@@ -167,8 +167,9 @@ tree to explain them. GitHub keeps a generated
 `dynamic/github-code-scanning/codeql` workflow, still `active` and still
 running, which now uploads *code quality* results rather than security ones
 — `python.quality.sarif` in its log, where the security analysis produced
-`python.sarif` and `actions.sarif`. That is a separate setting, and the
-`code-scanning/default-setup` endpoint does not report it:
+`python.sarif` and `actions.sarif`. That is a separate setting with an
+endpoint of its own, the "Code quality" section below, and the
+`code-scanning/default-setup` endpoint reports nothing about it:
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/actions/workflows \
@@ -227,6 +228,47 @@ list until its cost was measured rather than assumed: 90 seconds for six
 cells, a live bitcoind of two versions included, which is less than the
 matrix it now runs beside. What it answers is the one claim a recording
 cannot make, and that belongs in front of a merge.
+
+## Code quality
+
+The analysis the generated workflow above was left running, and it is off.
+Its setting is not `code-scanning/default-setup`, and the Actions API is
+not the way in either: a generated workflow is not one this repository
+owns, and `actions/workflows/<id>/disable` answers 422. The endpoint that
+reports the setting is the one that sets it:
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc/code-quality/setup
+# {"state":"not-configured","languages":["python"], ...}
+
+gh api -X PATCH repos/btclib-org/bitcoin-core-rpc/code-quality/setup \
+  -F state=not-configured
+```
+
+What decided it is the ceiling the section above already trades against,
+not the queries. `Analyze (python)` ran on every pull request and every
+push to `main` -- `Code Quality: PR #N` in the run list -- for some 44
+seconds of a slot each time, and the twenty concurrent jobs are shared
+with every other repository in the organization, where the same setting
+was on.
+
+What it produced in exchange cannot be read from outside a browser. There
+is no `code-quality/alerts` and no `code-quality/analyses`, both 404, and
+a quality upload appears in neither endpoint that does answer: the alert
+list is empty, and every analysis carries `codeql.yml`'s own category.
+
+```shell
+gh api "repos/btclib-org/bitcoin-core-rpc/code-scanning/alerts?per_page=100" \
+  --jq length
+gh api "repos/btclib-org/bitcoin-core-rpc/code-scanning/analyses?per_page=100" \
+  --jq '[.[] | .category] | unique'
+```
+
+`state=configured` is the way back, and the argument for it is that these
+queries are a class of finding nothing else here makes: ruff, mypy and the
+spell checkers are the cover, and they are not the same questions. What
+refuses them is the ceiling, so a fleet not waiting for slots is what
+would change the answer.
 
 ## Branch protection
 
