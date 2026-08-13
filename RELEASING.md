@@ -104,6 +104,19 @@ pyroma), build, wheel smoke test — and publishes to
 [TestPyPI](https://test.pypi.org/project/bitcoin-core-rpc/) instead of
 PyPI.
 
+**What it answers is whether the publish path still works**, so it earns
+its run when that path or what travels it has moved: `release.yml` or a
+workflow it calls, `pyproject.toml`'s packaging metadata, `MANIFEST.in`,
+`normalize_sdist.py`, the trusted publisher registration, or the addition
+of a file the distribution has to carry. A cycle that changed the module
+and the prose and nothing else is one the tag's own run judges as well,
+every job up to `publish-pypi` being the same job — and skipping it is the
+maintainer's call to make and to say out loud in the release pull request,
+not a step to leave silently undone. What is given up either way is the
+token exchange and the upload, which no rehearsal on `main` proves for
+PyPI anyway: `pypi` and `testpypi` are two registrations, and only the
+tag exercises the first.
+
 1. On GitHub, Actions → release → Run workflow, and pick the branch to
    rehearse (usually `main`).
 
@@ -170,6 +183,27 @@ inferring it from a sibling. A release ships what `uv.lock` pins, so drift
 against a newer version of some dependency does not make the release
 wrong — it says the next bump is going to be work.
 
+1. Read what is open, and land first anything that fixes the release path
+   itself:
+
+   ```shell
+   gh pr list --state open
+   gh pr list --state open --search "release.yml OR published.yml"
+   ```
+
+   A pull request touching `release.yml`, or any workflow it calls —
+   `lint.yml`, `test.yml`, `macos.yml`, `integration.yml`, `docs.yml`,
+   `published.yml`, `.github/scripts/` — is one the tag is about to run,
+   so leaving it in review means running the defect it fixes on the
+   release. It is not caught anywhere else: every one of those workflows is
+   green on the pull request that fixes it, which is what makes it look
+   like something that can wait. `published.yml` is the case to watch, its
+   own failures arriving after PyPI has already accepted the files.
+
+   The reverse question is worth the same minute: a pull request that is
+   *not* ready is one this release ships without, so what the notes claim
+   is what landed rather than what is nearly landed.
+
 1. Read the public API against the previous release, before the notes that
    describe it are declared final. [HISTORY.md](./HISTORY.md) promises that
    a breaking change is announced there, the calendar version promising
@@ -213,6 +247,25 @@ wrong — it says the next bump is going to be work.
    ```shell
    uv lock
    ```
+
+   **If `main` moves while the gates run, throw the branch away and redo
+   these edits on top of it — never rebase it, and never merge `main` into
+   it.** CHANGELOG.md and HISTORY.md are `merge=union`, so a change that
+   opened a `### Repository` group where this release opens its own is
+   fused into one section carrying that heading twice, and the union driver
+   reports no conflict for a reader to catch:
+
+   ```shell
+   git fetch origin
+   git reset --hard origin/main       # then retitle, set the version,
+                                      # uv lock, and gate again
+   ```
+
+   The retitle and the version are three lines; what is expensive to
+   reconstruct is the entries, and those are already on `main` in the
+   pull requests that landed them. `git diff --cached` at the landing step
+   below is the second reading of the same hazard, not a substitute for
+   this one: by then the fused headings are what is being committed.
 
 1. Give the release pull request its title and its body, before merging it
    and not after. The title is the version; the body says what the release
@@ -305,7 +358,10 @@ wrong — it says the next bump is going to be work.
    trigger — a run of its own, not the `pull_request` run already green a
    moment earlier. That trigger is the whole reason `main` keeps one.
 
-1. Rehearse on TestPyPI (see above) from `main`.
+1. Rehearse on TestPyPI (see above) from `main`, if this cycle touched the
+   publish path — that section says which changes make it worth the run,
+   and asks that a skip be stated in the release pull request rather than
+   left to be inferred.
 
 1. Tag the release commit on `main` and push the tag. **Name the
    commit**, and read the tag back before pushing it:
@@ -384,7 +440,16 @@ wrong — it says the next bump is going to be work.
    match its own hash — which is why it is a workflow of its own rather
    than a job of this one.
 
-1. Check the GitHub release the previous step's workflow run created: its
+1. Check the GitHub release the previous step's workflow run created —
+   **ask for the release itself, not for the run's conclusion**, the two
+   having disagreed on the last two tags:
+
+   ```shell
+   gh release view v<version> --json name,assets
+   ```
+
+   `release not found` is the failure "If something goes wrong" ends with,
+   and a green run is exactly what it looks like from the Actions page. Its
    notes are the tag's section of HISTORY.md, and the distribution files
    are attached, `<tag>.attestation.jsonl` beside them. A run that logs
    `HISTORY.md has no v<version> section` generated the notes from the
@@ -513,10 +578,13 @@ reading a mismatch as tampering:
   artifact of the run.
 
 - `github-release` shows **`skipped`** rather than failed, though both of
-  its needs — `publish-pypi` and `attest` — report `success`: measured
-  once on a real tag rather than assumed, and worth reporting to GitHub
-  support if seen again, since nothing in the workflow file explains it
-  and `gh run rerun --job` refuses a skipped job outright (`cannot be
+  its needs — `publish-pypi` and `attest` — report `success`: measured on
+  two consecutive tags rather than assumed, so it is the expected outcome
+  until it is fixed and not an accident to hope against. The run's own
+  conclusion is `success` and no release exists, which is why the step
+  above asks `gh release view` rather than reading the run. Nothing in the
+  workflow file explains it — a report to GitHub support is owed, and
+  `gh run rerun --job` refuses a skipped job outright (`cannot be
   rerun`), unlike a failed one. Re-running the whole workflow is not the
   fix either: `publish-pypi` would attempt the upload a second time, and
   while PyPI would refuse the existing file names rather than accept a
