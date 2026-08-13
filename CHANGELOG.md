@@ -21,6 +21,36 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.9 (work in progress, not released yet)
 
+### Repository
+
+- **RELEASING.md reads what is open before it tags.** A pull request
+  touching `release.yml` or a workflow it calls is one the tag is about to
+  run, so leaving it in review runs the defect it fixes on the release
+  itself -- and nothing catches that, every such workflow being green on
+  the pull request that fixes it. `published.yml` is the case named, its
+  failures arriving after PyPI has accepted the files.
+- **A release branch is thrown away and redone when `main` moves under
+  it**, never rebased and never merged into. CHANGELOG.md and HISTORY.md
+  are `merge=union`, so a change that opened a `### Repository` group where
+  the release opens its own is fused into one section carrying that heading
+  twice, with no conflict reported. The `git diff --cached` at the landing
+  step reads the same hazard one step too late, the fused headings being
+  what is committed by then.
+- **The GitHub release is checked by asking for the release**, `gh release
+  view v<version>`, rather than by reading the run's conclusion: the two
+  have disagreed on the last two tags, `github-release` reporting `skipped`
+  while its needs and the run itself report `success`. "If something goes
+  wrong" records that as the expected outcome until it is fixed, and names
+  the report to GitHub support as owed.
+- **The TestPyPI rehearsal says when it is worth its run**: when the
+  publish path or what travels it has moved -- `release.yml` or a workflow
+  it calls, the packaging metadata, `MANIFEST.in`, `normalize_sdist.py`,
+  the trusted publisher registration, a new file the distribution has to
+  carry. A cycle that touched the module and the prose is one the tag's own
+  run judges as well, since every job up to `publish-pypi` is the same job;
+  what the file asks is that skipping it be stated in the release pull
+  request rather than left to be inferred.
+
 ## v2026.8.13
 
 ### Added
