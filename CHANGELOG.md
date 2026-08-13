@@ -19,7 +19,7 @@ Neither file counts its entries: `grep -c '^- '` does that, whereas a
 stated number is a line every open branch has to edit, and the two files
 carry a union merge driver that would keep both sides' numbers.
 
-## v2026.9 (work in progress, not released yet)
+## v2026.8.13
 
 ### Added
 
@@ -75,6 +75,38 @@ carry a union merge driver that would keep both sides' numbers.
   dependency in its own `pyproject.toml`. A reader deciding on a package
   that depends on nothing has its tests and its badges to judge it by, and
   neither of those says whether anything runs it.
+- **The index-wait step of `published.yml` names its shell**, `bash`, where
+  it named none and a Windows runner picked pwsh: `for attempt in $(seq
+  20); do` is a `ParserError` there, before a single curl runs, so all five
+  Windows cells of the install-check matrix failed the same step on
+  v2026.8.12's release run while every Linux and macOS cell passed. The two
+  steps after it already carried `shell: bash`; this was the one the
+  pattern had not reached.
+- **CONTRIBUTING.md states what a merge requires**: an open issue the pull
+  request closes with `Closes #N`, and an approving review from somebody
+  other than the author, GitHub allowing no self-approval. It also states
+  the four commit-level guarantees the `main-integrity` ruleset enforces on
+  every push with no bypass actor -- a verified signature, linear history,
+  no force push, no branch deletion -- so a contributor learns that an
+  unsigned commit is rejected before it is something to review, rather than
+  from the push that bounces.
+- **RELEASING.md lands the release by a signed local squash**, where it
+  said "Squash and merge" as if the button were available. It is not: the
+  review branch protection requires cannot come from the author, there is
+  no second maintainer, and a bypass would still have GitHub compose the
+  commit and sign it with the web-flow key rather than the maintainer's.
+  The steps are the ones every maintainer-only commit here already takes --
+  squash in a worktree, sign, push to `main`, then close the pull request
+  and delete its branch by hand, which is what the button would otherwise
+  have done.
+- **Two release-day failures RELEASING.md had no answer for** are written
+  down with theirs: a job left `queued` for tens of minutes on
+  `ubuntu-latest` is the org's shared Actions concurrency, not this
+  repository's to fix, and is waited out rather than cancelled into a race
+  with itself; a `github-release` job reporting `skipped` while both of its
+  needs succeeded is rebuilt by hand from the run's own artifacts, digests
+  compared against PyPI's, since `gh run rerun --job` refuses a skipped job
+  and re-running the workflow would ask PyPI for a second upload.
 
 ## v2026.8.12
 
