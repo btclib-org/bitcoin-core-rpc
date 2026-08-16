@@ -359,14 +359,18 @@ git push origin refs/remotes/origin/<head branch>:refs/heads/main
 answers all four of its rules: the commit is signed, the history stays
 linear, nothing is rewritten and nothing is deleted. What it bypasses is
 the review count in `main-self-merge`, the same bypass that carries a
-maintainer's squash pushed from a worktree. Two things the merge button
-would have done are left to be done by hand, and the second is why
-`delete_branch_on_merge` below is not the whole story:
+maintainer's squash pushed from a worktree.
+
+What the merge button would have done is done anyway, and by GitHub: the
+pull request reads `MERGED` once its head is reachable from `main`, its
+`Closes #N` closes the issue, and the head branch is deleted as
+`delete_branch_on_merge` below has it. Read that back rather than assume
+it — a squash lands a sha nobody can recognize, and there the same three
+are left to do by hand:
 
 ```shell
-gh pr view <number> --json state --jq .state    # merged, once the head
-                                                # is reachable from main
-git push origin :refs/heads/<head branch>
+gh pr view <number> --json state,mergeCommit \
+  --jq '{state, merged_as: .mergeCommit.oid}'
 ```
 
 ## Head branches after a merge
@@ -385,9 +389,9 @@ live work without comparing it against `main` commit by commit.
 The case it does not cover is deliberate. A pull request **closed without
 merging** keeps its head branch, GitHub not being able to know whether
 that work was abandoned or is waiting, so those are the ones worth looking
-at now and then. A branch landed by a push rather than by the button keeps
-its head branch too, the setting being the button's behaviour: the delete
-is the second of the two commands above.
+at now and then. A branch fast-forwarded onto `main` by a push is covered:
+the setting is about the merge and not about the button, and GitHub calls
+that one a merge as soon as the head is reachable.
 
 ## Token permissions
 

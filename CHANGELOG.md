@@ -38,7 +38,11 @@ carry a union merge driver that would keep both sides' numbers.
   pull request names its own number, which is an amend and a force-push on
   work no reviewer has read yet. CONTRIBUTING.md states the rule,
   REPOSITORY.md the pushes that do what the merge button does not, and
-  RELEASING.md lands a one-commit release branch this way.
+  RELEASING.md lands a one-commit release branch this way. The push is the
+  whole landing: GitHub reads the head as reachable from `main`, marks the
+  pull request merged, closes what it says it closes and deletes the head
+  branch, which is `delete_branch_on_merge` treating the merge it detects
+  as the merge it performs.
 - **The generated Code Quality analysis is off.** `Analyze (python)` ran
   on every pull request and every push to `main` from a
   `dynamic/github-code-scanning/codeql` workflow no file in this tree

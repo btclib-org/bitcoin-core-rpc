@@ -316,13 +316,11 @@ wrong — it says the next bump is going to be work.
    git diff origin/main origin/<release-branch>
    git push origin refs/remotes/origin/<release-branch>:refs/heads/main
    gh pr view <pull request number> --json state --jq .state
-   git push origin :refs/heads/<release-branch>
    ```
 
-   `merged` is what the pull request reads once its head is reachable from
-   `main`; close it naming the sha if it does not, and delete the head
-   branch either way, `delete_branch_on_merge` being the button's
-   behaviour and not a push's.
+   `MERGED` is what the pull request reads once its head is reachable from
+   `main`, and GitHub deletes the release branch itself; close it naming
+   the sha, and delete the branch, only if that is not what it reads.
 
    Where the branch is two commits or more, land the release the way every
    other maintainer-only commit on this repository lands: squash it
