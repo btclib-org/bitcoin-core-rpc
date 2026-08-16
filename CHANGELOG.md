@@ -31,7 +31,9 @@ carry a union merge driver that would keep both sides' numbers.
   commits or more are still squashed into one, the steps of a review being
   the pull request's record rather than `main`'s. A verified signature
   lands either way -- the branch's own where the head is pushed as it
-  stands, the squasher's where a squash composes it -- and the ruleset
+  stands, the maintainer's where a squash is composed in a worktree, the
+  merge button being pressed for neither and GitHub's web-flow key
+  therefore signing nothing here -- and the ruleset
   takes no unsigned commit, so an unsigned single commit is squashed and
   signed rather than fast-forwarded. The subject `main` reads is the
   branch's own where nothing composes one at the button, so a one-commit

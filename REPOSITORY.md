@@ -345,11 +345,14 @@ a `Co-Authored-By` trailer is written in the commits of the branch, and
 the squash body is the only place it survives one commit standing for all
 of them.
 
-The landing that presses nothing is the one these settings do not reach: a
-pull request of one commit is fast-forwarded, its head pushed as it stands
-rather than composed server-side, which is what leaves the sha and the
-signature the review saw on `main`. CONTRIBUTING.md says which pull
-request gets which.
+Which is the setting rather than the practice: nothing presses that
+button, and these settings reach neither landing. A pull request of one
+commit is fast-forwarded, its head pushed as it stands, which leaves the
+sha and the signature the review saw on `main`; two commits or more are
+squashed in a worktree and pushed, the maintainer signing what GitHub
+would have signed with its web-flow key. One signer down the whole of
+`main` is what that buys, and it is the reason the button stays unpressed
+where it would work. CONTRIBUTING.md says which pull request gets which.
 
 ```shell
 git push origin refs/remotes/origin/<head branch>:refs/heads/main
