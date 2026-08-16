@@ -23,6 +23,22 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **A pull request of one commit is fast-forwarded onto `main`**, where
+  every pull request was squashed. A squash writes a new commit: the sha
+  the branch was written on is gone, so a pull request stacked on that
+  head is asked for a rebase and for a re-review of a diff nobody edited,
+  and the commit that lands is not the commit the checks ran on. Two
+  commits or more are still squashed into one, the steps of a review being
+  the pull request's record rather than `main`'s. A verified signature
+  lands either way -- the branch's own where the head is pushed as it
+  stands, the squasher's where a squash composes it -- and the ruleset
+  takes no unsigned commit, so an unsigned single commit is squashed and
+  signed rather than fast-forwarded. The subject `main` reads is the
+  branch's own where nothing composes one at the button, so a one-commit
+  pull request names its own number, which is an amend and a force-push on
+  work no reviewer has read yet. CONTRIBUTING.md states the rule,
+  REPOSITORY.md the pushes that do what the merge button does not, and
+  RELEASING.md lands a one-commit release branch this way.
 - **The generated Code Quality analysis is off.** `Analyze (python)` ran
   on every pull request and every push to `main` from a
   `dynamic/github-code-scanning/codeql` workflow no file in this tree

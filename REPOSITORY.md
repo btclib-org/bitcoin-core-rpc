@@ -306,8 +306,8 @@ branch, and it is the only branch there is.
 
 ## Merge methods
 
-**Squash is the only method enabled**, so it is a setting and not only the
-convention CONTRIBUTING.md states:
+**Squash is the only method GitHub can be asked for**, so it is a setting
+and not only the convention CONTRIBUTING.md states:
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc \
@@ -345,6 +345,30 @@ a `Co-Authored-By` trailer is written in the commits of the branch, and
 the squash body is the only place it survives one commit standing for all
 of them.
 
+The landing that presses nothing is the one these settings do not reach: a
+pull request of one commit is fast-forwarded, its head pushed as it stands
+rather than composed server-side, which is what leaves the sha and the
+signature the review saw on `main`. CONTRIBUTING.md says which pull
+request gets which.
+
+```shell
+git push origin refs/remotes/origin/<head branch>:refs/heads/main
+```
+
+`main-integrity` is what such a push answers to, and a fast-forward
+answers all four of its rules: the commit is signed, the history stays
+linear, nothing is rewritten and nothing is deleted. What it bypasses is
+the review count in `main-self-merge`, the same bypass that carries a
+maintainer's squash pushed from a worktree. Two things the merge button
+would have done are left to be done by hand, and the second is why
+`delete_branch_on_merge` below is not the whole story:
+
+```shell
+gh pr view <number> --json state --jq .state    # merged, once the head
+                                                # is reachable from main
+git push origin :refs/heads/<head branch>
+```
+
 ## Head branches after a merge
 
 `delete_branch_on_merge` is on, since 7 August 2026:
@@ -361,7 +385,9 @@ live work without comparing it against `main` commit by commit.
 The case it does not cover is deliberate. A pull request **closed without
 merging** keeps its head branch, GitHub not being able to know whether
 that work was abandoned or is waiting, so those are the ones worth looking
-at now and then.
+at now and then. A branch landed by a push rather than by the button keeps
+its head branch too, the setting being the button's behaviour: the delete
+is the second of the two commands above.
 
 ## Token permissions
 

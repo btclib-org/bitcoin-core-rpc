@@ -387,12 +387,33 @@ check starts again from a commit nobody has seen. Add the fix on top, with
 a message saying what it fixes, and reply to the comment with the sha.
 
 Nothing is lost in `main`'s history by doing so, because **a pull request
-is merged with "Squash and merge"**: the branch becomes one commit whose
+of more than one commit is squashed**: the branch becomes one commit whose
 subject is the PR title with its number, so the review's commits are the
-record of the review and `main` keeps one commit per landed change. It is
-the only method the repository enables, so there is no other button to
+record of the review and `main` keeps one commit per landed change. Squash
+is the only method the repository enables, so there is no other button to
 read; REPOSITORY.md has the setting and what the other two would have
 cost.
+
+**A pull request that is one commit is fast-forwarded instead**, that
+commit landing on `main` with its sha and its signature as they are. What
+the fast-forward keeps is the base a stacked pull request was written on:
+a branch opened on top of another one's head needs nothing when that head
+lands unchanged, where a squash replaces it and asks the child for a
+rebase and for a re-review of a diff nobody edited. It also lands the
+commit the checks ran on, which a squash never is.
+
+The subject `main` reads is then the branch's own, where a squash composes
+one at the button, so a one-commit branch is the one that has to name its
+own pull request number — known only once the pull request is open. Amend
+and force-push it there and then, while the branch is work nobody has read
+yet: the same exemption the refresh below carries.
+
+A signature is what survives either way, and it is enforced rather than
+remembered: the ruleset takes no unsigned commit onto `main`, with no
+bypass actor. The fast-forward carries the branch's own signature, so an
+unsigned commit does not land this way at all and is squashed and signed
+instead; a squash is signed by whoever composes it — GitHub's web-flow key
+where the button wrote it, the maintainer's where it was squashed locally.
 
 The one force-push that stays right is the one that carries no new work: a
 `git rebase origin/main` on a branch whose base has moved, which is how a

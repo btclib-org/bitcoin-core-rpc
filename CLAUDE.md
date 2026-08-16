@@ -64,6 +64,13 @@ socket — which is what keeps the suite hermetic, not the absence of a node.
   every change lands through a pull request, Dependabot's and
   pre-commit.ci's included, and a release is a tag on it. Branch
   protection, and why it is what it is, is `REPOSITORY.md`.
+- **How a pull request lands depends on how many commits it carries**: two
+  or more are squashed into one, and a single commit is fast-forwarded so
+  that `main` gets that sha and that signature rather than a new commit —
+  which is what leaves a stacked pull request its base, and its diff
+  honest. A signature lands either way, and the ruleset refuses a commit
+  without one. `CONTRIBUTING.md` states the rule, `REPOSITORY.md` the
+  settings and the pushes under it.
 - **A branch's CI run can be `cancelled` rather than green.** `test.yml`'s
   concurrency group is `test-${{ github.ref }}` with cancel-in-progress, so
   the next push kills the run for the previous commit. The local gates

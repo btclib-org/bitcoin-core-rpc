@@ -303,10 +303,31 @@ wrong — it says the next bump is going to be work.
    permanently disabled, and even a bypass of that review would still
    compose the commit server-side and sign it with GitHub's web-flow key,
    not yours, defeating the point before the review question is reached.
-   Land the release the way every other maintainer-only commit on this
-   repository lands: squash it locally, sign it as yourself, and push
-   straight to `main`, one worktree for the whole session rather than one
-   per pull request:
+
+   **A release branch of one commit is fast-forwarded**, which is the
+   usual shape and the short path: the commit is yours, it is signed, and
+   the checks ran on it, so nothing is composed and nothing is rewritten.
+   Read the branch against `main` first — the fused `### Repository`
+   heading the step above looks for is already committed here, so a diff
+   is the only place it shows:
+
+   ```shell
+   git fetch origin
+   git diff origin/main origin/<release-branch>
+   git push origin refs/remotes/origin/<release-branch>:refs/heads/main
+   gh pr view <pull request number> --json state --jq .state
+   git push origin :refs/heads/<release-branch>
+   ```
+
+   `merged` is what the pull request reads once its head is reachable from
+   `main`; close it naming the sha if it does not, and delete the head
+   branch either way, `delete_branch_on_merge` being the button's
+   behaviour and not a push's.
+
+   Where the branch is two commits or more, land the release the way every
+   other maintainer-only commit on this repository lands: squash it
+   locally, sign it as yourself, and push straight to `main`, one worktree
+   for the whole session rather than one per pull request:
 
    ```shell
    WT=<scratchpad>/wt-land
@@ -356,7 +377,9 @@ wrong — it says the next bump is going to be work.
    a squash creates a commit that is not the one the pull request tested,
    and the push to `main` fires both workflows again from their own `push`
    trigger — a run of its own, not the `pull_request` run already green a
-   moment earlier. That trigger is the whole reason `main` keeps one.
+   moment earlier. That trigger is the whole reason `main` keeps one, and
+   it fires for a fast-forward too, where the sha is the tested one: the
+   run to read is still the `push` run on `main`.
 
 1. Rehearse on TestPyPI (see above) from `main`, if this cycle touched the
    publish path — that section says which changes make it worth the run,
