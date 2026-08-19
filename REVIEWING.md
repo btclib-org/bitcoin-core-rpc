@@ -248,7 +248,6 @@ because that document, and not this one, is where the rule lives.
 - A new or changed workflow: the conventions in `CLAUDE.md`, and
   `REPOSITORY.md` before any rule or setting is touched.
 
-
 ## The verdict
 
 Inline comments for the line-anchored findings, then exactly one summary
