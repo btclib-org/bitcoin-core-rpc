@@ -18,7 +18,9 @@ Follow it in preference to the review habits you would otherwise bring.
 Two files it leans on, worth loading with it:
 
 - `CLAUDE.md` for the gates and for what a review of *this* tree has to
-  know, the two arithmetic paths under `curves/` and `ecc/` above all;
+  know, the single-module no-dependency property `standalone_test.py`
+  enforces and the two JSON-RPC dialects `_legacy_result` and
+  `_v2_result` keep apart above all;
 - `CONTRIBUTING.md` for the rules a finding cites, so that a finding
   names the line that states one.
 
