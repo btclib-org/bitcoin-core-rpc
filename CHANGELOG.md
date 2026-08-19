@@ -23,6 +23,31 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`claude-review.yml` reads a pull request against `REVIEWING.md`.**
+  Two jobs: one on every non-draft pull request, whose prompt names that
+  file rather than restating it, so the standard moves without the
+  workflow being edited; one answering `@claude` in a comment, carrying
+  no prompt of ours on purpose — the action reads the comment that
+  triggered it. It gates nothing and must not: `main`'s required
+  contexts are named outside the repository. The gates are not re-run,
+  `test.yml`, `lint.yml`, `docs.yml` and `integration.yml` running them
+  beside it on the same sha.
+
+  Three things it refuses to do silently, each measured in btclib before
+  being asked not to: without `CLAUDE_CODE_OAUTH_TOKEN` the action
+  reviews nothing and reports **success**; without `id-token: write` it
+  dies before authentication, minting a GitHub OIDC token at startup
+  whatever the Anthropic credential is; and it refuses to run at all
+  when the workflow file differs from the copy on the default branch,
+  reporting that refusal by skipping, green. It fails on an empty secret
+  and on an empty `execution_file`, which is exactly when no review was
+  written — so on a pull request that adds or edits this file the job is
+  red until the change is on `main`.
+
+  It is the one workflow in `CONTRIBUTING.md`'s table taking no
+  `workflow_dispatch`, both jobs reading the pull request or the comment
+  that triggered them; the `grep` that paragraph cites says so.
+
 - **A pull request of one commit is fast-forwarded onto `main`**, where
   every pull request was squashed. A squash writes a new commit: the sha
   the branch was written on is gone, so a pull request stacked on that

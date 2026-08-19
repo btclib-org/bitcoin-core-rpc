@@ -72,6 +72,7 @@ read by every checkout of this repository.
 | --- | --- | --- |
 | `test` | pull request, push | 3 platforms × 7 interpreters |
 | `lint`, `docs` | pull request, push | — |
+| `claude-review` | pull request, and `@claude` in a comment | — |
 | `integration` | pull request, push | 2 Core versions, 4 chains |
 | `codeql` | push to main, Tuesday | 2 languages |
 | `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
@@ -107,10 +108,12 @@ and the question does not vary with the architecture the interpreter targets.
 the pair readable: red in both is the platform, red in `latest` alone is the
 upgrade. `windows-arm` takes a morning of its own, Saturday being the day
 nothing else here asks for. Every workflow here also takes
-`workflow_dispatch`, gates included —
+`workflow_dispatch`, gates included, `claude-review` excepted —
 `grep -c workflow_dispatch: .github/workflows/*.yml` is what says so, and
 for `codeql` and the two image workflows it is the only way to ask about a
-branch at all.
+branch at all. `claude-review` takes none because both its jobs read the
+pull request or the comment that triggered them, so a manual run would
+start with nothing to read.
 
 `codeql` runs on `main` and on its Tuesday schedule and not on a pull
 request, which is the same arithmetic as the rows above: three slots held
