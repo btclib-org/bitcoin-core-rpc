@@ -358,7 +358,8 @@ carries the rest, and how to report a vulnerability.
 
 [CONTRIBUTING.md](./CONTRIBUTING.md) has the commands each CI job runs,
 verbatim. `uv sync` creates the environment; uv is the only tool that has
-to be installed.
+to be installed. [REVIEWING.md](./REVIEWING.md) is what a pull request is
+answered against.
 
 ## Links
 

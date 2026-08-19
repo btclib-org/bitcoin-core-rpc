@@ -8,6 +8,11 @@ permissions, publishing environments, secret scanning — is in
 `REPOSITORY.md`. Read that file before changing a workflow, a branch rule
 or a repository setting. Writing code does not need it.
 
+Reviewing a pull request — what a review establishes before it gives
+an ack, what a finding must contain, and why everything it notices that
+the diff is not about becomes an issue rather than a comment — is
+`REVIEWING.md`, and `/review` is that file as a command.
+
 ## Commands
 
 uv is the only tool that must be installed; it fetches interpreters,
@@ -64,17 +69,16 @@ socket — which is what keeps the suite hermetic, not the absence of a node.
   every change lands through a pull request, Dependabot's and
   pre-commit.ci's included, and a release is a tag on it. Branch
   protection, and why it is what it is, is `REPOSITORY.md`.
-- **How a pull request lands**: squash-and-merge from the web UI, or
-  auto-merge once review and checks are in, is the default — one commit
-  regardless of how many the branch carried. The exception is a
-  single-commit pull request that is the base of a stacked one: that one
-  is fast-forwarded from the command line instead, so `main` gets that
-  exact sha rather than a new commit — which is what leaves the stacked
-  pull request its base, and its diff honest. A signature lands either
-  way — the maintainer's on a CLI fast-forward, the forge's own on a
-  button-driven merge — and the ruleset refuses a commit without one.
-  `CONTRIBUTING.md` states the rule, `REPOSITORY.md` the settings and the
-  pushes under it.
+- **How a pull request lands**: squash-and-merge, pressed by auto-merge
+  once review and checks are in — one commit regardless of how many the
+  branch carried, and the only way in. A direct push to `main` is
+  refused for everyone: the `main-self-merge` bypass is in
+  `pull_request` mode, so it excuses the approving review a solo
+  maintainer cannot produce and excuses nothing else. GitHub composes
+  the commit and signs it with its web-flow key, which is what the
+  ruleset asks for — a valid signature, not a particular signer's. A
+  pull request stacked on another is rebased once its parent lands.
+  `CONTRIBUTING.md` states the rule, `REPOSITORY.md` the settings.
 - **A branch's CI run can be `cancelled` rather than green.** `test.yml`'s
   concurrency group is `test-${{ github.ref }}` with cancel-in-progress, so
   the next push kills the run for the previous commit. The local gates

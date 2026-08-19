@@ -345,36 +345,38 @@ a `Co-Authored-By` trailer is written in the commits of the branch, and
 the squash body is the only place it survives one commit standing for all
 of them.
 
-Which is the setting rather than the practice: nothing presses that
-button, and these settings reach neither landing. A pull request of one
-commit is fast-forwarded, its head pushed as it stands, which leaves the
-sha and the signature the review saw on `main`; two commits or more are
-squashed in a worktree and pushed, the maintainer signing what GitHub
-would have signed with its web-flow key. One signer down the whole of
-`main` is what that buys, and it is the reason the button stays unpressed
-where it would work. CONTRIBUTING.md says which pull request gets which.
+That setting is what the button writes, and the button is what lands
+every pull request here: auto-merge presses it once the review and the
+checks are in. There is no second landing. The `main-self-merge` bypass
+is in `pull_request` mode, so it excuses the approving review a
+solo-maintainer repository cannot produce and excuses nothing else — a
+direct push to `main` is refused for everyone, the holder included — and
+the ruleset names `squash` as the only merge method it will accept,
+stating the constraint where the rule is rather than only in the setting
+above.
 
 ```shell
-git push origin refs/remotes/origin/<head branch>:refs/heads/main
+gh api repos/btclib-org/bitcoin-core-rpc/rulesets/<id> \
+  --jq '{bypass: [.bypass_actors[].bypass_mode],
+         methods: [.rules[] | select(.type=="pull_request")
+                            | .parameters.allowed_merge_methods]}'
 ```
 
-`main-integrity` is what such a push answers to, and a fast-forward
-answers all four of its rules: the commit is signed, the history stays
-linear, nothing is rewritten and nothing is deleted. What it bypasses is
-the review count in `main-self-merge`, the same bypass that carries a
-maintainer's squash pushed from a worktree.
+The other mode, `always`, permits a direct push as well, and it is not
+used here. What it would buy is a landing that keeps the maintainer's
+own signature on the commit; what it costs is a `main` any local mistake
+can reach. The first half is worth nothing once the branch rule is read
+as asking for a valid signature rather than for a particular signer,
+which makes GitHub's web-flow key as good as the maintainer's.
 
-What the merge button would have done is done anyway, and by GitHub: the
-pull request reads `MERGED` once its head is reachable from `main`, its
-`Closes #N` closes the issue, and the head branch is deleted as
-`delete_branch_on_merge` below has it. Read that back rather than assume
-it — a squash lands a sha nobody can recognize, and there the same three
-are left to do by hand:
+`main-integrity` is what the commit answers to either way, and the
+squash GitHub composes answers all four of its rules: it is signed, the
+history stays linear, nothing is rewritten and nothing is deleted.
 
-```shell
-gh pr view <number> --json state,mergeCommit \
-  --jq '{state, merged_as: .mergeCommit.oid}'
-```
+Because every landing is one GitHub performs, it reconciles every one of
+them: the pull request reads `MERGED`, its `Closes #N` closes the issue,
+and the head branch is deleted as `delete_branch_on_merge` below has it,
+with nothing left to do by hand.
 
 ## Head branches after a merge
 
@@ -392,9 +394,7 @@ live work without comparing it against `main` commit by commit.
 The case it does not cover is deliberate. A pull request **closed without
 merging** keeps its head branch, GitHub not being able to know whether
 that work was abandoned or is waiting, so those are the ones worth looking
-at now and then. A branch fast-forwarded onto `main` by a push is covered:
-the setting is about the merge and not about the button, and GitHub calls
-that one a merge as soon as the head is reachable.
+at now and then.
 
 ## Token permissions
 

@@ -47,6 +47,40 @@ carry a union merge driver that would keep both sides' numbers.
   It is the one workflow in `CONTRIBUTING.md`'s table taking no
   `workflow_dispatch`, both jobs reading the pull request or the comment
   that triggered them; the `grep` that paragraph cites says so.
+- **The landing convention says what is in force, and it is the button.**
+  `CONTRIBUTING.md` described two landings, both pushes, with the merge
+  button "pressed for neither" and one signer down the whole of `main`;
+  `REPOSITORY.md` carried the pushes; `RELEASING.md` said the button
+  "stays permanently disabled"; `CLAUDE.md` kept a fast-forward
+  exception for a stacked pull request. The `main-self-merge` bypass is
+  in `pull_request` mode across the organization, so it excuses the
+  approving review a solo-maintainer repository cannot produce and
+  excuses nothing else: `main` is reachable through a pull request and
+  through nothing else, a direct push refused for everyone. The ruleset
+  names `squash` as the only merge method it accepts. What the
+  fast-forward bought — a stacked child keeping its base — is paid for
+  with a rebase, a button recreating rather than moving whatever the
+  count of commits, GitHub's documentation having rebase-and-merge
+  "always updates the committer information and creates new commit
+  SHAs". That the commit carries GitHub's web-flow signature rather than
+  the maintainer's costs nothing: `main-integrity` asks for a valid
+  signature and not for a particular signer, with no bypass actor for
+  anyone.
+
+- **`REVIEWING.md` is the standard a review is written against**, the
+  reviewer's half of `CONTRIBUTING.md`: what a review establishes before
+  it gives an ack, what a finding must contain and how it labels its
+  severity, and what becomes of everything a reviewer notices that the
+  diff is not about — every collateral finding is filed as an issue
+  rather than asked for in a comment. It states no new rule. Registered
+  the way `CONTRIBUTING.md` is: a page of the sphinx toctree through a
+  `reviewing_link.md` shim, named from the README and from `CLAUDE.md`,
+  which is the file a repository-aware reviewer reads, with
+  `.claude/commands/review.md` as the `/review` command. The body is
+  deliberately the text btclib carries, one section excepted: the
+  questions a review of *this* tree asks — the single-module and
+  no-dependency property `tests/standalone_test.py` enforces, and the
+  two JSON-RPC dialects `_legacy_result` and `_v2_result` keep apart.
 
 - **A pull request of one commit is fast-forwarded onto `main`**, where
   every pull request was squashed. A squash writes a new commit: the sha
