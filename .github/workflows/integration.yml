@@ -53,8 +53,15 @@ on:
     # ready_for_review, so a pull request marked ready gets the run the
     # draft condition below withheld while it was a draft: the default
     # types do not include it, and without it a readied pull request
-    # would wait for its next push to be checked at all
-    types: [opened, reopened, synchronize, ready_for_review]
+    # would wait for its next push to be checked at all.
+    # closed too, though every job below declines the real work on it: a
+    # merge or a close is neither a push nor a synchronize, so a run this
+    # ref's concurrency group is still holding survives either unless the
+    # closed event lands in that same group -- which this type is what
+    # makes it do, cancel-in-progress below turning the landing into the
+    # cancellation. A closed pull request has nothing left to ask this
+    # workflow, the merge commit being main's own push trigger's question
+    types: [opened, reopened, synchronize, ready_for_review, closed]
 
 # least privilege for the GITHUB_TOKEN, and here it is also the point: a
 # job that exists to establish a security property files nothing and
@@ -78,8 +85,11 @@ jobs:
           || format('Start Core {0} on {1} and check it answers', matrix.core, matrix.chain) }}
     # a draft pull request is work in progress and spends no runner
     # here either: the same condition lint.yml and test.yml carry, and
-    # ready_for_review is a trigger type above for the same reason
-    if: ${{ !github.event.pull_request.draft }}
+    # ready_for_review is a trigger type above for the same reason.
+    # A closed pull request spends none either -- the trigger above takes
+    # the closed event only to supersede a run this ref's group is still
+    # holding
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     # a download, a node and a hundred blocks of regtest, all of it local:
     # a run past this is a node that never opened its rpc port. The four
@@ -265,8 +275,9 @@ jobs:
     # skipped check reports "skipped", which branch protection counts as
     # satisfied. The gate has to run to be able to fail. And the draft
     # condition every job above carries, so a draft skips uniformly rather
-    # than tripping the skip check below
-    if: ${{ always() && !github.event.pull_request.draft }}
+    # than tripping the skip check below -- the closed one for the same
+    # reason, added at the trigger above
+    if: ${{ always() && !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
