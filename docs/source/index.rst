@@ -13,7 +13,7 @@ bitcoin-core-rpc documentation
    CONTRIBUTING <contributing_link.md>
    REVIEWING <reviewing_link.md>
    SECURITY <security_link.md>
-   HISTORY <history_link.md>
+   RELEASE NOTES <release_notes_link.md>
    CHANGELOG <changelog_link.md>
 
 Indices and tables
