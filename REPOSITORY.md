@@ -438,6 +438,19 @@ needing more must declare it. Only `release.yml`'s `github-release` does
 workflow-level `permissions: contents: read` is belt and braces; keep it,
 it is what makes the intent readable in the file.
 
+`release.yml`'s `test` job declares a `permissions:` block too, and for a
+different reason: not because it needs more itself, but because
+`uses: ./.github/workflows/test.yml` caps every job of the called
+workflow at what the caller grants here rather than at what `test.yml`'s
+own top-level declaration gives them — a caller's grant *replaces* the
+callee's default outright, for every job over there and not only for the
+one that needed more. `test.yml`'s `changes` job needs
+`pull-requests: read` for the file list of a pull request, which
+`contents: read` does not carry; naming only that would leave every
+other job in `test.yml` without even `contents: read`, refusing their
+checkout steps. Both are named here for that reason (issue #145,
+mirroring btclib-secp256k1#281's fix for the same mechanism).
+
 One elevation per job, and none of them holding another's: the job that
 signs the distribution files writes no release, the job that writes the
 release holds no OIDC token, and neither builds anything. `attest` is
