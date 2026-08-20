@@ -180,7 +180,7 @@ carry a union merge driver that would keep both sides' numbers.
   behind it, red beside the newer run's green on the same head sha.
   `always()` becomes `!cancelled()` in both jobs' condition; a skipped
   required check satisfies branch protection the same as a passing one,
-  REPOSITORY.md already recording that for `integration.yml`'s `paths`
+  `integration.yml` already recording that for its own `paths`
   filter. The step-level condition inside each job, which fails the
   gate on a dependency cancelled on its own without the run itself being
   cancelled, is unchanged.
