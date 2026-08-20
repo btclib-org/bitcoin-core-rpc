@@ -12,4 +12,4 @@
 # has — a count is exactly such an edit, and union would have kept both
 # numbers. CONTRIBUTING.md carries the rest of the reasoning.
 CHANGELOG.md merge=union
-HISTORY.md merge=union
+RELEASE_NOTES.md merge=union

@@ -181,14 +181,14 @@ Do not use Fable unless explicitly instructed.
   error, an xfail that passes is a failure. Coverage has a `fail_under`
   ratchet in `pyproject.toml`.
 - **CHANGELOG.md gets an entry for anything a user would notice**, in the
-  group it belongs to; HISTORY.md is the release notes on top of it and
-  only moves for a change a user has to *act* on.
+  group it belongs to; RELEASE_NOTES.md is the release notes on top of it
+  and only moves for a change a user has to *act* on.
 - **Never state how many of anything a file holds** — measure it when a
   release wants it, and do not estimate. A wall clock and a linter's
   findings are counts too, and nothing fails on those: what a comment
   carries instead is the reason, with the command that re-derives the
   number beside it.
-- **CHANGELOG.md and HISTORY.md are `merge=union`**, which is what
+- **CHANGELOG.md and RELEASE_NOTES.md are `merge=union`**, which is what
   `.gitattributes` is for. Its price is that these two files never conflict
   at all, so two branches editing *the same* entry merge in silence.
 

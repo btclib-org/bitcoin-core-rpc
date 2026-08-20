@@ -341,8 +341,8 @@ be. "This is here rather than X because X breaks Y" stays, whatever
 prompted it; "this used to be X, until Z" goes — unless the old spelling is
 something a caller can still encounter (a deprecated alias, a wire format),
 in which case it is not history but the present. History has two files of
-its own, [CHANGELOG.md](./CHANGELOG.md) and [HISTORY.md](./HISTORY.md), and
-it is complete there.
+its own, [CHANGELOG.md](./CHANGELOG.md) and
+[RELEASE_NOTES.md](./RELEASE_NOTES.md), and it is complete there.
 
 **Markdown wraps at 80 columns**, tables included, so long commands go in
 fenced blocks split with `\`.
