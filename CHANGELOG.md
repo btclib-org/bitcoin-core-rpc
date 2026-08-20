@@ -172,6 +172,18 @@ carry a union merge driver that would keep both sides' numbers.
   run judges as well, since every job up to `publish-pypi` is the same job;
   what the file asks is that skipping it be stated in the release pull
   request rather than left to be inferred.
+- **`test-passed` and `integration-passed` skip a cancelled run instead
+  of failing it.** Both carried `always()`, so a run the next push's
+  concurrency group already superseded -- every dependency reporting
+  `cancelled` -- still reached the "Fail unless every job above
+  succeeded" step and turned that into a required check with no defect
+  behind it, red beside the newer run's green on the same head sha.
+  `always()` becomes `!cancelled()` in both jobs' condition; a skipped
+  required check satisfies branch protection the same as a passing one,
+  REPOSITORY.md already recording that for `integration.yml`'s `paths`
+  filter. The step-level condition inside each job, which fails the
+  gate on a dependency cancelled on its own without the run itself being
+  cancelled, is unchanged.
 
 ## v2026.8.13
 
