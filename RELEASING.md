@@ -294,76 +294,31 @@ wrong — it says the next bump is going to be work.
    site that answers 200 may be serving the last build that succeeded,
    the webhook having quietly refused every delivery since.
 
-1. Merge it, keeping the commit signed by you rather than by GitHub.
+1. Merge it, with the button, the way every other pull request here
+   lands.
 
-   "Squash and merge" is the only method the repository enables, but its
-   button is unusable here: branch protection requires one approving
-   review, GitHub does not let a pull request's author approve their own,
-   and there is no second maintainer to ask — so the button stays
-   permanently disabled, and even a bypass of that review would still
-   compose the commit server-side and sign it with GitHub's web-flow key,
-   not yours, defeating the point before the review question is reached.
+   "Squash and merge" is the only method either the repository setting
+   or the ruleset accepts, and auto-merge presses it once the review and
+   the checks are in. Branch protection requires one approving review
+   and GitHub does not let an author approve their own, which on a
+   solo-maintainer repository would stop every merge — the
+   `main-self-merge` bypass in `pull_request` mode is what answers that,
+   and only that. There is no second landing to choose between: a direct
+   push to `main` is refused for everyone.
 
-   **A release branch of one commit is fast-forwarded**, which is the
-   usual shape and the short path: the commit is yours, it is signed, and
-   the checks ran on it, so nothing is composed and nothing is rewritten.
-   Read the branch against `main` first — the fused `### Repository`
-   heading the step above looks for is already committed here, so a diff
-   is the only place it shows:
-
-   ```shell
-   git fetch origin
-   git diff origin/main origin/<release-branch>
-   git push origin refs/remotes/origin/<release-branch>:refs/heads/main
-   gh pr view <pull request number> --json state --jq .state
-   ```
-
-   `MERGED` is what the pull request reads once its head is reachable from
-   `main`, and GitHub deletes the release branch itself; close it naming
-   the sha, and delete the branch, only if that is not what it reads.
-
-   Where the branch is two commits or more, land the release the way every
-   other maintainer-only commit on this repository lands: squash it
-   locally, sign it as yourself, and push straight to `main`, one worktree
-   for the whole session rather than one per pull request:
+   That the commit is composed by GitHub and signed with its web-flow
+   key rather than yours costs nothing. What `main-integrity` requires
+   is a signature, not a signer, and it enforces that with no bypass
+   actor at all: a verified signature, linear history, no force push and
+   no branch deletion, for administrators too.
 
    ```shell
-   WT=<scratchpad>/wt-land
-   git worktree add --detach "$WT" origin/main
-   cd "$WT" && uv sync --locked
-
-   git fetch origin
-   git reset --hard origin/main
-   git merge --squash origin/<release-branch>
-   git diff --cached                        # read it -- CHANGELOG.md and
-                                             # HISTORY.md are merge=union,
-                                             # which fuses silently
-   git commit -m "<pull request title> (#<pull request number>)"
-   git log -1 --format='%G? %GS'            # must read G <your name>,
-                                             # never proceed past an N
-   uv run pre-commit run --all-files
-   uv run pytest --cov=bitcoin_core_rpc --cov=tests
-   git push origin HEAD:refs/heads/main
+   gh pr view <pull request number> --json state,mergeCommit \
+     --jq '{state, merged_as: .mergeCommit.oid}'
    ```
 
-   `enforce_admins: false` is what makes the push land rather than bounce:
-   an administrator may push past the *review-count* rule, and GitHub's
-   response names it — `Bypassed rule violations: ... approving review is
-   required` — text that confirms the push went through rather than being
-   silently refused. What does not bend, admin or not, is the repository
-   ruleset one layer below branch protection: a verified signature, linear
-   history, no force push and no branch deletion are enforced with no
-   bypass actor at all, so the commit above still has to be yours and the
-   push above still has to be a fast-forward. Close out what the merge
-   button would otherwise have done — the pull request, and the branch it
-   came from:
-
-   ```shell
-   gh pr close <pull request number> \
-     --comment "Landed on main as $(git rev-parse --short HEAD)."
-   git push origin :refs/heads/<release-branch>
-   git worktree remove --force "$WT"
-   ```
+   `MERGED` is what it reads, its `Closes #N` closes the issue, and
+   GitHub deletes the release branch itself.
 
    Then read `lint` and `test` on the commit `main` ends up at before
    tagging, rather than trust the pull request's own green run:
@@ -373,11 +328,10 @@ wrong — it says the next bump is going to be work.
    ```
 
    a squash creates a commit that is not the one the pull request tested,
-   and the push to `main` fires both workflows again from their own `push`
+   and the merge fires both workflows again from their own `push`
    trigger — a run of its own, not the `pull_request` run already green a
    moment earlier. That trigger is the whole reason `main` keeps one, and
-   it fires for a fast-forward too, where the sha is the tested one: the
-   run to read is still the `push` run on `main`.
+   the run to read is the `push` run on `main`.
 
 1. Rehearse on TestPyPI (see above) from `main`, if this cycle touched the
    publish path — that section says which changes make it worth the run,

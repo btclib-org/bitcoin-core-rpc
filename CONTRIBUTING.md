@@ -373,6 +373,12 @@ request that closes it, not after.
   the issue once a reviewed pull request merges.
 - A pull request merges only after an approving review from somebody
   other than its author: GitHub does not allow self-approval.
+  [REVIEWING.md](./REVIEWING.md) is the standard that review is written
+  against, and is this file's other half — what a review establishes
+  before it gives an ack, how a finding states its severity, and why
+  everything it notices that the pull request is not about becomes an
+  issue rather than a comment. Read before opening a pull request, it is
+  what the pull request will be answered against.
 - Enable the checkbox to
   [allow maintainer edits](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/allowing-changes-to-a-pull-request-branch-created-from-a-fork)
   so the branch can be updated for a merge.
@@ -390,36 +396,30 @@ check starts again from a commit nobody has seen. Add the fix on top, with
 a message saying what it fixes, and reply to the comment with the sha.
 
 Nothing is lost in `main`'s history by doing so, because **a pull request
-of more than one commit is squashed**: the branch becomes one commit whose
-subject is the PR title with its number, so the review's commits are the
-record of the review and `main` keeps one commit per landed change. Squash
-is also the only method the repository enables, so there is no other
-button to read even where one is looked at; REPOSITORY.md has the setting
-and what the other two would have cost.
+lands as one commit**: the branch is squashed at the button, so the
+review's commits are the record of the review and `main` keeps one
+commit per landed change. Squash is the only method either the
+repository setting or the ruleset will accept, so there is no other
+button to read; REPOSITORY.md has both, and what the other two would
+have cost.
 
-**A pull request that is one commit is fast-forwarded instead**, that
-commit landing on `main` with its sha and its signature as they are. What
-the fast-forward keeps is the base a stacked pull request was written on:
-a branch opened on top of another one's head needs nothing when that head
-lands unchanged, where a squash replaces it and asks the child for a
-rebase and for a re-review of a diff nobody edited. It also lands the
-commit the checks ran on, which a squash never is.
+**Auto-merge is what presses it**, once the review and the checks are
+in, and that is the whole of how a change reaches `main`: a direct push
+is refused for everyone, the maintainer included. The commit GitHub
+composes is signed with its own web-flow key — `Verified`, and by GitHub
+— which is what the rule asks for, a valid signature rather than a
+particular signer's. What is enforced rather than remembered is that
+there is a signature at all: the ruleset takes no unsigned commit onto
+`main`, with no bypass actor for anyone.
 
-The subject `main` reads is then the branch's own, where a squash has one
-composed for it, so a one-commit branch is the one that has to name its
-own pull request number — known only once the pull request is open. Amend
-and force-push it there and then, while the branch is work nobody has read
-yet: the same exemption the refresh below carries.
-
-**Both landings are pushes, and the merge button is pressed for neither.**
-A commit GitHub composes is signed with GitHub's web-flow key: `Verified`,
-and by GitHub. The squash is made in a worktree instead and signed by the
-maintainer, so `main` reads one signer the whole way down whichever shape
-a pull request had. That is the point the shapes serve, and it is enforced
-rather than remembered — the ruleset takes no unsigned commit onto `main`,
-with no bypass actor, so an unsigned single commit is not fast-forwarded
-at all: it is squashed and signed like the rest. REPOSITORY.md has the
-pushes, RELEASING.md the same two written out for a release.
+A branch opened on top of another one's head is the case that costs
+something here. When the parent lands, the squash replaces the head the
+child was written on, so the child is rebased and pays a fresh run of
+the gates for a diff nobody edited. That is the price of having no way
+to write to `main` by hand, and it is not avoidable by keeping the child
+to a single commit: a button recreates rather than moves, GitHub's
+documentation saying rebase-and-merge "always updates the committer
+information and creates new commit SHAs".
 
 The one force-push that stays right is the one that carries no new work: a
 `git rebase origin/main` on a branch whose base has moved, which is how a

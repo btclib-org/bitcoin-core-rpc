@@ -11,6 +11,7 @@ bitcoin-core-rpc documentation
    COMPARISON <comparison_link.md>
    PYTHON MODULE <api>
    CONTRIBUTING <contributing_link.md>
+   REVIEWING <reviewing_link.md>
    SECURITY <security_link.md>
    HISTORY <history_link.md>
    CHANGELOG <changelog_link.md>
