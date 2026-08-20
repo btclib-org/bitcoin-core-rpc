@@ -39,7 +39,8 @@ carry a union merge driver that would keep both sides' numbers.
   signatures on `v*`, enforcing the same thing at the
   repository-settings level rather than documenting it, is a further
   step left for a separate, maintainer-authorized change (sibling
-  repository btclib landed both halves as issue #1022).
+  repository btclib landed both halves as issue
+  [btclib#1022](https://github.com/btclib-org/btclib/issues/1022)).
 - **`claude-review.yml` reads a pull request against `REVIEWING.md`.**
   Two jobs: one on every non-draft pull request, whose prompt names that
   file rather than restating it, so the standard moves without the
