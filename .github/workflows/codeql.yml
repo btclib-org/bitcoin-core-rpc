@@ -127,7 +127,7 @@ jobs:
           # see the checkout of the suite job in test.yml
           persist-credentials: false
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
         with:
           languages: ${{ matrix.language }}
           # `none` is the only mode either language has: neither is
@@ -147,7 +147,7 @@ jobs:
           # setting performed, and the note is here because "no input" is
           # otherwise indistinguishable from "nobody decided"
       - name: Analyze
-        uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
+        uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
         with:
           # what keeps the two languages' results apart in the same commit's
           # analysis: without a distinct category the second upload replaces
