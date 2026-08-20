@@ -366,5 +366,5 @@ answered against.
 - Documentation: <https://bitcoin-core-rpc.readthedocs.io/>
 - Source: <https://github.com/btclib-org/bitcoin-core-rpc>
 - Releases: <https://github.com/btclib-org/bitcoin-core-rpc/releases>
-- [CHANGELOG.md](./CHANGELOG.md), and [HISTORY.md](./HISTORY.md) for what a
-  release asks a user to act on
+- [CHANGELOG.md](./CHANGELOG.md), and [RELEASE_NOTES.md](./RELEASE_NOTES.md)
+  for what a release asks a user to act on

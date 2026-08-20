@@ -119,7 +119,7 @@ html_theme = "sphinx_rtd_theme"
 # -- Links out of the included root markdown files ----------------------------
 
 # Five pages of the toctree are this repository's README, CONTRIBUTING,
-# SECURITY, HISTORY and CHANGELOG, each pulled into a *_link.md shim by a
+# SECURITY, RELEASE_NOTES and CHANGELOG, each pulled into a *_link.md shim by a
 # myst {include}. Those files are written for the two places that read them
 # unrendered -- the GitHub file view and the PyPI long description -- so
 # "./SECURITY.md" is the correct spelling there and the one links.yml

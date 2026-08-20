@@ -205,10 +205,10 @@ wrong — it says the next bump is going to be work.
    is what landed rather than what is nearly landed.
 
 1. Read the public API against the previous release, before the notes that
-   describe it are declared final. [HISTORY.md](./HISTORY.md) promises that
-   a breaking change is announced there, the calendar version promising
-   nothing, and nothing else reads that promise: the suite judges the code,
-   and a reviewer weighs what the prose says rather than what it leaves
+   describe it are declared final. [RELEASE_NOTES.md](./RELEASE_NOTES.md)
+   promises that a breaking change is announced there, the calendar version
+   promising nothing, and nothing else reads that promise: the suite judges the
+   code, and a reviewer weighs what the prose says rather than what it leaves
    out. griffe reads both revisions and answers that second question — not
    whether the list is right, but whether it is complete:
 
@@ -220,7 +220,7 @@ wrong — it says the next bump is going to be work.
    It reports breakage only: a public object removed, a parameter that
    changed kind or default, an attribute whose value moved. An addition is
    silent, so the output is short and every line of it wants an entry —
-   what the step asks is that nothing it names is missing from HISTORY.md.
+   what the step asks is that nothing it names is missing from RELEASE_NOTES.md.
    The converse is not its to answer: an entry describing a break it did
    not find is a claim about the prose, which review still has to read.
    That it catches a real one is measured rather than assumed: run it with
@@ -235,11 +235,11 @@ wrong — it says the next bump is going to be work.
    1 on a finding, so the day that reasoning stops holding — a cycle that
    means to break nothing — making it a gate is one line.
 
-1. Retitle the work-in-progress sections of [HISTORY.md](./HISTORY.md) and
-   [CHANGELOG.md](./CHANGELOG.md) to `## v<version>` — the heading must be
-   the version alone, and the section must not be empty. `release.yml`
-   checks both before anything is built, because a version cannot be
-   unpublished once an index has accepted it.
+1. Retitle the work-in-progress sections of
+   [RELEASE_NOTES.md](./RELEASE_NOTES.md) and [CHANGELOG.md](./CHANGELOG.md) to
+   `## v<version>` — the heading must be the version alone, and the section
+   must not be empty. `release.yml` checks both before anything is built,
+   because a version cannot be unpublished once an index has accepted it.
 
 1. Set the version in `pyproject.toml`, which is the one place it is
    declared, and re-lock so `uv.lock` agrees:
@@ -250,7 +250,7 @@ wrong — it says the next bump is going to be work.
 
    **If `main` moves while the gates run, throw the branch away and redo
    these edits on top of it — never rebase it, and never merge `main` into
-   it.** CHANGELOG.md and HISTORY.md are `merge=union`, so a change that
+   it.** CHANGELOG.md and RELEASE_NOTES.md are `merge=union`, so a change that
    opened a `### Repository` group where this release opens its own is
    fused into one section carrying that heading twice, and the union driver
    reports no conflict for a reader to catch:
@@ -277,7 +277,7 @@ wrong — it says the next bump is going to be work.
    cannot say has to be written, and what a reader should not have to
    discover at the button belongs there too.
 
-   The work-in-progress section of HISTORY.md is what that body is written
+   The work-in-progress section of RELEASE_NOTES.md is what that body is written
    from, and the reason it is filled in one landed change at a time rather
    than reconstructed from the diff on release day. Check it against
    `git log v<previous version>..main --oneline` regardless of how current
@@ -423,14 +423,14 @@ wrong — it says the next bump is going to be work.
    gh release view v<version> --json name,assets
    ```
 
-   `release not found` is the failure "If something goes wrong" ends with,
-   and a green run is exactly what it looks like from the Actions page. Its
-   notes are the tag's section of HISTORY.md, and the distribution files
-   are attached, `<tag>.attestation.jsonl` beside them. A run that logs
-   `HISTORY.md has no v<version> section` generated the notes from the
-   merged pull requests instead — the fallback `version-check` exists to
-   make unreachable, not a second way to write release notes — and they
-   are worth replacing by hand if it ever fires.
+   `release not found` is the failure "If something goes wrong" ends with, and
+   a green run is exactly what it looks like from the Actions page. Its notes
+   are the tag's section of RELEASE_NOTES.md, and the distribution files are
+   attached, `<tag>.attestation.jsonl` beside them. A run that logs
+   `RELEASE_NOTES.md has no v<version> section` generated the notes from the
+   merged pull requests instead — the fallback `version-check` exists to make
+   unreachable, not a second way to write release notes — and they are worth
+   replacing by hand if it ever fires.
 
 1. Verify the provenance of an asset, which is the release's own and not
    the PEP 740 attestations checked two steps up: those cover the copies
@@ -463,7 +463,7 @@ wrong — it says the next bump is going to be work.
 1. Open the next cycle, in a pull request of its own and before anything
    else lands: set a generic next version without the day (e.g. after
    2026.8.6, use 2026.9) in `pyproject.toml`, and start a new "work in
-   progress" section in HISTORY.md and CHANGELOG.md. Two components is the
+   progress" section in RELEASE_NOTES.md and CHANGELOG.md. Two components is the
    shape nothing tagged can have, so a checkout of `main` between releases
    reports itself as work in progress rather than as a release it is not,
    and `version-check` refuses it should it ever reach a tag — which is a
@@ -576,7 +576,7 @@ reading a mismatch as tampering:
     | python3 -c 'import json,sys; d=json.load(sys.stdin)
   [print(u["filename"], u["digests"]["sha256"]) for u in d["urls"]]'
 
-  git show v<version>:HISTORY.md | awk -v tag="v<version>" '
+  git show v<version>:RELEASE_NOTES.md | awk -v tag="v<version>" '
     $0 ~ "^## " tag "( |$)" {found=1; next}
     /^## / && found {exit}
     found {print}

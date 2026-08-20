@@ -11,9 +11,9 @@
 -->
 
 Every change of a release, in full: what changed, why, and what it cost.
-[HISTORY.md](./HISTORY.md) has the release notes, which say what a user has
-to act on; this file is the record behind them, and is where a claim in
-those notes can be checked.
+[RELEASE_NOTES.md](./RELEASE_NOTES.md) has the release notes, which say
+what a user has to act on; this file is the record behind them, and is
+where a claim in those notes can be checked.
 
 Neither file counts its entries: `grep -c '^- '` does that, whereas a
 stated number is a line every open branch has to edit, and the two files
@@ -220,6 +220,28 @@ carry a union merge driver that would keep both sides' numbers.
   push's `github.ref`. `links.yml` gets the same fix though it has no
   push trigger to collide with, its `schedule` and `workflow_dispatch`
   triggers resolving to the same ref a closed run does.
+- **`HISTORY.md` is `RELEASE_NOTES.md` now**, mirroring sibling
+  repository btclib's issue #1011 (PR #1039). Its own H1 always read
+  `# Release notes`; the filename did not, and in common usage the two
+  words that were split here name the same file, where a project that
+  does split them puts it the other way round — [Keep a
+  Changelog](https://keepachangelog.com/) defines CHANGELOG.md as the
+  curated, human-facing list, which is what this file already is.
+  `CHANGELOG.md` is unchanged: it is the file whose name and contents
+  already agree, and every entry it has ever made about the old name
+  stays written as it was true then.
+
+  The load-bearing references moved with it: `release.yml` lifts the
+  GitHub release notes out of the tag's own section by filename, and
+  `version-check` refuses a tag whose heading is not retitled, in both
+  files it reads by name. `.gitattributes` keeps `merge=union` under the
+  new name, so a parallel release-note bullet still resolves without a
+  conflict. `docs/source/history_link.md` moves to
+  `docs/source/release_notes_link.md`, its toctree entry relabelled
+  `RELEASE NOTES` to match the other entries' pattern. This repository
+  has no website config of its own to redirect through, so the old
+  `HISTORY.md` path 404s rather than forwarding anywhere; git history is
+  where the old name stays reachable.
 
 ## v2026.8.13
 
