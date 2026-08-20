@@ -299,10 +299,17 @@ jobs:
     # not success(): a job whose dependencies failed is skipped, and a
     # skipped check reports "skipped", which branch protection counts as
     # satisfied. The gate has to run to be able to fail
+    # not always(): a cancellation of this run itself -- the concurrency
+    # group superseding it with a newer push -- would still reach this
+    # job and have it fail explicitly, turning a cancellation the newer
+    # run already speaks for into a required check with no defect behind
+    # it. !cancelled() lets this job be skipped in that case instead,
+    # which satisfies the check same as any other skip, while a single
+    # needed job cancelled on its own still fails below
     # and the draft condition every job above carries, so a draft
     # skips uniformly rather than tripping the skip check below -- the
     # closed one for the same reason, added at the trigger above
-    if: ${{ always() && !github.event.pull_request.draft && github.event.action != 'closed' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
