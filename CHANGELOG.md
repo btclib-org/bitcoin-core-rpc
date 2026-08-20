@@ -36,6 +36,31 @@ carry a union merge driver that would keep both sides' numbers.
   pushes going forward, not retroactively — closing the issue now that
   both options it named are done. REPOSITORY.md records it under a new
   "Tag protection" section.
+- **`test.yml` gains a `changes` job**, the cheapest one in the workflow
+  and the one that decides whether the rest of it runs at all: a pull
+  request that edits only prose — `CHANGELOG.md`, `RELEASING.md`, the
+  rest of the root's own documentation, `.github`'s markdown, the
+  mutation configuration, the detect-secrets baseline — changes nothing
+  the matrix reads, and was spending the whole matrix to prove it.
+  `suite`, `coverage` and `dist` each skip when it answers nothing to
+  check, and `test-passed` still fails if it answers wrong: a failure in
+  `changes` shows up in `test-passed`'s own results directly rather than
+  being read as everything downstream correctly declining nothing to do.
+  `README.md` is deliberately not on the prose list — the `dist` job's
+  `twine` and `pyroma` steps check it, so an edit to it is a change the
+  matrix can fail on. Mirrors btclib-secp256k1's own `changes` job
+  (#189), closing issue #145: `release.yml`'s `test:` job — the one
+  calling `test.yml` with `uses:` — now grants `pull-requests: read`
+  alongside `contents: read` explicitly, a called workflow's jobs being
+  capped at what the caller grants rather than at what the callee's own
+  top-level `permissions:` declares. Left ungranted, the `changes` job's
+  static declaration alone would refuse the whole release run before a
+  single job started, the way it did in btclib-secp256k1's
+  `v0.8.0.3` (btclib-secp256k1#281) — even though `changes` never
+  actually reads a file list on that path, answering `code=true`
+  unconditionally off anything that is not a `pull_request` event, the
+  check GitHub runs at startup being against what the job *declares*
+  rather than against what it goes on to do.
 
 ## v2026.8.20
 

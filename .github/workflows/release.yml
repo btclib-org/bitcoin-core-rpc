@@ -161,10 +161,15 @@ jobs:
             ' "$file"
           done
 
-  # the whole build/test matrix, exactly as a pull request runs it
+  # the whole build/test matrix, exactly as a pull request runs it.
+  # REPOSITORY.md's "Token permissions" section has why this job names
+  # a `permissions:` block of its own
   test:
     name: Run the test workflow
     needs: version-check
+    permissions:
+      contents: read
+      pull-requests: read
     uses: ./.github/workflows/test.yml
 
   # and the same checks a pull request lints with: without this, a tag
