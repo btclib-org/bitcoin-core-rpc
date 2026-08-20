@@ -5,10 +5,12 @@ on:
   push:
     # main only: a push to a branch that has an open pull request would
     # run this workflow twice, once per event, and the two runs land in
-    # different concurrency groups (refs/heads/<branch> against
-    # refs/pull/N/merge) so neither cancels the other. The pull_request
-    # run is the one worth keeping, because it tests the merge commit and
-    # is the only run a fork's pull request produces at all.
+    # different concurrency groups for every pull_request action except
+    # closed on a merge -- see that trigger's own comment below, and the
+    # concurrency block, for why closed is the exception and how the
+    # group now avoids it. The pull_request run is the one worth
+    # keeping, because it tests the merge commit and is the only run a
+    # fork's pull request produces at all.
     # main keeps a trigger of its own because a merge creates a commit
     # that is not the one the pull request tested, and nothing else would
     # ever test it. Tag pushes are covered by the release workflow
@@ -30,12 +32,20 @@ on:
     # types do not include it, and without it a readied pull request
     # would wait for its next push to be checked at all.
     # closed too, though every job below declines the real work on it: a
-    # merge or a close is neither a push nor a synchronize, so a run this
-    # ref's concurrency group is still holding survives either unless the
-    # closed event lands in that same group -- which this type is what
-    # makes it do, cancel-in-progress below turning the landing into the
-    # cancellation. A closed pull request has nothing left to ask this
-    # workflow, the merge commit being main's own push trigger's question
+    # merge or a close is neither a push nor a synchronize, so a run
+    # this pull request's own concurrency group is still holding
+    # survives either unless the closed event lands in that same group
+    # -- which this type is what makes it do, cancel-in-progress below
+    # turning the landing into the cancellation. That was meant to be
+    # *this* pull request's own group and nothing else's: github.ref for
+    # a closed, merged pull request resolves to the base branch's ref
+    # rather than refs/pull/N/merge, so grouping by github.ref alone put
+    # the closed run in the push trigger's own group instead, cancelling
+    # the run testing the actual merge commit one to two seconds after
+    # every merge -- observed on this repository's own main. The
+    # concurrency block below groups a pull_request run by the pull
+    # request's own number instead, which cannot equal any push's
+    # github.ref under any action
     types: [opened, reopened, synchronize, ready_for_review, closed]
   # allows the release workflow to reuse the whole build/test pipeline
   workflow_call:
@@ -53,9 +63,14 @@ permissions:
 # The group is named literally rather than with github.workflow, which in
 # a called workflow is the caller's name: the release workflow calls both
 # this and lint.yml, and with that expression the two would share a group
-# and cancel each other
+# and cancel each other.
+# github.event.pull_request.number, not github.ref alone, is what a
+# pull_request run of any action groups by, so a closed run cannot
+# resolve to the same group as a push to main -- the pull_request
+# trigger's own comment above has the evidence. A push carries no
+# pull_request context, so github.ref is still what groups it, unchanged
 concurrency:
-  group: test-${{ github.ref }}
+  group: test-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
