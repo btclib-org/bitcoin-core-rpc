@@ -21,6 +21,22 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.9 (work in progress, not released yet)
 
+### Repository
+
+- **A `tag-integrity` ruleset now enforces the other half of issue
+  #139**, requiring `required_signatures` on `refs/tags/v*`, with no
+  bypass actor. RELEASING.md's tagging step already produces a signed
+  tag by default (v2026.8.20's `git tag -s` change), so nothing about
+  the release procedure changes; what the ruleset adds is that an
+  unsigned `v*` tag is now refused outright rather than merely
+  undocumented. It carries no `deletion` or `non_fast_forward` rule on
+  purpose: RELEASING.md's own recovery path deletes and re-tags a
+  release that failed before `publish-pypi`, and either rule would
+  block that. Existing tags are unaffected — the ruleset applies to
+  pushes going forward, not retroactively — closing the issue now that
+  both options it named are done. REPOSITORY.md records it under a new
+  "Tag protection" section.
+
 ## v2026.8.20
 
 ### Repository
