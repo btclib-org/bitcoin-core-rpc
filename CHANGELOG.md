@@ -184,6 +184,25 @@ carry a union merge driver that would keep both sides' numbers.
   filter. The step-level condition inside each job, which fails the
   gate on a dependency cancelled on its own without the run itself being
   cancelled, is unchanged.
+- **A closed pull request's run no longer lands in its merge's own push
+  run's concurrency group.** `test.yml`, `lint.yml`, `docs.yml` and
+  `integration.yml` group by `github.ref` alone, and every one carries
+  a comment saying a `pull_request` run lands in a different group from
+  a `push` run and so cannot cancel it -- true for `opened`,
+  `synchronize` and `ready_for_review`, not for `closed` on a merged
+  pull request, where `github.ref` resolves to the base branch's ref
+  instead of `refs/pull/N/merge`. The two events fire within about a
+  second of each other on every merge, and after #136 landed, its own
+  `docs` push run for the merge commit was cancelled two seconds after
+  being created, before any job started -- required checks reading
+  `cancelled` for a commit the run that got to run never tested. The
+  group is now `github.event.pull_request.number || github.ref`: a
+  pull_request run of any action, closed included, groups by the pull
+  request's own number instead, which cancels that same pull request's
+  earlier run exactly as `closed` was added for, and cannot equal any
+  push's `github.ref`. `links.yml` gets the same fix though it has no
+  push trigger to collide with, its `schedule` and `workflow_dispatch`
+  triggers resolving to the same ref a closed run does.
 
 ## v2026.8.13
 
