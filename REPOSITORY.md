@@ -304,6 +304,39 @@ Dependabot, its security updates and pre-commit.ci all open pull requests
 here, none of them naming a target branch: what they get is the default
 branch, and it is the only branch there is.
 
+## Tag protection
+
+`tag-integrity`, `target: tag`, `refs/tags/v*`: required signatures, and
+nothing else. No bypass actor, for anyone, ever:
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc/rulesets \
+  --jq '.[] | select(.name=="tag-integrity") |
+        {rules: [.rules[].type], bypass: [.bypass_actors[].bypass_mode]}'
+```
+
+`release.yml` triggers on `push: tags: ["v*"]`, and the `pypi` environment
+is restricted to that pattern, so the tag was the one unattested link in
+an otherwise fully-attested chain — the commit it points at signed,
+`main-integrity` requiring that with no bypass actor, the workflow pinned,
+the upload Trusted Publishing with no long-lived token. RELEASING.md's
+tagging step already produces a signed tag by default (`git tag -s`), so
+the ruleset enforces what the procedure already does rather than changing
+it; what it adds is that an unsigned `v*` tag is refused outright rather
+than merely undocumented (issue #139).
+
+It carries no `deletion` or `non_fast_forward` rule on purpose:
+RELEASING.md's own recovery path deletes and re-tags a release that
+failed before `publish-pypi`, and either rule would block exactly that.
+Existing tags are unaffected — the ruleset applies to pushes going
+forward, not retroactively; a tag cannot be signed after the fact without
+moving it, and moving a released tag is worse than leaving it unsigned.
+
+This is a live repository-settings change, created directly rather than
+through a pull request — the same reasoning `main-integrity` and
+`main-self-merge` are, and why RELEASING.md's `-s` half of issue #139
+went through review while this half did not.
+
 ## Merge methods
 
 **Squash is the only method GitHub can be asked for**, so it is a setting
