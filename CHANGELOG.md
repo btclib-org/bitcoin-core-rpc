@@ -23,6 +23,23 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **RELEASING.md's tagging step signs the tag it creates.** `git tag -a`
+  is annotated and unsigned; `git tag -s` is the same object with a
+  signature on it, and nothing else about the procedure or about
+  `version-check` changes. Every commit reaching `main` already carries
+  a verified signature, `main-integrity` requiring it with no bypass
+  actor, but the tag that turns one of those commits into a PyPI
+  release — `release.yml` triggers on `push: tags: ["v*"]`, and the
+  `pypi` environment is restricted to that pattern — carried none. The
+  `pypi` environment's required review before the publish job runs is
+  already a real compensating control. A tag cannot be signed
+  retroactively without moving it, and moving a released tag is worse
+  than leaving it unsigned, so existing tags stay as they are — this
+  applies from the next release onward. A `tag` ruleset requiring
+  signatures on `v*`, enforcing the same thing at the
+  repository-settings level rather than documenting it, is a further
+  step left for a separate, maintainer-authorized change (sibling
+  repository btclib landed both halves as issue #1022).
 - **`claude-review.yml` reads a pull request against `REVIEWING.md`.**
   Two jobs: one on every non-draft pull request, whose prompt names that
   file rather than restating it, so the standard moves without the
