@@ -30,7 +30,7 @@ name = "bitcoin-core-rpc"
 # which string is which -- what this declares between releases, and what a
 # release day adds to it -- is RELEASING.md's "Which version string is
 # which", and release.yml's version-check job is what enforces it
-version = "2026.9"
+version = "2026.8.20"
 description = "A standalone JSON-RPC client against Bitcoin Core"
 readme = "README.md"
 # PEP 639: an SPDX expression, which becomes the `License-Expression`

@@ -10,7 +10,12 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
-## v2026.9 (work in progress, not released yet)
+## v2026.8.20
+
+Nothing to act on. Every change this cycle is repository tooling —
+workflows and CI configuration, recorded in
+[CHANGELOG.md](./CHANGELOG.md) — and the library itself is unchanged
+since v2026.8.13.
 
 ## v2026.8.13
 
