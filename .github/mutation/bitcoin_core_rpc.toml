@@ -23,11 +23,14 @@ module-path = "bitcoin_core_rpc/__init__.py"
 # it from an ordinary module.
 #
 # -n0 avoids paying xdist startup once per mutant; -p no:randomly keeps the
-# first killing test and therefore the runtime reproducible. Coverage is
-# deliberately absent: a mutant that removes a statement makes the ratchet fail
-# for a reason that has nothing to do with whether the suite noticed the
-# mutation, and every such run would then be recorded as a kill.
-test-command = """python -m pytest -x -q -n0 -p no:randomly \
+# first killing test and therefore the runtime reproducible. --no-cov is
+# deliberate, and no longer the default it once was: --cov is now in
+# addopts, and left unopposed here it would instrument every one of the
+# ~526 per-mutant subprocess runs for nothing. Worse than the overhead: a
+# mutant that removes a statement makes the ratchet fail for a reason that
+# has nothing to do with whether the suite noticed the mutation, and every
+# such run would then be recorded as a kill.
+test-command = """python -m pytest -x -q -n0 -p no:randomly --no-cov \
   tests/transport_test.py tests/bitcoin_core_rpc_test.py \
   tests/standalone_test.py"""
 

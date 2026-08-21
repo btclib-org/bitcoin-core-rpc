@@ -302,6 +302,13 @@ carry a union merge driver that would keep both sides' numbers.
   `Run pytest` step now passes `--no-cov`, restoring the invariant
   `test.yml`'s own `coverage` job comment already stated: coverage is
   measured once, on one interpreter, in that job alone.
+  A fifth bare-`pytest` call site missed that pass:
+  `.github/mutation/bitcoin_core_rpc.toml`'s `test-command`, which shells
+  out to `python -m pytest` once per mutant rather than through a
+  workflow file, and whose own comment already argued coverage does not
+  belong there — a mutant that removes a statement fails the ratchet for
+  a reason unrelated to whether the suite noticed the mutation. It now
+  carries `--no-cov` too.
   `branch = true` and `exclude_also` are deliberately not part of this
   change — issue #7 of the same repository is that, across every
   repository in the organization, and the two are meant to be read
