@@ -125,17 +125,18 @@ jobs:
       # would catch a suppression added back.
       #
       # Two greps, not one, because myst's fallback renders the target
-      # verbatim, and the shape depends on which repository wrote the
-      # link: this repository's own root files write "./CONTRIBUTING.md"
-      # throughout, which becomes href="#./CONTRIBUTING.md" -- the first
-      # grep -- while btclib-secp256k1's write the bare "SECURITY.md"
-      # shape instead, which becomes href="#SECURITY.md" and only the
-      # second grep catches. This workflow carries both so the three
-      # repositories' workflows stay identical and a link of either
-      # shape is caught wherever it appears, rather than each repository
-      # guarding only the shape it happens to use today (issue
-      # btclib-org/btclib#1157; CHANGELOG.md's entry for this change has
-      # the full survey).
+      # verbatim. This repository's own root files write every internal
+      # link "./CONTRIBUTING.md", which becomes href="#./CONTRIBUTING.md"
+      # -- the first grep -- with no exception; the bare "SECURITY.md"
+      # shape the second grep catches is not a second repository's
+      # settled convention, it is what btclib-secp256k1's root files
+      # currently carry alongside its own "./" links. Kept here so the
+      # three repositories' workflows stay identical and a link of
+      # either shape is caught wherever it appears, until that drift is
+      # normalized and enforced at the source -- a pre-commit hook, not
+      # a post-build grep -- at which point this second grep can go
+      # (issue btclib-org/btclib#1157; CHANGELOG.md's entry for this
+      # change has the full survey).
       #
       # Not lychee: links.yml reads the sources, where "./CONTRIBUTING.md"
       # is a correct path, and pointing it at docs/build/html would mean

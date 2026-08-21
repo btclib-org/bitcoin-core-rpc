@@ -427,12 +427,14 @@ carry a union merge driver that would keep both sides' numbers.
   btclib-org/btclib's own PR closes. MyST renders a link its
   `RootFileLinks` transform cannot resolve as `href="#<target>"`
   verbatim, so what the grep matches depends on how the target was
-  written — `href="#\./` for `./CONTRIBUTING.md`, this repository's own
-  convention throughout its root files, and
+  written — `href="#\./` for `./CONTRIBUTING.md`, which every internal
+  link in this repository's own root files uses, with no exception, and
   `href="#[A-Za-z0-9_.-]*\.md"` for a bare `SECURITY.md` with no `./`,
-  the convention `btclib-secp256k1` uses instead. This repository ran
-  only the first, which is blind to the second shape breaking here the
-  way it already does in the other two. Built the documentation with a
+  the shape `btclib-secp256k1`'s root files currently carry alongside
+  its own `./` links — not a settled convention there, its present
+  drift. This repository ran only the first grep, which is blind to a
+  bare-shape link breaking here the way one already can there. Built
+  the documentation with a
   deliberately unresolved link of each shape and confirmed the added
   grep reports it before removing it; `sphinx-build -W --keep-going`
   passes on both unchanged, since neither is the broken *reference* `-W`
