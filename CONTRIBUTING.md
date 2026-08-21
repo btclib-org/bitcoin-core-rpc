@@ -144,24 +144,66 @@ uv run --locked --no-default-groups --group test \
     pytest --cov-report term-missing:skip-covered
 ```
 
-`test.yml`, the `dist` job — build the distribution files and check
-them:
+`test.yml`, the `dist` job — build the distribution files, check them
+and install one. This is the one build there is (issue #1166):
+`release.yml`'s `test` job calls this workflow, so a tag runs the very
+same job, and its own `publish-testpypi` and `publish-pypi` jobs download
+the `dist` artifact this job uploads rather than building a second copy
+— so what the checks below judge is what an index ends up serving, byte
+for byte. The first two commands are what make the wheel and the sdist
+reproducible; `sha256sum` after them is the digest a rebuild from the
+tag is compared against, per RELEASING.md's "Rebuild a release from its
+tag". The distribution files are uploaded before anything below installs
+a package: installing a dependency executes its code, and a compromised
+one must not reach a `dist/` that still has to be handed on:
 
 ```shell
+export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
 uv build
+uv run --no-project --python 3.14 .github/scripts/normalize_sdist.py dist/
+sha256sum dist/*
 uv run --locked --only-group check twine check --strict dist/*
 uv run --locked --only-group check check-wheel-contents dist/*.whl
 uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
 ```
 
-`release.yml`, the `build` job — runs the same twine, check-wheel-contents
-and pyroma commands above again too, on the files it is about to publish
-rather than on `dist`'s own copy (issue #155):
+A rehearsal (`workflow_dispatch`) runs one command ahead of the block
+above, which the tag path skips: `.github/actions/dev-version` rewrites
+`pyproject.toml`'s version with the suffix `release.yml`'s
+`version-check` job computed and re-locks, so that `uv build` above
+ships a version TestPyPI has not already seen. None of the three checks
+mind — what they judge is metadata syntax, README rendering and metadata
+quality, none of which the suffix changes.
+
+The job then installs the wheel it just built and checked, alone, from
+an empty directory, and uses it:
 
 ```shell
-uv run --locked --only-group check twine check --strict dist/*
-uv run --locked --only-group check check-wheel-contents dist/*.whl
-uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
+tmp=$(mktemp -d)
+cd "$tmp"
+uv venv
+uv pip install "$OLDPWD"/dist/*.whl
+.venv/bin/python -c "
+from decimal import Decimal
+from importlib.metadata import requires, version
+import json
+import bitcoin_core_rpc as rpc
+
+name = 'bitcoin-core-rpc'
+print(version(name))
+assert not requires(name), requires(name)
+replies = []
+def transport(request, timeout):
+    request_id = json.loads(request.data)['id']
+    replies.append(request_id)
+    body = {'jsonrpc': '2.0', 'id': request_id, 'result': 1.25}
+    return 200, json.dumps(body).encode()
+client = rpc.BitcoinCoreRpcClient.from_chain(
+    'regtest', user='u', password='p', transport=transport
+)
+assert client.call('getbalance') == Decimal('1.25')
+assert len(replies) == 1
+"
 ```
 
 `lint.yml`, the `lint` job — this file *is* the lint gate, so there is no

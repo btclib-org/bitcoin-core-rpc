@@ -110,11 +110,15 @@ one, and TestPyPI's rehearsal does the same there.
 ## Rehearse on TestPyPI
 
 A rehearsal runs the identical pipeline — lint gate, test matrix, the
-packaging checks of the `dist` job (twine, check-wheel-contents,
-pyroma), build (which runs those same three checks again, on the files
-it is about to publish), wheel smoke test — and publishes to
+`dist` job's build, its packaging checks (twine, check-wheel-contents,
+pyroma) and its wheel smoke test — and publishes the very files those
+checks passed to
 [TestPyPI](https://test.pypi.org/project/bitcoin-core-rpc/) instead of
-PyPI.
+PyPI (issue #1166: the `dist` job used to build its own copy while a
+separate `build` job in `release.yml` built a second one and ran the
+same three checks on it again (issue #155); that job no longer exists,
+so what release.yml publishes and what test.yml checked are now the
+same files).
 
 **What it answers is whether the publish path still works**, so it earns
 its run when that path or what travels it has moved: `release.yml` or a
@@ -544,11 +548,14 @@ the choice in the release pull request, next to `latest`'s own result.
 
 ## Rebuild a release from its tag
 
-The release job exports `SOURCE_DATE_EPOCH` from the commit date and
-normalizes the sdist, so a rebuild of a released tag is the same bytes as
-what was published. Anyone can check that, and the check is one command
-short of the provenance one above: verify the *rebuilt* file rather than a
-downloaded one, and it can only pass if the digests agree.
+test.yml's `dist` job exports `SOURCE_DATE_EPOCH` from the commit date
+and normalizes the sdist, so a rebuild of a released tag is the same
+bytes as what was published — that job's own upload is what
+`publish-pypi` publishes, unchanged, so "what was published" and "what
+that job built" are the same files (issue #1166). Anyone can check that,
+and the check is one command short of the provenance one above: verify
+the *rebuilt* file rather than a downloaded one, and it can only pass if
+the digests agree.
 
 ```shell
 git checkout v2026.8.8

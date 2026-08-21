@@ -481,6 +481,37 @@ carry a union merge driver that would keep both sides' numbers.
   same `latest.yml`/`windows.yml` defect in their own copies, fixed in a
   pull request of their own; `btclib-secp256k1`'s `test.yml` carried two
   further instances of its own.
+- **`release.yml` no longer has a `build` job, and `test.yml`'s `dist`
+  job is now the one build a release publishes** (issue btclib-org/
+  btclib#1166, filed from btclib's own copy of the same seam). The
+  entry above (issue #155) closed the correctness hole — both builds
+  checked — and left the seam standing, in the terms it used itself:
+  `dist` still built a copy that was checked and thrown away, `build`
+  still built a second, separate copy — with no `SOURCE_DATE_EPOCH` and
+  no sdist normalization — checked a second time and published. `dist`
+  now pins `SOURCE_DATE_EPOCH` from the commit, normalizes the sdist,
+  uploads the `dist` artifact before installing anything, and only then
+  runs the three checks and the wheel smoke test; `release.yml`'s
+  `publish-testpypi` and `publish-pypi` jobs download that artifact
+  unchanged, and `attest` signs the digests the upload already fixed. A
+  rehearsal's version suffix moves too, from an inline step in `build` to
+  a `.github/actions/dev-version` composite action `dist` runs before its
+  own `uv build`, computed once in `version-check` and passed down as a
+  `workflow_call` input so every job the release dispatches during one
+  run agrees on it — carrying over the `run*100+attempt` scheme issue
+  #157 above already fixed here. No `check-newest-bindings`-style second
+  smoke test, unlike btclib's own fix: this package declares no runtime
+  dependency to ask that question about. `btclib-secp256k1` has had the
+  one-build shape from the start.
+  `dist`'s own `Setup uv` step carries `build`'s caching-off forward the
+  same way, through a new `disable-dist-cache` input rather than a flat
+  `enable-cache: false`: a cache entry written by one run is read by
+  another through GitHub's branch/PR scoping, so the build whose output
+  actually reaches an index must fetch its dependencies afresh, where an
+  ordinary pull request's build is thrown away and caching it costs
+  nothing. Found and fixed the same way as btclib#1180 (`dd198d83`),
+  the twin of this pull request, whose first review round caught the
+  same regression.
 
 ## v2026.8.20
 
