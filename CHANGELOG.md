@@ -213,6 +213,21 @@ carry a union merge driver that would keep both sides' numbers.
   Docs did build (v2026.8.20, served) and one it did not (v2026.8.12,
   404) before landing, rather than trusted on the strength of the diff
   alone.
+- **A re-run of a finished TestPyPI rehearsal now gets a version of its
+  own**, closing issue #157: the suffix was `.dev<run number>`, and a
+  re-run keeps `github.run_number` and only raises `github.run_attempt`,
+  so re-running a rehearsal rebuilt the same version and TestPyPI
+  refused the upload. RELEASING.md's answer had been a warning to
+  dispatch a fresh run instead of re-running one — a rule to remember at
+  the moment a failed rehearsal is least likely to leave room for it.
+  Fixed the way btclib-secp256k1's `release.yml` already was
+  (repository btclib-secp256k1's issue #32, PR #58): the suffix is
+  `.dev<run*100+attempt>`, the multiplier keeping every attempt of every
+  run both unique and ordered — attempt 2 of run 7 still sorts after
+  every attempt of run 6 — and the step refuses outright past the two
+  digits it reserves for the attempt rather than wrapping into another
+  run's range. RELEASING.md's warning goes with it, the rule it stated
+  no longer being true.
 
 ## v2026.8.20
 
