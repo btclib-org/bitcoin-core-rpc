@@ -524,6 +524,52 @@ carry a union merge driver that would keep both sides' numbers.
   nothing. Found and fixed the same way as btclib#1180 (`dd198d83`),
   the twin of this pull request, whose first review round caught the
   same regression.
+- **A `local-link-prefix` hook refuses a local markdown link destination
+  that does not begin with `./`, and `docs.yml`'s unresolved-link check
+  is one grep again** (btclib-org/.github#20). What that grep can match
+  is decided by how the link was written, myst rendering the destination
+  of a link `docs/source/conf.py`'s `RootFileLinks` transform cannot
+  resolve verbatim: `./SECURITY.md` breaking gives
+  `href="#./SECURITY.md"`, a bare `SECURITY.md` breaking gives
+  `href="#SECURITY.md"`. The links here were already written the first
+  way, and nothing said they had to be — the hook is what says so, and
+  with it the second grep, added for the bare shape `btclib-secp256k1`
+  was writing rather than for anything this tree carried, has nothing
+  left it can catch. That grep was no superset of the first even so: a
+  character class of name characters stops at the `#` of an anchor, so
+  `href="#README.md#build"` is a shape both patterns pass over, which is
+  the argument for moving the rule upstream rather than writing a third
+  pattern.
+
+  The rule is the prefix and not the extension, and the table in
+  btclib-org/btclib#1175 is what decides that: `DOES_NOT_EXIST.txt`,
+  `sub/DOES_NOT_EXIST.md`, `DOES_NOT_EXIST` and `../DOES_NOT_EXIST.md`
+  each reach MyST's fallback and each is missed by the union of both
+  greps, so an `.md`-scoped rule would leave all four writable. `../`
+  is the row with nothing downstream behind it at all: the transform
+  *declines* a target normalizing above the repository root, so that
+  shape reaches the fallback by design and renders `href="#../X.md"`,
+  which the surviving grep does not match and should not be widened to
+  reach — the hook is the only place it can be caught. A link reference
+  definition, `[label]: page.md`, renders the same fallback and carries
+  no `(`, so the pattern has a second branch for it, anchored at the
+  start of a line so that a reference *use* followed by a colon is not
+  mistaken for one.
+
+  Measured here as well, by building this documentation with an
+  unresolvable link written each way:
+  `./page.md`, `./page.md#anchor`, `./page.txt`, `./sub/page.md` and an
+  extensionless `./page` each render `#./` followed by the destination,
+  so the one grep sees every one; the same destinations without the `./`
+  render the destination alone, which nothing catches without also
+  matching the autodoc anchors these pages carry. README.md's licence
+  badge is the same argument with a live destination in it: it links
+  `./LICENSE` from an included root file, and written bare it would be
+  a dead link no pattern here could be given. `RELEASING.md`'s link to
+  `release.yml` was the one destination in this repository's markdown
+  that did not begin `./`, and now does. `uv run --locked --only-group
+  lint pre-commit run local-link-prefix --all-files` re-derives the
+  whole of it.
 
 ## v2026.8.20
 
