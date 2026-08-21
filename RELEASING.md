@@ -84,9 +84,13 @@ one, and TestPyPI's rehearsal does the same there.
 1. In the GitHub repository settings, create the `pypi` and `testpypi`
    environments. Both require a review from `fametrano`, so neither
    index is uploaded to without a human approving that run; `publish-pypi`
-   and `publish-testpypi` are the only holders of `id-token: write`, and this
-   is the gate in front of them. `pypi` is additionally restricted to
-   `v*` tags, which is the only ref its job runs on anyway — the
+   and `publish-testpypi` are the only holders of `id-token: write` that
+   carry one of these two environments, and this is the gate in front of
+   them. `attest` holds `id-token: write` too, for its own Sigstore
+   exchange, but no environment of its own — what gates it instead is
+   `needs: [publish-pypi, publish-testpypi]`, so it never runs before one
+   of the two reviewed jobs already has. `pypi` is additionally restricted
+   to `v*` tags, which is the only ref its job runs on anyway — the
    restriction is what makes that true of the environment and not just
    of an `if:` in a file a pull request could change.
 

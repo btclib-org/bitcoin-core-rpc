@@ -71,6 +71,15 @@ carry a union merge driver that would keep both sides' numbers.
   matrix cells" already said correctly. `N platforms × M interpreters`
   table rows are otherwise left untouched, and GitHub's platform-limit
   numbers stay as the dated historical constants they already were.
+- **RELEASING.md's environment step named the wrong holders of
+  `id-token: write`** (#161): "`publish-pypi` and `publish-testpypi` are
+  the only holders" was false, `attest` declaring it too for its own
+  Sigstore exchange, which REPOSITORY.md's "Token permissions" section
+  already got right. Fixed to name `attest` and explain why the gate
+  still covers it: `attest` only runs via `needs: [publish-pypi,
+  publish-testpypi]`, after one of the two reviewed jobs has already
+  succeeded, so nothing bypasses the environment review the sentence
+  was arguing for.
 - **A `tag-integrity` ruleset now enforces the other half of issue
   #139**, requiring `required_signatures` on `refs/tags/v*`, with no
   bypass actor. RELEASING.md's tagging step already produces a signed
