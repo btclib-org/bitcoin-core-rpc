@@ -44,6 +44,20 @@ carry a union merge driver that would keep both sides' numbers.
   nothing else changes. btclib does the same in its own pull request,
   and the organization profile no longer names Slack either.
 
+- **`check-wheel-contents` gains a `package` configuration**, closing
+  btclib-org/btclib#1160's divergence for this repository: the two other
+  publishing repositories in this organization each carry a form of a
+  wheel-contents check the third lacked. `btclib` has a hand-written
+  script comparing the built wheel and sdist member for member against
+  an allowlist; `btclib-secp256k1` configures `check-wheel-contents`
+  with `ignore` entries for the members its compiled wheels carry that
+  a pure-Python one does not. This repository ran `check-wheel-contents`
+  with no configuration at all. The comment above
+  `[tool.check-wheel-contents]` in `pyproject.toml` has what changed,
+  the measurement behind it, and why no script was ported from either
+  sibling — one place for that reasoning, pointed at rather than
+  repeated here.
+
 - **`release.yml`'s `github-release` job gains an explicit `if`**,
   closing issue #149: `always() && needs.publish-pypi.result ==
   'success' && needs.attest.result == 'success'`. Without it the job was
