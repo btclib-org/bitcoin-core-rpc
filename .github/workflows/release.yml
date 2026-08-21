@@ -52,6 +52,45 @@ jobs:
         with:
           # see the checkout of the suite job in test.yml
           persist-credentials: false
+          # the whole history, where every other checkout in these
+          # workflows takes the default single commit: the ancestry check
+          # below has nothing to answer with otherwise, and it is also what
+          # puts origin/<default branch> in this checkout at all. Only this
+          # job pays for it, and it pays once per release -- this
+          # repository is one source file and its tests, so the history
+          # `fetch-depth: 0` pulls is small next to what `test`, `lint` and
+          # the rest of this same run already cost
+          fetch-depth: 0
+      # a tag is a name that can point anywhere, and nothing else in this
+      # workflow asks where: every check below reads the tree the tag names
+      # rather than where that tree came from. So a tag pushed from a stale
+      # worktree, or from a branch whose pull request is still open, or
+      # from a commit squashed away on its way into the default branch,
+      # would publish code no review ever approved and no branch contains.
+      # `git merge-base --is-ancestor` is the whole of the question.
+      # Release-only, like the two checks below and for the same reason: a
+      # rehearsal is dispatched from a branch on purpose, that being what
+      # it is for.
+      # The default branch is read from the event rather than written as
+      # `main`: this is the one check whose subject is that branch, so it
+      # has to keep meaning what it says the day the name changes
+      - name: Check that the tag is merged into the default branch (release only)
+        if: github.event_name == 'push'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if ! git rev-parse --verify --quiet "origin/$DEFAULT_BRANCH" >/dev/null; then
+            msg="fetch-depth: 0 on the checkout above is what puts it there"
+            echo "::error::origin/$DEFAULT_BRANCH is not in this checkout; $msg"
+            exit 1
+          fi
+          commit=$(git rev-parse HEAD)
+          if ! git merge-base --is-ancestor "$commit" "origin/$DEFAULT_BRANCH"; then
+            msg="a release is tagged on a commit that branch contains"
+            echo "::error::$commit is not an ancestor of $DEFAULT_BRANCH; $msg"
+            exit 1
+          fi
+          echo "$commit is an ancestor of $DEFAULT_BRANCH"
       # caching off in this workflow, unlike every other: a cache entry is
       # written by whichever run populated it, and read here through the
       # scoping that gives a tag push the caches of the default branch. This

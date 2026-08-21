@@ -109,6 +109,24 @@ carry a union merge driver that would keep both sides' numbers.
   unconditionally off anything that is not a `pull_request` event, the
   check GitHub runs at startup being against what the job *declares*
   rather than against what it goes on to do.
+- **`version-check` now asks where the tag is**, closing issue #153:
+  `release.yml`'s `Checkout code` step in that job gains `fetch-depth:
+  0`, and a new step reads `git merge-base --is-ancestor` against
+  `origin/<default branch>` before anything is built. The three checks
+  already there ask whether the version is right; none of them asked
+  whether the commit carrying it is reachable from the branch a release
+  is supposed to ship — a tag pushed from a stale worktree, a branch
+  whose pull request is still open, or a commit squashed away on its
+  way into `main` would otherwise publish a tree no review approved,
+  and PyPI accepts no file name twice, even after a yank. Ported from
+  btclib's own form of the check rather than btclib-secp256k1's: btclib
+  verifies `origin/<default branch>` is present first and fails with
+  the reason — `origin/<default branch> is not in this checkout` —
+  where btclib-secp256k1's bare `git merge-base --is-ancestor` would
+  fail with `Not a valid object name`, correct but silent about why.
+  The placeholder-tag guard btclib carries beside this check is not
+  ported: this repository's `Check that the tag matches the declared
+  version` step already refuses a two-component tag.
 
 ## v2026.8.20
 
