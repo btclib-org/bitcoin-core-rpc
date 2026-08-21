@@ -118,10 +118,12 @@ html_theme = "sphinx_rtd_theme"
 
 # -- Links out of the included root markdown files ----------------------------
 
-# Five pages of the toctree are this repository's README, CONTRIBUTING,
-# SECURITY, RELEASE_NOTES and CHANGELOG, each pulled into a *_link.md shim by a
-# myst {include}. Those files are written for the two places that read them
-# unrendered -- the GitHub file view and the PyPI long description -- so
+# Some pages of the toctree are this repository's root markdown files --
+# README, COMPARISON, CONTRIBUTING, REVIEWING, SECURITY, RELEASE_NOTES and
+# CHANGELOG -- each pulled into a *_link.md shim by a myst {include}. The
+# shims are what the code below reads, so adding one needs no edit here.
+# Those files are written for the two places that read them unrendered --
+# the GitHub file view and the PyPI long description -- so
 # "./SECURITY.md" is the correct spelling there and the one links.yml
 # checks, resolving it as a path relative to the file. Sphinx sees them
 # lifted out of the tree that makes it correct, and myst resolves not one
