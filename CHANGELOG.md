@@ -57,6 +57,23 @@ carry a union merge driver that would keep both sides' numbers.
   the measurement behind it, and why no script was ported from either
   sibling — one place for that reasoning, pointed at rather than
   repeated here.
+- **`test.yml`'s and `lint.yml`'s concurrency groups take a
+  `concurrency-suffix` input, and `release.yml` passes `-release` at both
+  call sites**, part of btclib-org/btclib#1158 (the issue lives in
+  `btclib`; this repository was already right about the other half of
+  it). `release.yml` calls both workflows, and inside a called workflow
+  `github.ref` is the ref of the release run itself: a `workflow_dispatch`
+  rehearsal from `main`
+  computes `refs/heads/main`, the same group a push to `main` holds,
+  with `cancel-in-progress: true`, so one cancelled the other. Not
+  exercised directly here — reproducing it costs an actual rehearsal
+  race — but `btclib-secp256k1` had already fixed it with the same
+  mechanism this copies, and this repository's own concurrency key
+  (`github.event.pull_request.number || github.ref`) already carried the
+  other half of the issue's fix, so this pull request changes only the
+  suffix. `CLAUDE.md` is corrected in the same pull request: it still
+  named the pre-#1152 `test-${{ github.ref }}` form; the actual group
+  had already moved on.
 
 - **`release.yml`'s `github-release` job gains an explicit `if`**,
   closing issue #149: `always() && needs.publish-pypi.result ==
