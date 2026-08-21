@@ -115,14 +115,28 @@ jobs:
         run: >
           uv run --locked --no-default-groups --group docs
           sphinx-build -W --keep-going -b html docs/source docs/build/html
-      # the one defect the build above cannot report on itself: a relative
-      # link myst cannot resolve is rendered as an anchor on the page it is
-      # already on -- href="#./CONTRIBUTING.md", an id nothing has -- so
-      # -W passes over a dead link. conf.py resolves those links and
-      # suppresses no myst warning, which makes the build fail on the next
-      # one; this step is the same claim made about the artifact rather than
-      # about the configuration, and it is what would catch a suppression
-      # added back.
+      # the one defect the build above cannot report on itself: a link
+      # myst cannot resolve is rendered as an anchor on the page it is
+      # already on -- an id nothing has -- so -W passes over a dead link.
+      # conf.py resolves every link the included root files carry and
+      # suppresses no myst warning, which makes the build fail on the one
+      # myst still cannot place; this step is the same claim made about
+      # the artifact rather than about the configuration, and it is what
+      # would catch a suppression added back.
+      #
+      # Two greps, not one, because myst's fallback renders the target
+      # verbatim. This repository's own root files write every internal
+      # link "./CONTRIBUTING.md", which becomes href="#./CONTRIBUTING.md"
+      # -- the first grep -- with no exception; the bare "SECURITY.md"
+      # shape the second grep catches is not a second repository's
+      # settled convention, it is what btclib-secp256k1's root files
+      # currently carry alongside its own "./" links. Kept here so the
+      # three repositories' workflows stay identical and a link of
+      # either shape is caught wherever it appears, until that drift is
+      # normalized and enforced at the source -- a pre-commit hook, not
+      # a post-build grep -- at which point this second grep can go
+      # (issue btclib-org/btclib#1157; CHANGELOG.md's entry for this
+      # change has the full survey).
       #
       # Not lychee: links.yml reads the sources, where "./CONTRIBUTING.md"
       # is a correct path, and pointing it at docs/build/html would mean
@@ -138,7 +152,13 @@ jobs:
       # as href=&quot;#./, escaped
       - name: Check the built pages for unresolved links
         run: |
+          status=0
           if grep -rn 'href="#\./' docs/build/html --include='*.html'; then
-            echo "::error::the links above resolve to no page"
-            exit 1
+            echo "::error::the links above resolve to no page (unresolved relative path)"
+            status=1
           fi
+          if grep -rn 'href="#[A-Za-z0-9_.-]*\.md"' docs/build/html --include='*.html'; then
+            echo "::error::the links above resolve to no page (unresolved bare .md target)"
+            status=1
+          fi
+          exit $status
