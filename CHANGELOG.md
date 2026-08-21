@@ -562,14 +562,30 @@ carry a union merge driver that would keep both sides' numbers.
   extensionless `./page` each render `#./` followed by the destination,
   so the one grep sees every one; the same destinations without the `./`
   render the destination alone, which nothing catches without also
-  matching the autodoc anchors these pages carry. README.md's licence
-  badge is the same argument with a live destination in it: it links
-  `./LICENSE` from an included root file, and written bare it would be
-  a dead link no pattern here could be given. `RELEASING.md`'s link to
-  `release.yml` was the one destination in this repository's markdown
-  that did not begin `./`, and now does. `uv run --locked --only-group
-  lint pre-commit run local-link-prefix --all-files` re-derives the
-  whole of it.
+  matching the autodoc anchors these pages carry.
+
+  **README.md's licence badge was cited here as the live case for that,
+  and the citation was wrong** — recorded rather than swapped out,
+  because the rule this entry lands was argued from a destination the
+  rule did not reach. `[![license: MIT](…)](./LICENSE)` is a *badge*:
+  its destination sits behind a nested image, and a link text written
+  `[^]]*` stops at the `]` that closes the alt text, so the first
+  version of the pattern checked the image `src` and never the badge's
+  own href. Every badge destination in this repository was unchecked,
+  and neither `docs.yml` grep, the removed one or the surviving one,
+  would have seen one lose its `./` either. The link text is now
+  `(?:[^]]|\]\([^)]*\))*` — a character that is not `]`, or a whole
+  `](…)` group — which steps over the image and reaches what is behind
+  it, and by backtracking still checks the `src` on the way. Measured
+  on the built html: a badge href renders exactly what a plain href
+  renders, `#./NOPE.md` with the prefix and `#NOPE.md`, `#NOPE.txt`,
+  `#sub/NOPE.md`, `#NOPE`, `#../NOPE.md` without it. The corrected hook
+  reports nothing against this tree, badges included.
+
+  `RELEASING.md`'s link to `release.yml` was the one destination in
+  this repository's markdown that did not begin `./`, and now does.
+  `uv run --locked --only-group lint pre-commit run local-link-prefix
+  --all-files` re-derives the whole of it.
 
 ## v2026.8.20
 
