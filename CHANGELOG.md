@@ -651,6 +651,38 @@ carry a union merge driver that would keep both sides' numbers.
   It leaves the entry above where it was. The gates exercise what the
   tree already held, so what a diff decides with has been run by nothing
   whether they ran or not, and a review runs that either way.
+- **`latest.yml`'s pre-commit cache is keyed on the runner image and the
+  interpreter rather than on the config hash alone**
+  (btclib-org/.github#25). What that cache holds is virtualenvs, so the
+  config hash alone survives an `ubuntu-latest` rotation and restores
+  environments built on the previous image — not a graceful miss but a
+  hit, surfacing as whichever hook touches the broken environment first.
+  `lint-latest` is the job with the most to lose from that: it runs to
+  report what a new release of a dependency breaks, so a failure the
+  cache caused arrives looking exactly like the one the workflow exists
+  to find, and is chased in the tree. The `Identify the runner image`
+  step reading `ImageOS` from a shell, the key over `runner.os`, that
+  output and `hashFiles` of `.pre-commit-config.yaml` and
+  `.python-version`, and `restore-keys` still naming the image so a
+  partial restore cannot cross an image boundary, are all `lint.yml`'s,
+  which has carried them since before this was noticed. The comment
+  above the bare key claimed it was keyed "as in `lint.yml`", which was
+  false where it stood and offered that file as the justification; what
+  replaces it is this job's own reason for the key, with
+  `git grep -n 'pre-commit-\${{' -- .github/workflows/` beside it as the
+  command that re-reads both keys together.
+
+- **`REPOSITORY.md` stops naming which sibling repositories are untested
+  against the organization workflow-permissions default**
+  (btclib-org/.github#23). That paragraph was a roster of other
+  repositories' settings kept in this one, and it had already gone
+  incomplete — `btclib-benchmarks` was missing from it. Each sibling now
+  records its own status in its own `REPOSITORY.md`, which is where a
+  reader of that repository meets the question; what stays here is the
+  reason they share, that each already held `read` when the organization
+  default moved on 21 August 2026 and so could not be observed following
+  it. This repository's own entry is unchanged: it is pinned, and the
+  read-back beside it still answers `read`.
 
 ## v2026.8.20
 

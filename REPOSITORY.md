@@ -510,12 +510,15 @@ checked, not a finding that no such control exists.
 **Whoever moves the organization default must move this repository
 with it**, by hand, with the command above, or it is left behind again.
 
-`btclib` and `btclib-secp256k1` are untested, not known good: both were
-already at `read` before the organization default moved on 21 August
-2026, so neither could have been observed following it, and either may
-carry the same kind of override this repository did. Establishing that
-would mean moving the organization default to `write` and back, which
-is not worth doing for the answer.
+No sibling repository is known good either, and none is named here: each
+records its own status in its own `REPOSITORY.md`, a roster in this file
+being one more thing to keep true about repositories this one cannot
+read. What they have in common is the reason — each already held `read`
+when the organization default moved on 21 August 2026, so none could
+have been observed following it, and any of them may carry the same kind
+of override this repository did. Establishing which would mean moving
+the organization default to `write` and back, which is not worth doing
+for the answer.
 
 ## Publishing
 
