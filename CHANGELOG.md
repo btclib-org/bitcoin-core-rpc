@@ -252,6 +252,67 @@ carry a union merge driver that would keep both sides' numbers.
   RELEASING.md's rehearsal description, both of which read as though
   `dist` were the only place checking a distribution, are corrected
   alongside the workflow.
+- **Coverage is now measured on a bare `uv run pytest`, and names its
+  `source`**, closing issue #6 of the organization's `.github` repository
+  (the issue lives in another repository, so no keyword here closes it).
+  `--cov` moves into `addopts`, right after `-ra` and not last: it takes
+  an optional value, so as the final token it would be handed whatever
+  the command line goes on to say — `pytest tests/transport_test.py`
+  becomes `--cov=tests/transport_test.py`, the whole suite runs
+  regardless, and the run reports against `fail_under` having measured a
+  directory `omit` excludes rather than the one path asked for. Moving it
+  needs the suite to stop failing on the tree's coverage when it is asked
+  for less than the tree: `tests/conftest.py` gains a `pytest_configure`
+  hook, ported from btclib's own `coverage_fail_under`, that drops the
+  threshold to zero for a run selecting paths, `-k` or `-m`, and leaves
+  `--lf`, `--deselect` and an early `-x` at the full gate, those being an
+  iteration's flags and not a selection. The threshold is written to
+  `config.known_args_namespace` rather than `config.option`: pytest-cov
+  reads only the former, filling it before `pytest_configure` runs, so
+  the latter changes nothing and fails silently. The hook is itself code
+  the 100% gate now covers, so `tests/conftest_test.py` carries the tests
+  btclib has for it that apply here — this tree has no hypothesis profile
+  and no golden-file fixture to port alongside it.
+  `[tool.coverage.run]` gains `source = ["bitcoin_core_rpc", "tests"]`:
+  unnamed, `--cov` measures whatever the run imports, which on a
+  pristine checkout can differ from what the `coverage` job in `test.yml`
+  measures, and a local gate stricter than the one it reproduces is the
+  worse of the two directions. That job's own `--cov=bitcoin_core_rpc
+  --cov=tests` is now the redundant copy — `addopts` and `source` already
+  say what and how — so the step drops back to `pytest
+  --cov-report term-missing:skip-covered`, the same measurement as the
+  bare command above it in CONTRIBUTING.md. `[tool.mypy]` gains
+  `warn_unreachable = true`, which the three siblings already set; unlike
+  the other optional error codes this one is not a ratchet with nothing
+  to catch — the survey found six sites, each a runtime `isinstance` or
+  `callable` guard against a caller that skips type checking, on a value
+  whose annotation already promises what the guard re-checks. Each site
+  keeps its guard and takes its own `# type: ignore[unreachable]`, naming
+  the code, rather than a blanket exemption that would silence the check
+  everywhere the finding is legitimate too.
+  `addopts` carrying `--cov` also instruments every cell of `test.yml`'s
+  `suite` matrix, `macos.yml`, `windows-arm.yml` and `latest.yml` unless
+  told otherwise, which broke pypy3.11 outright rather than merely
+  costing wall clock: coverage.py has no C extension built for pypy, so
+  it falls back to a pure-Python tracer there, and that tracer does not
+  survive `rpc_smoke_test.py` exercising `main()`'s several `sys.exit()`
+  paths in-process — it warns "Trace function changed" partway through
+  the run and stops recording, so a suite that passed every test
+  reported 71% against the 100% gate. Each of those four workflows'
+  `Run pytest` step now passes `--no-cov`, restoring the invariant
+  `test.yml`'s own `coverage` job comment already stated: coverage is
+  measured once, on one interpreter, in that job alone.
+  A fifth bare-`pytest` call site missed that pass:
+  `.github/mutation/bitcoin_core_rpc.toml`'s `test-command`, which shells
+  out to `python -m pytest` once per mutant rather than through a
+  workflow file, and whose own comment already argued coverage does not
+  belong there — a mutant that removes a statement fails the ratchet for
+  a reason unrelated to whether the suite noticed the mutation. It now
+  carries `--no-cov` too.
+  `branch = true` and `exclude_also` are deliberately not part of this
+  change — issue #7 of the same repository is that, across every
+  repository in the organization, and the two are meant to be read
+  together.
 
 ## v2026.8.20
 

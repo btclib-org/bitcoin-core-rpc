@@ -126,19 +126,22 @@ tree those checks already passed.
 Each command below is the one a CI job runs, verbatim. Keep this section
 true when a workflow changes.
 
-`test.yml`, the `suite` job — the suite, on one cell of the matrix:
+`test.yml`, the `suite` job — the suite, on one cell of the matrix.
+`--no-cov` undoes the `--cov` addopts carries: this matrix asks whether
+one (os, architecture, interpreter) triple passes, and the `coverage` job
+below is where coverage is measured once, gated, and reported instead:
 
 ```shell
-uv run --locked --no-default-groups --group test pytest
+uv run --locked --no-default-groups --group test pytest --no-cov
 ```
 
-`test.yml`, the `coverage` job — the same suite under the 100% ratchet,
-which a bare `pytest` does not enforce:
+`test.yml`, the `coverage` job — `--cov` is in addopts, so this and the
+bare `pytest` above are the same measurement; what this job adds is the
+report:
 
 ```shell
 uv run --locked --no-default-groups --group test \
-    pytest --cov-report term-missing:skip-covered \
-    --cov=bitcoin_core_rpc --cov=tests
+    pytest --cov-report term-missing:skip-covered
 ```
 
 `test.yml`, the `dist` job — build the distribution files and check
@@ -190,7 +193,7 @@ its own git hook execs by absolute path:
 
 ```shell
 UV_PROJECT_ENVIRONMENT=.venv-3.10 uv run --locked --no-default-groups \
-    --group test --python 3.10 pytest
+    --group test --python 3.10 pytest --no-cov
 ```
 
 ### Mutation testing

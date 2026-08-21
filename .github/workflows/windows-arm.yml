@@ -111,5 +111,6 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python }}
+      # --no-cov for the reason test.yml's suite job gives beside its own
       - name: Run pytest
-        run: uv run --locked --no-default-groups --group test pytest
+        run: uv run --locked --no-default-groups --group test pytest --no-cov
