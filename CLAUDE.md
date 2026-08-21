@@ -80,9 +80,11 @@ socket — which is what keeps the suite hermetic, not the absence of a node.
   pull request stacked on another is rebased once its parent lands.
   `CONTRIBUTING.md` states the rule, `REPOSITORY.md` the settings.
 - **A branch's CI run can be `cancelled` rather than green.** `test.yml`'s
-  concurrency group is `test-${{ github.ref }}` with cancel-in-progress, so
-  the next push kills the run for the previous commit. The local gates
-  below are the evidence; `cancelled` is not `failure`.
+  concurrency group is
+  `test-${{ github.event.pull_request.number || github.ref }}` (plus a
+  release-only suffix) with cancel-in-progress, so the next push kills
+  the run for the previous commit. The local gates below are the
+  evidence; `cancelled` is not `failure`.
 - **A draft pull request runs no CI at all**, every workflow carrying
   `if: ${{ !github.event.pull_request.draft }}`. Mark it ready to be
   checked; `test: every job passed` is required, and a required check that
@@ -166,8 +168,9 @@ Do not use Fable unless explicitly instructed.
 - **Workflows**: every action pinned to a commit SHA with the tag in a
   trailing comment; every workflow declares `permissions: contents: read`
   and `timeout-minutes`; concurrency groups are named literally
-  (`test-${{ github.ref }}`), never through `github.workflow`, which in a
-  called workflow is the caller's name; `checkout` passes
+  (`test-${{ github.event.pull_request.number || github.ref }}`), never
+  through `github.workflow`, which in a called workflow is the caller's
+  name; `checkout` passes
   `persist-credentials: false`; uv commands pass `--locked`, never
   `--frozen`. `actionlint` and `zizmor` are hooks, and both must stay at
   zero findings.
