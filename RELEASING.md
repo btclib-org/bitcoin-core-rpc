@@ -183,6 +183,12 @@ inferring it from a sibling. A release ships what `uv.lock` pins, so drift
 against a newer version of some dependency does not make the release
 wrong — it says the next bump is going to be work.
 
+Whether to close that drift now — `uv lock --upgrade`, gated by nothing
+here — or leave it for Dependabot's own pull requests is a decision
+worth stating rather than defaulting by omission: silence at the tag
+reads as "nobody looked", not as "looked and chose to leave it". State
+the choice in the release pull request, next to `latest`'s own result.
+
 1. Read what is open, and land first anything that fixes the release path
    itself:
 
@@ -305,6 +311,38 @@ wrong — it says the next bump is going to be work.
    `main-self-merge` bypass in `pull_request` mode is what answers that,
    and only that. There is no second landing to choose between: a direct
    push to `main` is refused for everyone.
+
+   `gh pr merge <n> --squash` alone can still refuse this pull request —
+   `the base branch policy prohibits the merge` — the way it did on
+   btclib-secp256k1's own v0.8.0.4 (btclib-secp256k1#288): a
+   solo-maintainer repository never clears `REVIEW_REQUIRED`, so gh's
+   client-side mergeable check declines before it asks the server at
+   all, and `--auto` only waits longer for the same review that will not
+   arrive. `--admin` is the flag that clears it — the pair
+   REPOSITORY.md's "Branch protection" describes, `enforce_admins`
+   `false` together with holding `admin` — and it is the one to reach
+   for first: measured directly on btclib across four pull requests
+   (#1111, #1113, #1114, #1133), each landing from `BLOCKED` and
+   `REVIEW_REQUIRED` with a verified signature. Name the release
+   commit's title and body explicitly when using it — `gh pr merge <n>
+   --squash --admin --subject "<title>" --body-file <path>` — rather
+   than leave them to `squash_merge_commit_message`'s repository
+   default, `COMMIT_MESSAGES` here: this repository's own release pull
+   requests have so far landed as a single commit each (#143, #108), so
+   that default and the commit's own message have been the same string,
+   but naming them explicitly costs nothing and stops depending on that
+   staying true — btclib-secp256k1's release branch is a version bump
+   and two retitles, never one commit, and its own RELEASING.md needed
+   this the first time a release carried more than a single change.
+
+   `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
+   merge_method=squash` is the fallback for when `--admin` is
+   unavailable, and needs `commit_title` and `commit_message` passed the
+   same way for the same reason. It is what landed btclib-secp256k1's
+   0.8.0.4 clean — but only because that branch carried a single commit,
+   so `COMMIT_MESSAGES`'s concatenation and that commit's own message
+   were the same string there too; a multi-commit release branch without
+   the two parameters would not be so lucky.
 
    That the commit is composed by GitHub and signed with its web-flow
    key rather than yours costs nothing. What `main-integrity` requires
