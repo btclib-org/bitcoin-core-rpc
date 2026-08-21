@@ -151,6 +151,16 @@ uv run --locked --only-group check check-wheel-contents dist/*.whl
 uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
 ```
 
+`release.yml`, the `build` job — runs the same twine, check-wheel-contents
+and pyroma commands above again too, on the files it is about to publish
+rather than on `dist`'s own copy (issue #155):
+
+```shell
+uv run --locked --only-group check twine check --strict dist/*
+uv run --locked --only-group check check-wheel-contents dist/*.whl
+uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
+```
+
 `lint.yml`, the `lint` job — this file *is* the lint gate, so there is no
 second list of tools anywhere:
 

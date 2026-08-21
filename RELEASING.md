@@ -111,7 +111,8 @@ one, and TestPyPI's rehearsal does the same there.
 
 A rehearsal runs the identical pipeline — lint gate, test matrix, the
 packaging checks of the `dist` job (twine, check-wheel-contents,
-pyroma), build, wheel smoke test — and publishes to
+pyroma), build (which runs those same three checks again, on the files
+it is about to publish), wheel smoke test — and publishes to
 [TestPyPI](https://test.pypi.org/project/bitcoin-core-rpc/) instead of
 PyPI.
 
