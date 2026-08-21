@@ -551,6 +551,30 @@ jobs:
   # it: a late documentation build is not a reason to withhold a wheel,
   # and the fix for a red run here is a build on their side, not a moved
   # tag
+  #
+  # The loop's own budget stays below the job's timeout-minutes, and the
+  # gap is the whole point: an attempt costs its curl --max-time plus
+  # the sleep, so the loop's worst case is the attempt count times that
+  # sum, and where that reaches timeout-minutes the runner kills the job
+  # before the `::error::` line -- the one line the job exists to print
+  # -- ever runs. A red run then says only that it exceeded its maximum
+  # execution time, which is a fact about this workflow and not about
+  # the documentation. Re-derive the margin from the values the script
+  # sets rather than from this sentence. An ordinary failure never comes
+  # near it, read the docs answering a 404 in well under a second
+  # while a build has not started; what the margin buys is the slow or
+  # unreachable case, which is the case a reader most needs the pointer
+  # for. The last attempt no longer sleeps before giving up, which
+  # bought nothing. This is issue btclib-org/.github#18.
+  #
+  # What the loop still cannot do is tell "still building" from "will
+  # never build": /en/<tag>/ answers 404 for both, and the v3 API that
+  # separates them is ruled out above for a reason that still holds.
+  # What it does instead is stop discarding the signal the curl call
+  # already carries for free -- the last HTTP status, or the transport
+  # failure if nothing answered at all -- so the verdict names what the
+  # URL last said and where the reason for it is written, rather than
+  # only that the job waited
   documented:
     name: Check read the docs built the tag
     needs: version-check
@@ -563,14 +587,46 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           url="https://bitcoin-core-rpc.readthedocs.io/en/${TAG}/"
-          for attempt in $(seq 30); do
-            if curl -sf --max-time 10 -o /dev/null "$url"; then
+          builds_page="https://app.readthedocs.org/projects/bitcoin-core-rpc/builds/"
+          attempts=20
+          interval=30
+          last_seen="no attempt has run yet"
+          for attempt in $(seq "$attempts"); do
+            # no -f: a non-2xx response is read, not discarded, so the
+            # failure below can name it. curl_rc is 0 whenever a
+            # response arrived at all, including a 404 -- $status is
+            # what tells the two apart, and stays empty on a
+            # transport-level failure (timeout, DNS, connection
+            # refused), which curl_rc alone then names.
+            # The assignment is the condition of the if rather than a
+            # statement of its own: this script runs under the shell's
+            # default `set -e`, which a bare `status=$(curl ...)` is not
+            # exempt from -- a hung or unreachable server makes curl
+            # exit 28, and that would end the step right there, on the
+            # first slow response, before curl_rc is even read, in
+            # exactly the case the margin above exists for. Measured by
+            # driving this step's own extracted script against a mocked
+            # curl and sleep
+            if status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$url"); then
+              curl_rc=0
+            else
+              curl_rc=$?
+            fi
+            if [ "$curl_rc" -eq 0 ] && [ "$status" = "200" ]; then
               echo "${url} is served"
               exit 0
             fi
-            echo "attempt ${attempt}: ${url} is not served yet"
-            sleep 30
+            if [ "$curl_rc" -eq 0 ]; then
+              last_seen="HTTP ${status}"
+            else
+              last_seen="curl exit ${curl_rc} (no response within 10s)"
+            fi
+            echo "attempt ${attempt}/${attempts}: ${url} answered ${last_seen}"
+            if [ "$attempt" -lt "$attempts" ]; then
+              sleep "$interval"
+            fi
           done
-          echo "::error::${url} was never served: read the builds page on" \
-            "https://app.readthedocs.org/projects/bitcoin-core-rpc/builds/"
+          msg="tag ${TAG}: ${url} was never served while this job waited;"
+          echo "::error::${msg} last seen: ${last_seen}. Read the builds page" \
+            "on ${builds_page} -- it says why, this job only says that"
           exit 1

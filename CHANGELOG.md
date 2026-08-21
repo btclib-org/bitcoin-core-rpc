@@ -265,8 +265,8 @@ carry a union merge driver that would keep both sides' numbers.
   own schedule and happened to read close to the old floor by
   coincidence.
 - **`release.yml` gains a `documented` job**, closing issue #154: on a
-  tag push it polls `https://bitcoin-core-rpc.readthedocs.io/en/<tag>/`,
-  30 attempts 30 seconds apart, and fails the run if that URL is never
+  tag push it polls `https://bitcoin-core-rpc.readthedocs.io/en/<tag>/`
+  at a fixed interval, and fails the run if that URL is never
   served. Read the Docs activates and builds a release tag from an
   automation rule of its own, and a build that never starts fails
   nothing else in the pipeline — a site answering 200 keeps serving the
@@ -730,6 +730,66 @@ carry a union merge driver that would keep both sides' numbers.
   comment says so and names btclib-org/.github#26, which carries the
   commands that read the state back. Writing that section here is a
   change to `REPOSITORY.md` and left to one.
+- **`documented`'s wait can no longer spend the whole job timeout, and
+  names what it last saw when it gives up** (btclib-org/.github#18). The
+  loop's worst case and `timeout-minutes` were the same budget — an
+  attempt costs its `curl --max-time` plus the `sleep`, and that sum
+  taken over every attempt reached the job's own limit exactly — so a
+  response slow enough to spend its `--max-time` without ever answering
+  ran the loop into that wall, and the runner killed the job before the
+  `::error::` line, the one line the job exists to print. A red run then
+  said only that it had exceeded its maximum execution time, which is a
+  fact about this workflow rather than about the documentation. The
+  ordinary case never came near it, Read the Docs answering a 404 in
+  well under a second while a build has not started; it is the slow or
+  unreachable case that lost the pointer, and that is the case a reader
+  most needs it in. The loop now leaves a margin it cannot spend into,
+  and the last attempt no longer sleeps before giving up.
+
+- **The same wait stops discarding what it already knows.** `curl -sf`
+  threw the response away, so every attempt printed "is not served yet"
+  and the final `::error::` named only the URL and the builds page. A
+  status code and a transport failure are now told apart, each attempt
+  names which of the two it got, and the verdict reads `last seen: HTTP
+  404` or `last seen: curl exit 28 (no response within 10s)` before
+  pointing at the builds page — named as where the reason is written,
+  this job saying only that there is one. What the wait still cannot do
+  is tell a build that has not started from one that never will:
+  `/en/<tag>/` answers 404 for both, and the v3 API that separates them
+  stays ruled out for the reason the job's own comment already gives.
+  Dropping `-f` needed a second fix the diff does not show: under the
+  shell's default `set -e` a bare `status=$(curl ...)` aborts the step
+  on curl's own non-zero exit, so a hung server would have ended the run
+  on the first slow response — precisely the case the margin exists for
+  — and the assignment is the condition of an `if` instead.
+  `release.yml` cannot run on a pull request, so the step's literal
+  script was extracted and driven against a mocked `curl` and `sleep`:
+  immediate success, success on a later attempt, a fast failure every
+  attempt, and every attempt hanging to `--max-time` each reach the
+  intended verdict, and the last attempt is observed not to sleep.
+  Ported from btclib's own fix, which found the `set -e` defect the same
+  way.
+
+- **`.yamllint.yaml` says what is true of every repository carrying it,
+  and re-derives the rest** (btclib-org/.github#40). The file is copied
+  byte-for-byte across the organization, and its comment carried a
+  survey run once, in `btclib`: how many findings each disabled rule
+  produced, what share of the action pins sat at or past 80 columns,
+  what a limit of 80 would report and how much of that was pins, the
+  width of the longest pin, how many yaml files the tree held, and two
+  over-length shell lines in a `release.yml`. Re-measured with the
+  pinned yamllint against this tree and against the others sharing the
+  file, not one of those figures still held anywhere — `btclib`
+  included, where the survey was taken — and the `release.yml` claim
+  names a file two of the repositories carrying the comment have never
+  had. The survey is replaced by the commands that answer for whichever
+  tree is asking, the default set at the configured width and what a
+  limit of 80 would cost, beside the reasons that do not vary between
+  repositories: dependabot writes one space before a pin's trailing tag,
+  `on:` is the boolean true in yaml 1.1, and a 40-character SHA with its
+  tag has spent most of an 80-column line before the action is named.
+  This repository's `.taplo.toml` already differs from the shared one
+  and carries none of this, so it is untouched.
 
 ## v2026.8.20
 
