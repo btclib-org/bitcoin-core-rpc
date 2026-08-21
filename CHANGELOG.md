@@ -525,6 +525,17 @@ carry a union merge driver that would keep both sides' numbers.
   the twin of this pull request, whose first review round caught the
   same regression.
 
+- **`docs/source/conf.py`'s `RootFileLinks` comment lists every root
+  markdown file the toctree pulls a page from, in place of a count**
+  (issue #189). The sentence introducing the shims said how many pages
+  carried them and named some of the pages but not all of them, so the
+  number and the list disagreed with each other as well as with the
+  toctree in `docs/source/index.rst`: COMPARISON and REVIEWING were
+  missing from both. btclib's own `conf.py` carries the same paragraph
+  with no count at all, naming its files instead, and that is the
+  shape adopted here too — a page missing from the list is visible on
+  the next read, where a stale number was not.
+
 ## v2026.8.20
 
 ### Repository
