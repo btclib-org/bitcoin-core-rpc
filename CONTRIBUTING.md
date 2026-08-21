@@ -132,13 +132,13 @@ true when a workflow changes.
 uv run --locked --no-default-groups --group test pytest
 ```
 
-`test.yml`, the `coverage` job — the same suite under the 100% ratchet,
-which a bare `pytest` does not enforce:
+`test.yml`, the `coverage` job — `--cov` is in addopts, so this and the
+bare `pytest` above are the same measurement; what this job adds is the
+report:
 
 ```shell
 uv run --locked --no-default-groups --group test \
-    pytest --cov-report term-missing:skip-covered \
-    --cov=bitcoin_core_rpc --cov=tests
+    pytest --cov-report term-missing:skip-covered
 ```
 
 `test.yml`, the `dist` job — build the distribution files and check

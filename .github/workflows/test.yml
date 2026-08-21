@@ -287,11 +287,15 @@ jobs:
           # gate runs: the fail_under comment in pyproject.toml names this
           # version, and the two have to move together
           python-version: "3.14"
+      # --cov itself is not repeated here: addopts already carries it, and
+      # what it measures is [tool.coverage.run]'s source. Naming
+      # bitcoin_core_rpc and tests again here would be a second copy of
+      # that list, and the copy a contributor cannot run, this file not
+      # being what anyone types locally
       - name: Run pytest under coverage
         run: >
           uv run --locked --no-default-groups --group test
           pytest --cov-report term-missing:skip-covered
-          --cov=bitcoin_core_rpc --cov=tests
 
   # the packaging metadata is checked on every pull request, not only on
   # the tag that ships it: a release is the one place where finding a
