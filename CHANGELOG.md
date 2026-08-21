@@ -452,6 +452,35 @@ carry a union merge driver that would keep both sides' numbers.
   `btclib-secp256k1` are recorded as untested rather than known good:
   both were already at the target value before the organization
   default moved, so neither could have been observed following it.
+- **Every `run:` step that can land on a Windows runner declares
+  `shell: bash`** (btclib-org/btclib#1148). `suite-latest` in
+  `latest.yml`, `suite-windows-arm` in `windows-arm.yml`, and `suite` in
+  `test.yml` each carry a `windows-latest` or `windows-11-arm` matrix
+  cell, where the default shell is PowerShell and `"$GITHUB_ENV"` and
+  the rest of the POSIX spelling are literals rather than variables — the
+  same defect btclib-org/btclib#1141 shipped in btclib's own
+  `published.yml`, and here in the two remaining scheduled workflows and
+  in `test.yml`'s own merge-gate job. All four
+  affected steps are one plain command each and run identically under
+  either shell today, so nothing shipped broken. `latest.yml` and
+  `windows-arm.yml` run on neither a pull request nor a push to `main`,
+  so the hazard is the next conditional, substitution or loop landing on
+  one of them, first executed on a schedule or a tag; `test.yml`'s
+  `suite` job runs its Windows cell on every pull request, where a
+  shell-less step still executes PowerShell rather than the intended
+  bash, going green on the wrong interpreter's syntax rather than red on
+  the right one.
+
+  Enumerated by parsing every workflow file's `jobs.*.strategy.matrix`
+  (`os` and `include`) and `runs-on` with PyYAML, and flagging a `run:`
+  step whose job's runner set contains `windows` and which declares no
+  `shell:` of its own and inherits none from a job-level `defaults.run`
+  — `actionlint`, the pinned linter in the pre-commit gate, reports
+  nothing for this shape, measured on a minimal workflow with a POSIX
+  `for` loop and no `shell:`. `btclib` and `btclib-secp256k1` had the
+  same `latest.yml`/`windows.yml` defect in their own copies, fixed in a
+  pull request of their own; `btclib-secp256k1`'s `test.yml` carried two
+  further instances of its own.
 
 ## v2026.8.20
 

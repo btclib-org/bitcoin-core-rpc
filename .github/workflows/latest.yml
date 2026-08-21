@@ -109,6 +109,15 @@ jobs:
       # This rewrites uv.lock, harmless on an ephemeral checkout and worth
       # knowing before running the same command in a working tree
       - name: Upgrade every dependency to its latest release
+        # this matrix includes windows-latest, whose default shell is
+        # PowerShell rather than bash -- see windows-arm.yml's
+        # suite-windows-arm job for the failure mode a POSIX-only step
+        # hits there unnoticed (issue btclib-org/btclib#1148). Both steps
+        # below are one plain command each and run identically under
+        # either shell today, which is exactly the hazard: a future edit
+        # that adds POSIX-only syntax would go green on this cell having
+        # run nothing
+        shell: bash
         run: uv lock --upgrade
       # still --locked, which is not a contradiction: the step above just
       # wrote that lock, so this asserts nothing moved between the two and
@@ -116,6 +125,7 @@ jobs:
       # installs from a lock it has not checked
       # --no-cov for the reason test.yml's suite job gives beside its own
       - name: Run pytest
+        shell: bash
         run: uv run --locked --no-default-groups --group test pytest --no-cov
 
   # mypy is the whole reason this job exists, and it is worth being

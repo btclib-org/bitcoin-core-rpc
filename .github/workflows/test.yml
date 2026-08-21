@@ -274,7 +274,18 @@ jobs:
       # warns "Trace function changed" partway through the run and stops
       # recording, so the same green suite reported 71% against a 100%
       # gate that had measured nothing wrong
+      #
+      # this job's matrix includes windows-latest, where the default
+      # shell is PowerShell rather than bash. This step is on the merge
+      # gate itself and its Windows cell is exercised on every pull
+      # request, but a shell-less step there still executes PowerShell
+      # rather than the bash the script was written for -- going green
+      # on the wrong interpreter's syntax rather than red on the right
+      # one -- which is why the plain command below is no evidence this
+      # cell would survive an edit adding POSIX-only syntax
+      # (issue btclib-org/btclib#1148)
       - name: Run pytest
+        shell: bash
         run: uv run --locked --no-default-groups --group test pytest --no-cov
 
   # coverage is measured once, not once per matrix job: the code base has
