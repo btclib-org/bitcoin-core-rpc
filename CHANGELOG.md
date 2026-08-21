@@ -56,6 +56,25 @@ carry a union merge driver that would keep both sides' numbers.
   owing a report to GitHub support, and its post-release check now asks
   `gh release view` for the release's `author` — `github-actions` is the
   workflow having cut it.
+- **`published.yml`'s index-wait step no longer skips when there is no
+  release behind the run** (btclib issue #1151). The step carried `if:
+  inputs.version != ''`, true only on the one path a tag takes through
+  `workflow_call`; the monthly schedule, a manual dispatch and this
+  file's own `pull_request` trigger all skipped it, so its script had
+  never once been parsed before a tag reached it. That is why this
+  repository's own v2026.8.12 tag hit a Windows PowerShell parse
+  failure in it — fixed the next day by `28701641`, whose whole diff is
+  `+        shell: bash` — and why the same defect, never carried
+  across, shipped again in `btclib`'s v2026.8.21 four months later
+  (btclib issue #1141). Its own `pull_request` trigger did not help:
+  `inputs.version` is empty on that run too, so the guard still skipped
+  the step. The `if:` is gone; the script now runs on every trigger and
+  exits 0 immediately when `TAG` is empty, so a shell defect in it is
+  parsed, and would fail, on the next monthly run, dispatch or pull
+  request rather than waiting for the next tag. Considered and set
+  aside: a `version` input on `workflow_dispatch` reintroduces the
+  remembering `workflow_call` exists to replace — recorded in btclib
+  issue #1151 rather than adopted.
 - **`RELEASING.md` gains an explicit decision point for a dependency's
   drift, and the actual command that lands a release pull request
   here**, both findings from cutting btclib-secp256k1's 0.8.0.4
