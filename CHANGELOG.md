@@ -290,6 +290,18 @@ carry a union merge driver that would keep both sides' numbers.
   keeps its guard and takes its own `# type: ignore[unreachable]`, naming
   the code, rather than a blanket exemption that would silence the check
   everywhere the finding is legitimate too.
+  `addopts` carrying `--cov` also instruments every cell of `test.yml`'s
+  `suite` matrix, `macos.yml`, `windows-arm.yml` and `latest.yml` unless
+  told otherwise, which broke pypy3.11 outright rather than merely
+  costing wall clock: coverage.py has no C extension built for pypy, so
+  it falls back to a pure-Python tracer there, and that tracer does not
+  survive `rpc_smoke_test.py` exercising `main()`'s several `sys.exit()`
+  paths in-process — it warns "Trace function changed" partway through
+  the run and stops recording, so a suite that passed every test
+  reported 71% against the 100% gate. Each of those four workflows'
+  `Run pytest` step now passes `--no-cov`, restoring the invariant
+  `test.yml`'s own `coverage` job comment already stated: coverage is
+  measured once, on one interpreter, in that job alone.
   `branch = true` and `exclude_also` are deliberately not part of this
   change — issue #7 of the same repository is that, across every
   repository in the organization, and the two are meant to be read
