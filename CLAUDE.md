@@ -69,6 +69,12 @@ socket — which is what keeps the suite hermetic, not the absence of a node.
   every change lands through a pull request, Dependabot's and
   pre-commit.ci's included, and a release is a tag on it. Branch
   protection, and why it is what it is, is `REPOSITORY.md`.
+- **The suite, the lint gate, the documentation build and the
+  integration workflow are the required checks on a pull request**, named
+  by the rule `REPOSITORY.md` reads back from the endpoint. So code does
+  not reach a review without having passed them or passing them beside it
+  on the same sha, and a reviewer may rely on that rather than
+  establishing it again; `REVIEWING.md` has what the reliance takes.
 - **How a pull request lands**: squash-and-merge, pressed by auto-merge
   once review and checks are in — one commit regardless of how many the
   branch carried, and the only way in. A direct push to `main` is
