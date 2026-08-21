@@ -399,11 +399,11 @@ carry a union merge driver that would keep both sides' numbers.
   sdist with no signed statement beside them, and "Verify the
   provenance of an asset", earlier in the same file, already assumes
   one is there to `--bundle` against. This repository attaches no
-  bill of materials — that divergence from btclib's own
-  three-artifact release is btclib#1159's question, not this
-  bullet's — so the fix is two artifacts, `dist` and `attestation`,
-  and a pointer at the `skipped` case's own script below rather than
-  a second copy of it, the two bullets already differing only in
+  bill of materials — RELEASING.md's own "No CycloneDX bill of
+  materials is among them, on purpose" paragraph has the reasoning —
+  so the fix is two artifacts, `dist` and `attestation`, and a
+  pointer at the `skipped` case's own script below rather than a
+  second copy of it, the two bullets already differing only in
   whether `gh run rerun --failed` is worth trying first.
 
 ## v2026.8.20
