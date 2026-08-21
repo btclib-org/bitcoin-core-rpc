@@ -617,7 +617,7 @@ reading a mismatch as tampering:
   `attestation` artifacts, not `dist` alone — the job downloads both
   before it writes the release, and a release built from `dist` only
   would carry the wheel and the sdist with no signed statement beside
-  them, leaving "Rebuild a release from its tag" below nothing to
+  them, leaving "Verify the provenance of an asset" above nothing to
   `--bundle` against. The by-hand recovery is the same script the
   `skipped` case spells out next; the difference between the two is
   only that `gh run rerun --failed` reaches a job the run marks
