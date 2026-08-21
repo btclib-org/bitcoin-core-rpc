@@ -147,9 +147,9 @@ them:
 
 ```shell
 uv build
-uv run --locked --only-group build twine check --strict dist/*
-uv run --locked --only-group build check-wheel-contents dist/*.whl
-uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
+uv run --locked --only-group check twine check --strict dist/*
+uv run --locked --only-group check check-wheel-contents dist/*.whl
+uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
 ```
 
 `lint.yml`, the `lint` job — this file *is* the lint gate, so there is no

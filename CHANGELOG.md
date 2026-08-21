@@ -136,6 +136,19 @@ carry a union merge driver that would keep both sides' numbers.
   The placeholder-tag guard btclib carries beside this check is not
   ported: this repository's `Check that the tag matches the declared
   version` step already refuses a two-component tag.
+- **The `build` dependency-group is renamed `check`** (issue #156):
+  it held `check-manifest`, `check-wheel-contents`, `pyroma` and
+  `twine`, the tools that inspect a distribution, not the ones that
+  build it, and `--only-group build` installed the opposite set of
+  packages in btclib-secp256k1, which already has both a `build` group
+  for building wheels and a `check` group for inspecting them. A step
+  copied between these trees — the alignment work ISS #1154 is about to
+  do more of — installed the wrong four packages under the old name.
+  `pyproject.toml`, its `dev` group's reference, `uv.lock`,
+  `CONTRIBUTING.md` and every `--only-group build` call site in
+  `test.yml`, `latest.yml` and `release.yml` move to `check`; nothing
+  in btclib-secp256k1 changes, and the analogous rename in btclib is
+  its own issue, btclib#1155.
 
 ## v2026.8.20
 
