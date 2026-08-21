@@ -503,6 +503,15 @@ carry a union merge driver that would keep both sides' numbers.
   smoke test, unlike btclib's own fix: this package declares no runtime
   dependency to ask that question about. `btclib-secp256k1` has had the
   one-build shape from the start.
+  `dist`'s own `Setup uv` step carries `build`'s caching-off forward the
+  same way, through a new `disable-dist-cache` input rather than a flat
+  `enable-cache: false`: a cache entry written by one run is read by
+  another through GitHub's branch/PR scoping, so the build whose output
+  actually reaches an index must fetch its dependencies afresh, where an
+  ordinary pull request's build is thrown away and caching it costs
+  nothing. Found and fixed the same way as btclib#1180 (`dd198d83`),
+  the twin of this pull request, whose first review round caught the
+  same regression.
 
 ## v2026.8.20
 

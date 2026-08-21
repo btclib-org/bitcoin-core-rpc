@@ -254,6 +254,11 @@ jobs:
       # skipped step's output is the empty string: a release ships the
       # version the tree declares
       version-suffix: ${{ needs.version-check.outputs.version-suffix }}
+      # only this call sets it too: this is the run whose dist job
+      # builds what a tag or a rehearsal actually publishes, so its
+      # Setup uv step must not trust a cache another run wrote. See the
+      # input's own description in test.yml
+      disable-dist-cache: true
 
   # and the same checks a pull request lints with: without this, a tag
   # push could publish code the pre-commit hooks reject. Not gated on
