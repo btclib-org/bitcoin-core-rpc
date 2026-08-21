@@ -498,7 +498,12 @@ the choice in the release pull request, next to `latest`'s own result.
    full reasoning for why that makes one redundant here, and issue
    [btclib-org/btclib#1159](https://github.com/btclib-org/btclib/issues/1159)
    has the evaluation behind it — a real runtime dependency arriving
-   here being the most direct way to change the answer.
+   here being the most direct way to change the answer. That trigger is
+   this repository's own; the other is not. If the generator ever learns
+   to describe a component `Requires-Dist` cannot express, the question
+   reopens for this repository and its siblings at once, and
+   [btclib-org/.github#24](https://github.com/btclib-org/.github/issues/24)
+   is the open issue that carries it.
 
 1. Verify the provenance of an asset, which is the release's own and not
    the PEP 740 attestations checked two steps up: those cover the copies
