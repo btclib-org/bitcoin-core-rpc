@@ -22,6 +22,15 @@ approachable and respectable.
 In this guide you will get an overview of the contribution workflow from
 opening an issue and creating a PR, to reviewing and merging it.
 
+What this repository holds in common with its siblings — the toolchain,
+the lint gate, the tool tables behind it, the workflow set and the branch
+rules — is stated once in the
+[btclib-org repository standard](https://github.com/btclib-org/.github/blob/main/README.md),
+each rule with the alternative it was decided against. It binds this
+repository, so a change departing from it is a divergence, and one filed
+as an issue in that repository rather than here: a difference between two
+repositories belongs to neither of them.
+
 ## New contributor guide
 
 To get an overview of the project, read the [README](./README.md) and the
