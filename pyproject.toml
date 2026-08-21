@@ -152,15 +152,26 @@ dev = [
 ]
 
 [tool.uv]
-# the oldest uv allowed to touch uv.lock, and it is the version the uv-lock
-# hook of .pre-commit-config.yaml pins: that hook is what regenerates the
-# file, and its rev is something pre-commit.ci moves. Declared here the
-# floor holds for every uv command rather than for the hook alone, so an
-# older uv on a developer's machine says so instead of rewriting the lock
-# in a format the runners then fail to read -- uv is pre-1.0 and changes
-# that format. It also reaches CI without a second pin: setup-uv, given no
-# version input, reads this key
-required-version = ">=0.12.3"
+# the oldest uv allowed to touch uv.lock. Not the uv-lock hook's rev in
+# .pre-commit-config.yaml -- that number moves on pre-commit.ci's own
+# schedule and was never this one -- but a ceiling nobody here sets:
+# whatever uv dependabot-core bundles for its uv-ecosystem updater
+# (uv/Dockerfile's `FROM ghcr.io/astral-sh/uv:...`, upstream in
+# dependabot/dependabot-core). That updater runs `uv lock` with exactly
+# the uv it ships and refuses rather than upgrading itself when this key
+# asks for more, so a floor past its pin silently stops every lock
+# update Dependabot attempts, security ones included, and only a human
+# bumping that Dockerfile moves the ceiling back out -- btclib's issue
+# #485 is this same failure caught there first. Declared here the floor
+# still holds for every uv command, not Dependabot's alone, so an older
+# uv on a developer's machine says so instead of rewriting the lock in a
+# format the runners then fail to read -- uv is pre-1.0 and changes that
+# format. It also reaches CI without a second pin: setup-uv, given no
+# version input, reads this key -- and since a bare minimum specifier
+# makes setup-uv install the latest uv regardless, lowering the floor
+# does not lower what the runners run: they are never behind it, and
+# there is nothing here to go stale
+required-version = ">=0.11.31"
 
 [tool.setuptools]
 # a package directory holding one file, which is a shape chosen for exactly

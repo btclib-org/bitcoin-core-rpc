@@ -153,6 +153,28 @@ carry a union merge driver that would keep both sides' numbers.
   `` Group `build` is not defined in the project's `dependency-groups`
   table `` — instead of quietly installing the wrong four packages, so
   a step copied in by mistake stops rather than runs.
+- **`[tool.uv]`'s `required-version` floor was above what Dependabot's
+  own updater can satisfy** (#159), and not merely a wrong comment: the
+  updater in `dependabot/dependabot-core` runs `uv lock` with the uv it
+  bundles (`uv/Dockerfile`'s `FROM ghcr.io/astral-sh/uv:...`, `0.12.1`
+  at the time of writing) and refuses instead of upgrading itself when
+  this key asks for more, turning every uv-ecosystem update it
+  attempted, security ones included, into a silent no-op rather than a
+  pull request — this repository's `.github/dependabot.yml` has run the
+  `uv` ecosystem weekly since its first commit and produced none, while
+  `ruff` and `mypy` sat one point release behind both sibling
+  repositories on packages all three share. `>=0.12.3` was the floor
+  doing this; `>=0.11.31` replaces it, matching repository btclib's
+  issue #485, the same failure caught there first, and its own
+  `required-version`. Read, not assumed: `uv lock --check` under uv
+  0.11.31 resolves this repository's existing lock (schema revision 3)
+  without complaint, so the floor drops with no re-lock needed. The
+  comment above the key is rewritten to name the actual ceiling — a
+  number nobody in this repository controls, that moves only when a
+  human bumps that Dockerfile — in place of the uv-lock pre-commit
+  hook's `rev`, which was never it: that rev moves on pre-commit.ci's
+  own schedule and happened to read close to the old floor by
+  coincidence.
 
 ## v2026.8.20
 
