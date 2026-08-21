@@ -142,13 +142,17 @@ carry a union merge driver that would keep both sides' numbers.
   build it, and `--only-group build` installed the opposite set of
   packages in btclib-secp256k1, which already has both a `build` group
   for building wheels and a `check` group for inspecting them. A step
-  copied between these trees — the alignment work ISS #1154 is about to
-  do more of — installed the wrong four packages under the old name.
-  `pyproject.toml`, its `dev` group's reference, `uv.lock`,
-  `CONTRIBUTING.md` and every `--only-group build` call site in
-  `test.yml`, `latest.yml` and `release.yml` move to `check`; nothing
-  in btclib-secp256k1 changes, and the analogous rename in btclib is
-  its own issue, btclib#1155.
+  copied between these trees — repository btclib's issue #1154 is
+  about to do more of that copying — installed the wrong four packages
+  under the old name. `pyproject.toml`, its `dev` group's reference,
+  `uv.lock`, `CONTRIBUTING.md` and every `--only-group build` call
+  site in `test.yml`, `latest.yml` and `release.yml` move to `check`;
+  nothing in btclib-secp256k1 changes, and the analogous rename in
+  btclib is tracked separately, as repository btclib's issue #1155.
+  The rename's actual return: `--only-group build` here now fails —
+  `` Group `build` is not defined in the project's `dependency-groups`
+  table `` — instead of quietly installing the wrong four packages, so
+  a step copied in by mistake stops rather than runs.
 
 ## v2026.8.20
 
