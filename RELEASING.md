@@ -25,7 +25,7 @@ means such a workflow reaches `main` having never run.
 
 Telling these apart is most of what can go wrong when cutting a release.
 
-- **`pyproject.toml`'s own `version`** takes three shapes over one cycle,
+- **`pyproject.toml`'s own `version`** shifts shape over one cycle,
   never two at once: `2026.9`, month only, between releases — the
   placeholder "Open the next cycle" sets, so a checkout of `main` reports
   itself as work in progress rather than as a release it is not;
@@ -83,8 +83,8 @@ one, and TestPyPI's rehearsal does the same there.
 
 1. In the GitHub repository settings, create the `pypi` and `testpypi`
    environments. Both require a review from `fametrano`, so neither
-   index is uploaded to without a human approving that run; the two
-   `publish-*` jobs are the only holders of `id-token: write`, and this
+   index is uploaded to without a human approving that run; `publish-pypi`
+   and `publish-testpypi` are the only holders of `id-token: write`, and this
    is the gate in front of them. `pypi` is additionally restricted to
    `v*` tags, which is the only ref its job runs on anyway — the
    restriction is what makes that true of the environment and not just
@@ -305,7 +305,7 @@ the choice in the release pull request, next to `latest`'s own result.
 
    "Squash and merge" is the only method either the repository setting
    or the ruleset accepts, and auto-merge presses it once the review and
-   the checks are in. Branch protection requires one approving review
+   the checks are in. Branch protection requires an approving review
    and GitHub does not let an author approve their own, which on a
    solo-maintainer repository would stop every merge — the
    `main-self-merge` bypass in `pull_request` mode is what answers that,
@@ -501,8 +501,8 @@ the choice in the release pull request, next to `latest`'s own result.
 1. Open the next cycle, in a pull request of its own and before anything
    else lands: set a generic next version without the day (e.g. after
    2026.8.6, use 2026.9) in `pyproject.toml`, and start a new "work in
-   progress" section in RELEASE_NOTES.md and CHANGELOG.md. Two components is the
-   shape nothing tagged can have, so a checkout of `main` between releases
+   progress" section in RELEASE_NOTES.md and CHANGELOG.md. That shape is
+   the one nothing tagged can have, so a checkout of `main` between releases
    reports itself as work in progress rather than as a release it is not,
    and `version-check` refuses it should it ever reach a tag — which is a
    second guard behind the heading check, not a replacement for it.

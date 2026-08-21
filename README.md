@@ -162,9 +162,9 @@ interactive shell's attribute probing from becoming one.
 
 ## When it goes wrong
 
-Three exceptions, because there are three different things to do about
-them. All three are `FetchError`, so one `except FetchError` covers the
-lot.
+The exceptions below are how many different things there are to do about
+a failure. Every one of them is a `FetchError`, so one `except FetchError`
+covers the lot.
 
 | exception | what happened | what it carries |
 | --- | --- | --- |

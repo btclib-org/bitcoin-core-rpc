@@ -46,7 +46,7 @@ The last row is whichever context was added most recently, that endpoint
 appending rather than sorting — so the tail of this table moves whenever a
 check is renamed, a rename being a drop and an add.
 
-**Two of the four are job names and two are aggregates**, and that is a
+**Each row above is a job name or an aggregate**, and that is a
 rule rather than an inconsistency: a workflow with one job needs no
 aggregate, the job *being* the context. It is also the answer to why
 btclib's live-node check is `Regtest against Bitcoin Core` where this
@@ -59,8 +59,8 @@ in the rule — which is the first thing this section forbids.
 
 `codeql: every job passed` is not among them, and that is the one place a
 check was traded for the slots it held. GitHub Free gives an organization
-twenty concurrent jobs, shared across every repository in it: this one asked
-for forty-four on every commit and btclib for thirty-nine, so a pull request
+twenty concurrent jobs, shared across every repository in it: a commit here
+asked for forty-four and one in btclib for thirty-nine, so a pull request
 in either waited for a slot rather than for the work. `codeql.yml` now runs
 on `main` and on its Tuesday schedule, the analysis landing on the merge
 commit rather than ahead of it, and it still produces that aggregate — the
@@ -115,9 +115,9 @@ gh api -X PATCH -F state=not-configured \
 reads as "no such repository" and is not.
 
 Every required check is therefore an Actions check, which is what makes the
-`app_id` below one number rather than two: each check is bound to the app
-that produces it — `checks` with an `app_id` rather than the bare `contexts`
-list, 15368 for Actions — so nothing else can satisfy one.
+`app_id` below the same value for every entry: each check is bound to the
+app that produces it — `checks` with an `app_id` rather than the bare
+`contexts` list, 15368 for Actions — so nothing else can satisfy one.
 
 ### Turning default setup off without deadlocking
 
@@ -147,7 +147,7 @@ the old context before the setting, and adds the new one after the merge:
    analysis was red for the upload refusal above and now passes;
 1. merge it.
 
-There is no fifth step adding `codeql: every job passed` to the rule: the
+There is no further step adding `codeql: every job passed` to the rule: the
 section above is why that context is not required, so what the rule holds
 is what step 1 leaves it with. Between step 1 and the merge code scanning
 gates nothing, which was the cost of the switch; it gates nothing now
@@ -157,12 +157,12 @@ Steps 1 and 2 are `gh api` calls a person makes; the `PATCH` body is the
 list in full, that endpoint replacing the object rather than merging into
 it.
 
-The four have been performed, and the setting reads `not-configured`. They
+The steps above have been performed, and the setting reads `not-configured`. They
 are kept because the setting can be configured again from the repository's
 code security settings, and this is the order that takes it off again
 without leaving the rule waiting on a check nothing produces.
 
-Two things outlive the switch, and a reader meets both with nothing in the
+Things outlive the switch, and a reader meets them with nothing in the
 tree to explain them. GitHub keeps a generated
 `dynamic/github-code-scanning/codeql` workflow, still `active` and still
 running, which now uploads *code quality* results rather than security ones
@@ -273,7 +273,7 @@ would change the answer.
 ## Branch protection
 
 `main` is the only branch, and everything reaches it through a pull
-request: the checks above with `strict`, one approving review,
+request: the checks above with `strict`, an approving review,
 `dismiss_stale_reviews`, **required signatures**, linear history, no force
 pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
@@ -433,8 +433,9 @@ at now and then.
 
 **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
 needing more must declare it. Only `release.yml`'s `github-release` does
-(`contents: write`), plus `id-token: write` on the two publish jobs and
-`id-token: write` with `attestations: write` on `attest`. The
+(`contents: write`), plus `id-token: write` on `publish-pypi` and
+`publish-testpypi`, and `id-token: write` with `attestations: write`
+on `attest`. The
 workflow-level `permissions: contents: read` is belt and braces; keep it,
 it is what makes the intent readable in the file.
 
