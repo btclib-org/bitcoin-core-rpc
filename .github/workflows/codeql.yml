@@ -10,13 +10,17 @@ name: codeql
 # the action versions are read the way the rest of CI is read.
 #
 # What default setup held is reproduced rather than chosen, so that moving
-# the analysis into the tree does not also change it:
+# the analysis into the tree does not also change it. Asked once, while
+# default setup was still the active setting:
 #
 #     gh api repos/btclib-org/bitcoin-core-rpc/code-scanning/default-setup
 #
-# answers `languages: [actions, python]`, `query_suite: default` and
+# it answered `languages: [actions, python]`, `query_suite: default` and
 # `schedule: weekly`, which are the matrix, the init step and the cron
-# below.
+# below. The endpoint reports a schedule only while `state` is
+# `configured`; asked again now, with the setting off (below), it answers
+# `schedule: null` -- the cron has not drifted, the field just stops being
+# reported once the setting is off.
 #
 # Default setup and an advanced workflow are exclusive, and the collision is
 # at the upload rather than at the start: `init` succeeds, the database is
