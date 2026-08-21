@@ -87,10 +87,7 @@ jobs:
       ${{ matrix.python-version }} from PyPI on ${{ matrix.os }}
     # a draft pull request is work in progress and spends no runner
     # here either: the same condition lint.yml and test.yml carry, and
-    # ready_for_review is a trigger type above for the same reason.
-    # The second half filters the workflow_run trigger: a release that
-    # failed has published nothing to read, and a dispatch of release.yml
-    # is the TestPyPI rehearsal, whose version this workflow never installs
+    # ready_for_review is a trigger type above for the same reason
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15

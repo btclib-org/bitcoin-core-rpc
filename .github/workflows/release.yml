@@ -100,7 +100,7 @@ jobs:
       # Spelled out rather than left off: the input defaults to "auto",
       # which means enabled on a GitHub-hosted runner
       - name: Setup uv
-        uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: false
       # every other uv command in these workflows passes --locked, which
@@ -264,7 +264,7 @@ jobs:
       # caching off, for the reason given in the version-check job: this is
       # the job whose output is published
       - name: Setup uv
-        uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d # v10.0.0
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: false
       # what makes the wheel this job publishes reproducible: without it
