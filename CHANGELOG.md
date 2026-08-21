@@ -23,6 +23,17 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **The Slack badge is gone from README.md and CONTRIBUTING.md.** The
+  badge block's own comment states the criterion — a badge reports state,
+  which is why "we use ruff" is not one — and this badge reported a
+  route, to a channel of the course workspace the sibling library was
+  first taught in. What answers a question here is the issue tracker and
+  a pull request, which leave the answer where the next reader of these
+  files can find it. This repository carried the badge alone, with no
+  bullet sending a contributor there, so the block loses a line and
+  nothing else changes. btclib does the same in its own pull request,
+  and the organization profile no longer names Slack either.
+
 - **`release.yml`'s `github-release` job gains an explicit `if`**,
   closing issue #149: `always() && needs.publish-pypi.result ==
   'success' && needs.attest.result == 'success'`. Without it the job was
