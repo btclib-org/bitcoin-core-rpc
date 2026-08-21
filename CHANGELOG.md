@@ -458,8 +458,9 @@ carry a union merge driver that would keep both sides' numbers.
   `test.yml` each carry a `windows-latest` or `windows-11-arm` matrix
   cell, where the default shell is PowerShell and `"$GITHUB_ENV"` and
   the rest of the POSIX spelling are literals rather than variables — the
-  same defect ISS #1141 shipped in `published.yml`, in the two remaining
-  scheduled workflows and in `test.yml`'s own merge-gate job. All four
+  same defect btclib-org/btclib#1141 shipped in btclib's own
+  `published.yml`, and here in the two remaining scheduled workflows and
+  in `test.yml`'s own merge-gate job. All four
   affected steps are one plain command each and run identically under
   either shell today, so nothing shipped broken. `latest.yml` and
   `windows-arm.yml` run on neither a pull request nor a push to `main`,
