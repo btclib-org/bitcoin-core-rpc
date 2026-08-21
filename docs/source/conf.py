@@ -154,7 +154,7 @@ html_theme = "sphinx_rtd_theme"
 # CONTRIBUTING.md links to CODE_OF_CONDUCT.md and tests/_data/README.md,
 # neither of which is part of the documentation, so copies leave those two
 # dead however many are made; and the copies are generated files in a
-# source tree, which is a second definition of five files that exist.
+# source tree, which is a second definition of files that already exist.
 
 # a shim is one myst include fence, and everything after the directive
 # name on that line is the directive's argument: the path of the file the
