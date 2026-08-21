@@ -34,10 +34,10 @@ carry a union merge driver that would keep both sides' numbers.
   #1114 and #1133, naming the release commit's title and body
   explicitly rather than leaving them to this repository's
   `COMMIT_MESSAGES` squash default.
-- **CLAUDE.md, RELEASING.md, REPOSITORY.md, CONTRIBUTING.md and README.md
-  stop stating counts nothing checks** (#150), the prose rule
-  CONTRIBUTING.md already carried but 22 places in these five files
-  hadn't caught up with: an unguarded number restating a job count, a
+- **RELEASING.md, REPOSITORY.md, CONTRIBUTING.md and README.md stop
+  stating counts nothing checks** (#150), the prose rule CONTRIBUTING.md
+  already carried but 22 places in these four files hadn't caught up
+  with: an unguarded number restating a job count, a
   permission count or a structural claim, removed or replaced by naming
   the things directly, so two files describing the same fact can't say
   it two different ways. One of the 22 was already wrong rather than
