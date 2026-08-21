@@ -235,6 +235,30 @@ testpaths = ["tests"]
 # does the same for a marker nobody registered, which is how a misspelled
 # skipif silently stops skipping.
 #
+# --cov is here so that the fail_under ratchet below is what a bare
+# `uv run pytest` measures, rather than something only the `coverage` job
+# in test.yml reaches: a gate met after a change is pushed is met too
+# late. Moving it cost nothing measurable -- the suite takes the same
+# time either way from 3.12 on, coverage.py using sys.monitoring there.
+#
+# Its position is load-bearing: --cov takes an *optional* value, so as
+# the last token here it would be handed whatever the command line goes
+# on to say -- `pytest tests/transport_test.py` becomes
+# `--cov=tests/transport_test.py`, the whole suite runs regardless, and
+# it reports against fail_under having measured a directory `omit`
+# excludes. Anywhere but last is safe, so it sits right after -ra rather
+# than at a place this comment would have to move again.
+#
+# Naming no source here -- source lives in [tool.coverage.run] -- so
+# there is one list of what is measured, not a second copy only a
+# maintainer can run, this table not being what test.yml's coverage job
+# types.
+#
+# Moving --cov into addopts means `uv run pytest tests/transport_test.py`
+# would otherwise fail on the tree's coverage rather than its own:
+# tests/conftest.py's pytest_configure hook is what keeps a selective run
+# reported and not gated.
+#
 # pytest-randomly is in the test group and needs no flag here: installed,
 # it shuffles the order and prints the seed, and `-p no:randomly` puts the
 # file order back when a failure has to be reproduced against it. What it
@@ -261,7 +285,7 @@ testpaths = ["tests"]
 # means node-starting tests at a second each and here means nothing.
 # pytest-xdist stays in the test group: the mutation session passes `-n0`,
 # and without the plugin pytest rejects the flag rather than ignoring it
-addopts = "-ra --durations=8 --strict-config --strict-markers"
+addopts = "-ra --cov --durations=8 --strict-config --strict-markers"
 # a test that was expected to fail and passed is a fixed bug still marked
 # as broken: strict turns it red instead of reporting xpass
 xfail_strict = true
@@ -331,7 +355,22 @@ extend-glob = ["CHANGELOG.md", "RELEASE_NOTES.md", ".pre-commit-config.yaml"]
 extend-ignore-re = ['`[^`]*`']
 
 [tool.coverage.run]
+# named rather than left to --cov alone: unnamed, --cov measures every
+# file the run imports, which reaches a script imported by path -- the
+# failure mode is a local checkout gated stricter than the CI it exists
+# to reproduce, because a script's main() runs only in a subprocess
+# nothing here starts in-process. bitcoin_core_rpc is the package this
+# distribution ships; tests is included too, because a test nothing runs
+# is dead code with the authority of a test.
+source = ["bitcoin_core_rpc", "tests"]
 omit = ["*/site-packages/*"]
+# statement coverage calls a half-tested `if` fully covered: the line ran,
+# one of its two ways out never did. What that hides here is this module's
+# own shape -- it is a thin client whose bodies are guard clauses, an
+# early return for the credential already supplied, for the cookie file
+# already read, for the response that is not an error -- so the branch
+# nothing takes is exactly the refusal nobody exercised
+branch = true
 
 [tool.coverage.report]
 show_missing = true
@@ -379,6 +418,14 @@ enable_error_code = [
     "truthy-iterable",
     "unimported-reveal",
 ]
+# the three siblings set it too, and unlike the list above it is not a
+# ratchet with nothing to catch: the survey that added it here found a
+# runtime isinstance guard on a value whose static type already promised
+# more than an untrusted source can keep. Each site it flags gets its own
+# narrow `# type: ignore[unreachable]`, naming the code, rather than a
+# blanket exemption that would silence the check everywhere the sites are
+# legitimate
+warn_unreachable = true
 # the oldest interpreter this package supports, and also the oldest mypy
 # can be aimed at. Keep the key: without it mypy targets whatever runs it,
 # i.e. the 3.14 of .python-version, and a typing construct missing from the
@@ -573,3 +620,35 @@ convention = "pep257"
 # nothing legitimate sits between byte zero and the notice for the
 # anchor to exclude
 notice-rgx = "^# Copyright \\(c\\) The btclib developers\\n#\\n# Permission is hereby granted, free of charge, to any person obtaining a copy\\n# of this software and associated documentation files \\(the \"Software\"\\), to deal\\n# in the Software without restriction, including without limitation the rights\\n# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\\n# copies of the Software, and to permit persons to whom the Software is\\n# furnished to do so, subject to the following conditions:\\n#\\n# The above copyright notice and this permission notice shall be included in all\\n# copies or substantial portions of the Software\\.\\n#\\n# THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\\n# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\\n# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT\\. IN NO EVENT SHALL THE\\n# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\\n# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\\n# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\\n# SOFTWARE\\."
+
+# what ruff's D rules do not reach: they ask that a docstring exists, and
+# this asks that the parameters and the return it names are the ones the
+# signature declares. Run as a hook over bitcoin_core_rpc only, and
+# .pre-commit-config.yaml says why the scope stops there
+[tool.pydoclint]
+# napoleon renders it, which is what docs/source/conf.py enables, so the
+# sections named here are ones sphinx already understands
+style = "google"
+# the types are in the signature, and mypy is strict: repeating them in
+# the docstring is a second place to be wrong
+arg-type-hints-in-docstring = false
+check-return-types = false
+# left at its default, and that is a deviation from btclib-secp256k1,
+# which turns it off. There a docstring is a summary line and the option
+# is what stops one from passing unread; here every docstring of the
+# module is prose that names each parameter in sentences -- `call` on
+# `params`, `request_timeout` and `max_body_size`, `http_request` on
+# `max_body_size` and `timeout` -- so turning it off asks for an Args
+# section restating what the paragraph above it already says, in a file
+# meant to be read as one. What stays checked is the case the sections
+# exist for: a docstring that does list arguments and lists them wrong,
+# which is what a signature change leaves behind
+skip-checking-short-docstrings = true
+# off, and for this module's own reason. It compares the Raises section
+# with the `raise` statements of the body, and the client raises mostly
+# through what it calls -- `http_request` for a transport that did not
+# answer, `_reply_object` and `_rpc_error` for a reply that is an error
+# -- so `HttpError` and `RpcError`, which is what a caller of `call`
+# catches, appear in no `raise` of its body. Kept on, it would ask each
+# docstring to document its body instead of its contract
+skip-checking-raises = true

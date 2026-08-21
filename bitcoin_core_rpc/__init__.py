@@ -1017,7 +1017,9 @@ def magic_from_signet_challenge(challenge: str | bytes | bytearray) -> bytes:
     elif isinstance(challenge, (bytes, bytearray)):
         script = bytes(challenge)
     else:
-        err_msg = f"signet challenge that is no script: {challenge!r}"
+        # unreachable under the annotation above, which is not a promise
+        # a caller that skips type checking keeps
+        err_msg = f"signet challenge that is no script: {challenge!r}"  # type: ignore[unreachable]
         raise BtcRpcTypeError(err_msg)
     if not script:
         raise BtcRpcValueError("empty signet challenge")
@@ -1329,7 +1331,9 @@ def _params_member(params: Sequence[Any] | Mapping[str, Any] | None) -> Any:
         raise BtcRpcTypeError(err_msg)
     if isinstance(params, Sequence):
         return list(params)
-    err_msg = "rpc params is neither a sequence nor a mapping, but a"
+    # unreachable under the annotation above, which is not a promise a
+    # caller that skips type checking keeps
+    err_msg = "rpc params is neither a sequence nor a mapping, but a"  # type: ignore[unreachable]
     err_msg += f" {type(params).__name__}"
     raise BtcRpcTypeError(err_msg)
 
@@ -1715,8 +1719,12 @@ class BitcoinCoreRpcClient:
                 # every traceback that renders one -- the same reason this
                 # class has no generated `__repr__`. The type is what a
                 # caller needs to see, `bytes` being the mistake this
-                # catches most often
-                err_msg = f"non-string rpc {name}: {type(value).__name__}"
+                # catches most often.
+                #
+                # Unreachable under `user: str | None` and `password: str
+                # | None` above, which is not a promise a caller that
+                # skips type checking keeps
+                err_msg = f"non-string rpc {name}: {type(value).__name__}"  # type: ignore[unreachable]
                 raise BtcRpcTypeError(err_msg)
         if user is not None and ":" in user:
             # the Basic credential is `user:password`, and Core splits it at
@@ -1743,15 +1751,22 @@ class BitcoinCoreRpcClient:
             # what `Path()` on the next line takes, asked before it is asked
             # there: an int reaches it and leaves through a bare TypeError
             # about `__fspath__`, which names pathlib rather than the
-            # argument this class was given
-            err_msg = f"rpc cookie_path that is no path: {type(cookie_path).__name__}"
+            # argument this class was given.
+            #
+            # Unreachable under `cookie_path: str | PathLike[str] | None`
+            # above, which is not a promise a caller that skips type
+            # checking keeps
+            err_msg = f"rpc cookie_path that is no path: {type(cookie_path).__name__}"  # type: ignore[unreachable]
             raise BtcRpcTypeError(err_msg)
         if not callable(transport):
             # configuration checked while the caller is still looking at the
             # line that supplied it -- `_checked_url` says why -- and a
             # transport is the one argument where not doing so is a failure
-            # at the first `call` instead, out of urllib rather than here
-            err_msg = f"rpc transport that is not callable: {type(transport).__name__}"
+            # at the first `call` instead, out of urllib rather than here.
+            #
+            # Unreachable under `transport: HttpTransport` above, which is
+            # not a promise a caller that skips type checking keeps
+            err_msg = f"rpc transport that is not callable: {type(transport).__name__}"  # type: ignore[unreachable]
             raise BtcRpcTypeError(err_msg)
         self.user = user
         self._password = password
@@ -1968,8 +1983,11 @@ class BitcoinCoreRpcClient:
             # `quote` takes `bytes` as well, so this is a refusal and not a
             # convenience: `for_wallet(b"hot")` built an endpoint rather
             # than failing, and anything else left through a TypeError of
-            # urllib's about `quote_from_bytes`
-            err_msg = f"rpc wallet name that is not a string: {wallet_name!r}"
+            # urllib's about `quote_from_bytes`.
+            #
+            # Unreachable under `wallet_name: str` above, which is not a
+            # promise a caller that skips type checking keeps
+            err_msg = f"rpc wallet name that is not a string: {wallet_name!r}"  # type: ignore[unreachable]
             raise BtcRpcTypeError(err_msg)
         # a wallet endpoint takes no second one. `/wallet/hot/wallet/cold`
         # is not a path Core serves, so composing the two fails at the node

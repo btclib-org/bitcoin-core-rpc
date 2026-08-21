@@ -114,8 +114,9 @@ jobs:
       # wrote that lock, so this asserts nothing moved between the two and
       # keeps the convention that no uv command in these workflows
       # installs from a lock it has not checked
+      # --no-cov for the reason test.yml's suite job gives beside its own
       - name: Run pytest
-        run: uv run --locked --no-default-groups --group test pytest
+        run: uv run --locked --no-default-groups --group test pytest --no-cov
 
   # mypy is the whole reason this job exists, and it is worth being
   # explicit about how little else differs from the lint gate: the hooks

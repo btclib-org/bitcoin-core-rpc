@@ -245,8 +245,20 @@ jobs:
           # fetching the same ones on every run of every commit
           enable-cache: true
           python-version: ${{ matrix.python }}
+      # --no-cov, against the --cov that addopts now carries: what this
+      # matrix asks is whether every (os, architecture, interpreter)
+      # triple passes, and the `coverage` job below is where coverage is
+      # measured and gated -- its own comment is why instrumenting these
+      # cells too would measure the same lines over again for nothing.
+      # On pypy3.11 it is worse than redundant: coverage.py falls back to
+      # a pure-Python tracer there, having no C extension built for it,
+      # and that tracer does not survive `rpc_smoke_test.py` exercising
+      # `main()`'s several `sys.exit()` paths in-process -- coverage.py
+      # warns "Trace function changed" partway through the run and stops
+      # recording, so the same green suite reported 71% against a 100%
+      # gate that had measured nothing wrong
       - name: Run pytest
-        run: uv run --locked --no-default-groups --group test pytest
+        run: uv run --locked --no-default-groups --group test pytest --no-cov
 
   # coverage is measured once, not once per matrix job: the code base has
   # no version-conditional branch and no conditional skip, and its one
@@ -287,11 +299,15 @@ jobs:
           # gate runs: the fail_under comment in pyproject.toml names this
           # version, and the two have to move together
           python-version: "3.14"
+      # --cov itself is not repeated here: addopts already carries it, and
+      # what it measures is [tool.coverage.run]'s source. Naming
+      # bitcoin_core_rpc and tests again here would be a second copy of
+      # that list, and the copy a contributor cannot run, this file not
+      # being what anyone types locally
       - name: Run pytest under coverage
         run: >
           uv run --locked --no-default-groups --group test
           pytest --cov-report term-missing:skip-covered
-          --cov=bitcoin_core_rpc --cov=tests
 
   # the packaging metadata is checked on every pull request, not only on
   # the tag that ships it: a release is the one place where finding a

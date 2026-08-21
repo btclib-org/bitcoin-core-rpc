@@ -106,8 +106,12 @@ jobs:
           # and RFCs in its comments, and a citation is a reference rather
           # than a link a reader clicks. What is checked is what a user is
           # invited to follow -- the README, which is also the PyPI long
-          # description, the other root markdown files, and the
-          # documentation sources.
+          # description, the other root markdown files, the documentation
+          # sources, and the markdown kept under tests/, next to what it
+          # documents rather than at the root: _data/README.md says where
+          # each recorded reply came from and how to check a copy against
+          # a live node, prose for a reader rather than a citation in a
+          # comment.
           # --no-progress because the log is not a terminal; the retries,
           # the timeout and the cache are what keep a slow or throttling
           # host from being reported as a dead one.
