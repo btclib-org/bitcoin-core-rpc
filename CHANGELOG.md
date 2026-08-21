@@ -23,6 +23,28 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`release.yml`'s `github-release` job gains an explicit `if`**,
+  closing issue #149: `always() && needs.publish-pypi.result ==
+  'success' && needs.attest.result == 'success'`. Without it the job was
+  skipped on every tag since `attest` entered its `needs` — v2026.8.12,
+  v2026.8.13 and v2026.8.20 each published to PyPI and cut no release,
+  and each was recreated by hand from the run's own `dist` and
+  `attestation` artifacts. The cause is not a failure anywhere in the
+  run, which is what it looked like: `attest` needs `publish-testpypi`,
+  a tag push skips that job, and a job standing behind a skipped
+  ancestor is skipped whatever its own needs report, unless its own
+  condition begins with `always()` — an opt-out that holds for the job
+  saying it and not for whoever needs that job. The two `.result` checks
+  without `always()` are the fix that is not one, measured on
+  btclib-secp256k1's v0.8.0.2 (btclib-secp256k1#141, then #151); the
+  condition here is that repository's, which cut v0.8.0.3 and v0.8.0.4
+  from the workflow. It keeps the property the absent `if` was relied on
+  for: a `workflow_dispatch` rehearsal skips `publish-pypi`, so the
+  condition is false and no release is cut. RELEASING.md's
+  troubleshooting entry for the symptom names the cause instead of
+  owing a report to GitHub support, and its post-release check now asks
+  `gh release view` for the release's `author` — `github-actions` is the
+  workflow having cut it.
 - **`RELEASING.md` gains an explicit decision point for a dependency's
   drift, and the actual command that lands a release pull request
   here**, both findings from cutting btclib-secp256k1's 0.8.0.4
