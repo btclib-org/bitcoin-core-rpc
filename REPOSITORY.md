@@ -462,6 +462,61 @@ Artifact attestations are free on public repositories on every current
 plan, and unavailable on a private one outside Enterprise Cloud — so
 making this repository private would break `attest` and nothing else.
 
+### The value above is pinned here, not inherited
+
+`default_workflow_permissions` is a repository setting that falls back
+to an organization default until a repository sets its own; once set,
+the repository stops following that default, and there is no
+documented way back to inheriting it. **This repository pins its own**
+rather than inheriting the organization's, set by hand on 21 August
+2026:
+
+```shell
+gh api -X PUT repos/btclib-org/bitcoin-core-rpc/actions/permissions/workflow \
+  -f default_workflow_permissions=read \
+  -F can_approve_pull_request_reviews=false
+```
+
+Read back:
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc/actions/permissions/workflow \
+  --jq '{default_workflow_permissions, can_approve_pull_request_reviews}'
+# {"default_workflow_permissions":"read","can_approve_pull_request_reviews":false}
+```
+
+It had to be set by hand because it had already drifted from the
+organization default: five other repositories in the organization
+followed the same default's move to `read`, and this one stayed
+`write` until the command above — which is how the override was found,
+there being no endpoint that reports which repositories carry one.
+Nothing is wrong today: the value read back is `read`,
+`can_approve_pull_request_reviews` is `false`, and every workflow here
+declares `permissions: contents: read` besides.
+
+What is left is that the *next* move of the organization default will
+not reach this repository, and nothing says so. Neither this endpoint
+nor `/actions/permissions` beside it (`enabled`, `allowed_actions`,
+`sha_pinning_required`) carries a field distinguishing an override from
+an inheritance, and `PUT` accepts `read` or `write` and neither `null`
+nor `inherit` — checked against [the REST
+documentation](https://docs.github.com/en/rest/actions/permissions?apiVersion=2022-11-28)
+rather than assumed. The repository's Settings → Actions → General page
+is the only other candidate for a control that clears the override; it
+was not checked — no interactive session against it was available when
+this section was written, so its absence here is a gap in what was
+checked, not a finding that no such control exists.
+
+**Whoever moves the organization default must move this repository
+with it**, by hand, with the command above, or it is left behind again.
+
+`btclib` and `btclib-secp256k1` are untested, not known good: both were
+already at `read` before the organization default moved on 21 August
+2026, so neither could have been observed following it, and either may
+carry the same kind of override this repository did. Establishing that
+would mean moving the organization default to `write` and back, which
+is not worth doing for the answer.
+
 ## Publishing
 
 **Publishing waits for an approval**: the `pypi` and `testpypi`
