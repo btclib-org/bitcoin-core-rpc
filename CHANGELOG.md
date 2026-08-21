@@ -598,6 +598,35 @@ carry a union merge driver that would keep both sides' numbers.
   shape adopted here too — a page missing from the list is visible on
   the next read, where a stale number was not.
 
+- **`REVIEWING.md` asks a review to run what a diff decides with.** A
+  regex, a grep, a pattern in a hook, a script or a query decides an
+  outcome by matching or computing, and a review of one executes it
+  rather than reading it — against the shapes the diff's own prose
+  claims to cover, and against the shapes the tree actually holds. A
+  claim the prose makes about the tree takes the same treatment, "every
+  link here is already `./`-prefixed" being one `git grep`'s worth of
+  evidence and the reason a change is offered as safe.
+
+  What earned the rule is this repository's own review of the
+  `local-link-prefix` pygrep hook, pull request #192, the same pattern
+  having been proposed across the organization byte for byte. The
+  leading clause `\[[^]]*\]\(` cannot cross the `]` that closes an
+  image's alt text, so on the badge shape `[![alt](./src)](./href)` it
+  examines the image source and never the destination the link itself
+  carries — which is the destination that hook's own comment cites as
+  its motivating case, left free to lose its `./` unreported. That
+  review ran the clause against `README.md`'s licence badge and quoted
+  what it printed; the sibling reviews reasoned about the same pattern
+  and reported it correct. The rule generalizes what the run did rather
+  than leaving it to whoever thinks of it.
+
+  The section says what it is not, `claude-review.yml`'s prompt telling
+  a review here not to re-run the gates: those run what the rest of the
+  tree already exercises, where a pattern a diff adds has been run
+  against nothing until a review runs it. The prompt is unchanged — it
+  names `REVIEWING.md` rather than restating it, so the standard moves
+  without the workflow being edited.
+
 ## v2026.8.20
 
 ### Repository
