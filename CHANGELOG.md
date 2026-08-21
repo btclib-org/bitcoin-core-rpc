@@ -44,6 +44,30 @@ carry a union merge driver that would keep both sides' numbers.
   nothing else changes. btclib does the same in its own pull request,
   and the organization profile no longer names Slack either.
 
+- **`check-wheel-contents` gains a `package` configuration**, closing
+  btclib-org/btclib#1160's divergence for this repository: the two other
+  publishing repositories in this organization each carry a form of a
+  wheel-contents check the third lacked. `btclib` has a hand-written
+  script comparing the built wheel and sdist member for member against
+  an allowlist; `btclib-secp256k1` configures `check-wheel-contents`
+  with `ignore` entries for the members its compiled wheels carry that
+  a pure-Python one does not. This repository ran `check-wheel-contents`
+  with no configuration at all, in `test.yml`'s `dist` job — which is
+  the shape that passed cleanly, measured, against a wheel built with
+  `py.typed` stripped out and `RECORD` edited to match: unconfigured,
+  the tool trusts the wheel's own `RECORD` and never looks at the
+  source tree the wheel was supposed to carry, so a file the
+  `[tool.setuptools] packages` block or `[tool.setuptools.package-data]`
+  stopped shipping is invisible to it. `package = ["bitcoin_core_rpc"]`
+  is the fix: it diffs the wheel's `bitcoin_core_rpc/` against this
+  checkout's, and reports the same missing `py.typed` as `W101`. No
+  script was ported from either sibling: a single-module,
+  dependency-free package with no data directory has nothing for one to
+  check that `check-wheel-contents`, configured, and `check-manifest`
+  — already gating the sdist against this tree — do not already cover
+  between them, `git tree == sdist == wheel` in one hop each rather
+  than through a third comparison of the sdist to the wheel.
+
 - **`release.yml`'s `github-release` job gains an explicit `if`**,
   closing issue #149: `always() && needs.publish-pypi.result ==
   'success' && needs.attest.result == 'success'`. Without it the job was

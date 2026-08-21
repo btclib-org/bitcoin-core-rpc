@@ -208,6 +208,34 @@ packages = ["bitcoin_core_rpc"]
 # `py.typed` is not a `.py`, so nothing ships it without being told
 bitcoin_core_rpc = ["py.typed"]
 
+[tool.check-wheel-contents]
+# what the packages block and package-data entry above are for: a wheel
+# that ships the tree those two describe, and nothing that check-wheel-
+# contents' own defaults would flag anyway (an unrelated top-level file,
+# an empty library) needs no configuration to catch. What defaults do
+# not catch is a file the tree has and the wheel does not -- `py.typed`
+# dropped by a package-data typo, say -- because with no `package` given
+# check-wheel-contents reads the wheel's own RECORD and asks nothing
+# about the source tree the wheel was supposed to carry. `--package
+# bitcoin_core_rpc` is what asks that question: it diffs the wheel's
+# `bitcoin_core_rpc/` against this checkout's, file for file, in both
+# directions (W101 missing, W102 extra). Measured against a wheel built
+# with `py.typed` stripped out and `RECORD` edited to match -- a build
+# that installs and imports cleanly -- unconfigured check-wheel-contents
+# reports it clean and this configuration reports "W101: Wheel library
+# is missing files in package tree: bitcoin_core_rpc/py.typed".
+#
+# That is the whole of what this repository needs: `check-manifest`
+# above already gates the sdist against this same tree (a pre-commit
+# hook, gated by the lint workflow), so together the two amount to
+# `git tree == sdist == wheel`, verified in one hop each rather than
+# through a third script comparing the sdist to the wheel, which is a
+# comparison a single-module, dependency-free package with no data
+# directory has nothing to add to. See
+# btclib-org/btclib#1160 for that comparison across this organization's
+# three publishing repositories.
+package = ["bitcoin_core_rpc"]
+
 [tool.check-manifest]
 # what a distribution has no business holding: a link checker's exclusions
 # and an editor's workspace, neither of which is the subject of an sdist.
