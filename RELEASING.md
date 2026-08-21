@@ -43,14 +43,21 @@ Telling these apart is most of what can go wrong when cutting a release.
 - **`v2026.8.6`**, the tag, carries no version of its own: it picks the
   index, PyPI rather than TestPyPI, and `version-check` exists to
   confirm it says what `pyproject.toml` says
-- **`2026.8.6.dev7`** is a rehearsal, and nobody types it either half at
-  a time: `.dev<run number>` is the template `release.yml` appends to
-  what `pyproject.toml` declares when `workflow_dispatch` starts it, the
-  number being `github.run_number` counted for that workflow alone, so
-  the seventh such run rehearsing `2026.8.6` produces exactly that. The
-  count is what makes a rehearsal's version unique, and what makes
-  re-running a finished one collide with itself rather than mint a new
-  one. Nothing writes it down, and no commit ever carries it
+- **`2026.8.6.dev701`** is a rehearsal, and nobody types it either half
+  at a time: `.dev<run*100+attempt>` is the template `release.yml`
+  appends to what `pyproject.toml` declares when `workflow_dispatch`
+  starts it, `github.run_number` counted for that workflow alone and
+  `github.run_attempt` counted for one dispatch of it, so the seventh
+  such run's first attempt, rehearsing `2026.8.6`, produces exactly
+  that. The multiplier is what makes a re-run a version of its own
+  rather than a collision: a re-run keeps the run's own number and only
+  raises the attempt, so the run number alone was identical across every
+  re-run of one dispatch and PEP 440 could not tell them apart. Placing
+  the attempt below the run number's own place value keeps a run's later
+  attempts sorting after its earlier ones and before the next run's, the
+  attempt therefore capped at two digits and the workflow refusing a
+  hundredth rather than silently wrapping into the next run's range.
+  Nothing writes it down, and no commit ever carries it
 - **`2026.8.6rc1`**, and a `v2026.8.6rc1` tag, have no place in this
   scheme: there are no release candidates here, only a version not yet
   tagged. `version-check` refuses anything that is not digits and dots,
@@ -124,19 +131,22 @@ tag exercises the first.
 1. On GitHub, Actions → release → Run workflow, and pick the branch to
    rehearse (usually `main`).
 
-1. The workflow appends `.dev<run number>` to whatever `pyproject.toml`
-   declares on the branch dispatched — the outgoing cycle's placeholder if
-   the version about to ship has not landed yet, which publishes something
-   like `2026.9.dev4` and still tests the identical pipeline the tag will
-   run; the number is not what is being asked about.
-   Every rehearsal is unique on TestPyPI this way. It sorts before the
-   release it rehearses once that release's own version is the one
-   declared, which is what the rehearsal after the merge below runs on; a
-   placeholder naming a later month sorts after the day it rehearses
-   instead, which costs nothing — `.dev` is a pre-release no plain install
-   resolves, and the release itself never reaches TestPyPI. Re-running a
-   finished rehearsal would reuse its run number and be refused by
-   TestPyPI: dispatch a fresh run instead.
+1. The workflow appends `.dev<run*100+attempt>` to whatever
+   `pyproject.toml` declares on the branch dispatched — the outgoing
+   cycle's placeholder if the version about to ship has not landed yet,
+   which publishes something like `2026.9.dev401` and still tests the
+   identical pipeline the tag will run; the number is not what is being
+   asked about.
+   Every rehearsal is unique on TestPyPI this way, re-runs included: a
+   re-run raises only `github.run_attempt`, which the run number is
+   multiplied by 100 to make room for, so re-running a failed or finished
+   rehearsal mints its own version instead of colliding with the one it
+   repeats. It sorts before the release it rehearses once that release's
+   own version is the one declared, which is what the rehearsal after
+   the merge below runs on; a placeholder naming a later month sorts
+   after the day it rehearses instead, which costs nothing — `.dev` is a
+   pre-release no plain install resolves, and the release itself never
+   reaches TestPyPI.
 
 1. Check the upload, and optionally install it — it has no dependency to
    resolve from anywhere:
@@ -549,7 +559,7 @@ reading a mismatch as tampering:
   saw. A mismatch dates the rebuild before it accuses anyone; pinning the
   backend to a version is the fix, and the cost is a floor that ages.
 - **the rehearsal is a different version, by construction.** A TestPyPI
-  dispatch appends `.dev<run number>` to the version, so its files are not
+  dispatch appends `.dev<run*100+attempt>` to the version, so its files are not
   a second build of the release's — they are their own artifact, published
   where they say they are. The attestation the rehearsal writes covers
   those, and no digest is shared with the release.
