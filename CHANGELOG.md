@@ -313,6 +313,40 @@ carry a union merge driver that would keep both sides' numbers.
   change — issue #7 of the same repository is that, across every
   repository in the organization, and the two are meant to be read
   together.
+- **Coverage measures branches and not statements alone**, `branch =
+  true` in `[tool.coverage.run]`, which the organization standard asks
+  of every repository under it (btclib-org/.github#7). Statement
+  coverage calls a half-tested `if` fully covered: the line ran, one of
+  its two ways out never did, and in a module whose bodies are guard
+  clauses — the credential already supplied, the cookie file already
+  read, the reply that is not an error — the way nobody took is the
+  refusal nobody exercised. What the sweep found is that the client
+  itself was already whole under the stricter measure, and that the one
+  partial branch was in the suite: `tests/standalone_test.py`'s scan for
+  the docstrings `automodule` renders never met a module-level
+  definition without one, every definition of the client carrying a
+  docstring. Closed by a test rather than by a `pragma: no cover`, since
+  the branch is reachable and a scan nothing has ever made report is a
+  check whose passing says nothing — the scan is now `_documented_names`
+  and is read against a source written for it that holds a definition of
+  each kind, documented and bare, assignment with a string literal after
+  it and assignment without. No pragma was added anywhere.
+- **`pydoclint` joins the lint gate**, over `bitcoin_core_rpc/` and
+  configured in `[tool.pydoclint]` (btclib-org/.github#7): ruff's `D`
+  rules ask that a docstring exists, and this asks that the arguments
+  and the return it documents are the ones the signature declares — the
+  half that goes wrong in silence when a signature changes and the prose
+  above it does not. It reports nothing today, and one of its options is
+  why: `skip-checking-short-docstrings` stays at its default, where
+  btclib-secp256k1 turns it off, so a docstring carrying no section at
+  all is skipped whole. Turning it off here would ask for an `Args:`
+  section in every docstring of a file whose paragraphs already name
+  their parameters in sentences, which is the same fact written twice in
+  the one file a consumer vendors and reads end to end. Issue #172 holds
+  that question open, with the output the stricter setting produces and
+  the command that reproduces it; the hook meanwhile gates the case the
+  sections exist for, a docstring that does list arguments and lists
+  them wrong.
 
 ## v2026.8.20
 
