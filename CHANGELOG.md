@@ -28,8 +28,12 @@ carry a union merge driver that would keep both sides' numbers.
   the toolchain, the lint gate, the workflow set and the branch rules
   once for this repository and its siblings, and it claims to be linked
   from each repository's CONTRIBUTING.md. Nothing here named it: the
-  only mentions of that repository in this tree were CHANGELOG.md and
-  RELEASING.md citing issue numbers filed there, so a contributor
+  mentions of that repository in this tree were every one of them an
+  issue-number citation — in a workflow comment, a hook comment, the
+  changelog and the release guide — and not one of them a pointer to
+  the standard. `git grep -n 'btclib-org/\.github'` is what re-derives
+  them, a list here going stale the next time one is cited. So a
+  contributor
   following CONTRIBUTING.md to REPOSITORY.md to CLAUDE.md was never
   told a document above them existed — and a rule stated only there was
   one they could not find. The pointer is in the opening rather than in
