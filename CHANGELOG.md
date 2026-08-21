@@ -441,6 +441,18 @@ carry a union merge driver that would keep both sides' numbers.
   already catches — a link myst resolves happily and is dead anyway is
   the whole reason this second check exists.
 
+- **REPOSITORY.md records that this repository pins its own
+  `default_workflow_permissions` rather than inheriting the
+  organization default** (issue #165). The REST API has no field
+  distinguishing an override from an inheritance and no value that
+  clears one — checked against the current documentation rather than
+  assumed — so a future move of the organization default will not
+  reach this repository unless whoever moves it also moves this one by
+  hand, with the command the new section gives. `btclib` and
+  `btclib-secp256k1` are recorded as untested rather than known good:
+  both were already at the target value before the organization
+  default moved, so neither could have been observed following it.
+
 ## v2026.8.20
 
 ### Repository
