@@ -422,6 +422,21 @@ carry a union merge driver that would keep both sides' numbers.
   pointer at the `skipped` case's own script below rather than a
   second copy of it, the two bullets already differing only in
   whether `gh run rerun --failed` is worth trying first.
+- **`docs.yml`'s unresolved-link grep now carries both known shapes**,
+  closing btclib-org/btclib#1157. MyST renders a link its
+  `RootFileLinks` transform cannot resolve as `href="#<target>"`
+  verbatim, so what the grep matches depends on how the target was
+  written — `href="#\./` for `./CONTRIBUTING.md`, this repository's own
+  convention throughout its root files, and
+  `href="#[A-Za-z0-9_.-]*\.md"` for a bare `SECURITY.md` with no `./`,
+  the convention `btclib-secp256k1` uses instead. This repository ran
+  only the first, which is blind to the second shape breaking here the
+  way it already does in the other two. Built the documentation with a
+  deliberately unresolved link of each shape and confirmed the added
+  grep reports it before removing it; `sphinx-build -W --keep-going`
+  passes on both unchanged, since neither is the broken *reference* `-W`
+  already catches — a link myst resolves happily and is dead anyway is
+  the whole reason this second check exists.
 
 ## v2026.8.20
 

@@ -115,14 +115,27 @@ jobs:
         run: >
           uv run --locked --no-default-groups --group docs
           sphinx-build -W --keep-going -b html docs/source docs/build/html
-      # the one defect the build above cannot report on itself: a relative
-      # link myst cannot resolve is rendered as an anchor on the page it is
-      # already on -- href="#./CONTRIBUTING.md", an id nothing has -- so
-      # -W passes over a dead link. conf.py resolves those links and
-      # suppresses no myst warning, which makes the build fail on the next
-      # one; this step is the same claim made about the artifact rather than
-      # about the configuration, and it is what would catch a suppression
-      # added back.
+      # the one defect the build above cannot report on itself: a link
+      # myst cannot resolve is rendered as an anchor on the page it is
+      # already on -- an id nothing has -- so -W passes over a dead link.
+      # conf.py resolves every link the included root files carry and
+      # suppresses no myst warning, which makes the build fail on the one
+      # myst still cannot place; this step is the same claim made about
+      # the artifact rather than about the configuration, and it is what
+      # would catch a suppression added back.
+      #
+      # Two greps, not one, because myst's fallback renders the target
+      # verbatim and this repository's root files write it two ways
+      # (issue #1157): "./CONTRIBUTING.md" for most links, which becomes
+      # href="#./CONTRIBUTING.md" -- the first grep, and a target the
+      # bare-name convention below also writes, "SECURITY.md" with no
+      # "./", which becomes href="#SECURITY.md" and only the second grep
+      # catches. Each repository in this organization used to run one of
+      # the two, on the strength of the convention its own root files
+      # happened to follow, which is blind to a broken link of the other
+      # shape; a survey across all three found no third shape among the
+      # links these pages actually carry, so two greps is the union
+      # rather than a guess at how far to generalize.
       #
       # Not lychee: links.yml reads the sources, where "./CONTRIBUTING.md"
       # is a correct path, and pointing it at docs/build/html would mean
@@ -138,7 +151,13 @@ jobs:
       # as href=&quot;#./, escaped
       - name: Check the built pages for unresolved links
         run: |
+          status=0
           if grep -rn 'href="#\./' docs/build/html --include='*.html'; then
-            echo "::error::the links above resolve to no page"
-            exit 1
+            echo "::error::the links above resolve to no page (unresolved relative path)"
+            status=1
           fi
+          if grep -rn 'href="#[A-Za-z0-9_.-]*\.md"' docs/build/html --include='*.html'; then
+            echo "::error::the links above resolve to no page (unresolved bare .md target)"
+            status=1
+          fi
+          exit $status
