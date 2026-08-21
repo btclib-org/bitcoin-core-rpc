@@ -279,10 +279,10 @@ repos:
   # prefix and "#NOPE.md", "#NOPE.txt", "#sub/NOPE.md", "#NOPE",
   # "#../NOPE.md" without it, so every row of the table above can be
   # written as a badge destination and only the first is caught
-  # downstream. This repository carries twenty such badge links between
-  # README.md and CONTRIBUTING.md, none of them violating the rule --
-  # `pre-commit run local-link-prefix --all-files` is what re-derives
-  # that, here and in the siblings, whose counts differ.
+  # downstream. README.md and CONTRIBUTING.md carry badge links of that
+  # shape, none of them violating the rule; `pre-commit run
+  # local-link-prefix --all-files` is what re-derives that, here and in
+  # the siblings.
   #
   # Measured here as well, by building this repository's documentation
   # with an unresolvable link written each way: "./page.md",
