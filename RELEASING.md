@@ -613,8 +613,16 @@ reading a mismatch as tampering:
   (`2026.8.6` → `2026.8.6.1`).
 
 - Only the `github-release` job failed: the PyPI upload is already done;
-  re-run the failed job, or create the release by hand from the `dist`
-  artifact of the run.
+  re-run the failed job, or recover by hand from the run's `dist` **and**
+  `attestation` artifacts, not `dist` alone — the job downloads both
+  before it writes the release, and a release built from `dist` only
+  would carry the wheel and the sdist with no signed statement beside
+  them, leaving "Rebuild a release from its tag" below nothing to
+  `--bundle` against. The by-hand recovery is the same script the
+  `skipped` case spells out next; the difference between the two is
+  only that `gh run rerun --failed` reaches a job the run marks
+  *failed*, so it is worth trying first here and is not an option
+  there at all.
 
 - `github-release` shows **`skipped`** rather than failed, though both of
   its needs — `publish-pypi` and `attest` — report `success`. The run's own
