@@ -275,10 +275,10 @@ hashes = rpc.batch_([["getblockhash", height] for height in heights])
 hashes = [client.call("getblockhash", [height]) for height in heights]
 ```
 
-**An error.** `JSONRPCException` becomes three exceptions, and [When it
-goes wrong](#when-it-goes-wrong) above has the table: `RpcError` for an
-error the node computed, `HttpError` for an exchange that failed and
-`FetchError` for no answer to read. All three are `FetchError`, so `except
+**An error.** `JSONRPCException` becomes the exceptions [When it goes
+wrong](#when-it-goes-wrong) above tables: `RpcError` for an error the node
+computed, `HttpError` for an exchange that failed and `FetchError` for no
+answer to read. Every one of them is a `FetchError`, so `except
 FetchError` is the translation that catches what the one exception caught.
 
 [COMPARISON.md](./COMPARISON.md) has the case for the switch beyond this
