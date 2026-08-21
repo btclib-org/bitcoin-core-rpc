@@ -175,6 +175,33 @@ carry a union merge driver that would keep both sides' numbers.
   hook's `rev`, which was never it: that rev moves on pre-commit.ci's
   own schedule and happened to read close to the old floor by
   coincidence.
+- **`release.yml` gains a `documented` job**, closing issue #154: on a
+  tag push it polls `https://bitcoin-core-rpc.readthedocs.io/en/<tag>/`,
+  30 attempts 30 seconds apart, and fails the run if that URL is never
+  served. Read the Docs activates and builds a release tag from an
+  automation rule of its own, and a build that never starts fails
+  nothing else in the pipeline — a site answering 200 keeps serving the
+  last build that succeeded for as long as it takes somebody to notice,
+  which is the failure mode btclib's own RELEASING.md records in its
+  aggravated form: a webhook refusing every delivery with a 400 for
+  three years while the site kept answering 200. The job asks the
+  rendered URL rather than the v3 API: Read the Docs throttles an
+  unauthenticated caller and blocks cloud-provider addresses without a
+  token, so asking the API from a runner would mean storing a
+  credential for a check that gates nothing, where `/en/<tag>/` is
+  CDN-served, 404s for a version with no successful build, and is the
+  URL a reader follows anyway. It runs after `version-check` and
+  nothing depends on it: a late documentation build is not a reason to
+  withhold a wheel, and the fix for a red run here is a build on Read
+  the Docs' side, never a moved tag. Landed after issue #149's
+  `github-release` fix, deliberately, so that a job able to fail the
+  run could not import a new way to lose the GitHub release before that
+  fix existed. Ported from btclib's own `documented` job in
+  `release.yml`; `release.yml` cannot run on a pull request, so the
+  polling loop was run verbatim from the shell against a tag Read the
+  Docs did build (v2026.8.20, served) and one it did not (v2026.8.12,
+  404) before landing, rather than trusted on the strength of the diff
+  alone.
 
 ## v2026.8.20
 
