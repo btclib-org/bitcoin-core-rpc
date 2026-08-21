@@ -33,6 +33,18 @@ carry a union merge driver that would keep both sides' numbers.
   in its "Read the bill of materials attached to the release"
   step; see that and btclib-org/btclib#1159 for the evaluation.
 
+- **That step names the trigger it shares with its siblings**
+  (btclib-org/.github#24). `dependencies = []` is this repository's own
+  premise, and the sentence already said what would unseat it; what it
+  did not say is that the decision rests on a second premise it holds in
+  common with the siblings — btclib's generator builds its `components`
+  from `Requires-Dist`, so a generator that learned to describe a
+  component that metadata cannot express would reopen the question
+  everywhere the decision is recorded, here included. The step now names
+  that second trigger and the open issue watching it, where
+  btclib-org/btclib#1159, cited beside it for the evaluation, watches
+  nothing.
+
 - **The Slack badge is gone from README.md and CONTRIBUTING.md.** The
   badge block's own comment states the criterion — a badge reports state,
   which is why "we use ruff" is not one — and this badge reported a
