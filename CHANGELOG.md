@@ -28,11 +28,13 @@ carry a union merge driver that would keep both sides' numbers.
   the toolchain, the lint gate, the workflow set and the branch rules
   once for this repository and its siblings, and it claims to be linked
   from each repository's CONTRIBUTING.md. Nothing here named it. Every
-  mention of that repository in this tree either pointed at an issue
-  filed there or deep-linked
-  one subsection of it to justify one setting, reached only by
-  somebody already reading the paragraph that carries it; not one of
-  them told a reader the document exists.
+  mention of that repository in this tree cited an issue filed there,
+  to justify the rule that issue records; not one of them told a reader
+  the document itself exists. A sibling repository has one mention that
+  is a link rather than a citation, into a subsection of the standard to
+  justify a setting, and it makes no difference to this: a destination
+  reached only by somebody already reading the paragraph that carries it
+  is not a signpost either.
   `git grep -n 'btclib-org/\.github'` is what re-derives them, a list
   here going stale the next time one is written. So a contributor
   following CONTRIBUTING.md to REPOSITORY.md to CLAUDE.md was never
