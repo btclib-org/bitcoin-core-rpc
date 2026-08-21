@@ -683,6 +683,28 @@ carry a union merge driver that would keep both sides' numbers.
   default moved on 21 August 2026 and so could not be observed following
   it. This repository's own entry is unchanged: it is pinned, and the
   read-back beside it still answers `read`.
+- **`.readthedocs.yaml`'s header stops describing a sibling's tree, and
+  starts saying what the file does not decide**
+  (btclib-org/.github#26). The line about `readthedocs.yml` being
+  honored but deprecated arrived with a clause about `include *.yml`
+  dragging the file into the sdist beside the Jekyll configuration.
+  Nothing serves a site from this root, there is no such configuration
+  to sit beside, and `MANIFEST.in` names `include *.yaml` with its own
+  reason written beside it — so the clause was true of btclib and of
+  nothing here. It is now attributed to btclib rather than deleted, a
+  clause named as another repository's being harder to copy back than a
+  gap.
+
+  What is added is the fact this tree cannot answer anywhere: *which*
+  versions run this file. `latest`, `stable` and each release tag are
+  versions on read the docs' side, and an automation rule is what
+  activates a new tag there — so a release that keeps a permanent URL of
+  its own and one that does not differ in a setting rather than in the
+  tree. btclib's `REPOSITORY.md` carries a "Read the Docs" section
+  recording exactly those settings; this repository's has none, and the
+  comment says so and names btclib-org/.github#26, which carries the
+  commands that read the state back. Writing that section here is a
+  change to `REPOSITORY.md` and left to one.
 
 ## v2026.8.20
 
