@@ -376,6 +376,26 @@ repos:
         args: [--fix]
       - id: ruff-format
         name: ruff format (in place fixes)
+  # what ruff's D rules do not reach: they ask that a docstring exists, and
+  # this asks that the arguments and the return it documents are the ones
+  # the signature declares -- the half that goes wrong in silence when a
+  # signature changes and the prose above it does not. The configuration is
+  # in pyproject.toml, next to the ruff one, and says which of its checks
+  # are off here and why.
+  #
+  # Scoped to bitcoin_core_rpc, which is where the contract has to be
+  # written down: the module is meant to be copied out of a distribution,
+  # so what a consumer reads is help() and an IDE tooltip on that one file,
+  # with no README beside it. Neither of the two other trees is that -- a
+  # test documents what it claims and not the fixtures it takes, and
+  # .github/scripts is read from the source tree by whoever changes it
+  - repo: https://github.com/jsh9/pydoclint
+    rev: 0.9.1
+    hooks:
+      - id: pydoclint
+        name: pydoclint (arguments and return values)
+        args: [--config=pyproject.toml]
+        files: ^bitcoin_core_rpc/.*\.py$
   # not the mirrors-mypy hook: it injects --ignore-missing-imports, which
   # turns an unresolved (or misspelled) import into Any, the opposite of
   # strict, and it type checks in an isolated environment, where the

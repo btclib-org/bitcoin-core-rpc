@@ -364,6 +364,13 @@ extend-ignore-re = ['`[^`]*`']
 # is dead code with the authority of a test.
 source = ["bitcoin_core_rpc", "tests"]
 omit = ["*/site-packages/*"]
+# statement coverage calls a half-tested `if` fully covered: the line ran,
+# one of its two ways out never did. What that hides here is this module's
+# own shape -- it is a thin client whose bodies are guard clauses, an
+# early return for the credential already supplied, for the cookie file
+# already read, for the response that is not an error -- so the branch
+# nothing takes is exactly the refusal nobody exercised
+branch = true
 
 [tool.coverage.report]
 show_missing = true
@@ -613,3 +620,35 @@ convention = "pep257"
 # nothing legitimate sits between byte zero and the notice for the
 # anchor to exclude
 notice-rgx = "^# Copyright \\(c\\) The btclib developers\\n#\\n# Permission is hereby granted, free of charge, to any person obtaining a copy\\n# of this software and associated documentation files \\(the \"Software\"\\), to deal\\n# in the Software without restriction, including without limitation the rights\\n# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\\n# copies of the Software, and to permit persons to whom the Software is\\n# furnished to do so, subject to the following conditions:\\n#\\n# The above copyright notice and this permission notice shall be included in all\\n# copies or substantial portions of the Software\\.\\n#\\n# THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\\n# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\\n# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT\\. IN NO EVENT SHALL THE\\n# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\\n# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\\n# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\\n# SOFTWARE\\."
+
+# what ruff's D rules do not reach: they ask that a docstring exists, and
+# this asks that the parameters and the return it names are the ones the
+# signature declares. Run as a hook over bitcoin_core_rpc only, and
+# .pre-commit-config.yaml says why the scope stops there
+[tool.pydoclint]
+# napoleon renders it, which is what docs/source/conf.py enables, so the
+# sections named here are ones sphinx already understands
+style = "google"
+# the types are in the signature, and mypy is strict: repeating them in
+# the docstring is a second place to be wrong
+arg-type-hints-in-docstring = false
+check-return-types = false
+# left at its default, and that is a deviation from btclib-secp256k1,
+# which turns it off. There a docstring is a summary line and the option
+# is what stops one from passing unread; here every docstring of the
+# module is prose that names each parameter in sentences -- `call` on
+# `params`, `request_timeout` and `max_body_size`, `http_request` on
+# `max_body_size` and `timeout` -- so turning it off asks for an Args
+# section restating what the paragraph above it already says, in a file
+# meant to be read as one. What stays checked is the case the sections
+# exist for: a docstring that does list arguments and lists them wrong,
+# which is what a signature change leaves behind
+skip-checking-short-docstrings = true
+# off, and for this module's own reason. It compares the Raises section
+# with the `raise` statements of the body, and the client raises mostly
+# through what it calls -- `http_request` for a transport that did not
+# answer, `_reply_object` and `_rpc_error` for a reply that is an error
+# -- so `HttpError` and `RpcError`, which is what a caller of `call`
+# catches, appear in no `raise` of its body. Kept on, it would ask each
+# docstring to document its body instead of its contract
+skip-checking-raises = true

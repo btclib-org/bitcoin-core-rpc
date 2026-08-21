@@ -43,18 +43,8 @@ def _source_path() -> Path:
     return Path(path)
 
 
-def test_every_public_name_carries_a_docstring() -> None:
-    """`docs/source/api.rst` says the page lists the whole public surface.
-
-    `automodule` with `:members:` documents a class or a function by its
-    docstring and a module-level assignment by the string literal that
-    follows it -- a `#` comment is neither, so a constant carrying one is
-    absent from the built page rather than undescribed on it. Nine of the
-    names in `__all__` were, the type aliases and every constant among
-    them, which is the promise above being false about the interface a
-    consumer reads at readthedocs.
-    """
-    body = ast.parse(_source_path().read_text(encoding="utf-8")).body
+def _documented_names(source: str) -> set[str]:
+    body = ast.parse(source).body
     documented = set()
     for position, statement in enumerate(body):
         if isinstance(statement, (ast.FunctionDef, ast.ClassDef)):
@@ -80,6 +70,43 @@ def test_every_public_name_carries_a_docstring() -> None:
             and isinstance(following.value.value, str)
         ):
             documented.add(name)
+    return documented
+
+
+def test_the_docstring_scan_reads_what_automodule_would() -> None:
+    """The scan below reports nothing on this tree, so it is read here.
+
+    Every module-level definition of the client carries a docstring and
+    every name of `__all__` is documented, which is the property the next
+    test states -- and it leaves that test unable to distinguish a scan
+    that works from one that returns everything it is asked about. This
+    source has one of each kind: a definition with a docstring and one
+    without, an assignment followed by a string literal and one followed
+    by nothing.
+    """
+    source = (
+        'class Documented:\n    """Yes."""\n\n'
+        "class Bare:\n    x = 1\n\n"
+        'def documented() -> None:\n    """Yes."""\n\n'
+        "def bare() -> None:\n    return None\n\n"
+        'DOCUMENTED = 1\n"""Yes."""\n\n'
+        "BARE = 2\n"
+    )
+    assert _documented_names(source) == {"Documented", "documented", "DOCUMENTED"}
+
+
+def test_every_public_name_carries_a_docstring() -> None:
+    """`docs/source/api.rst` says the page lists the whole public surface.
+
+    `automodule` with `:members:` documents a class or a function by its
+    docstring and a module-level assignment by the string literal that
+    follows it -- a `#` comment is neither, so a constant carrying one is
+    absent from the built page rather than undescribed on it. Nine of the
+    names in `__all__` were, the type aliases and every constant among
+    them, which is the promise above being false about the interface a
+    consumer reads at readthedocs.
+    """
+    documented = _documented_names(_source_path().read_text(encoding="utf-8"))
     undocumented = sorted(set(bitcoin_core_rpc.__all__) - documented)
     # named, because pytest elides the difference of two sets this size and
     # what the next reader needs is which name arrived without one
