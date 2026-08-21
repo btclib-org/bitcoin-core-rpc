@@ -138,13 +138,15 @@ lint = ["mypy", "pre-commit", "ruff>=0.16"]
 # and it asks for --group test as well, cosmic-ray shelling out to pytest
 mutation = ["cosmic-ray"]
 # the distribution files are built and published by uv itself: what this
-# group holds is what inspects them, before an upload consumes the version
-build = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
+# group holds is what inspects them, before an upload consumes the version.
+# Named check, not build, so that --only-group build means the same thing
+# in btclib-secp256k1, which genuinely needs a group for building wheels
+check = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
 docs = ["myst-parser", "sphinx", "sphinx_rtd_theme"]
 dev = [
     { include-group = "test" },
     { include-group = "lint" },
-    { include-group = "build" },
+    { include-group = "check" },
     { include-group = "docs" },
     { include-group = "mutation" },
 ]
