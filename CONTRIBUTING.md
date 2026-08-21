@@ -73,7 +73,7 @@ read by every checkout of this repository.
 | `test` | pull request, push | 3 platforms × 7 interpreters |
 | `lint`, `docs` | pull request, push | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
-| `integration` | pull request, push | 2 Core versions, 4 chains |
+| `integration` | pull request, push | 2 protocol cells, 4 chain cells |
 | `codeql` | push to main, Tuesday | 2 languages |
 | `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
 | `windows-arm` | Saturday, a release | `windows-11-arm` × 7 interpreters |
@@ -83,8 +83,7 @@ read by every checkout of this repository.
 | `published` | monthly, a release | what PyPI serves |
 | `release` | a tag | calls the six workflows above it, and `published` |
 
-The first four rows are what a merge waits for, about three minutes between
-them.
+The first four rows are what a merge waits for.
 
 What the rows below them have in common is one number: GitHub Free gives an
 organization twenty concurrent jobs, shared across every repository in it.
@@ -97,7 +96,7 @@ minute; and the fourteen Windows cells were 9.4 of the run's 16.9
 runner-minutes, `windows-11-arm` the slower half of them at 40 to 77 seconds
 a cell against 29 to 34 on `windows-latest`.
 
-`windows-latest` stays in `test`, and that is not an oversight. The one
+`windows-latest` stays in `test`, and that is not an oversight. The
 platform-conditional branch in this client is the datadir table in
 `default_datadir`, whose rows the suite drives by patching `sys.platform` —
 every row but the running one, so `%APPDATA%` and the `Path.home()` under it
@@ -116,7 +115,7 @@ pull request or the comment that triggered them, so a manual run would
 start with nothing to read.
 
 `codeql` runs on `main` and on its Tuesday schedule and not on a pull
-request, which is the same arithmetic as the rows above: three slots held
+request, which is the same arithmetic as the rows above: it holds slots
 while a review waits. What still reads a branch before it merges is
 `zizmor`, a `pre-commit` hook and therefore part of `lint`, which audits
 these workflows for an injected expression. `REPOSITORY.md` has the trade in

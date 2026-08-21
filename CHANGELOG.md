@@ -56,6 +56,21 @@ carry a union merge driver that would keep both sides' numbers.
   #1114 and #1133, naming the release commit's title and body
   explicitly rather than leaving them to this repository's
   `COMMIT_MESSAGES` squash default.
+- **RELEASING.md, REPOSITORY.md, CONTRIBUTING.md and README.md stop
+  stating counts nothing checks** (#150), the prose rule CONTRIBUTING.md
+  already carried but 22 places in these four files hadn't caught up
+  with: an unguarded number restating a job count, a
+  permission count or a structural claim, removed or replaced by naming
+  the things directly, so two files describing the same fact can't say
+  it two different ways. One of the 22 was already wrong rather than
+  merely fragile: CONTRIBUTING.md's workflow table read `integration`'s
+  matrix as "2 Core versions, 4 chains", which next to the `N platforms
+  × M interpreters` rows around it reads as a cross product, 8;
+  `integration.yml`'s actual matrix is 6 — two `protocol` cells plus
+  four `chain` cells, additive — matching what REPOSITORY.md's own "six
+  matrix cells" already said correctly. `N platforms × M interpreters`
+  table rows are otherwise left untouched, and GitHub's platform-limit
+  numbers stay as the dated historical constants they already were.
 - **A `tag-integrity` ruleset now enforces the other half of issue
   #139**, requiring `required_signatures` on `refs/tags/v*`, with no
   bypass actor. RELEASING.md's tagging step already produces a signed
