@@ -489,13 +489,12 @@ the choice in the release pull request, next to `latest`'s own result.
    **No CycloneDX bill of materials is among them, on purpose.** btclib
    attaches one; this repository declares `dependencies = []` in
    `pyproject.toml`, and `published.yml` already asserts that against
-   the installed package on every run (`assert not requires(name)`
-   against the real index, monthly and on dispatch). A bill of
-   materials here would be an empty `components` list restating a fact
-   already checked more directly. See issue
+   the installed package on every run. btclib's `RELEASING.md` (the
+   "Read the bill of materials attached to the release" step) has the
+   full reasoning for why that makes one redundant here, and issue
    [btclib-org/btclib#1159](https://github.com/btclib-org/btclib/issues/1159)
-   for the evaluation and what would change it — a real runtime
-   dependency arriving here being the most direct way.
+   has the evaluation behind it — a real runtime dependency arriving
+   here being the most direct way to change the answer.
 
 1. Verify the provenance of an asset, which is the release's own and not
    the PEP 740 attestations checked two steps up: those cover the copies
