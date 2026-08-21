@@ -23,6 +23,16 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **RELEASING.md records why no SBOM is attached to this
+  repository's releases.** This repository declares
+  `dependencies = []` (`pyproject.toml:62`), and `published.yml`
+  already asserts that against the installed package on every run
+  (`assert not requires(name)`, monthly and on dispatch). btclib's
+  RELEASING.md carries the reasoning for why that makes a bill of
+  materials here redundant with what CI already checks directly,
+  in its "Read the bill of materials attached to the release"
+  step; see that and btclib-org/btclib#1159 for the evaluation.
+
 - **The Slack badge is gone from README.md and CONTRIBUTING.md.** The
   badge block's own comment states the criterion — a badge reports state,
   which is why "we use ruff" is not one — and this badge reported a
