@@ -23,6 +23,17 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`RELEASING.md` gains an explicit decision point for a dependency's
+  drift, and the actual command that lands a release pull request
+  here**, both findings from cutting btclib-secp256k1's 0.8.0.4
+  (btclib-secp256k1#288, #289, #290): whether to act on `uv lock
+  --upgrade`'s drift or leave it belongs in the release pull request
+  rather than defaulting by omission, and `gh pr merge --squash` alone
+  refuses that same pull request client-side on a solo-maintainer
+  repository — `--admin` clears it, measured on btclib's #1111, #1113,
+  #1114 and #1133, naming the release commit's title and body
+  explicitly rather than leaving them to this repository's
+  `COMMIT_MESSAGES` squash default.
 - **A `tag-integrity` ruleset now enforces the other half of issue
   #139**, requiring `required_signatures` on `refs/tags/v*`, with no
   bypass actor. RELEASING.md's tagging step already produces a signed

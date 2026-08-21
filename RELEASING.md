@@ -327,10 +327,13 @@ the choice in the release pull request, next to `latest`'s own result.
    commit's title and body explicitly when using it — `gh pr merge <n>
    --squash --admin --subject "<title>" --body-file <path>` — rather
    than leave them to `squash_merge_commit_message`'s repository
-   default, `COMMIT_MESSAGES` here: this branch carries more than one
-   commit every time (the paragraph below this one), and that default
-   composes the commit under the tag from all of them rather than from
-   what step 3 wrote.
+   default, `COMMIT_MESSAGES` here: this repository's own release pull
+   requests have so far landed as a single commit each (#143, #108), so
+   that default and the commit's own message have been the same string,
+   but naming them explicitly costs nothing and stops depending on that
+   staying true — btclib-secp256k1's release branch is a version bump
+   and two retitles, never one commit, and its own RELEASING.md needed
+   this the first time a release carried more than a single change.
 
    `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
    merge_method=squash` is the fallback for when `--admin` is
@@ -338,8 +341,8 @@ the choice in the release pull request, next to `latest`'s own result.
    same way for the same reason. It is what landed btclib-secp256k1's
    0.8.0.4 clean — but only because that branch carried a single commit,
    so `COMMIT_MESSAGES`'s concatenation and that commit's own message
-   were the same string; a multi-commit release branch without the two
-   parameters would not be so lucky.
+   were the same string there too; a multi-commit release branch without
+   the two parameters would not be so lucky.
 
    That the commit is composed by GitHub and signed with its web-flow
    key rather than yours costs nothing. What `main-integrity` requires
