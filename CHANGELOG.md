@@ -423,7 +423,8 @@ carry a union merge driver that would keep both sides' numbers.
   second copy of it, the two bullets already differing only in
   whether `gh run rerun --failed` is worth trying first.
 - **`docs.yml`'s unresolved-link grep now carries both known shapes**,
-  closing btclib-org/btclib#1157. MyST renders a link its
+  one of two companion fixes for btclib-org/btclib#1157, which
+  btclib-org/btclib's own PR closes. MyST renders a link its
   `RootFileLinks` transform cannot resolve as `href="#<target>"`
   verbatim, so what the grep matches depends on how the target was
   written — `href="#\./` for `./CONTRIBUTING.md`, this repository's own

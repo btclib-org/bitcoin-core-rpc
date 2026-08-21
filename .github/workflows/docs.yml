@@ -126,7 +126,7 @@ jobs:
       #
       # Two greps, not one, because myst's fallback renders the target
       # verbatim and this repository's root files write it two ways
-      # (issue #1157): "./CONTRIBUTING.md" for most links, which becomes
+      # (issue btclib-org/btclib#1157): "./CONTRIBUTING.md" for most links, which becomes
       # href="#./CONTRIBUTING.md" -- the first grep, and a target the
       # bare-name convention below also writes, "SECURITY.md" with no
       # "./", which becomes href="#SECURITY.md" and only the second grep
