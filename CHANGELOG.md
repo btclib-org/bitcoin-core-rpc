@@ -228,6 +228,30 @@ carry a union merge driver that would keep both sides' numbers.
   digits it reserves for the attempt rather than wrapping into another
   run's range. RELEASING.md's warning goes with it, the rule it stated
   no longer being true.
+- **`release.yml`'s `build` job now runs `twine check --strict`,
+  `check-wheel-contents` and `pyroma --min 10` on the files it is about
+  to publish** (issue #155). Those three already gated every pull
+  request, in `test.yml`'s `dist` job, but `build` rebuilds the
+  distribution files from the same tree rather than reusing `dist`'s
+  artifact, and ran none of the three on its own copy — so a tag that
+  passed every check still published files nobody had checked,
+  "usually" identical to the checked ones being the whole of the
+  guarantee. The three new steps run after `Upload the distribution
+  files` rather than before it: each check installs a dependency of its
+  own, and the existing comment on that upload step already establishes
+  that nothing gets installed before `dist/` is frozen for the publish
+  jobs to download, a boundary these steps keep rather than move.
+  `publish-testpypi` and `publish-pypi` already had `build` in `needs`,
+  so a failing check now stops both. Left undone, and deliberately, the
+  same way repository btclib's issue #1154, PR #1164 left it:
+  `release.yml` still builds the distribution files twice, once in the
+  `test` job it calls and once in `build` — reaching the shape with no
+  second build, as `btclib-secp256k1`'s `release.yml` already has, needs
+  `test.yml`'s artifact published instead of rebuilt, a larger change
+  than this one. `test.yml`'s comment on the `dist` job and
+  RELEASING.md's rehearsal description, both of which read as though
+  `dist` were the only place checking a distribution, are corrected
+  alongside the workflow.
 
 ## v2026.8.20
 
