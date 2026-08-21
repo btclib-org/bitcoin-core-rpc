@@ -357,6 +357,26 @@ carry a union merge driver that would keep both sides' numbers.
   the command that reproduces it; the hook meanwhile gates the case the
   sections exist for, a docstring that does list arguments and lists
   them wrong.
+- **`published.yml` carried a comment for an `if:` it never had, and
+  `setup-uv` was two minor versions behind both siblings** (issue #160,
+  divergences 19 and 21 of
+  [btclib#1152](https://github.com/btclib-org/btclib/issues/1152)).
+  "The second half filters the `workflow_run` trigger" sat above `if:
+  ${{ !github.event.pull_request.draft }}`, a single condition with no
+  second half and no `workflow_run` trigger anywhere in the file — only
+  `workflow_call`. `git log -S` on the phrase finds one commit, #76,
+  which introduced both the `workflow_call` trigger and this sentence
+  together: the sentence never matched the `if:` it sat above, and the
+  scenario it described — a `workflow_dispatch` rehearsal of
+  `release.yml` reaching this workflow — cannot happen either, `published`
+  being called only via `needs: publish-pypi`, which a rehearsal always
+  skips. Aspirational from the moment it was written, not a leftover from
+  a removed trigger. Deleted rather than corrected: there is no accurate
+  version of "the second half" to write, there being only one half.
+  `setup-uv` was pinned to `v10.0.0` (`ae62891f`) throughout, where
+  `btclib` and `btclib-secp256k1` are on `v10.0.1` (`20cfd1bf`, read from
+  a sibling and verified against the tag rather than re-resolved); brought
+  level across all 14 pins.
 
 ## v2026.8.20
 
