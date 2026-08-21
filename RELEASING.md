@@ -183,6 +183,12 @@ inferring it from a sibling. A release ships what `uv.lock` pins, so drift
 against a newer version of some dependency does not make the release
 wrong — it says the next bump is going to be work.
 
+Whether to close that drift now — `uv lock --upgrade`, gated by nothing
+here — or leave it for Dependabot's own pull requests is a decision
+worth stating rather than defaulting by omission: silence at the tag
+reads as "nobody looked", not as "looked and chose to leave it". State
+the choice in the release pull request, next to `latest`'s own result.
+
 1. Read what is open, and land first anything that fixes the release path
    itself:
 
@@ -305,6 +311,19 @@ wrong — it says the next bump is going to be work.
    `main-self-merge` bypass in `pull_request` mode is what answers that,
    and only that. There is no second landing to choose between: a direct
    push to `main` is refused for everyone.
+
+   `gh pr merge <n> --squash` alone can still refuse this pull request —
+   `the base branch policy prohibits the merge` — the way it did on
+   btclib-secp256k1's own v0.8.0.4 (btclib-secp256k1#288): a
+   solo-maintainer repository never clears `REVIEW_REQUIRED`, so gh's
+   client-side mergeable check declines before it asks the server at
+   all, and `--auto` only waits longer for the same review that will not
+   arrive. `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
+   merge_method=squash` is what landed that release — no approving
+   review, only comments — asking the endpoint directly rather than
+   gh's own check; `--admin` is gh's suggested flag for the same
+   `enforce_admins`/admin pair REPOSITORY.md's "Branch protection"
+   describes, not independently measured here.
 
    That the commit is composed by GitHub and signed with its web-flow
    key rather than yours costs nothing. What `main-integrity` requires
