@@ -454,15 +454,16 @@ the choice in the release pull request, next to `latest`'s own result.
    than a job of this one.
 
 1. Check the GitHub release the previous step's workflow run created —
-   **ask for the release itself, not for the run's conclusion**, the two
-   having disagreed on the last two tags:
+   **ask for the release itself, not for the run's conclusion**, a
+   skipped job being what a green run looks like from the Actions page:
 
    ```shell
-   gh release view v<version> --json name,assets
+   gh release view v<version> --json name,assets,author
    ```
 
-   `release not found` is the failure "If something goes wrong" ends with, and
-   a green run is exactly what it looks like from the Actions page. Its notes
+   `release not found` is the failure "If something goes wrong" ends with.
+   `author` is the cheap second question: `github-actions` is the workflow
+   having cut it, any other login a release recreated by hand. Its notes
    are the tag's section of RELEASE_NOTES.md, and the distribution files are
    attached, `<tag>.attestation.jsonl` beside them. A run that logs
    `RELEASE_NOTES.md has no v<version> section` generated the notes from the
@@ -591,13 +592,17 @@ reading a mismatch as tampering:
   artifact of the run.
 
 - `github-release` shows **`skipped`** rather than failed, though both of
-  its needs — `publish-pypi` and `attest` — report `success`: measured on
-  two consecutive tags rather than assumed, so it is the expected outcome
-  until it is fixed and not an accident to hope against. The run's own
+  its needs — `publish-pypi` and `attest` — report `success`. The run's own
   conclusion is `success` and no release exists, which is why the step
-  above asks `gh release view` rather than reading the run. Nothing in the
-  workflow file explains it — a report to GitHub support is owed, and
-  `gh run rerun --job` refuses a skipped job outright (`cannot be
+  above asks `gh release view` rather than reading the run. What produces
+  it is a job the release path does not depend on and cannot see:
+  `publish-testpypi` is skipped on a tag, `attest` needs it, and a job
+  standing behind a skipped ancestor is skipped in turn unless its own
+  condition opts out with `always()` — which `attest` does for itself and
+  cannot do on behalf of what needs `attest`. Every job that crosses a
+  skip has to say `always()`, so the answer is an explicit `if` on the job
+  that shows the symptom, not on the one that caused it. Recovery is by
+  hand: `gh run rerun --job` refuses a skipped job outright (`cannot be
   rerun`), unlike a failed one. Re-running the whole workflow is not the
   fix either: `publish-pypi` would attempt the upload a second time, and
   while PyPI would refuse the existing file names rather than accept a
