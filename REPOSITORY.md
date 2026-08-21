@@ -486,10 +486,10 @@ gh api repos/btclib-org/bitcoin-core-rpc/actions/permissions/workflow \
 ```
 
 It had to be set by hand because it had already drifted from the
-organization default: five other repositories in the organization
-followed the same default's move to `read`, and this one stayed
-`write` until the command above — which is how the override was found,
-there being no endpoint that reports which repositories carry one.
+organization default: other repositories in the organization followed
+the same default's move to `read`, and this one stayed `write` until
+the command above — which is how the override was found, there being
+no endpoint that reports which repositories carry one.
 Nothing is wrong today: the value read back is `read`,
 `can_approve_pull_request_reviews` is `false`, and every workflow here
 declares `permissions: contents: read` besides.
