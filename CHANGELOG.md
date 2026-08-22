@@ -23,6 +23,21 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **The sibling repository is named `btclib-secp256k1`** in the seven
+  places here that named it otherwise, under either spelling.
+  Hyphenated, in `.markdownlint.jsonc`, `.github/dependabot.yml` and
+  `RELEASING.md` twice; with an underscore, in `README.md`,
+  `CONTRIBUTING.md` and `CHANGELOG.md`, where what is named is the
+  sibling that "carries the same three lines" of badges and "the same
+  CONTRIBUTING.md run" — which a repository does and a distribution does
+  not. `grep -rn libsecp256k1` over the tree is what says whether any is
+  left.
+
+  `.markdownlint.jsonc` is the one that reaches past this repository:
+  §14 of the organization standard holds that file identical in every
+  repository, and `shasum` over the five copies is what says whether it
+  does. With this one it is four of five, `btclib-node` being the last.
+
 - **A markdown line does not end inside a word**
   (btclib-org/.github#71). Markdown joins two source lines with a space,
   so a word wrapped at its own hyphen renders with the hyphen and then a
@@ -1867,7 +1882,7 @@ carry a union merge driver that would keep both sides' numbers.
   badge per source line, which puts a badge change in one line of a diff
   and needs no `markdownlint-disable MD013`: the rule's 80 columns bind
   only where a space follows them, and in a bare URL none does. btclib and
-  btclib_libsecp256k1 carry the same three lines and the same
+  btclib-secp256k1 carry the same three lines and the same
   CONTRIBUTING.md run, which is what makes the three comparable; the badge
   sets differ only where the projects do.
 

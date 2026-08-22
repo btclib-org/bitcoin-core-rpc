@@ -10,7 +10,7 @@ where the code is and where to ask about it. A badge that reports no state
 CONTRIBUTING.md, beside the prose that says how the choice is enforced. One
 badge per line keeps a change to one line and every line inside MD013,
 whose 80 columns bind only where a space follows them. btclib and
-btclib_libsecp256k1 carry the same three lines. -->
+btclib-secp256k1 carry the same three lines. -->
 [![PyPI version](https://img.shields.io/pypi/v/bitcoin-core-rpc.svg?logo=pypi)](https://pypi.org/project/bitcoin-core-rpc/)
 [![downloads](https://static.pepy.tech/badge/bitcoin-core-rpc)](https://pepy.tech/project/bitcoin-core-rpc)
 [![development status](https://img.shields.io/pypi/status/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)

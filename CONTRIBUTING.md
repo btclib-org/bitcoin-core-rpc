@@ -3,7 +3,7 @@
 <!-- The toolchain badges are here rather than in the README because they
 report no state: each names a choice, and this is the file that says how
 the choice is enforced and what the command for it is. The README keeps the
-badges that can turn red. btclib and btclib_libsecp256k1 do the same. -->
+badges that can turn red. btclib and btclib-secp256k1 do the same. -->
 [![calendar versioning: yyyy.m.d](https://img.shields.io/badge/cal_ver-yyyy.m.d-1674b1.svg?logo=calver)](https://calver.org/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![format: ruff](https://img.shields.io/badge/format-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/formatter/)

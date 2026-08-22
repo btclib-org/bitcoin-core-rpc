@@ -43,7 +43,7 @@ updates:
       # has just reported when the pull requests are opened. It buys the
       # actions ecosystem nothing, which the sentinel does not cover, but
       # two schedules a day apart are one thing to remember instead of two.
-      # The same pair of days as btclib and btclib-libsecp256k1: one
+      # The same pair of days as btclib and btclib-secp256k1: one
       # weekday to remember for the three, rather than one each
       day: thursday
     groups:
