@@ -23,6 +23,24 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`release.yml`'s `concurrency:` comment stops counting the workflows
+  it calls** (issue #175). "this one calls three" was true when it was
+  written -- `git log -S 'this one calls three'` finds the one commit,
+  and `release.yml` called `test`, `lint` and `docs` at that point. Four
+  more were added under it since, `macos`, `windows-arm`, `integration`
+  and `published`, none of them revisiting a comment far enough above to
+  be off the screen -- the nearest of those four `uses:` lines is
+  hundreds of lines below it, which is the distance that made the
+  sentence safe to leave alone.
+
+  The count carried nothing the reader needed. What the comment is for
+  is why the group is named literally -- `github.workflow` inside a
+  called workflow is the *caller's* name, so every one of those calls
+  would otherwise share this workflow's group -- and that argument is
+  the same whether the number is three or seven. It now says "several"
+  and gives the `grep` that answers it in the tree that is asking, which
+  is what stays true the next time one is added.
+
 - **The yamllint hook's comment says what the hook reads**
   (btclib-org/.github#68). The change that turned the default rule set
   back on renamed the hook and left the paragraph above it describing a

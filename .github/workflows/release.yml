@@ -24,8 +24,11 @@ permissions:
 # publication -- a version on an index, an attestation, a release -- so a
 # second run is a second attempt at the same side effects, and cancelling
 # one halfway is how a version reaches PyPI with no release cut for it.
-# Named literally, as everywhere else: github.workflow in a called workflow
-# is the caller's name, and this one calls three
+# Named literally, as everywhere else: github.workflow in a called
+# workflow is the caller's name, and this one calls several --
+# `grep -n 'uses: \./\.github/workflows' .github/workflows/release.yml`
+# is which, in the tree that is asking, rather than a number here that
+# the next reusable workflow added below makes wrong
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
