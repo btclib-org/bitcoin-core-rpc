@@ -23,6 +23,26 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`.taplo.toml` stops carrying one tree's furniture**
+  (btclib-org/.github#40). The file is shared byte-for-byte across the
+  organization's repositories, deliberately, and this copy justified its
+  two settings by naming things that are one tree's: `reorder_keys`
+  because "`[project]` reads top to bottom, and the ruff rule sets are
+  grouped by what they cover", the indent because "the arrays in
+  `pyproject.toml` already use" it. Both readings are true here and
+  neither is the reason -- the reason is that a table's order is an
+  argument rather than an accident, and that one indent across every
+  toml in the organization is the point of having a formatter. A shared
+  file arguing from local furniture is a file the next repository
+  inherits an untrue sentence with.
+
+  It is now byte-identical to the copy `btclib` and `btclib-benchmarks`
+  already carry, which argues from the rule and says outright that it is
+  shared and that nothing in it may be true of one tree only. Neither
+  setting moves: `indent_string` is the same four spaces and
+  `array_auto_collapse` the same `false`, which the formatter leaving
+  every toml here untouched is what shows.
+
 - **`docs/source/conf.py`'s reason for not copying the root files names
   the links this `CONTRIBUTING.md` has** (issue #188). The paragraph
   rejecting a build-time copy said the file "links to CODE_OF_CONDUCT.md
