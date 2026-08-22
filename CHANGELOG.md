@@ -23,6 +23,21 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`claude-review.yml` stops counting the required checks**
+  (btclib-org/.github#22). "The four required checks stay what they are"
+  is a count, and a count in a workflow comment is checked by nothing:
+  `actionlint` reads the workflow, `zizmor` reads it for injection, and
+  prose beside them reads as authoritative for sitting there. It happens
+  to be right here and is wrong in two sibling repositories, which is
+  the same sentence in the same file -- the shape that made it worth
+  removing rather than confirming.
+
+  What the paragraph is for survives without the number: this job is not
+  a required check and must not become one, a model's judgement not
+  being a branch rule. Which contexts are required is `REPOSITORY.md`'s
+  to record and the endpoint's to answer, and the comment now says so.
+  Found by the workflow-comment sweep that issue asks for.
+
 - **`release.yml`'s `concurrency:` comment stops counting the workflows
   it calls** (issue #175). "this one calls three" was true when it was
   written -- `git log -S 'this one calls three'` finds the one commit,
