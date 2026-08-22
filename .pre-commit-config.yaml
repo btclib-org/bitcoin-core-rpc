@@ -380,14 +380,16 @@ repos:
       - id: taplo-format
         name: taplo (toml, in place fixes)
         exclude: ^uv\.lock$
-  # the width of a yaml line, which nothing else here measured: the hook
+  # the shape of a yaml file, which nothing else here reads: the hook
   # above holds markdown to 80 columns and ruff holds Python comments and
   # docstrings to the same, and the workflows were the one place prose
-  # could grow without a limit.
+  # could grow without a limit. Width is the half of this a sibling gate
+  # could in principle have covered; a key written twice, a block
+  # indented under nothing, a value that is octal by accident are read by
+  # nothing else at all.
   # Configured in .yamllint.yaml rather than in args here, as codespell
-  # and typos are configured in pyproject.toml: the two rules enabled and
-  # the two left off need a paragraph each, and the width is not 80 for a
-  # reason that has to be written down
+  # and typos are configured in pyproject.toml: the default set, the two
+  # rules left off, and a width that is not 80 need a paragraph each
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.38.0
     hooks:
