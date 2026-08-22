@@ -23,6 +23,19 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **The yamllint hook's comment says what the hook reads**
+  (btclib-org/.github#68). The change that turned the default rule set
+  back on renamed the hook and left the paragraph above it describing a
+  width check -- "the two rules enabled and the two left off", which was
+  true of the `.yamllint.yaml` that change replaced. That is the same
+  defect the change existed to fix, one file over: a comment naming a
+  narrower scope than what runs, with nothing to notice. Caught by the
+  review of the sibling change in `btclib-benchmarks#148`, after this
+  repository's had already landed. The paragraph now says what nothing
+  else here reads -- width being the half a sibling gate could in
+  principle have covered, where a key written twice or a block indented
+  under nothing is read by no other hook at all.
+
 - **`.yamllint.yaml` turns the default rule set back on**
   (btclib-org/.github#68). The file listed `line-length` and
   `document-start` under `rules:` and extended nothing, and yamllint
