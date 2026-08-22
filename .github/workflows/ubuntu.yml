@@ -1,0 +1,110 @@
+---
+name: ubuntu
+
+# every ubuntu cell the merge gate used to spend, moved here. The gate is
+# one cell now -- ubuntu-latest on the interpreter .python-version pins,
+# which is the `coverage` job of test.yml -- and this workflow is where
+# the rest of that matrix went: both architectures, every interpreter,
+# once a week.
+#
+# What the gate gave up is the point of the change rather than a cost it
+# hides. A regression on 3.10, on arm or on PyPy is no longer refused
+# before a merge; it sits on main until this runs, at most six days. What
+# it buys is every pull request: the twenty concurrent jobs GitHub Free
+# gives an organization are shared across every repository in it, and a
+# matrix on each commit is what a reviewer waits behind.
+#
+# Both images, and not the newest alone: what differs between them is the
+# architecture the interpreter targets, and `ubuntu-24.04-arm` is the
+# only place this package is asked about aarch64 at all.
+#
+# It gates no commit and no merge -- a regression sits on main for at most
+# a week -- but release.yml calls it, so one cannot be published over a
+# platform this never answered for
+
+on:
+  schedule:
+    # Friday, alone: a platform sentinel is two architectures times every
+    # interpreter, and three of them in one morning is the queue this
+    # design exists to avoid. macos.yml and windows.yml share Saturday
+    # between them; this one takes the day before.
+    # The time is section 10's grid and not this file's to restate.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "12 4 * * 5"
+  # lets release.yml gate a publication on this platform too, which is what
+  # keeps a weekly sentinel from being the only thing that ever asks
+  workflow_call:
+  # the escape hatch: the matrix on demand, for a branch that touches
+  # anything an interpreter version or an architecture reaches
+  workflow_dispatch:
+
+# least privilege for the GITHUB_TOKEN: everything running in a job
+# (actions, dependencies) can read the token, so it must not be able to
+# write to the repository
+permissions:
+  contents: read
+
+# cancel superseded runs: the subject here is the commit, which a newer one
+# supersedes. Named literally rather than with github.workflow, which in a
+# called workflow is the caller's name -- release.yml calls this one
+# alongside test.yml, and with that expression the two would share a group
+# and cancel each other
+concurrency:
+  group: ubuntu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suite-ubuntu:
+    name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # every cell to the end: which interpreter fails on which image is
+      # the whole answer, and stopping at the first one hides the rest
+      fail-fast: false
+      matrix:
+        # the two images test.yml no longer carries. Both, and not the
+        # newest alone: one is Apple silicon and the other Intel, and what
+        # differs between them is the architecture the interpreter targets
+        os:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+        # the interpreter set test.yml runs, unchanged: this workflow moves
+        # the platform and nothing else, so a difference between the two is
+        # attributable to the platform
+        python:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+          - "3.14t"
+          - "pypy3.11"
+    # far above what a run of the suite needs, and it bounds a hung job
+    # rather than a slow one: the queueing this workflow exists to move
+    # happens before a job starts and is not counted here
+    timeout-minutes: 30
+    steps:
+      # the three steps every suite cell in this repository runs, and the
+      # reference copy of them: macos.yml and windows.yml cite this job
+      # rather than repeating the reasoning, which used to live in
+      # test.yml's own matrix and moved here with it
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      # --no-cov, against the --cov addopts carries: what a matrix cell
+      # asks is whether an (image, interpreter) pair passes, and the
+      # coverage job of test.yml is where coverage is measured and gated
+      # -- instrumenting these cells too would measure the same lines
+      # again for nothing. On pypy it is worse than redundant: coverage.py
+      # has no C tracer there and its pure-Python one does not survive a
+      # test that exercises sys.exit() in-process, so it stops recording
+      # partway and reports a number that measured nothing wrong
+      - name: Run pytest
+        run: uv run --locked --no-default-groups --group test pytest --no-cov

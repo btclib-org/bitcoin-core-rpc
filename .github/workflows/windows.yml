@@ -1,5 +1,5 @@
 ---
-name: windows-arm
+name: windows
 
 # the second image the merge gate does not wait for, and the argument is
 # macos.yml's applied to the row beside it rather than a new one.
@@ -41,13 +41,7 @@ on:
   schedule:
     # Saturday, the hour after macos.yml: see that file for why the two
     # platforms share a day and not an hour.
-    # The day is this workflow's and the minute is this repository's:
-    # :12 wherever a cron of this tree appears, so a schedule line names
-    # the tree it belongs to without anything else being read. Section 10
-    # of the organization standard carries the grid, and the reason no
-    # cron here is on the hour -- GitHub queues same-minute schedules
-    # across every repository that asked, and drops a run when that queue
-    # is long.
+    # The time is section 10's grid and not this file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
     - cron: "12 5 * * 6"
@@ -70,11 +64,11 @@ permissions:
 # alongside test.yml, and with that expression the two would share a group
 # and cancel each other
 concurrency:
-  group: windows-arm-${{ github.ref }}
+  group: windows-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  suite-windows-arm:
+  suite-windows:
     name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -82,10 +76,12 @@ jobs:
       # and stopping at the first one hides the rest
       fail-fast: false
       matrix:
-        # one image, for the reason the header gives at length: the row
-        # test.yml keeps is what asks the datadir question, and this one
-        # asks about the architecture under it
+        # both images: what differs between them is the architecture the
+        # interpreter targets, and windows-latest is here because the
+        # merge gate stopped carrying it -- the gate is one ubuntu cell
+        # now, and every other cell of every platform is a sentinel's
         os:
+          - windows-latest
           - windows-11-arm
         # the interpreter set test.yml runs, unchanged: this workflow moves
         # the image and nothing else, so a difference between the two is
@@ -103,8 +99,8 @@ jobs:
     # happens before a job starts and is not counted here
     timeout-minutes: 30
     steps:
-      # the three steps of test.yml's suite job, and each `with:` there
-      # carries the reason for itself
+      # the three steps ubuntu.yml's own suite job carries the reasoning
+      # for, and each `with:` there carries the reason for itself
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -114,7 +110,7 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python }}
-      # --no-cov for the reason test.yml's suite job gives beside its own
+      # --no-cov for the reason ubuntu.yml gives beside its own
       #
       # windows-11-arm's default shell is PowerShell rather than bash:
       # "$GITHUB_ENV" and the rest of the POSIX spelling are literals

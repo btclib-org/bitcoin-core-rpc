@@ -22,13 +22,7 @@ on:
   schedule:
     # Sunday, and alone there: a session measured in minutes gets the day
     # nothing else asks for.
-    # The day is this workflow's and the minute is this repository's:
-    # :12 wherever a cron of this tree appears, so a schedule line names
-    # the tree it belongs to without anything else being read. Section 10
-    # of the organization standard carries the grid, and the reason no
-    # cron here is on the hour -- GitHub queues same-minute schedules
-    # across every repository that asked, and drops a run when that queue
-    # is long.
+    # The time is section 10's grid and not this file's to restate.
     # Cron runs from the default branch only, so this file gates nothing
     # until it reaches main -- on a branch it is reachable through the
     # dispatch button below and nowhere else
@@ -72,7 +66,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1

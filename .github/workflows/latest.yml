@@ -49,13 +49,7 @@ on:
     # carrying it opens. published.yml follows an hour later, the pair
     # asking what moved underneath -- the dependencies here, and what the
     # index serves there.
-    # The day is this workflow's and the minute is this repository's:
-    # :12 wherever a cron of this tree appears, so a schedule line names
-    # the tree it belongs to without anything else being read. Section 10
-    # of the organization standard carries the grid, and the reason no
-    # cron here is on the hour -- GitHub queues same-minute schedules
-    # across every repository that asked, and drops a run when that queue
-    # is long.
+    # The time is section 10's grid and not this file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
     - cron: "12 4 * * 3"
@@ -100,7 +94,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -119,8 +113,8 @@ jobs:
       # knowing before running the same command in a working tree
       - name: Upgrade every dependency to its latest release
         # this matrix includes windows-latest, whose default shell is
-        # PowerShell rather than bash -- see windows-arm.yml's
-        # suite-windows-arm job for the failure mode a POSIX-only step
+        # PowerShell rather than bash -- see windows.yml's
+        # suite-windows job for the failure mode a POSIX-only step
         # hits there unnoticed (issue btclib-org/btclib#1148). Both steps
         # below are one plain command each and run identically under
         # either shell today, which is exactly the hazard: a future edit
@@ -132,7 +126,7 @@ jobs:
       # wrote that lock, so this asserts nothing moved between the two and
       # keeps the convention that no uv command in these workflows
       # installs from a lock it has not checked
-      # --no-cov for the reason test.yml's suite job gives beside its own
+      # --no-cov for the reason ubuntu.yml gives beside its own
       - name: Run pytest
         shell: bash
         run: uv run --locked --no-default-groups --group test pytest --no-cov

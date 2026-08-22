@@ -466,7 +466,7 @@ the choice in the release pull request, next to `latest`'s own result.
    before installing anything — so it cannot pass by testing the release
    before this one. It installs from PyPI on every platform test.yml builds
    for and at both ends of the supported interpreter range, and round-trips
-   a JSON-RPC call against it. From then on it runs monthly on its own, and
+   a JSON-RPC call against it. From then on it runs weekly on its own, and
    a failure means the outside world moved, not this repository — a new
    runner image, an interpreter release, PyPI serving a file that does not
    match its own hash — which is why it is a workflow of its own rather

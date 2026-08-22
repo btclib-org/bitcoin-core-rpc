@@ -1,14 +1,17 @@
 ---
 name: macos
 
-# the platform the merge gate does not wait for. test.yml runs four
-# operating systems on every pull request and this one runs the two macOS
-# images, weekly and before a release, because macOS is where the wait came
-# from: measured on one pull request run of the full six, each cell finishes
-# in under a minute while the macOS cells wait 15.7 and 13.1 minutes on
-# average for a runner, against 0.1 to 0.3 for ubuntu and windows. 45 jobs,
-# 17 minutes of work, 212 minutes of queueing. The command that re-derives
-# it, for whoever doubts the split later:
+# the macOS half of the platform sweep, and ubuntu.yml's header is the
+# argument for all three: why the gate runs one image, what a sentinel
+# then owes, and the three steps every cell here runs.
+#
+# macOS is where the wait that ended the old arrangement came from.
+# Measured on one pull request run of the six-image matrix the gate used
+# to carry, each cell finishes in under a minute while the macOS cells
+# wait 15.7 and 13.1 minutes on average for a runner, against 0.1 to 0.3
+# for ubuntu and windows: 45 jobs, 17 minutes of work, 212 minutes of
+# queueing. The command that re-derives it, for whoever doubts the split
+# later:
 #
 #     id=$(gh run list --workflow=test.yml --limit 1 \
 #         --json databaseId --jq '.[0].databaseId')
@@ -25,27 +28,20 @@ name: macos
 #
 # A workflow of its own rather than a row in latest.yml, and that is the
 # whole design: this one holds the dependencies at the lock and moves the
-# platform, latest.yml moves the dependencies over every platform, and the
-# two are scheduled on the same morning half an hour apart. A red macOS
-# column in latest.yml with this workflow green is an upgrade; red in both
-# is macOS. One variable each, and the pair reads as a difference.
+# platform, latest.yml moves the platform and the dependencies both. A red
+# macOS column in latest.yml with this workflow green is an upgrade; red in
+# both is macOS. One variable each, and the pair reads as a difference.
 #
 # It gates no commit and no merge -- a macOS regression sits on main for at
 # most a week -- but release.yml calls it, so one cannot be published
 
 on:
   schedule:
-    # Saturday, with windows-arm.yml an hour later: the two platforms the
+    # Saturday, with windows.yml an hour later: the two platforms the
     # merge gate does not wait for, on the day the grid gives to
     # platforms. Red in both is the tree; red in one is that platform,
     # which is the whole of what running them apart buys.
-    # The day is this workflow's and the minute is this repository's:
-    # :12 wherever a cron of this tree appears, so a schedule line names
-    # the tree it belongs to without anything else being read. Section 10
-    # of the organization standard carries the grid, and the reason no
-    # cron here is on the hour -- GitHub queues same-minute schedules
-    # across every repository that asked, and drops a run when that queue
-    # is long.
+    # The time is section 10's grid and not this file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
     - cron: "12 4 * * 6"
@@ -102,8 +98,8 @@ jobs:
     # happens before a job starts and is not counted here
     timeout-minutes: 30
     steps:
-      # the three steps of test.yml's suite job, and each `with:` there
-      # carries the reason for itself
+      # the three steps ubuntu.yml's own suite job carries the reasoning
+      # for, and each `with:` there carries the reason for itself
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -113,6 +109,6 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python }}
-      # --no-cov for the reason test.yml's suite job gives beside its own
+      # --no-cov for the reason ubuntu.yml gives beside its own
       - name: Run pytest
         run: uv run --locked --no-default-groups --group test pytest --no-cov

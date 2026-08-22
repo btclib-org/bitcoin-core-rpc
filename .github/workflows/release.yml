@@ -55,7 +55,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
           # the whole history, where every other checkout in these
           # workflows takes the default single commit: the ancestry check
@@ -291,9 +291,13 @@ jobs:
     name: Run the macos workflow
     uses: ./.github/workflows/macos.yml
 
-  windows-arm:
-    name: Run the windows-arm workflow
-    uses: ./.github/workflows/windows-arm.yml
+  ubuntu:
+    name: Run the ubuntu workflow
+    uses: ./.github/workflows/ubuntu.yml
+
+  windows:
+    name: Run the windows workflow
+    uses: ./.github/workflows/windows.yml
 
   # and the one claim a recorded reply cannot make: that a live bitcoind
   # still answers the way tests/_data says it does. It gates every pull
@@ -308,7 +312,7 @@ jobs:
 
   publish-testpypi:
     name: Publish to TestPyPI
-    needs: [test, lint, docs, macos, windows-arm, integration]
+    needs: [test, lint, docs, ubuntu, macos, windows, integration]
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.repository == 'btclib-org/bitcoin-core-rpc'
@@ -334,7 +338,7 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [test, lint, docs, macos, windows-arm, integration]
+    needs: [test, lint, docs, ubuntu, macos, windows, integration]
     if: >-
       github.event_name == 'push' &&
       github.repository == 'btclib-org/bitcoin-core-rpc'

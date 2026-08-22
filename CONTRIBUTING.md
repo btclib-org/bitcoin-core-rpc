@@ -78,51 +78,61 @@ read by every checkout of this repository.
 
 | workflow | when | what it varies |
 | --- | --- | --- |
-| `test` | pull request, push | 3 platforms × 7 interpreters |
+| `test` | pull request, push | — |
 | `lint`, `docs` | pull request, push | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
-| `integration` | pull request, push | 2 protocol cells, 4 chain cells |
-| `codeql` | push to main, Tuesday | 2 languages |
-| `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
-| `windows-arm` | Saturday, a release | `windows-11-arm` × 7 interpreters |
-| `latest` | Wednesday | 6 platforms × 7, deps upgraded |
-| `links` | Monday | — |
-| `mutation` | Sunday | — |
-| `published` | monthly, a release | what PyPI serves |
-| `release` | a tag | calls the six workflows above it, and `published` |
+| `integration` | pull request, push | the oldest Core major and the newest |
+| `codeql` | push to main, and weekly | 2 languages |
+| `ubuntu` | weekly, a release | 2 ubuntu images × 7 interpreters |
+| `macos` | weekly, a release | 2 macOS images × 7 interpreters |
+| `windows` | weekly, a release | 2 Windows images × 7 interpreters |
+| `latest` | weekly | 6 platforms × 7, deps upgraded |
+| `integration` | weekly | every supported Core major × 5 chains |
+| `links` | weekly | — |
+| `mutation` | weekly | — |
+| `published` | weekly, a release | what PyPI serves |
+| `release` | a tag | calls every gate and every sentinel above |
 
-The first four rows are what a merge waits for.
+The first four rows are what a merge waits for, and they run one image on
+one interpreter: `ubuntu-latest`, and the version `.python-version` names.
+Which day each of the rest runs is section 10 of the organization
+standard, in `btclib-org/.github`, and not this file's to restate — one
+calendar covering six repositories is one thing to remember.
 
-What the rows below them have in common is one number: GitHub Free gives an
-organization twenty concurrent jobs, shared across every repository in it.
-A commit here asked for forty-four and one in btclib for thirty-nine, so a
-pull request in either spent its wall clock waiting for a slot rather than
-running anything. An image therefore earns a place before a review only if
-it is cheap to wait for, and two are not: macOS queues 15.7 and 13.1 minutes
-on average against 0.1 to 0.3 elsewhere, on cells that each run in under a
-minute; and the fourteen Windows cells were 9.4 of the run's 16.9
-runner-minutes, `windows-11-arm` the slower half of them at 40 to 77 seconds
-a cell against 29 to 34 on `windows-latest`.
+Why so little gates is one number: GitHub Free gives an organization twenty
+concurrent jobs, shared across every repository in it. A commit here asked
+for forty-four and one in btclib for thirty-nine, so a pull request in
+either spent its wall clock waiting for a slot rather than running anything.
+At that ceiling a second image before a review buys a rarer answer at the
+price of every review: macOS queues 15.7 and 13.1 minutes on average against
+0.1 to 0.3 elsewhere, on cells that each run in under a minute, and the
+fourteen Windows cells were 9.4 of the run's 16.9 runner-minutes.
 
-`windows-latest` stays in `test`, and that is not an oversight. The
-platform-conditional branch in this client is the datadir table in
+**What the sentinels vary, they vary whole.** `ubuntu` runs the images and
+the interpreters the gate no longer sweeps *and* the cell it does, and
+`integration` runs every Core major including the two it gates on. A matrix
+with the gate's cells cut out of it is one nobody can read the shape of, and
+whoever asked what ran would have to re-derive the hole from the gate.
+
+`windows-latest` is in `windows` with the other three images, and the
+platform-conditional branch it answers for is the datadir table in
 `default_datadir`, whose rows the suite drives by patching `sys.platform` —
 every row but the running one, so `%APPDATA%` and the `Path.home()` under it
-are asked for real only on a Windows runner. One row asks that completely,
-and the question does not vary with the architecture the interpreter targets.
+are asked for real only on a Windows runner. That question does not vary
+with the architecture the interpreter targets, which is why one row of that
+matrix answers it and the rest are there for the standard library beneath.
 
-`macos` and `latest` share a morning half an hour apart, which is what makes
-the pair readable: red in both is the platform, red in `latest` alone is the
-upgrade. `windows-arm` takes a morning of its own, Saturday being the day
-nothing else here asks for. Every workflow here also takes
-`workflow_dispatch`, gates included, `claude-review` excepted —
-`grep -c workflow_dispatch: .github/workflows/*.yml` is what says so, and
-for `codeql` and the two image workflows it is the only way to ask about a
-branch at all. `claude-review` takes none because both its jobs read the
-pull request or the comment that triggered them, so a manual run would
+`ubuntu`, `macos` and `windows` hold the dependencies at the lock and move
+the platform; `latest` moves both. Red in one platform workflow with
+`latest` green is that platform; red in both is the upgrade. Every workflow
+here also takes `workflow_dispatch`, gates included, `claude-review`
+excepted — `grep -c workflow_dispatch: .github/workflows/*.yml` is what says
+so, and for `codeql` and the three image workflows it is the only way to ask
+about a branch at all. `claude-review` takes none because both its jobs read
+the pull request or the comment that triggered them, so a manual run would
 start with nothing to read.
 
-`codeql` runs on `main` and on its Tuesday schedule and not on a pull
+`codeql` runs on `main` and on its weekly schedule and not on a pull
 request, which is the same arithmetic as the rows above: it holds slots
 while a review waits. What still reads a branch before it merges is
 `zizmor`, a `pre-commit` hook and therefore part of `lint`, which audits
