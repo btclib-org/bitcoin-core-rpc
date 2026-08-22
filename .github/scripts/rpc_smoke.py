@@ -51,12 +51,14 @@ from the version number: what the matrix pins is the claim that v27
 answers 1.1 and the current release answers 2.0, and a node that stopped
 doing so has to fail this rather than be accommodated by it.
 
-`--chain` is the other mode: `main`, `test`, `testnet4` and `signet` are
-not chains this script can grow the way it grows regtest, so what it
-starts on one of them is a node with no peer reachable at all -- and the
-one thing left to check is that Core still accepts `-chain=<name>` for it
-and echoes the same name back in `getblockchaininfo`, at height 0, nothing
-downloaded.
+`--chain` is the other mode, and takes any of the five chains Core names:
+what it starts is a node with no peer reachable at all, and the one thing
+it checks is that Core still accepts `-chain=<name>` and echoes the same
+name back in `getblockchaininfo`, at height 0, nothing downloaded. Four of
+the five are not chains this script can grow the way it grows regtest;
+regtest is here too so that its row of the port table is checked where it
+is read rather than only in passing, on the way to `--protocol`'s own
+question.
 
 Run it against a node of your own with `--bitcoind`; CONTRIBUTING.md
 carries the command, and `.github/workflows/integration.yml` the download
@@ -96,38 +98,38 @@ from bitcoin_core_rpc import (
     http_request,
 )
 
-# regtest, and the node is started with no -rpcport so that the port is
-# Core's own default for the chain rather than one this script chose:
-# `from_chain` builds that number from Core's table, and a live node is
-# what says the two still agree
-CHAIN = "regtest"
-RPC_PORT = 18443
-
-# the subdirectory Core puts a regtest datadir in, which is where the
-# cookie is written. Spelled out rather than read out of the module,
-# whether through its table or through `datadir_subdir_from_chain`: what
-# is being checked is that the module's copy of Core's layout is Core's
-# layout, and a check reading the value under test proves nothing
-DATADIR_SUBDIR = "regtest"
-
-# the four chains besides regtest that `_CHAIN_FROM_NETWORK` names,
-# each with its own port and datadir subdirectory here for the same reason
-# RPC_PORT and DATADIR_SUBDIR above are spelled out rather than imported:
-# with no chain to generate on any of them, what a live node can still
-# prove is that Core accepts `-chain=<name>` and that `getblockchaininfo`
-# echoes it back
+# every chain `_CHAIN_FROM_NETWORK` names, each with the rpc port and the
+# datadir subdirectory Core gives it. Spelled out rather than read out of
+# the module, whether through its table or through
+# `datadir_subdir_from_chain`: what is being checked is that the module's
+# copy of Core's layout is Core's layout, and a check reading the value
+# under test proves nothing.
+#
+# The node is started with no -rpcport, so the port a live node listens on
+# is Core's own for that chain rather than one this script chose, and
+# `from_chain` builds the same number from the module's table -- a live
+# node is what says the two still agree
 CHAIN_RPC_PORT = {
     "main": 8332,
     "test": 18332,
     "testnet4": 48332,
     "signet": 38332,
+    "regtest": 18443,
 }
 CHAIN_DATADIR_SUBDIR = {
     "main": "",
     "test": "testnet3",
     "testnet4": "testnet4",
     "signet": "signet",
+    "regtest": "regtest",
 }
+
+# regtest is also the chain `--protocol` grows, that being the one a node
+# can grow with nothing downloaded, so its two entries above are what
+# these name rather than a second copy of them
+CHAIN = "regtest"
+RPC_PORT = CHAIN_RPC_PORT[CHAIN]
+DATADIR_SUBDIR = CHAIN_DATADIR_SUBDIR[CHAIN]
 
 # 100 blocks of coinbase maturity plus the one that is spendable after
 # them: the height at which exactly one subsidy has matured, so the
@@ -677,10 +679,12 @@ def smoke_chain(
     """Start a node of the named chain, with nothing to download, and check it.
 
     `smoke` above proves the chain answers against blocks generated here,
-    the one thing regtest can grow with no download. This is the other four
-    chains `_CHAIN_FROM_NETWORK` names: with none of them a chain this
-    script can grow, what is left to check is that Core still accepts
-    `-chain=` for each of them and reports the same name back.
+    the one thing regtest can grow with no download. This asks the narrower
+    question of every chain `_CHAIN_FROM_NETWORK` names, regtest included:
+    that Core still accepts `-chain=` for each of them and reports the same
+    name back. Regtest is in that list even though `smoke` starts one in
+    passing, because it starts it on the way to another question -- so this
+    is where regtest's row of the port table has a check of its own.
     """
     with isolated_node(bitcoind, datadir, chain) as client:
         check_version(client, core_version)

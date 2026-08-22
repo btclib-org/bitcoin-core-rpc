@@ -64,8 +64,8 @@ jobs:
       fail-fast: false
       matrix:
         # the two images test.yml no longer carries. Both, and not the
-        # newest alone: one is Apple silicon and the other Intel, and what
-        # differs between them is the architecture the interpreter targets
+        # newest alone: what differs between them is the architecture the
+        # interpreter and everything it loads are built for
         os:
           - ubuntu-latest
           - ubuntu-24.04-arm

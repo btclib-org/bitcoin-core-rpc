@@ -145,10 +145,11 @@ tree those checks already passed.
 Each command below is the one a CI job runs, verbatim. Keep this section
 true when a workflow changes.
 
-`test.yml`, the `suite` job — the suite, on one cell of the matrix.
-`--no-cov` undoes the `--cov` addopts carries: this matrix asks whether
-one (os, architecture, interpreter) triple passes, and the `coverage` job
-below is where coverage is measured once, gated, and reported instead:
+`ubuntu.yml`, `macos.yml` and `windows.yml`, the suite job of each — the
+suite, on one cell of a platform matrix. `--no-cov` undoes the `--cov`
+addopts carries: a cell asks whether one (image, interpreter) pair
+passes, and the `coverage` job below is where coverage is measured once,
+gated, and reported instead:
 
 ```shell
 uv run --locked --no-default-groups --group test pytest --no-cov
