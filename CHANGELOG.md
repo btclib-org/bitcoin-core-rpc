@@ -23,6 +23,35 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **Which of section 7's conventions this suite tests is declared, and a
+  test says the declaration is true** (btclib-org/.github#32). A new
+  `tests/README.md` names each convention the organization standard lists
+  that this repository tests and the module that tests it, then names the
+  ones it does not.
+
+  Both of the ones it does test are answered by `standalone_test.py`,
+  which is the shape section 7 has in mind where it says what must not be
+  aligned is
+  *where* these live. This package is one file, so what elsewhere needs a
+  walk over a tree is here a property of that file, and stronger for it:
+  the documentation is every name of `__all__` carrying a docstring
+  `automodule` will render, against `docs/source/api.rst`'s claim to list
+  the whole public surface; the import graph is the source importing
+  nothing outside the standard library, and a copy of it running under
+  `python -I -S`.
+
+  Among those it does not, two are near misses the file names so that
+  "absent" is not read as "overlooked". `__all__` is declared and read,
+  but to ask whether each name is documented rather than whether the
+  module's public names are all in it — section 7 asks for a census that
+  fails when a new public name appears, and nothing here fails. Two tests
+  assert a keyword-only signature, each about one function, where section
+  7 asks for it as a rule over the package.
+
+  `tests/conventions_test.py` is what keeps the declaration from being
+  prose, and its assertions were checked by making the declaration wrong
+  and watching the suite go red.
+
 - **A Dependabot pull request can be reviewed** (btclib-org/.github#77).
   `claude-review.yml`'s review job failed on #207, the first Dependabot
   pull request opened since the credential guard landed, and it failed
