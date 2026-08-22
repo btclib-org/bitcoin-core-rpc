@@ -23,6 +23,21 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **A `TODO` that opens a comment no longer passes lint**
+  (btclib-org/.github#87). Ruff's `FIX` family joins
+  `[tool.ruff.lint] select`, so a comment beginning `TODO`, `FIXME`,
+  `XXX` or `HACK` is a finding, on its own line or after code.
+  Unfinished work belongs in an issue, where whoever might do it can see
+  it and where it can be closed; a marker in the tree is visible only to
+  somebody already reading that file, and it outlives the branch that put
+  it there without anyone noticing.
+
+  What the rule does not reach is worth knowing before trusting it: a
+  marker further into a comment, one inside a docstring or a string
+  literal, and any file that is not Python. It cost nothing to adopt --
+  the tree measures zero findings under it, so this is a ratchet on
+  something already true rather than a cleanup, and no code changed.
+
 - **The interpreters this package claims are the ones it runs on**
   (btclib-org/.github#83). `requires-python`, the per-version
   `Programming Language :: Python ::` classifiers and `test.yml`'s own

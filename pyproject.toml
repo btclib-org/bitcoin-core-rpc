@@ -487,7 +487,12 @@ explicit-preview-rules = true
 # own documentation recommends against alongside the formatter), EM, FBT,
 # EXE (all EXE001, the shebang-not-executable finding that
 # .pre-commit-config.yaml records the same decision about), TC, PTH, ARG,
-# ANN, SLF (tests reaching into private members on purpose), PERF
+# ANN, SLF (tests reaching into private members on purpose), PERF.
+# TD is left out for a different reason than any of those, the survey
+# never having reached it: against the FIX below, which refuses a TODO,
+# a FIXME, an XXX or a HACK that opens a comment, every unsuppressed
+# line TD could discipline is a line FIX already refuses. The two are
+# redundant, and refusing a marker is worth more here than formatting it
 select = [
     "A",   # flake8-builtins: a name that shadows a builtin
     "B",   # flake8-bugbear
@@ -504,6 +509,7 @@ select = [
     "E",    # pycodestyle errors
     "ERA",  # eradicate: code that was commented out instead of deleted
     "F",    # pyflakes
+    "FIX",  # flake8-fixme: unfinished work belongs in an issue, not a comment
     "FURB", # refurb
     "I",    # isort
     "ISC",  # flake8-implicit-str-concat
