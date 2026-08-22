@@ -83,9 +83,9 @@ jobs:
         os:
           - macos-26-intel
           - macos-latest
-        # the interpreter set test.yml runs, unchanged: this workflow moves
-        # the platform and nothing else, so a difference between the two is
-        # attributable to the platform
+        # the same list ubuntu.yml carries, and its comment is the
+        # argument for all three: this workflow moves the platform and
+        # nothing else, so a difference between them is the platform's
         python:
           - "3.10"
           - "3.11"

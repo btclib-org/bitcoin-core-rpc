@@ -12,11 +12,18 @@ The same workflow, started by hand instead of by a tag, is a full rehearsal
 against TestPyPI. A rehearsal is never tagged.
 
 **A workflow GitHub has not registered cannot be dispatched, and it
-registers one only once its file has reached the default branch.** That
-makes `release.yml`, `latest.yml`, `macos.yml` and `published.yml` — no
-trigger among them that a commit or a pull request fires — answer
-`gh: Not Found (HTTP 404)` until the pull request adding it is merged. It
-bites once, on the first release after any of them is written, and it
+registers one only once its file has reached the default branch.** Any new
+workflow therefore answers `gh: Not Found (HTTP 404)` to `gh workflow run`
+until the pull request adding it is merged. What makes that more than a
+nuisance is the set no commit and no pull request fires either, which is
+otherwise never exercised before the merge at all: `release.yml`, whose
+`push:` names tags and nothing else, and the workflows below.
+
+```shell
+grep -L -E '^  (push|pull_request):' .github/workflows/*.yml
+```
+
+It bites once, on the first release after any of them is written, and it
 inverts the order below: the TestPyPI rehearsal that this file asks for
 *before* the merge can only happen after it, still before the tag. It also
 means such a workflow reaches `main` having never run.
@@ -216,11 +223,17 @@ the choice in the release pull request, next to `latest`'s own result.
    gh pr list --state open --search "release.yml OR published.yml"
    ```
 
-   A pull request touching `release.yml`, or any workflow it calls —
-   `lint.yml`, `test.yml`, `macos.yml`, `integration.yml`, `docs.yml`,
-   `published.yml`, `.github/scripts/` — is one the tag is about to run,
-   so leaving it in review means running the defect it fixes on the
-   release. It is not caught anywhere else: every one of those workflows is
+   A pull request touching `release.yml`, anything under
+   `.github/scripts/`, or any workflow `release.yml` calls is one the tag
+   is about to run, so leaving it in review means running the defect it
+   fixes on the release. What it calls is a list this file would only let
+   rot, so read it from the file itself:
+
+   ```shell
+   grep -n 'uses: \./\.github/workflows/' .github/workflows/release.yml
+   ```
+
+   It is not caught anywhere else: every one of those workflows is
    green on the pull request that fixes it, which is what makes it look
    like something that can wait. `published.yml` is the case to watch, its
    own failures arriving after PyPI has already accepted the files.
@@ -464,10 +477,12 @@ the choice in the release pull request, next to `latest`'s own result.
    `release.yml` calls that workflow once PyPI has accepted the files, with
    the tag's version, and it waits for the index to serve that version
    before installing anything — so it cannot pass by testing the release
-   before this one. It installs from PyPI on every platform test.yml builds
-   for and at both ends of the supported interpreter range, and round-trips
-   a JSON-RPC call against it. From then on it runs weekly on its own, and
-   a failure means the outside world moved, not this repository — a new
+   before this one. It installs from PyPI on every image `ubuntu.yml`,
+   `macos.yml` and `windows.yml` run between them, at both ends of the
+   supported interpreter range and on the free-threaded build, and
+   round-trips a JSON-RPC call against it. From then on it runs weekly on
+   its own, and a failure means the outside world moved, not this
+   repository — a new
    runner image, an interpreter release, PyPI serving a file that does not
    match its own hash — which is why it is a workflow of its own rather
    than a job of this one.

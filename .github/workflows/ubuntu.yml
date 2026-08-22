@@ -1,16 +1,17 @@
 ---
 name: ubuntu
 
-# every ubuntu cell the merge gate used to spend, moved here. The gate is
-# one cell now -- ubuntu-latest on the interpreter .python-version pins,
-# which is the `coverage` job of test.yml -- and this workflow is where
-# the rest of that matrix went: both architectures, every interpreter,
-# once a week.
+# every ubuntu cell, once a week and run whole: both architectures
+# against every interpreter, the cell the merge gate already runs
+# included. That cell is ubuntu-latest on the interpreter
+# .python-version pins, which is the `coverage` job of test.yml, and it
+# repeats here so a red column reads as a column rather than as a
+# question about which cells were left out.
 #
-# What the gate gave up is the point of the change rather than a cost it
-# hides. A regression on 3.10, on arm or on PyPy is no longer refused
-# before a merge; it sits on main until this runs, at most six days. What
-# it buys is every pull request: the twenty concurrent jobs GitHub Free
+# What the gate does not ask is the point of that split rather than a cost
+# it hides. A regression on 3.10, on arm or on PyPy is not refused before
+# a merge; it sits on main until this runs, at most six days. What the
+# split buys is every pull request: the twenty concurrent jobs GitHub Free
 # gives an organization are shared across every repository in it, and a
 # matrix on each commit is what a reviewer waits behind.
 #
@@ -82,9 +83,12 @@ jobs:
         os:
           - ubuntu-latest
           - ubuntu-24.04-arm
-        # the interpreter set test.yml used to run, unchanged: this
-        # workflow moves the platform and nothing else, so a difference
-        # between the two is attributable to the platform.
+        # every interpreter this package claims, where the merge gate
+        # runs the one .python-version pins. macos.yml and windows.yml
+        # carry the same list, so each of the three moves the platform
+        # and nothing else and a difference between them is the
+        # platform's. tests/interpreters_test.py is what keeps this list
+        # and the classifiers one fact.
         # 3.14t is the free-threaded interpreter, and it is here for what
         # this module promises: concurrent calls are supported while the
         # configuration is not mutated, and a build without the GIL is the

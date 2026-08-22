@@ -81,17 +81,21 @@ read by every checkout of this repository.
 | `test` | pull request, push | — |
 | `lint`, `docs` | pull request, push | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
-| `integration` | pull request, push | the oldest Core major and the newest |
+| `integration` | pull request, push | Core's two ends, then 5 chains |
 | `codeql` | push to main, and weekly | 2 languages |
 | `ubuntu` | weekly, a release | 2 ubuntu images × 7 interpreters |
 | `macos` | weekly, a release | 2 macOS images × 7 interpreters |
 | `windows` | weekly, a release | 2 Windows images × 7 interpreters |
 | `latest` | weekly | 3 images × the floor and the ceiling, upgraded |
-| `integration` | weekly | every supported Core major × 5 chains |
+| `integration` | weekly | every Core major, then 5 chains on the newest |
 | `links` | weekly | — |
 | `mutation` | weekly | — |
 | `published` | weekly, a release | what PyPI serves |
-| `release` | a tag | calls every gate and every sentinel above |
+| `release` | a tag | the workflows it calls |
+
+Which workflows that last row covers is
+`grep -n 'uses: \./\.github/workflows/' .github/workflows/release.yml`,
+not a list here: a list restated is one more thing to keep true.
 
 The first four rows are what a merge waits for, and they run one image on
 one interpreter: `ubuntu-latest`, and the version `.python-version` names.
@@ -100,21 +104,21 @@ standard, in `btclib-org/.github`, and not this file's to restate — one
 calendar covering six repositories is one thing to remember.
 
 Why so little gates is one number: GitHub Free gives an organization twenty
-concurrent jobs, shared across every repository in it. A commit here asked
-for forty-four and one in btclib for thirty-nine, so a pull request in
-either spent its wall clock waiting for a slot rather than running anything.
+concurrent jobs, shared across every repository in it. The platform sweeps
+on every commit ask for twice that between them, so a pull request spends
+its wall clock waiting for a slot rather than running anything.
 At that ceiling a second image before a review buys a rarer answer at the
 price of every review: macOS queues 15.7 and 13.1 minutes on average against
 0.1 to 0.3 elsewhere, on cells that each run in under a minute, and the
 fourteen Windows cells were 9.4 of the run's 16.9 runner-minutes.
 
 **What the sentinels vary, they vary whole.** `ubuntu` runs the images and
-the interpreters the gate no longer sweeps *and* the cell it does, and
+the interpreters the gate does not sweep *and* the cell it does, and
 `integration` runs every Core major including the two it gates on. A matrix
 with the gate's cells cut out of it is one nobody can read the shape of, and
 whoever asked what ran would have to re-derive the hole from the gate.
 
-`windows-latest` is in `windows` with the other three images, and the
+`windows-latest` is in `windows` rather than on the gate, and the
 platform-conditional branch it answers for is the datadir table in
 `default_datadir`, whose rows the suite drives by patching `sys.platform` —
 every row but the running one, so `%APPDATA%` and the `Path.home()` under it
@@ -123,8 +127,9 @@ with the architecture the interpreter targets, which is why one row of that
 matrix answers it and the rest are there for the standard library beneath.
 
 `ubuntu`, `macos` and `windows` hold the dependencies at the lock and move
-the platform; `latest` moves both. Red in one platform workflow with
-`latest` green is that platform; red in both is the upgrade. Every workflow
+the platform; `latest` moves both, and one variable each is what lets the
+pair be read as a difference — `macos.yml`'s header states that reading
+for its own column, and it is the same on the other two. Every workflow
 here also takes `workflow_dispatch`, gates included, `claude-review`
 excepted — `grep -c workflow_dispatch: .github/workflows/*.yml` is what says
 so, and for `codeql` and the three image workflows it is the only way to ask

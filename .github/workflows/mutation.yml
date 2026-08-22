@@ -20,8 +20,10 @@ name: mutation
 
 on:
   schedule:
-    # Sunday, and alone there: a session measured in minutes gets the day
-    # nothing else asks for.
+    # Sunday, an hour before integration.yml: a session measured in
+    # minutes takes the first of the two slots that day rather than
+    # running beside the other, twenty concurrent jobs being what the
+    # whole organization shares.
     # The time is section 10's grid and not this file's to restate.
     # Cron runs from the default branch only, so this file gates nothing
     # until it reaches main -- on a branch it is reachable through the

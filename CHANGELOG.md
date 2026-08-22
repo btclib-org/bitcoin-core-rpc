@@ -37,16 +37,18 @@ carry a union merge driver that would keep both sides' numbers.
   literal, and any file that is not Python. It cost nothing to adopt --
   the tree measures zero findings under it, so this is a ratchet on
   something already true rather than a cleanup, and no code changed.
+
 - **The gate runs one image and one interpreter, and the sweeps moved to
   the calendar** (btclib-org/.github#85). `test.yml`'s `suite` job is
   gone: three images by seven interpreters, minus one cell, asked before
   every review on an organization whose plan gives it twenty concurrent
-  jobs across every repository. Measured on one run of that matrix, 45
-  jobs did 17 minutes of work and spent 212 minutes queueing. What waits
-  for a review now is `ubuntu-latest` on the version `.python-version`
-  names, and the images that left are `ubuntu.yml`, `macos.yml` and
-  `windows.yml` — the last renamed from `windows-arm.yml`, which had
-  stopped naming what it runs the day `windows-latest` joined it.
+  jobs across every repository. Measured on one run of the workflow
+  carrying it, 24 jobs did 5.8 minutes of work and spent 36.5 minutes
+  queueing. What waits for a review is `ubuntu-latest` on the version
+  `.python-version` names, and the images that left are `ubuntu.yml`,
+  `macos.yml` and `windows.yml` — the last renamed from
+  `windows-arm.yml`, which had stopped naming what it runs the day
+  `windows-latest` joined it.
 
   Each of those runs its matrix whole, the cell the gate already covers
   included. A sweep that subtracted the gate would be a matrix with a
@@ -71,11 +73,12 @@ carry a union merge driver that would keep both sides' numbers.
 
 - **The interpreters this package claims are the ones it runs on**
   (btclib-org/.github#83). `requires-python`, the per-version
-  `Programming Language :: Python ::` classifiers and `test.yml`'s own
-  matrix are one fact written three times, and nothing compared them.
-  `tests/interpreters_test.py` does: the floor is the lowest classifier,
-  the classified set and the matrix's CPython set are each other, and the
-  PyPy classifier is present exactly when a PyPy interpreter runs.
+  `Programming Language :: Python ::` classifiers and the interpreter
+  list the workflows run are one fact written three times, and nothing
+  compared them. `tests/interpreters_test.py` does: the floor is the
+  lowest classifier, the classified set and that list's CPython set are
+  each other, and the PyPy classifier is present exactly when a PyPy
+  interpreter runs.
 
   The drift it catches misleads somebody who is not reading this
   repository — PyPI shows a classifier to whoever is choosing the

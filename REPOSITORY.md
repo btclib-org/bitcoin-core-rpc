@@ -21,8 +21,9 @@ being unmetered.
 **Never name matrix contexts in the branch rule.** The rule lives outside
 the repository, so a context that stops being produced blocks every merge
 with nothing in the tree to explain why. `test: every job passed` is an
-aggregate job at the end of `test.yml` that `needs` the matrix; a new job in
-`test.yml` belongs in that job's `needs`, or it gates nothing. The name
+aggregate job at the end of `test.yml` that `needs` every other job there;
+a new job in `test.yml` belongs in that job's `needs`, or it gates
+nothing. The name
 carries the workflow because a context is keyed by name alone: two
 workflows with a job named the same thing produce one ambiguous check.
 
@@ -39,7 +40,7 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 | --- | --- |
 | `Lint and type-check` | `lint.yml`, first job |
 | `Build the documentation` | `docs.yml`, its only job |
-| `test: every job passed` | `test.yml`, aggregate over the matrix |
+| `test: every job passed` | `test.yml`, aggregate over its jobs |
 | `integration: every job passed` | `integration.yml`, over its cells |
 
 The last row is whichever context was added most recently, that endpoint
@@ -52,8 +53,9 @@ aggregate, the job *being* the context. It is also the answer to why
 btclib's live-node check is `Regtest against Bitcoin Core` where this
 one is `integration: every job passed`. The two workflows ask the same
 question of a real node and are governed by the same rule; there it is one
-job and here it is six matrix cells, so there the job name is the context
-and here an aggregate has to be. Making the two strings match would mean
+job and here it is a matrix whose cells the trigger decides, so there the
+job name is the context and here an aggregate has to be. Making the two
+strings match would mean
 inventing a job whose only purpose is to be named, or naming a matrix cell
 in the rule — which is the first thing this section forbids.
 
@@ -219,15 +221,16 @@ but the one doing the renaming. Moving a job to another workflow needs none
 of this: the name is what the rule matches, and `Build the documentation`
 kept reporting when it left `lint.yml` for `docs.yml`.
 
-Neither `mutation.yml`, `links.yml`, `latest.yml`, `macos.yml` nor
-`published.yml` appears in the rule, and none of them must: each is
-expected to go red for reasons no pull request introduced -- an upgrade
-upstream, a link on somebody else's website, a runner image -- and a red
-check nobody can act on from a branch is noise. `integration.yml` was in that
-list until its cost was measured rather than assumed: 90 seconds for six
-cells, a live bitcoind of two versions included, which is less than the
-matrix it now runs beside. What it answers is the one claim a recording
-cannot make, and that belongs in front of a merge.
+No sentinel appears in the rule, and none of them may: `mutation.yml`,
+`links.yml`, `latest.yml`, `ubuntu.yml`, `macos.yml`, `windows.yml` and
+`published.yml` are each expected to go red for reasons no pull request
+introduced -- an upgrade upstream, a link on somebody else's website, a
+runner image -- and a red check nobody can act on from a branch is noise.
+`integration.yml` is in the rule rather than in that list, its cost having
+been measured rather than assumed: 12 to 24 seconds a cell, the download
+of a live bitcoind included, and the cells run concurrently. What it
+answers is the one claim a recording cannot make, and that belongs in
+front of a merge.
 
 ## Code quality
 
@@ -288,7 +291,7 @@ self-approves either.
 
 The required checks are the half that holds regardless, because they are
 earned by the tree rather than granted: a bypass is a decision somebody
-makes on a pull request in front of them, where a green matrix is not.
+makes on a pull request in front of them, where a green gate is not.
 
 Required signatures cost the maintainer nothing for the same reason
 nothing here pushes to `main` directly: the only thing writing to it is a

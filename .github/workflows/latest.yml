@@ -69,10 +69,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # narrower than the test matrix, and for a different reason: there, what
-  # varies is the standard library this module is built out of; here it is
-  # which release of each tool the interpreter resolves to, and the two
-  # ends of the supported range are what a sentinel needs. The low end
+  # narrower than the platform sentinels, and for a different reason:
+  # there, what varies is the standard library this module is built out
+  # of; here it is which release of each tool the interpreter resolves
+  # to, and the two ends of the supported range are what a sentinel
+  # needs. The low end
   # earns its place: a dependency dropping 3.10 does not fail to resolve,
   # it resolves to an older version there and keeps the job green while
   # 3.10 quietly stops being tested against what everybody else runs

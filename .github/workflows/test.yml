@@ -15,7 +15,7 @@ on:
     # that is not the one the pull request tested, and nothing else would
     # ever test it. Tag pushes are covered by the release workflow
     branches: [main]
-    # a documentation-only commit would otherwise run the whole matrix.
+    # a documentation-only commit would otherwise run every job below.
     # None of these files is imported by the module or read by a test --
     # README.md is the PyPI long description, not a doctest source, and
     # CONTRIBUTING.md is checked by markdownlint, which is the lint
@@ -26,8 +26,8 @@ on:
     # produces no run at all blocks the merge instead of passing it. The
     # changes job below is the pull_request-side answer to the same
     # question -- it runs, so the required check still reports, but skips
-    # the matrix rather than the whole workflow when nothing in the diff
-    # is something the matrix reads
+    # the jobs below it rather than the whole workflow when nothing in
+    # the diff is something they read
     paths-ignore:
       - "*.md"
   pull_request:
@@ -87,7 +87,7 @@ on:
           every one of them for a property only release.yml's call needs.
         type: boolean
         default: false
-  # the escape hatch: the matrix on demand for a branch whose pull
+  # the escape hatch: the gate on demand for a branch whose pull
   # request is not open yet
   workflow_dispatch:
 
@@ -124,8 +124,8 @@ concurrency:
 jobs:
   # the cheapest job in the workflow, and the one that decides whether the
   # rest of it runs at all: a pull request that edits only prose changes
-  # nothing the matrix below reads, and was spending the whole matrix to
-  # prove it. suite, coverage and dist each take this as a `needs` and
+  # nothing the jobs below read, and was spending the whole gate to
+  # prove it. coverage and dist each take this as a `needs` and
   # read its output; test-passed takes it too, so a failure here fails
   # the gate rather than being read as everything downstream correctly
   # declining nothing to do.
@@ -138,9 +138,9 @@ jobs:
   #   and the whole workflow would skip on main and on a release
   # - README.md is not prose for this purpose. It is the long description
   #   the dist job's twine and pyroma steps check, so an edit to it is a
-  #   change the matrix can fail on
+  #   change that job can fail on
   # - a workflow is *not* on the allowlist, deliberately: which workflows
-  #   the matrix reads is this file and what it calls, plus release.yml,
+  #   these jobs read is this file and what it calls, plus release.yml,
   #   and naming the rest would be a judgement call stale the first time
   #   one of them changes what it does. Leaving every workflow edit to run
   #   everything is the cheap direction to be wrong in
@@ -149,7 +149,7 @@ jobs:
   # heads-up about the permission it needs on the caller's side once it
   # landed here: release.yml's `test:` job grants it explicitly
   changes:
-    name: Decide whether the matrix has anything to check
+    name: Decide whether the jobs below have anything to check
     if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -181,17 +181,17 @@ jobs:
           # every root prose file but README.md, .github's own markdown,
           # the mutation configuration (read by mutation.yml, not this
           # workflow) and the detect-secrets baseline (read by the
-          # pre-commit hook lint.yml gates) -- nothing this matrix reads.
+          # pre-commit hook lint.yml gates) -- nothing these jobs read.
           # An empty list is not a documentation change, it is a question
           # this could not answer, so the count is checked before the
           # pattern
           prose='^(AUTHORS|CHANGELOG|CLAUDE|CODE_OF_CONDUCT|COMPARISON|CONTRIBUTING|RELEASE_NOTES|RELEASING|REPOSITORY|REVIEWING|SECURITY)\.md$|^\.github/[^/]*\.md$|^\.github/mutation/[^/]*\.toml$|^\.secrets\..*baseline$'
           if [ ! -s files.txt ] || grep -qvE "$prose" files.txt; then
             echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "something the matrix reads changed: everything runs"
+            echo "something the jobs below read changed: everything runs"
           else
             echo "code=false" >> "$GITHUB_OUTPUT"
-            echo "prose only: the matrix has nothing to check"
+            echo "prose only: the jobs below have nothing to check"
           fi
 
   coverage:
@@ -302,7 +302,7 @@ jobs:
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
       # empty on every trigger but a release rehearsal: `inputs` is unset
       # outside a workflow_call, so a direct run of this workflow -- the
-      # matrix a pull request or a push to main gets -- skips this and
+      # run a pull request or a push to main gets -- skips this and
       # ships the version the tree declares, same as a real release does.
       # TestPyPI refuses a version it has already seen, which is what the
       # suffix is for; release.yml's `version-check` job computes it once
@@ -411,11 +411,11 @@ jobs:
 
   # the single check main's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal
-  # strings, stored outside the repository. The matrix above produces one
-  # per (runner label, interpreter) pair -- a count that moves whenever the
-  # matrix does: naming those directly means every matrix edit has to be
-  # mirrored in a setting no pull request can review, and a name that stops
-  # being produced -- macos-latest moving on, 3.10 aging out in its turn --
+  # strings, stored outside the repository. The jobs above are three
+  # names this file is free to change, and a matrix here would be worse
+  # again, its cell names carrying values the matrix decides: naming
+  # either directly means every such edit has to be mirrored in a setting
+  # no pull request can review, and a name that stops being produced
   # becomes a required check that never reports, which blocks every merge
   # until someone remembers where the rule lives.
   # This job depends on the others instead, so the rule names one thing
@@ -450,13 +450,13 @@ jobs:
       # the condition reads the whole needs context rather than testing
       # each job by name, so a job added to needs above is covered
       # without touching this. "skipped" is no longer a failure here on
-      # its own, now that suite, coverage and dist are conditional on
-      # purpose -- a prose-only pull request skips all three by design,
+      # its own, now that coverage and dist are conditional on
+      # purpose -- a prose-only pull request skips both by design,
       # and reading that as a defect would fail the gate the changes job
       # exists to let pass cheaply. changes is named in needs directly
       # though, so its own failure still shows up as "failure" in the
       # results and still fails this job -- only an *unexplained* skip
-      # (changes answering nothing, one of the three not running while
+      # (changes answering nothing, either of the two not running while
       # changes said code=true) reads as the failure it is, and that
       # still shows up as "failure" propagated from changes or from
       # whichever job did not run for a reason of its own

@@ -114,9 +114,9 @@ jobs:
         # add: the tree is Python, workflows, markdown and toml, and CodeQL
         # supports the first two of those
         language: [actions, python]
-    # far above what an analysis of this tree needs, the same way test.yml
-    # bounds the suite: what it buys is that a hung job releases the runner
-    # rather than holding it for six hours.
+    # far above what an analysis of this tree needs, the same way the
+    # coverage job of test.yml bounds the suite: what it buys is that a
+    # hung job releases the runner rather than holding it for six hours.
     # `gh run list --workflow=codeql.yml --limit 1` is what re-measures it
     timeout-minutes: 30
     steps:

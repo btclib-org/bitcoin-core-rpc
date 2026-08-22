@@ -95,11 +95,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # narrower than test.yml's, and for a different reason: nothing is
-        # platform-specific here, this package having no compiled extension
-        # and one universal wheel for every interpreter. What this samples
-        # is the two ends of the supported range and the free-threaded
-        # build, on the same operating systems test.yml already covers
+        # the widest image list in the tree, and wide on purpose: what
+        # this samples is not the module, which is platform-independent
+        # -- no compiled extension, one universal wheel for every
+        # interpreter -- but the install, and an install breaks from
+        # outside, on one image's pip or one image's runner. So every
+        # image ubuntu.yml, macos.yml and windows.yml run between them,
+        # against the two ends of the supported range and the
+        # free-threaded build
         os:
           - ubuntu-latest
           - ubuntu-24.04-arm
@@ -112,8 +115,8 @@ jobs:
           # actions/setup-python has no CPython 3.10 build for Windows
           # arm64 -- "The version '3.10' with architecture 'arm64' was not
           # found for Windows Enterprise", measured on this matrix.
-          # test.yml's own windows-11-arm cell does not need this: it
-          # provisions Python through astral-sh/setup-uv, which fetches
+          # windows.yml's own windows-11-arm cells do not need this: they
+          # provision Python through astral-sh/setup-uv, which fetches
           # python-build-standalone's distributions rather than reading
           # this action's version manifest, and that one goes back further
           - os: windows-11-arm
