@@ -44,12 +44,21 @@ name: latest
 
 on:
   schedule:
-    # weekly, on a minute that is not the hour: everything scheduled on
-    # the hour is queued together, and a run that waits is a run whose
-    # failure is noticed later.
+    # Wednesday, the day before Dependabot's, which is the whole point of
+    # the placement: this reports on the upgrade before the pull request
+    # carrying it opens. published.yml follows an hour later, the pair
+    # asking what moved underneath -- the dependencies here, and what the
+    # index serves there.
+    # The day is this workflow's and the minute is this repository's:
+    # :12 wherever a cron of this tree appears, so a schedule line names
+    # the tree it belongs to without anything else being read. Section 10
+    # of the organization standard carries the grid, and the reason no
+    # cron here is on the hour -- GitHub queues same-minute schedules
+    # across every repository that asked, and drops a run when that queue
+    # is long.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "43 4 * * 3"
+    - cron: "12 4 * * 3"
   workflow_dispatch:
 
 # least privilege for the GITHUB_TOKEN: everything running in a job

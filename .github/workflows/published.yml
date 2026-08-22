@@ -30,7 +30,7 @@ on:
   # runs the default branch's copy with the token of a push nobody reviewed
   # -- where a call runs inside the release that gated it, in its graph and
   # in its log. The caller passes the tag, and only the caller does: the
-  # monthly run and a dispatch have no particular version in mind, which is
+  # weekly run and a dispatch have no particular version in mind, which is
   # the point of them
   workflow_call:
     inputs:
@@ -42,16 +42,23 @@ on:
         type: string
         default: ""
   schedule:
-    # monthly, on the first, where this was weekly: what it watches is
-    # external rot -- a new pip, a new runner image, a yanked file -- and
-    # nothing here moves it, so a week was a sample rate without a reason.
-    # After a release the trigger above answers immediately, which is what
-    # the weekly was standing in for.
-    # A minute that is not the hour: everything scheduled on the hour
-    # queues together, and a run that waits is a failure noticed later.
+    # Wednesday, the hour after latest.yml, and the pair is why it is
+    # weekly: latest.yml upgrades every dependency and runs the suite,
+    # this asks what the index actually serves, and read together they
+    # separate a break this tree caused from one that arrived. What it
+    # watches is external rot -- a new pip, a new runner image, a yanked
+    # file -- which a week samples as well as anything longer, and after
+    # a release the trigger above answers immediately regardless.
+    # The day is this workflow's and the minute is this repository's:
+    # :12 wherever a cron of this tree appears, so a schedule line names
+    # the tree it belongs to without anything else being read. Section 10
+    # of the organization standard carries the grid, and the reason no
+    # cron here is on the hour -- GitHub queues same-minute schedules
+    # across every repository that asked, and drops a run when that queue
+    # is long.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "9 5 1 * *"
+    - cron: "12 5 * * 3"
   workflow_dispatch:
   # so a change to this file is checked by the thing it configures, the
   # trigger links.yml already carries for itself. Unlike release.yml,
@@ -73,7 +80,7 @@ permissions:
   contents: read
 
 # never cancel a sentinel, unlike every other workflow here: the run a
-# release calls, the monthly one and a dispatch share this group, each is a
+# release calls, the weekly one and a dispatch share this group, each is a
 # sample worth keeping, and none supersedes the others. A concurrent run
 # queues instead
 concurrency:

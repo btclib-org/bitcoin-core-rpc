@@ -57,17 +57,21 @@ on:
     # reports what is open, so without a run here there is no baseline
     branches: [main]
   schedule:
-    # Tuesdays, 04:27 UTC. A weekly run is what default setup performed and
-    # what a pull request trigger cannot replace: a query pack updates
-    # without anybody touching the repository, so the analysis of an
-    # unchanged tree is a different answer this week than last.
-    # Not on the hour, and on a day the other schedules here leave free --
-    # Monday is links, Wednesday macos and latest, Saturday windows-arm,
-    # Sunday mutation:
-    # GitHub queues scheduled workflows across every repository that asked
-    # for the same minute, and the run can be dropped outright when the
-    # queue is long
-    - cron: "27 4 * * 2"
+    # Tuesday, which the grid gives to this and nothing else. A weekly
+    # run is what default setup performed and what a pull request trigger
+    # cannot replace: a query pack updates without anybody touching the
+    # repository, so the analysis of an unchanged tree is a different
+    # answer this week than last.
+    # The day is this workflow's and the minute is this repository's:
+    # :12 wherever a cron of this tree appears, so a schedule line names
+    # the tree it belongs to without anything else being read. Section 10
+    # of the organization standard carries the grid, and the reason no
+    # cron here is on the hour -- GitHub queues same-minute schedules
+    # across every repository that asked, and drops a run when that queue
+    # is long.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "12 4 * * 2"
   # the escape hatch, and with no pull_request trigger above it is the only
   # way to analyse a branch before it is merged: worth reaching for on one
   # that touches a workflow, which is what the actions queries read.

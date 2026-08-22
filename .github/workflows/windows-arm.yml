@@ -39,15 +39,18 @@ name: windows-arm
 
 on:
   schedule:
-    # Saturday, the day nothing else here asks for -- the mutation session
-    # Sunday, links Monday, codeql Tuesday, latest and macos Wednesday,
-    # Dependabot Thursday -- so a failure notification still names the
-    # workflow by the day it arrived. A minute that is not the hour, as
-    # every schedule here, so the run does not queue behind everything else
-    # cron starts; 21 is unused by the others.
+    # Saturday, the hour after macos.yml: see that file for why the two
+    # platforms share a day and not an hour.
+    # The day is this workflow's and the minute is this repository's:
+    # :12 wherever a cron of this tree appears, so a schedule line names
+    # the tree it belongs to without anything else being read. Section 10
+    # of the organization standard carries the grid, and the reason no
+    # cron here is on the hour -- GitHub queues same-minute schedules
+    # across every repository that asked, and drops a run when that queue
+    # is long.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "21 4 * * 6"
+    - cron: "12 5 * * 6"
   # lets release.yml gate a publication on this image too, which is what
   # keeps a weekly sentinel from being the only thing that ever asks
   workflow_call:
