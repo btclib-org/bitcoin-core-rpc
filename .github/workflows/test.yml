@@ -15,7 +15,7 @@ on:
     # that is not the one the pull request tested, and nothing else would
     # ever test it. Tag pushes are covered by the release workflow
     branches: [main]
-    # a documentation-only commit would otherwise run the whole matrix.
+    # a documentation-only commit would otherwise run every job below.
     # None of these files is imported by the module or read by a test --
     # README.md is the PyPI long description, not a doctest source, and
     # CONTRIBUTING.md is checked by markdownlint, which is the lint
@@ -26,8 +26,8 @@ on:
     # produces no run at all blocks the merge instead of passing it. The
     # changes job below is the pull_request-side answer to the same
     # question -- it runs, so the required check still reports, but skips
-    # the matrix rather than the whole workflow when nothing in the diff
-    # is something the matrix reads
+    # the jobs below it rather than the whole workflow when nothing in
+    # the diff is something they read
     paths-ignore:
       - "*.md"
   pull_request:
@@ -87,7 +87,7 @@ on:
           every one of them for a property only release.yml's call needs.
         type: boolean
         default: false
-  # the escape hatch: the matrix on demand for a branch whose pull
+  # the escape hatch: the gate on demand for a branch whose pull
   # request is not open yet
   workflow_dispatch:
 
@@ -124,8 +124,8 @@ concurrency:
 jobs:
   # the cheapest job in the workflow, and the one that decides whether the
   # rest of it runs at all: a pull request that edits only prose changes
-  # nothing the matrix below reads, and was spending the whole matrix to
-  # prove it. suite, coverage and dist each take this as a `needs` and
+  # nothing the jobs below read, and was spending the whole gate to
+  # prove it. coverage and dist each take this as a `needs` and
   # read its output; test-passed takes it too, so a failure here fails
   # the gate rather than being read as everything downstream correctly
   # declining nothing to do.
@@ -138,9 +138,9 @@ jobs:
   #   and the whole workflow would skip on main and on a release
   # - README.md is not prose for this purpose. It is the long description
   #   the dist job's twine and pyroma steps check, so an edit to it is a
-  #   change the matrix can fail on
+  #   change that job can fail on
   # - a workflow is *not* on the allowlist, deliberately: which workflows
-  #   the matrix reads is this file and what it calls, plus release.yml,
+  #   these jobs read is this file and what it calls, plus release.yml,
   #   and naming the rest would be a judgement call stale the first time
   #   one of them changes what it does. Leaving every workflow edit to run
   #   everything is the cheap direction to be wrong in
@@ -149,7 +149,7 @@ jobs:
   # heads-up about the permission it needs on the caller's side once it
   # landed here: release.yml's `test:` job grants it explicitly
   changes:
-    name: Decide whether the matrix has anything to check
+    name: Decide whether the jobs below have anything to check
     if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -181,92 +181,27 @@ jobs:
           # every root prose file but README.md, .github's own markdown,
           # the mutation configuration (read by mutation.yml, not this
           # workflow) and the detect-secrets baseline (read by the
-          # pre-commit hook lint.yml gates) -- nothing this matrix reads.
+          # pre-commit hook lint.yml gates) -- nothing these jobs read.
           # An empty list is not a documentation change, it is a question
           # this could not answer, so the count is checked before the
           # pattern
           prose='^(AUTHORS|CHANGELOG|CLAUDE|CODE_OF_CONDUCT|COMPARISON|CONTRIBUTING|RELEASE_NOTES|RELEASING|REPOSITORY|REVIEWING|SECURITY)\.md$|^\.github/[^/]*\.md$|^\.github/mutation/[^/]*\.toml$|^\.secrets\..*baseline$'
           if [ ! -s files.txt ] || grep -qvE "$prose" files.txt; then
             echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "something the matrix reads changed: everything runs"
+            echo "something the jobs below read changed: everything runs"
           else
             echo "code=false" >> "$GITHUB_OUTPUT"
-            echo "prose only: the matrix has nothing to check"
+            echo "prose only: the jobs below have nothing to check"
           fi
 
-  # what the matrix buys on a module with no compiled dependency and no
-  # third-party import: the standard library it is built out of, which is
-  # not the same library everywhere. `urllib.request` and the `ssl` and
-  # `http.client` under it are the largest part of what this module does
-  # and the part that moves most between releases; `Path.home()` resolves
-  # through the registry on Windows and through the passwd database
-  # elsewhere, and `%APPDATA%` is what `default_datadir` reads there
-  # instead, so a Windows row is the one place either is asked for real
-  # rather than patched; `decimal` is libmpdec on CPython and a Python
-  # implementation on PyPy, and the exact parsing of an amount is a promise
-  # this client makes.
-  suite:
-    name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
-    # a draft pull request is work in progress: every push to one spends
-    # the whole matrix on a tree its author is not asking anyone to
-    # review yet. The gate below carries the same condition, so a draft
-    # skips uniformly and the gate does not read that skip as a job that
-    # should have run.
-    # A closed pull request spends none either: the trigger above takes
-    # the closed event only to supersede a run this ref's group is still
-    # holding, and every job here carries the same skip for the reason
-    # the draft one already does.
-    # needs.changes.outputs.code == 'true' is the fourth: a pull request
-    # that only edits prose has nothing here to check either, and the
-    # changes job above is what answers that question
+  coverage:
+    name: Measure coverage, gated at 100%
     if: >-
       ${{ !github.event.pull_request.draft
       && github.event.action != 'closed'
       && needs.changes.outputs.code == 'true' }}
     needs: changes
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # three, and macos.yml and windows-arm.yml carry the other three,
-        # each with its measurement in its own header. What a row costs a
-        # pull request is a slot out of the twenty GitHub Free gives an
-        # organization, shared with every other repository in it; what it
-        # buys is the standard library under the one branch this module
-        # takes per platform. The macOS and Windows rows of that branch are
-        # asserted on every run by patching `sys.platform`, so what a real
-        # runner adds is the `Path.home()` under the table and the library
-        # around it -- once per platform family, which is what
-        # windows-latest is still here for
-        os:
-          - ubuntu-latest
-          - ubuntu-24.04-arm
-          - windows-latest
-        # 3.14t is the free-threaded interpreter, and it belongs here for
-        # what this module promises: concurrent calls are supported while
-        # the configuration is not mutated, and a build without the GIL is
-        # the one that would report a shared counter or a cached credential
-        # if either existed
-        python:
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.14"
-          - "3.14t"
-          - "pypy3.11"
-        # the one cell the coverage job below already is: same runner image,
-        # same interpreter, the same suite, and the only difference is the
-        # instrumentation. Running both asks one question twice and holds two
-        # of the twenty concurrent jobs GitHub Free gives an organization,
-        # which is what a pull request's wall clock is made of here. Nothing
-        # else is excluded: that job is pinned to this pair, for the reason
-        # its own comment gives, so this is the only overlap there can be
-        exclude:
-          - os: ubuntu-latest
-            python: "3.14"
-    # far above what a run of the suite needs: what it bounds is a hung
-    # job holding a runner for six hours
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
@@ -280,70 +215,15 @@ jobs:
           # the workspace would carry it out of the job. No job in any of
           # these workflows performs an authenticated git operation -- the
           # release is created by gh, from GH_TOKEN in its environment --
-          # so nothing needs it to stay
+          # so nothing needs it to stay.
+          # This is the checkout every other workflow here cites: the one
+          # on the gate, which runs on every pull request
           persist-credentials: false
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          # the cache holds the wheels uv.lock resolves, this matrix
-          # fetching the same ones on every run of every commit
-          enable-cache: true
-          python-version: ${{ matrix.python }}
-      # --no-cov, against the --cov that addopts now carries: what this
-      # matrix asks is whether every (os, architecture, interpreter)
-      # triple passes, and the `coverage` job below is where coverage is
-      # measured and gated -- its own comment is why instrumenting these
-      # cells too would measure the same lines over again for nothing.
-      # On pypy3.11 it is worse than redundant: coverage.py falls back to
-      # a pure-Python tracer there, having no C extension built for it,
-      # and that tracer does not survive `rpc_smoke_test.py` exercising
-      # `main()`'s several `sys.exit()` paths in-process -- coverage.py
-      # warns "Trace function changed" partway through the run and stops
-      # recording, so the same green suite reported 71% against a 100%
-      # gate that had measured nothing wrong
-      #
-      # this job's matrix includes windows-latest, where the default
-      # shell is PowerShell rather than bash. This step is on the merge
-      # gate itself and its Windows cell is exercised on every pull
-      # request, but a shell-less step there still executes PowerShell
-      # rather than the bash the script was written for -- going green
-      # on the wrong interpreter's syntax rather than red on the right
-      # one -- which is why the plain command below is no evidence this
-      # cell would survive an edit adding POSIX-only syntax
-      # (issue btclib-org/btclib#1148)
-      - name: Run pytest
-        shell: bash
-        run: uv run --locked --no-default-groups --group test pytest --no-cov
-
-  # coverage is measured once, not once per matrix job: the code base has
-  # no version-conditional branch and no conditional skip, and its one
-  # sys.platform branch -- the datadir table in `default_datadir` -- is
-  # driven by patching `sys.platform`, so every job walks the very same
-  # lines. Per-job measurement would buy only the instrumentation
-  # overhead.
-  # The number is a gate rather than a report: fail_under, in
-  # tool.coverage.report, fails this job on a regression. It needs no
-  # secret and no third party, and it applies to every run.
-  # It is also the (3.14, ubuntu-latest) cell of the matrix above, which is
-  # why that pair is excluded there: a suite that passes is what this job
-  # reports before it reads a number, so the pair needs no job of its own
-  coverage:
-    name: Measure coverage, gated at 100%
-    if: >-
-      ${{ !github.event.pull_request.draft
-      && github.event.action != 'closed'
-      && needs.changes.outputs.code == 'true' }}
-    needs: changes
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
+          # the cache holds the wheels uv.lock resolves, which every run
+          # of every commit otherwise fetches again
           enable-cache: true
           # 3.14, i.e. what .python-version pins and what a bare `uv run`
           # gives a maintainer locally: the number this job gates on is a
@@ -422,7 +302,7 @@ jobs:
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
       # empty on every trigger but a release rehearsal: `inputs` is unset
       # outside a workflow_call, so a direct run of this workflow -- the
-      # matrix a pull request or a push to main gets -- skips this and
+      # run a pull request or a push to main gets -- skips this and
       # ships the version the tree declares, same as a real release does.
       # TestPyPI refuses a version it has already seen, which is what the
       # suffix is for; release.yml's `version-check` job computes it once
@@ -531,11 +411,11 @@ jobs:
 
   # the single check main's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal
-  # strings, stored outside the repository. The matrix above produces one
-  # per (runner label, interpreter) pair -- a count that moves whenever the
-  # matrix does: naming those directly means every matrix edit has to be
-  # mirrored in a setting no pull request can review, and a name that stops
-  # being produced -- macos-latest moving on, 3.10 aging out in its turn --
+  # strings, stored outside the repository. The jobs above are three
+  # names this file is free to change, and a matrix here would be worse
+  # again, its cell names carrying values the matrix decides: naming
+  # either directly means every such edit has to be mirrored in a setting
+  # no pull request can review, and a name that stops being produced
   # becomes a required check that never reports, which blocks every merge
   # until someone remembers where the rule lives.
   # This job depends on the others instead, so the rule names one thing
@@ -549,7 +429,7 @@ jobs:
     # the day either grows a second one, this pattern and a change to the
     # rule are what that costs
     name: "test: every job passed"
-    needs: [changes, suite, coverage, dist]
+    needs: [changes, coverage, dist]
     # not success(): a job whose dependencies failed is skipped, and a
     # skipped check reports "skipped", which branch protection counts as
     # satisfied. The gate has to run to be able to fail
@@ -570,13 +450,13 @@ jobs:
       # the condition reads the whole needs context rather than testing
       # each job by name, so a job added to needs above is covered
       # without touching this. "skipped" is no longer a failure here on
-      # its own, now that suite, coverage and dist are conditional on
-      # purpose -- a prose-only pull request skips all three by design,
+      # its own, now that coverage and dist are conditional on
+      # purpose -- a prose-only pull request skips both by design,
       # and reading that as a defect would fail the gate the changes job
       # exists to let pass cheaply. changes is named in needs directly
       # though, so its own failure still shows up as "failure" in the
       # results and still fails this job -- only an *unexplained* skip
-      # (changes answering nothing, one of the three not running while
+      # (changes answering nothing, either of the two not running while
       # changes said code=true) reads as the failure it is, and that
       # still shows up as "failure" propagated from changes or from
       # whichever job did not run for a reason of its own

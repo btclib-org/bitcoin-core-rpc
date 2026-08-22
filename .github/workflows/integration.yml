@@ -5,37 +5,41 @@ name: integration
 # Core's own and the suite classifies all of them without opening a socket,
 # which is the right shape for a test suite -- but a recording is the thing
 # being classified, so nothing in it says that a live bitcoind still
-# answers this way. This workflow asks two of them, and
+# answers this way. This workflow asks live nodes instead, as many
+# majors as the trigger calls for, and
 # .github/scripts/rpc_smoke.py is the whole of what it asks: the reply
 # shapes read off the wire before the client reads them, the cookie the
 # node wrote, the /wallet/<name> endpoint of a node with two wallets, and
 # the chain answers against a regtest chain the script generates, so the
 # expected height is arithmetic rather than a recording.
 #
-# Four more cells ask a narrower question about the four chains regtest
-# is not: with none of them a chain this workflow can grow, `--chain`
+# Five more cells ask a narrower question about the five chains Core
+# names: with only regtest a chain this workflow can grow, `--chain`
 # starts a node of each with no peer reachable at all, and checks only that
 # Core still accepts `-chain=<name>` and echoes it back -- one Core version
-# rather than both, since that spelling has not moved across a supported
-# major yet.
+# rather than every one, since that spelling has not moved across a
+# supported major yet.
 #
-# It gates a merge, which it did not until now, and the reason it did not
-# was a cost that measurement does not support: every cell here finishes in
-# 12 to 24 seconds, the download of bitcoind included, and the whole
-# workflow in about 90 seconds -- against the two minutes of test.yml's
-# matrix, which it therefore does not lengthen. The claim it replaces, that
-# "two nodes plus two downloads is minutes", was either never measured or
-# has been overtaken by the runners; what is true today is in the run log:
+# How many majors the protocol cells ask is the one thing a schedule
+# changes here: the boundary pair before a merge, every supported major on
+# Sunday. The `versions` job below is where that is decided and where the
+# pins are, and it is a job rather than two literals in a matrix because a
+# digest belongs in one place.
+#
+# It gates a merge on a cost that is measured rather than assumed: every
+# cell here finishes in 12 to 24 seconds, the download of bitcoind
+# included, and the cells run concurrently. What a whole run costs today
+# is in the run log rather than in this comment:
 #
 #     gh run list --workflow=integration.yml --limit 1
 #
 # Being required is also why the pull_request trigger below carries no
 # `paths`: a required check that never runs blocks a merge, where a skipped
 # one satisfies it, so a filter and a required check cannot both be had.
-# Every pull request pays 90 seconds, documentation-only ones included.
+# Every pull request pays that, documentation-only ones included.
 #
-# A workflow of its own and not a job in test.yml, whose matrix is
-# interpreters: this one is bitcoind versions.
+# A workflow of its own and not a job in test.yml: what varies there is
+# the tree under test, and here it is the node it is tested against.
 
 on:
   # the same trigger set as the other three gates, lint.yml first among
@@ -45,6 +49,15 @@ on:
   # hatch RELEASING.md uses
   push:
     branches: [main]
+  schedule:
+    # Sunday, the hour after mutation.yml: the two runs that share that
+    # day are an hour apart rather than concurrent, and this is the wider
+    # of them -- every supported major against every chain, where a pull
+    # request is asked about the compatibility boundary alone.
+    # The time is section 10's grid and not this file's to restate.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "12 5 * * 0"
   workflow_call:
   workflow_dispatch:
   # no `paths` here any more: see the note above on a required check that
@@ -92,10 +105,87 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # what this run asks about, and the only thing an event changes here.
+  #
+  # x86_64 linux only, that being the architecture the digests below are
+  # of. What the matrix buys is bitcoind versions, and a second
+  # architecture would buy the same protocols again.
+  #
+  # 27.2 is deliberately end of life and does not move again unless Core
+  # changes what v27 was. It is the last major that does not recognize the
+  # `"jsonrpc": "2.0"` marker at all, so what it pins is the compatibility
+  # boundary -- that a client sending the marker to a node which has never
+  # heard of it still reads the 1.1 reply that comes back, an rpc error
+  # under an HTTP 500 included. Nothing else in Core's supported range can
+  # demonstrate that. The newest entry is whatever is current, and the
+  # middle ones are every other supported major.
+  #
+  # A merge is asked the two ends and Sunday is asked all of them. The
+  # sweep is not the gate's complement but the whole list, the two ends
+  # included: a matrix with a hole in it is one nobody can read the shape
+  # of, and whoever asked what ran would have to re-derive the hole from
+  # the gate.
+  #
+  # Each digest is the SHA256SUMS entry of the release directory, written
+  # here rather than fetched beside the file it describes: a checksum file
+  # served by the host that served the archive is one host's statement
+  # about itself. SHA256SUMS.asc is the stronger link and is not taken --
+  # it would make this job hold the builder keys and decide how many
+  # signatures are enough, which is a policy this repository has nowhere
+  # to state.
+  versions:
+    name: Choose the Core majors this run asks about
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      include: ${{ steps.pick.outputs.include }}
+    steps:
+      - name: Build the matrix
+        id: pick
+        env:
+          # a schedule asks every major; everything else asks the two ends
+          EVERY: ${{ github.event_name == 'schedule' }}
+        run: |
+          releases='[
+            {"core": "27.2", "protocol": "1.1",
+             "digest": "acc223af46c178064c132b235392476f66d486453ddbd6bca6f1f8411547da78"},
+            {"core": "28.4", "protocol": "2.0",
+             "digest": "661c02443433c006a52bd3e688c1bc14a37fb95b964f40dfe7b1dc4ffcac2926"},
+            {"core": "29.4", "protocol": "2.0",
+             "digest": "e15bff6f6d21a315c4af25d2e8ae933a22bd51e924e0e90ab0474e1e11516331"},
+            {"core": "30.3", "protocol": "2.0",
+             "digest": "4753cd70416c629a2090503e8545a3c05e94a0f5037f8fb97b4c35c6e1afee0e"},
+            {"core": "31.1", "protocol": "2.0",
+             "digest": "b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e"}
+          ]'
+          # the ends by position rather than by version: the list is the
+          # order, so adding a major to it needs nothing here changed
+          if [ "${EVERY}" = true ]; then
+            protocol=$(jq -c '.' <<<"${releases}")
+          else
+            protocol=$(jq -c '[.[0], .[-1]]' <<<"${releases}")
+          fi
+          # the chain cells reuse the newest release rather than pinning
+          # their own: it is the same download, asked a different
+          # question. All five chains, regtest included, even though the
+          # protocol cells start regtest as well -- they do it in passing,
+          # on the way to the question they exist for, so regtest's row in
+          # the port table would lose its only check the day one of them
+          # is rewritten to take an explicit url
+          chains=$(jq -c --argjson newest "$(jq -c '.[-1]' <<<"${releases}")" \
+            -n '["main", "test", "testnet4", "signet", "regtest"]
+                | map({core: $newest.core, chain: ., digest: $newest.digest})')
+          include=$(jq -c -n --argjson p "${protocol}" --argjson c "${chains}" '$p + $c')
+          echo "include=${include}" >> "${GITHUB_OUTPUT}"
+          jq . <<<"${include}"
+
   integration:
+    needs: versions
     name: >-
       ${{ matrix.protocol && format('Smoke the rpc client against Core {0}', matrix.core)
-          || format('Start Core {0} on {1} and check it answers', matrix.core, matrix.chain) }}
+          || format('Start Core {0} on {1} and check it answers', matrix.core,
+                       matrix.chain == 'test' && 'testnet3 (-chain=test)' || matrix.chain) }}
     # a draft pull request is work in progress and spends no runner
     # here either: the same condition lint.yml and test.yml carry, and
     # ready_for_review is a trigger type above for the same reason.
@@ -105,7 +195,7 @@ jobs:
     if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     # a download, a node and a hundred blocks of regtest, all of it local:
-    # a run past this is a node that never opened its rpc port. The four
+    # a run past this is a node that never opened its rpc port. The
     # chain-only cells need far less than that -- no chain grown on any of
     # them -- and share the same ceiling rather than a second one to keep
     # in step with it
@@ -116,62 +206,17 @@ jobs:
       # questions, so the answer for one is not a reason to stop asking
       # the rest
       fail-fast: false
+      # the list the job above built, protocol cells and chain cells
+      # together: one matrix, so one gate below counts them
       matrix:
-        # x86_64 linux only, that being the architecture the digests below
-        # are of. What the matrix buys here is bitcoind versions, and a
-        # second architecture would buy the same two protocols again.
-        #
-        # The rule for moving these pins, which is why it is written beside
-        # them: the older is the final release of the newest line that
-        # predates the 2.0 marker, and the newer is whatever is current.
-        #
-        # 27.2 is deliberately end of life. It is the last major that does
-        # not recognize the "jsonrpc": "2.0" marker at all, so what it pins
-        # is the compatibility boundary -- that a client sending the marker
-        # to a node which has never heard of it still reads the 1.1 reply
-        # that comes back, an rpc error under an HTTP 500 included. Nothing
-        # else in Core's supported range can demonstrate that, and this pin
-        # does not move again unless Core changes what v27 was.
-        #
-        # The digest is the SHA256SUMS entry of the release directory,
-        # written here rather than fetched beside the file it describes: a
-        # checksum file served by the host that served the archive is one
-        # host's statement about itself. SHA256SUMS.asc is the stronger
-        # link and is not taken -- it would make this job hold the builder
-        # keys and decide how many signatures are enough, which is a policy
-        # this repository has nowhere to state
-        #
-        # The four `chain` cells below reuse the 31.1 digest rather than
-        # pinning their own: it is the same download, asked a different
-        # question, and regtest is not among them -- the two `protocol`
-        # cells already start it, on both versions, more thoroughly than a
-        # third start of it here ever would
-        include:
-          - core: "27.2"
-            protocol: "1.1"
-            digest: acc223af46c178064c132b235392476f66d486453ddbd6bca6f1f8411547da78
-          - core: "31.1"
-            protocol: "2.0"
-            digest: b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
-          - core: "31.1"
-            chain: main
-            digest: b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
-          - core: "31.1"
-            chain: test
-            digest: b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
-          - core: "31.1"
-            chain: testnet4
-            digest: b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
-          - core: "31.1"
-            chain: signet
-            digest: b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
+        include: ${{ fromJSON(needs.versions.outputs.include) }}
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
       # tag, let alone a branch, is a name its owner can move
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -278,12 +323,13 @@ jobs:
 
   # the check main requires, and the only one from this workflow: the rule
   # lives outside the repository, so it must name an outcome rather than
-  # six matrix cells whose names carry a Core version and a chain. The name
+  # matrix cells whose names carry a Core version and a chain -- and whose
+  # number the versions job above decides per trigger anyway. The name
   # carries the workflow because a context is keyed by name alone -- see
   # test.yml's own gate, which is this pattern's other instance
   integration-passed:
     name: "integration: every job passed"
-    needs: [integration]
+    needs: [versions, integration]
     # not success(): a job whose dependencies failed is skipped, and a
     # skipped check reports "skipped", which branch protection counts as
     # satisfied. The gate has to run to be able to fail. And the draft

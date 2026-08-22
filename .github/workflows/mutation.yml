@@ -20,13 +20,15 @@ name: mutation
 
 on:
   schedule:
-    # Sundays, 03:41 UTC. Not on the hour: GitHub queues scheduled
-    # workflows across every repository that asked for the same minute, and
-    # the run can be dropped outright when the queue is long.
+    # Sunday, an hour before integration.yml: a session measured in
+    # minutes takes the first of the two slots that day rather than
+    # running beside the other, twenty concurrent jobs being what the
+    # whole organization shares.
+    # The time is section 10's grid and not this file's to restate.
     # Cron runs from the default branch only, so this file gates nothing
     # until it reaches main -- on a branch it is reachable through the
     # dispatch button below and nowhere else
-    - cron: "41 3 * * 0"
+    - cron: "12 4 * * 0"
   # the escape hatch, and the way to ask for these numbers now
   workflow_dispatch:
   # No pull_request trigger, unlike links.yml, which does run itself when
@@ -66,7 +68,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1

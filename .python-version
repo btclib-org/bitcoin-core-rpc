@@ -1,9 +1,10 @@
-# The interpreter uv picks by default: the newest the test matrix covers,
-# not the oldest the package supports. requires-python is ">=3.10", and
-# both linters are aimed at that end deliberately -- ruff infers py310 from
-# requires-python, and pyproject.toml pins mypy to python_version = "3.10"
-# to match it. So a bare "uv run" here means "the newest", and checking the
-# oldest is the matrix's job and the two linters'. Since 3.9 was dropped
+# The interpreter uv picks by default, and the one the merge gate pins to
+# match: the newest the package supports, not the oldest. requires-python
+# is ">=3.10", and both linters are aimed at that end deliberately -- ruff
+# infers py310 from requires-python, and pyproject.toml pins mypy to
+# python_version = "3.10" to match it. So a bare "uv run" here means "the
+# newest", and running the oldest is the weekly platform sweeps' job while
+# checking it is the two linters'. Since 3.9 was dropped
 # they aim at the same version the floor names, which is what the comment
 # on [tool.mypy] is about.
 #

@@ -57,17 +57,15 @@ on:
     # reports what is open, so without a run here there is no baseline
     branches: [main]
   schedule:
-    # Tuesdays, 04:27 UTC. A weekly run is what default setup performed and
-    # what a pull request trigger cannot replace: a query pack updates
-    # without anybody touching the repository, so the analysis of an
-    # unchanged tree is a different answer this week than last.
-    # Not on the hour, and on a day the other schedules here leave free --
-    # Monday is links, Wednesday macos and latest, Saturday windows-arm,
-    # Sunday mutation:
-    # GitHub queues scheduled workflows across every repository that asked
-    # for the same minute, and the run can be dropped outright when the
-    # queue is long
-    - cron: "27 4 * * 2"
+    # Tuesday, which the grid gives to this and nothing else. A weekly
+    # run is what default setup performed and what a pull request trigger
+    # cannot replace: a query pack updates without anybody touching the
+    # repository, so the analysis of an unchanged tree is a different
+    # answer this week than last.
+    # The time is section 10's grid and not this file's to restate.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "12 4 * * 2"
   # the escape hatch, and with no pull_request trigger above it is the only
   # way to analyse a branch before it is merged: worth reaching for on one
   # that touches a workflow, which is what the actions queries read.
@@ -116,9 +114,9 @@ jobs:
         # add: the tree is Python, workflows, markdown and toml, and CodeQL
         # supports the first two of those
         language: [actions, python]
-    # far above what an analysis of this tree needs, the same way test.yml
-    # bounds the suite: what it buys is that a hung job releases the runner
-    # rather than holding it for six hours.
+    # far above what an analysis of this tree needs, the same way the
+    # coverage job of test.yml bounds the suite: what it buys is that a
+    # hung job releases the runner rather than holding it for six hours.
     # `gh run list --workflow=codeql.yml --limit 1` is what re-measures it
     timeout-minutes: 30
     steps:
@@ -128,7 +126,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Initialize CodeQL
         uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7

@@ -44,12 +44,15 @@ name: latest
 
 on:
   schedule:
-    # weekly, on a minute that is not the hour: everything scheduled on
-    # the hour is queued together, and a run that waits is a run whose
-    # failure is noticed later.
+    # Wednesday, the day before Dependabot's, which is the whole point of
+    # the placement: this reports on the upgrade before the pull request
+    # carrying it opens. published.yml follows an hour later, the pair
+    # asking what moved underneath -- the dependencies here, and what the
+    # index serves there.
+    # The time is section 10's grid and not this file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "43 4 * * 3"
+    - cron: "12 4 * * 3"
   workflow_dispatch:
 
 # least privilege for the GITHUB_TOKEN: everything running in a job
@@ -66,10 +69,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # narrower than the test matrix, and for a different reason: there, what
-  # varies is the standard library this module is built out of; here it is
-  # which release of each tool the interpreter resolves to, and the two
-  # ends of the supported range are what a sentinel needs. The low end
+  # narrower than the platform sentinels, and for a different reason:
+  # there, what varies is the standard library this module is built out
+  # of; here it is which release of each tool the interpreter resolves
+  # to, and the two ends of the supported range are what a sentinel
+  # needs. The low end
   # earns its place: a dependency dropping 3.10 does not fail to resolve,
   # it resolves to an older version there and keeps the job green while
   # 3.10 quietly stops being tested against what everybody else runs
@@ -91,7 +95,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -110,8 +114,8 @@ jobs:
       # knowing before running the same command in a working tree
       - name: Upgrade every dependency to its latest release
         # this matrix includes windows-latest, whose default shell is
-        # PowerShell rather than bash -- see windows-arm.yml's
-        # suite-windows-arm job for the failure mode a POSIX-only step
+        # PowerShell rather than bash -- see windows.yml's
+        # suite-windows job for the failure mode a POSIX-only step
         # hits there unnoticed (issue btclib-org/btclib#1148). Both steps
         # below are one plain command each and run identically under
         # either shell today, which is exactly the hazard: a future edit
@@ -123,7 +127,7 @@ jobs:
       # wrote that lock, so this asserts nothing moved between the two and
       # keeps the convention that no uv command in these workflows
       # installs from a lock it has not checked
-      # --no-cov for the reason test.yml's suite job gives beside its own
+      # --no-cov for the reason ubuntu.yml gives beside its own
       - name: Run pytest
         shell: bash
         run: uv run --locked --no-default-groups --group test pytest --no-cov
