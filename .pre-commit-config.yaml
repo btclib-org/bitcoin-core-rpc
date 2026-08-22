@@ -392,7 +392,7 @@ repos:
     rev: v1.38.0
     hooks:
       - id: yamllint
-        name: yamllint (line width and document start)
+        name: yamllint (the default rule set, less two)
   # .github/dependabot.yml is validated by nothing else here: check-yaml
   # above asks whether it is yaml, and actionlint below reads workflows
   # and not this. A typo in a package-ecosystem or a directory is not an

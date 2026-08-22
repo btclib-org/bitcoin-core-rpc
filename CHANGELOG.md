@@ -23,6 +23,33 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`.yamllint.yaml` turns the default rule set back on**
+  (btclib-org/.github#68). The file listed `line-length` and
+  `document-start` under `rules:` and extended nothing, and yamllint
+  enables no rule a configuration does not name -- so those two were the
+  only rules that had ever run here. Indentation, trailing whitespace,
+  duplicate keys, colon spacing and the rest of the default set were
+  off, while the file's own comment named `comments` and `truthy` as the
+  exceptions and read as though the rest were on.
+
+  Three things kept it out of sight, and each generalizes past this
+  file: the comment said otherwise; the gate stayed green, because
+  removing a check cannot make a conformant tree fail; and the file is
+  shared byte-for-byte, so the defect travelled by being copied rather
+  than by being written twice. `extends: default` is back, and the two
+  exceptions are named under `rules:` as explicit `disable`s where a
+  reader sees them instead of inferring them from what is missing.
+
+  The hook's own name follows it: "yamllint (line width and document
+  start)" was an accurate description of a defect, and is now "yamllint
+  (the default rule set, less two)".
+
+  It costs this tree nothing: `git ls-files '*.yml' '*.yaml' | xargs
+  uvx yamllint` reports the same nothing before and after. That is a
+  fact about how the yaml here is written, not an argument for having
+  left the set off -- what a rule is worth is what it catches the day
+  somebody writes the line.
+
 - **`.taplo.toml` stops carrying one tree's furniture**
   (btclib-org/.github#40). The file is shared byte-for-byte across the
   organization's repositories, deliberately, and this copy justified its
