@@ -28,7 +28,10 @@ carry a union merge driver that would keep both sides' numbers.
   written -- `git log -S 'this one calls three'` finds the one commit,
   and `release.yml` called `test`, `lint` and `docs` at that point. Four
   more were added under it since, `macos`, `windows-arm`, `integration`
-  and `published`, none of them revisiting a sentence eighty lines up.
+  and `published`, none of them revisiting a comment far enough above to
+  be off the screen -- the nearest of those four `uses:` lines is
+  hundreds of lines below it, which is the distance that made the
+  sentence safe to leave alone.
 
   The count carried nothing the reader needed. What the comment is for
   is why the group is named literally -- `github.workflow` inside a
