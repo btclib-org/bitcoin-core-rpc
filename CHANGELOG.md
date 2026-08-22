@@ -23,6 +23,31 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`docs/source/conf.py`'s reason for not copying the root files names
+  the links this `CONTRIBUTING.md` has** (issue #188). The paragraph
+  rejecting a build-time copy said the file "links to CODE_OF_CONDUCT.md
+  and tests/\_data/README.md". It does not link the second and never
+  did: `git log -S 'tests/_data/README.md' -- docs/source/conf.py`
+  returns the commit that opened this repository, and `CONTRIBUTING.md`
+  at that commit named `CODE_OF_CONDUCT.md` and nothing else outside the
+  documentation. The sentence is `btclib`'s, where it is true — that
+  tree's `CONTRIBUTING.md` does link `./tests/README.md` — carried over
+  with the path bent to a file this tree happens to have. It is the
+  shape `.yamllint.yaml`'s survey had: a claim that reads as measured
+  because it was, somewhere else.
+
+  The conclusion never depended on it. One destination outside the
+  documentation is enough to reject copying, and there are two here as
+  the sentence always said: `CODE_OF_CONDUCT.md`, and `RELEASING.md`,
+  which `CONTRIBUTING.md` links and no shim in `docs/source/` includes.
+  The comment now names that second one, and says what decides the
+  question — whether a shim includes the file — so the next reader
+  checks the thing that settles it rather than a list. What the wrong
+  name cost was never a build: it was a reader running the check the
+  comment invites, watching it fail, and having no way to tell whether
+  the decision rested on a misreading or the tree had moved under a
+  decision that was right.
+
 - **CONTRIBUTING.md sends a contributor to the organization standard**
   (btclib-org/.github#52). `README.md` in `btclib-org/.github` states
   the toolchain, the lint gate, the workflow set and the branch rules
