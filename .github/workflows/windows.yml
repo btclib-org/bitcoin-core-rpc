@@ -99,11 +99,10 @@ jobs:
     # happens before a job starts and is not counted here
     timeout-minutes: 30
     steps:
-      # the three steps ubuntu.yml's own suite job carries the reasoning
-      # for, and each `with:` there carries the reason for itself
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1

@@ -86,7 +86,7 @@ read by every checkout of this repository.
 | `ubuntu` | weekly, a release | 2 ubuntu images × 7 interpreters |
 | `macos` | weekly, a release | 2 macOS images × 7 interpreters |
 | `windows` | weekly, a release | 2 Windows images × 7 interpreters |
-| `latest` | weekly | 6 platforms × 7, deps upgraded |
+| `latest` | weekly | 3 images × the floor and the ceiling, upgraded |
 | `integration` | weekly | every supported Core major × 5 chains |
 | `links` | weekly | — |
 | `mutation` | weekly | — |
