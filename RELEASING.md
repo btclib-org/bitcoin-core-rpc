@@ -422,7 +422,7 @@ the choice in the release pull request, next to `latest`'s own result.
 
    A registration that matched once can still go stale on its own — a
    repository rename is enough — without anything here flagging it before
-   the upload tries. Sibling repository btclib-libsecp256k1 hit exactly
+   the upload tries. Sibling repository btclib-secp256k1 hit exactly
    this on a real tag rather than a rehearsal: the matrix had already
    built everything and only the token exchange failed, so retagging
    would have rebuilt it for nothing. Fixing the registration and running
@@ -436,7 +436,7 @@ the choice in the release pull request, next to `latest`'s own result.
    environment approval has already gone through, is not this repository's
    problem to fix: the org's GitHub Actions concurrency is shared across
    every `btclib-org` repository, and a burst of CI elsewhere (`btclib`,
-   `btclib-libsecp256k1`) is enough to queue this one behind it. Confirm
+   `btclib-secp256k1`) is enough to queue this one behind it. Confirm
    there is nothing to fix rather than assume it — githubstatus.com green,
    no `pending_deployments` left on the run, no concurrency group of this
    repository's own blocking it — then wait; cancelling or re-dispatching
