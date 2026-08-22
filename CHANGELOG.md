@@ -23,6 +23,25 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **A Dependabot pull request can be reviewed** (btclib-org/.github#77).
+  `claude-review.yml`'s review job failed on #207, the first Dependabot
+  pull request opened since the credential guard landed, and it failed
+  twice for two different reasons. The first was the credential: a
+  `pull_request` run whose actor is `dependabot[bot]` reads from GitHub's
+  Dependabot secret store rather than from Actions secrets, and that
+  store was empty, so the guard fired exactly as designed. The second is
+  this change: the action refuses a run a bot initiated unless the bot is
+  named — "Workflow initiated by non-human actor".
+
+  `allowed_bots: "dependabot[bot]"`, named rather than `*`: the input's
+  own description warns that on a public repository `*` lets an external
+  App invoke the action with a prompt it controls. The mention job takes
+  no such input, what triggers it being somebody writing `@claude`.
+
+  Without this a Dependabot pull request is the one class that can never
+  carry the ack of record `REVIEWING.md` requires, which is the class
+  whose whole value is landing promptly.
+
 - **The sibling repository is named `btclib-secp256k1`** in the seven
   places here that named it otherwise, under either spelling.
   Hyphenated, in `.markdownlint.jsonc`, `.github/dependabot.yml` and
