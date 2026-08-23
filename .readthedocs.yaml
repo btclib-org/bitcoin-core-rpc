@@ -4,11 +4,11 @@
 #
 # The dotted name is the canonical one; readthedocs.yml is honored too,
 # but documented as deprecated. btclib's copy of this line goes on to say
-# that "include *.yml" would drag the file into the sdist beside the
-# Jekyll configuration; that clause is about a repository that serves a
-# site from its own root, and this one serves none. MANIFEST.in here
-# names `include *.yaml`, and records beside it why the glob is written
-# that way.
+# that a `*.yml` include pattern would drag the file into the sdist beside
+# the Jekyll configuration; that clause is about a repository that serves
+# a site from its own root, and this one serves none.
+# [tool.uv.build-backend] source-include here names `*.yaml`, and records
+# beside it why the glob is written that way.
 #
 # The build has to install the project itself, not sphinx alone: the
 # autodoc directive in docs/source/api.rst imports the module, a failed

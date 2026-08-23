@@ -1,12 +1,34 @@
 [build-system]
-# 77 is the floor for the PEP 639 metadata below, and for both halves of
-# it at once: the SPDX string form of `project.license` and
-# `project.license-files` arrived in setuptools 77.0.0, which is the
-# version the deprecation warning for the old table form names. An
-# isolated build resolving anything older fails on the syntax rather than
-# ignoring it, which is what the bound is for
-requires = ["setuptools>=77"]
-build-backend = "setuptools.build_meta"
+# glob patterns in the [tool.uv.build-backend] table below, beside the
+# rest of the configuration, in place of the separate include and exclude
+# language of a MANIFEST.in. That a pure-Python project uses this backend
+# is btclib-org/.github#118, and btclib is where it was done first, this
+# pin included.
+#
+# What the floor has to clear is 0.12.0, where the sdist's own
+# pyproject.toml became a normalized copy of this file with the verbatim
+# one kept beside it as pyproject.toml.orig. Below that the sdist holds
+# one answer where it now holds two, which is a different archive rather
+# than an older one. To re-derive, with the specifier below replaced by
+# ==0.11.31 and then by ==0.12.0:
+#
+#     uv build --sdist -o d && tar tzf d/*.tar.gz | grep orig
+#
+# answers with nothing and then with pyproject.toml.orig.
+#
+# It sits at 0.12.5 and not at 0.12.0 for two reasons that are neither of
+# them a constraint, so this is the number to lower first if a resolver
+# ever wants it lower: 0.12.5 is the rev .pre-commit-config.yaml pins for
+# uv-pre-commit, which keeps the backend that builds the archive no older
+# than the uv whose lock format that hook writes; and it is btclib's
+# floor, which is what has the two repositories answering this question
+# with one number.
+#
+# The ceiling is the next minor, which is where uv's versioning policy
+# puts a breaking change, this backend releasing with uv and versioned by
+# it
+requires = ["uv_build>=0.12.5,<0.13"]
+build-backend = "uv_build"
 
 [project]
 name = "bitcoin-core-rpc"
@@ -34,15 +56,19 @@ version = "2026.9"
 description = "A standalone JSON-RPC client against Bitcoin Core"
 readme = "README.md"
 # PEP 639: an SPDX expression, which becomes the `License-Expression`
-# metadata field, and the files it is carried by. The TOML-table form
-# setuptools deprecates wrote a free-text `License:` field instead, and
-# there is no license classifier below for the same reason -- one
-# machine-readable statement rather than three spellings of it.
+# metadata field, and the files it is carried by. The deprecated TOML-table
+# form wrote a free-text `License:` field instead, and there is no license
+# classifier below for the same reason -- one machine-readable statement
+# rather than three spellings of it.
 #
-# AUTHORS.md is named beside LICENSE rather than dropped: setuptools'
-# default globs match both, so both are in `dist-info/licenses/` today, and
-# the MIT notice this repository carries names "Ferdinando M. Ametrano and
-# btclib contributors" -- AUTHORS.md being where that list is kept
+# AUTHORS.md is named beside LICENSE rather than dropped, and the list is
+# read rather than defaulted: both files are under `dist-info/licenses/` in
+# the built wheel, and the MIT notice this repository carries names
+# "Ferdinando M. Ametrano and btclib contributors" -- AUTHORS.md being
+# where that list is kept.
+#
+# Naming LICENSE here is also what puts it in the sdist, extensionless and
+# reached by no pattern of [tool.uv.build-backend] source-include below
 license = "MIT"
 license-files = ["LICENSE", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
@@ -101,7 +127,8 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     # true, and it takes `bitcoin_core_rpc/py.typed` to be true: PEP 561's
     # marker is a file *inside a package directory*, so this claim and the
-    # single-directory layout below are one decision. See [tool.setuptools]
+    # single-directory layout below are one decision. See
+    # [tool.uv.build-backend]
     "Typing :: Typed",
 ]
 
@@ -141,7 +168,7 @@ mutation = ["cosmic-ray"]
 # group holds is what inspects them, before an upload consumes the version.
 # Named check, not build, so that --only-group build means the same thing
 # in btclib-secp256k1, which genuinely needs a group for building wheels
-check = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
+check = ["check-sdist", "check-wheel-contents", "pyroma", "twine"]
 docs = ["myst-parser", "sphinx", "sphinx_rtd_theme"]
 dev = [
     { include-group = "test" },
@@ -173,13 +200,19 @@ dev = [
 # there is nothing here to go stale
 required-version = ">=0.11.31"
 
-[tool.setuptools]
-# a package directory holding one file, which is a shape chosen for exactly
-# one reason: `py.typed`. This distribution is annotated throughout and
-# type checked in strict mode, and PEP 561 gives it no way to say so as a
-# top-level module -- the marker has to sit inside a package directory, and
-# a module has none. Measured against a built wheel of each layout, with a
-# consumer running `mypy --strict` and no configuration of its own:
+[tool.uv.build-backend]
+# bitcoin_core_rpc/ sits at the root of the repository, where the backend
+# looks under src/ by default. `module-name` is not written beside this: it
+# defaults to `project.name` normalized, which is this name already, and a
+# second declaration is a second thing to keep in agreement.
+#
+# What that name points at is a package directory holding one file, which
+# is a shape chosen for exactly one reason: `py.typed`. This distribution
+# is annotated throughout and type checked in strict mode, and PEP 561
+# gives it no way to say so as a top-level module -- the marker has to sit
+# inside a package directory, and a module has none. Measured against a
+# built wheel of each layout, with a consumer running `mypy --strict` and
+# no configuration of its own:
 #
 #   bitcoin_core_rpc.py                     every name is `Any`, plus
 #                                           "missing library stubs or
@@ -201,20 +234,80 @@ required-version = ">=0.11.31"
 # vendoring instruction is now "copy it out *and rename it*". That is one
 # sentence in the module docstring, and `tests/standalone_test.py` already
 # copies to `bitcoin_core_rpc.py` rather than to the source's own name, so
-# the property that file exists to check is unchanged
-packages = ["bitcoin_core_rpc"]
-
-[tool.setuptools.package-data]
-# `py.typed` is not a `.py`, so nothing ships it without being told
-bitcoin_core_rpc = ["py.typed"]
+# the property that file exists to check is unchanged.
+#
+# There is no package-data entry beside this: the backend copies what is
+# under `module-name` whole, `py.typed` and any other non-`.py` file
+# included, so nothing has to name that marker a second time
+module-root = ""
+# what the sdist carries beyond what the backend puts there by itself --
+# pyproject.toml, the module above, and the files `project.readme` and
+# `project.license-files` name. Patterns are anchored, so `*.md` is the
+# root's own markdown and reaches neither docs/'s nor tests/'s: `/**` is
+# what recurses.
+#
+# The lint gate has to be runnable from an unpacked sdist, which is what
+# puts .pre-commit-config.yaml (`*.yaml`) in, and .taplo.toml (`*.toml`),
+# .markdownlint.jsonc (`*.jsonc`) and .secrets.baseline, which hooks read,
+# with it. `*.yaml` rather than the three names, .readthedocs.yaml and
+# .yamllint.yaml being the other two and there being no fourth at the root
+# for the glob to take by accident -- the workflows are under .github,
+# which an sdist does not carry.
+#
+# COPYRIGHT is named on its own: it is not a `license-files` entry here,
+# and it carries no extension for one of the patterns above to reach
+source-include = [
+    "*.jsonc",
+    "*.md",
+    "*.toml",
+    "*.yaml",
+    ".python-version",
+    ".secrets.baseline",
+    "COPYRIGHT",
+    "uv.lock",
+    "docs/**",
+    "tests/**",
+]
+# exclusions win over the inclusions above, and are unanchored unless a
+# pattern starts with "/": a bare name matches at any depth, and
+# everything below a match goes with it.
+#
+# check-sdist reads this list for the uv backend, so a tracked file a
+# pattern here takes out is not reported as one the sdist is missing, and
+# does not have to be named again in [tool.check-sdist] below
+source-exclude = [
+    # where sphinx-build writes, CONTRIBUTING.md's docs command naming
+    # docs/build/html: `docs/**` above reaches it, so an sdist built after
+    # that command carries the whole rendered site without this line.
+    # Anchored, nothing else here being called build. __pycache__, *.pyc
+    # and *.pyo are the backend's own default excludes and are not
+    # repeated
+    "/docs/build",
+    # a cache a linter or a type checker writes beside the file it has
+    # just read, and not something anyone puts there on purpose: the VS
+    # Code mypy extension .vscode/extensions.json recommends writes one
+    # per directory it type-checks, so one can appear under tests/ or
+    # docs/, which `**` above reaches whole. btclib shipped a nested one
+    # that way (btclib-org/btclib#985) and carries these three patterns
+    # for it. Unanchored, a cache being wherever the tool that wrote it
+    # was pointed
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    # the same kind of leftover, and the one this list is checked against
+    # on every run: the check-sdist hook below passes --inject-junk, which
+    # plants tests/package/anything.egg-info beside the sources for the
+    # length of it
+    "*.egg-info",
+]
 
 [tool.check-wheel-contents]
-# what the packages block and package-data entry above are for: a wheel
-# that ships the tree those two describe, and nothing that check-wheel-
-# contents' own defaults would flag anyway (an unrelated top-level file,
-# an empty library) needs no configuration to catch. What defaults do
-# not catch is a file the tree has and the wheel does not -- `py.typed`
-# dropped by a package-data typo, say -- because with no `package` given
+# what the module declaration above is for: a wheel that ships the
+# directory it points at, and nothing that check-wheel-contents' own
+# defaults would flag anyway (an unrelated top-level file, an empty
+# library) needs no configuration to catch. What defaults do not catch is
+# a file the tree has and the wheel does not -- `py.typed` dropped by a
+# pattern that stopped reaching it, say -- because with no `package` given
 # check-wheel-contents reads the wheel's own RECORD and asks nothing
 # about the source tree the wheel was supposed to carry. `--package
 # bitcoin_core_rpc` is what asks that question: it diffs the wheel's
@@ -225,8 +318,8 @@ bitcoin_core_rpc = ["py.typed"]
 # reports it clean and this configuration reports "W101: Wheel library
 # is missing files in package tree: bitcoin_core_rpc/py.typed".
 #
-# That is the whole of what this repository needs: `check-manifest`
-# above already gates the sdist against this same tree (a pre-commit
+# That is the whole of what this repository needs: `check-sdist`
+# below already gates the sdist against this same tree (a pre-commit
 # hook, gated by the lint workflow), so together the two amount to
 # `git tree == sdist == wheel`, verified in one hop each rather than
 # through a third script comparing the sdist to the wheel, which is a
@@ -236,19 +329,21 @@ bitcoin_core_rpc = ["py.typed"]
 # three publishing repositories.
 package = ["bitcoin_core_rpc"]
 
-[tool.check-manifest]
-# what a distribution has no business holding: a link checker's exclusions
-# and an editor's workspace, neither of which is the subject of an sdist.
-# `.github` is ignored by check-manifest already; these are the tracked files
-# that would otherwise be reported as missing from it
-ignore = [
-    ".lycheeignore",
-    ".vscode/*",
-    # Claude Code's own workspace config, same argument as .vscode/* above.
-    # A tree rather than a flat directory -- the settings sit beside a
-    # commands/ directory -- so the pattern is one level deeper than
-    # .vscode/*'s
-    ".claude/**",
+[tool.check-sdist]
+# tracked files the sdist is meant not to carry. What
+# [tool.uv.build-backend] source-exclude names is not repeated here:
+# check-sdist reads that list for the uv backend, so this holds only what
+# no include pattern adds in the first place -- the workspaces of an
+# editor and of an agent, and the two files git itself reads. Patterns
+# are gitignore's, so a directory covers what is under it at any depth.
+#
+# .github is on check-sdist's own default ignore list, which is why the
+# workflows and the scripts they call need no entry here
+git-only = [
+    ".claude/",
+    ".gitattributes",
+    ".gitignore",
+    ".vscode/",
 ]
 
 [tool.pytest.ini_options]

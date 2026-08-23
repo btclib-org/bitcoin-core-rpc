@@ -23,6 +23,116 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **The build backend is `uv_build`, and `MANIFEST.in` is gone with the
+  include list it was.** btclib-org/.github#118 settles that a
+  pure-Python project uses that backend, and `btclib` is where the pin
+  comes from: `uv_build>=0.12.5,<0.13`. What the floor has to clear is
+  **0.12.0**, where the sdist's own `pyproject.toml` became a normalized
+  copy with the verbatim one kept beside it as `pyproject.toml.orig` --
+  which this tree's sdist now carries, matching the file in the checkout
+  byte for byte. Measured by replacing the specifier with `==<version>`
+  and reading the member list, `0.11.31` answers with no `.orig` and
+  every `0.12.x` with one, so a floor below `0.12.0` would be a
+  different archive rather than an older one and `0.12.5` is not that
+  boundary. It sits there because `0.12.5` is the rev
+  `.pre-commit-config.yaml` pins for `uv-pre-commit`, which keeps the
+  backend no older than the uv whose lock format that hook writes, and
+  because it is `btclib`'s floor -- two reasons to hold it rather than
+  constraints, which is what makes it the number to lower first. The
+  ceiling is the next minor, where uv's versioning policy puts a
+  breaking change.
+
+  What `MANIFEST.in` said in include and exclude lines is now the glob
+  patterns of `[tool.uv.build-backend]`, beside the rest of the
+  configuration. Built both ways and the archives compared:
+
+  ```shell
+  uv build --sdist -o dist-before   # on origin/main
+  uv build --sdist -o dist-after    # here
+  diff <(tar tzf dist-before/*.tar.gz | sed 's|^[^/]*/||' | sort) \
+       <(tar tzf dist-after/*.tar.gz  | sed 's|^[^/]*/||' | sort)
+  ```
+
+  The only tracked file that leaves is `MANIFEST.in`, which this diff
+  deletes. Everything else the command prints is backend metadata or the
+  spelling of a directory member: `setup.cfg` and the four files of
+  `bitcoin_core_rpc.egg-info/` go, `pyproject.toml.orig` arrives, and
+  where setuptools wrote seven directory members, every one with a
+  trailing slash in the name, `uv_build` writes six: the root keeps its
+  slash, the five nested ones lose it, and `bitcoin_core_rpc.egg-info/`
+  is the seventh, gone with the backend that made it. So the listing
+  compares `docs/` against `docs`. It does not count them; this does:
+
+  ```shell
+  python3 -c 'import sys, tarfile
+  print(sum(m.isdir() for m in tarfile.open(sys.argv[1]).getmembers()))' \
+      dist/*.tar.gz
+  ```
+
+  The wheel answers the same question the other way round: it loses
+  `dist-info/top_level.txt`, which is the only file entry the two builds
+  differ on, and it gains three directory entries where setuptools wrote
+  none — `bitcoin_core_rpc/`, `dist-info/` and `dist-info/licenses/`.
+  `py.typed` is among the members it keeps, with no `package-data` entry
+  left to name it.
+
+  What the backend reads is the **working directory**, walked through
+  those globs, and not git: an untracked file matching one of them is
+  packed like any other and moves the digest of the archive built from a
+  given commit. `check-sdist` turns that into a red gate rather than a
+  shipped archive, `source-exclude` names the caches a linter or a type
+  checker is known to leave under `tests/` or `docs/` — btclib shipped a
+  nested one whole (btclib-org/btclib#985) — and RELEASING.md's rebuild
+  section now carries it as the first of three bounds on what a digest
+  comparison proves, with the clean-export command beside it.
+
+- **`check-sdist` replaces `check-manifest` in the lint gate**, asking
+  the same question -- what is tracked and not in the sdist, and what is
+  in the sdist and not tracked -- against the patterns of
+  `[tool.uv.build-backend]` rather than against an include list no
+  backend reads any more. It registers a plugin for that backend, so it
+  builds with the uv it installs and needs neither `--no-build-isolation`
+  nor a `setuptools` additional dependency. `[tool.check-sdist]`
+  `git-only` holds what no include pattern adds in the first place, and
+  it was read off the tool rather than carried over: with the list
+  emptied the hook reports `.gitattributes`, `.gitignore` and the tracked
+  files under `.claude/` and `.vscode/`, and nothing else — `.github` is
+  on check-sdist's own default ignore list, and `.lycheeignore`, which
+  `[tool.check-manifest]` ignored, is not tracked here at all.
+
+- **The sdist normalizer stays, and its reason changes.** It existed
+  because setuptools tarred a staging directory whose sub-second `mtime`
+  `SOURCE_DATE_EPOCH` did not reach. That backend is gone and the
+  nondeterminism with it: `uv_build` ignores `SOURCE_DATE_EPOCH` and
+  writes every sdist member at epoch 0, mode 0644 or 0755, owner root
+  with no names and no PAX records, the gzip header at 0 and the wheel's
+  zip entries at 1980-01-01 -- a build with the variable exported and one
+  without give one sha256 per artefact. So the script now runs over an
+  sdist already deterministic without it, and it runs for the reason
+  btclib's copy of it states: epoch 0 is uv's choice and uv may revisit
+  it, while a release rebuilt from its tag has to give the bytes
+  `release.yml`'s `attest` job vouched for however many backends later
+  that is.
+
+  What it does there is a rewrite and not a check, and the difference is
+  the digest this repository publishes: every member's `mtime` goes from
+  uv's 0 to `SOURCE_DATE_EPOCH`, which moves the archive.
+
+  ```shell
+  uv build --sdist -o dist && shasum -a 256 dist/*.tar.gz
+  SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) uv run --no-project \
+      --python 3.14 .github/scripts/normalize_sdist.py dist/
+  shasum -a 256 dist/*.tar.gz
+  ```
+
+  So the step in `test.yml` is what decides the bytes `attest` signs, and
+  dropping it would publish others. Its docstring carries that argument
+  and the measurement under it, `SOURCE_DATE_EPOCH` stays because the
+  script is what reads it, and the mode is rewritten on the same footing
+  as the timestamp -- there the line really is a no-op, 0644 and 0755
+  being what `uv_build` already writes -- rather than against a umask no
+  backend now consults.
+
 - **`claude-review.yml` points at the file that states the ceiling,
   instead of at a measurement taken of something else.** Its header
   promised that "`REPOSITORY.md` measures what a commit at that ceiling

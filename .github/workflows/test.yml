@@ -289,15 +289,15 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: ${{ !inputs.disable-dist-cache }}
-      # what makes the wheel this job publishes reproducible: without it
-      # setuptools stamps the zip entries with the mtimes of the checkout,
-      # so the same commit built twice gives two digests and the
-      # attestation release.yml's `attest` job signs would vouch for bytes
-      # nobody else can obtain. The commit date, not the tag's: `git log
-      # -1` on a shallow clone reads the tip, which is the commit the tag
-      # points at, and a lightweight tag has no date of its own to
-      # prefer. RELEASING.md has the command that rebuilds a released tag
-      # and compares it against what PyPI serves
+      # what the sdist normalizer below reads. uv_build itself ignores it
+      # and stamps a fixed timestamp into both archives, so nothing in
+      # this job is unreproducible without it; what the export and the
+      # script together buy is that the answer is this repository's rather
+      # than the backend's, which is the argument the script's docstring
+      # carries and `attest` below is the reason for. The commit date, not
+      # the tag's: `git log -1` on a shallow clone reads the tip, which is
+      # the commit the tag points at, and a lightweight tag has no date of
+      # its own to prefer
       - name: Pin the build timestamp to the commit
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
       # empty on every trigger but a release rehearsal: `inputs` is unset
@@ -317,19 +317,23 @@ jobs:
       # both from the source tree, so what is checked below is what a user
       # installing from source would get, and what a rehearsal ships is
       # built from the tree the step above just re-locked. That the sdist
-      # is complete in the first place is check-manifest's job, a
-      # pre-commit hook, gated by the lint workflow
+      # is complete in the first place is check-sdist's job, a pre-commit
+      # hook, gated by the lint workflow
       - name: Build the distribution files
         run: uv build
-      # SOURCE_DATE_EPOCH reaches every entry of the wheel and every
-      # *file* of the sdist, and stops at the directory setuptools stages
-      # the sdist in: that member keeps the build clock, to sub-second
-      # precision, in a PAX record whose length changes with it. The
-      # script rewrites member metadata and no content, and its
-      # docstring has the measurement. --no-project, so this runs on the
-      # interpreter uv already fetched and installs nothing into the tree
-      # it is about to publish
-      - name: Make the sdist reproducible too
+      # the member metadata of the sdist, rewritten to the epoch above so
+      # that a rebuild of this commit answers with these bytes whatever
+      # backend it runs. It rewrites metadata and no content, and it
+      # rewrites rather than checks: every member's mtime goes from the 0
+      # uv_build wrote to that epoch, so this step is what decides the
+      # digest `attest` signs and dropping it would publish other bytes.
+      # The measurement in its docstring is a different claim -- that the
+      # archive is already deterministic without it. --no-project, so this
+      # runs on the interpreter uv already fetched and installs nothing
+      # into the tree it is about to publish. RELEASING.md has the command
+      # that rebuilds a released tag and compares it against what PyPI
+      # serves
+      - name: Make the sdist's determinism this tree's
         run: |
           uv run --no-project --python 3.14 \
             .github/scripts/normalize_sdist.py dist/
