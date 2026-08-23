@@ -67,6 +67,18 @@ carry a union merge driver that would keep both sides' numbers.
   before this, `git grep -n CODE_OF_CONDUCT` answered with that pattern,
   the file itself and this file's earlier entries.
 
+- **`.gitattributes` is the organization's file** (btclib-org/.github#102).
+  Section 14 of the standard names it as the same file in every
+  repository, and `tests/verbatim_test.py` there compares the copies it
+  finds; this one differed in its comment alone: a "here" and a "now"
+  written for this tree, a closing sentence that sent the reader to
+  section 9 by way of `CONTRIBUTING.md`, and the wrapping those words
+  moved. It is now byte for byte the copy in `btclib-org/.github`, the
+  two `merge=union` lines unchanged under it. This tree has no attribute
+  of its own to keep under `## This repository in particular`, so it
+  carries no such heading. `git check-attr merge` still answers `union`
+  for both files.
+
 - **`COPYRIGHT` leaves the sdist.** `license-files` here was already
   `["LICENSE", "AUTHORS.md"]`, so the wheel never carried it, and
   `source-include` named it by hand. btclib-org/.github#135 decides that
