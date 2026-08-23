@@ -23,6 +23,13 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`AUTHORS.md` names this repository's authors.** It pointed at this
+  repository's contributor graph while calling them btclib's, which is
+  the shape section 14 of `btclib-org/.github` gives for why the file
+  cannot be verbatim: a shared pointer is accurate only while one graph
+  stays a superset of the others, and the first person to contribute
+  somewhere else goes uncredited in silence.
+
 - **`LICENSE`, `COPYRIGHT` and `CODE_OF_CONDUCT.md` are the
   organization's copies, byte for byte.** Section 14 of
   `btclib-org/.github` calls the three verbatim, and
