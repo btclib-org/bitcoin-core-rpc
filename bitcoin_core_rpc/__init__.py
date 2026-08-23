@@ -268,7 +268,9 @@ class HttpError(FetchError):
         self.status = status
         super().__init__(message, status)
 
-    def __str__(self) -> str:
+    # no @override: typing has it from 3.12, the floor here is 3.10, and
+    # this file takes nothing outside the standard library
+    def __str__(self) -> str:  # type: ignore[explicit-override]
         # the message alone, which is what BaseException returns for a
         # single argument and not for the two this now carries
         return str(self.args[0])
@@ -295,7 +297,9 @@ class RpcError(FetchError):
         self.data = data
         super().__init__(message, code, data)
 
-    def __str__(self) -> str:
+    # no @override: typing has it from 3.12, the floor here is 3.10, and
+    # this file takes nothing outside the standard library
+    def __str__(self) -> str:  # type: ignore[explicit-override]
         return f"{self.args[0]} (rpc error code {self.code})"
 
 
@@ -438,8 +442,10 @@ class _NoRedirect(HTTPRedirectHandler):
 
     # the seven positional parameters are urllib's own, not chosen here:
     # this overrides HTTPRedirectHandler.redirect_request, and a subclass
-    # matches the base method's signature rather than shortening it
-    def redirect_request(  # noqa: PLR0917
+    # matches the base method's signature rather than shortening it.
+    # No @override: typing has it from 3.12, the floor here is 3.10, and
+    # this file takes nothing outside the standard library
+    def redirect_request(  # type: ignore[explicit-override]  # noqa: PLR0917
         self,
         req: Request,
         fp: IO[bytes],
