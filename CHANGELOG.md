@@ -29,6 +29,21 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`[project.urls]` carries the seven links section 3 of
+  `btclib-org/.github` names, keyed as the other two published packages
+  key them** (btclib-org/.github#133). v2026.8.20 is on the index with
+  six -- `Homepage`, `Download`, `Documentation`, `GitHub`, `Issues` and
+  `Pull Requests`, as `pypi.org/pypi/bitcoin-core-rpc/json` reports them
+  -- and no changelog, which is the one link from a version already
+  published back to what changed in it. `GitHub` is `repository`,
+  `changelog` points at `RELEASE_NOTES.md` for the reason
+  `btclib-secp256k1` gives beside its own, and every key is lowercase
+  with an underscore, so that a check reading the set back across the
+  three packages keys on one spelling. `docs/source/conf.py` read the
+  `GitHub` key for the base of its links to the root files and now reads
+  `repository`; the documentation build with `-W` is what would have
+  caught the rename without it.
+
 - **`links.yml` accepts every status lychee would accept unasked, and
   stops passing a cache no step keeps** (btclib-org/.github#110 and
   btclib-org/.github#111). `--accept 200,206,429` replaced lychee's

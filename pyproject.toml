@@ -132,13 +132,23 @@ classifiers = [
     "Typing :: Typed",
 ]
 
+# the seven links section 3 of btclib-org/.github names, keyed as btclib
+# and btclib-secp256k1 key them: the index reports the key as written --
+# v2026.8.20 is on it as "GitHub" and "Pull Requests" -- so the spelling
+# is what a reader sees, and one spelling across the three published
+# packages is what lets a check read the set back
 [project.urls]
-Homepage = "https://btclib.org"
-Download = "https://github.com/btclib-org/bitcoin-core-rpc/releases"
-Documentation = "https://bitcoin-core-rpc.readthedocs.io/"
-GitHub = "https://github.com/btclib-org/bitcoin-core-rpc"
-Issues = "https://github.com/btclib-org/bitcoin-core-rpc/issues"
-"Pull Requests" = "https://github.com/btclib-org/bitcoin-core-rpc/pulls"
+homepage = "https://btclib.org"
+documentation = "https://bitcoin-core-rpc.readthedocs.io/"
+download = "https://github.com/btclib-org/bitcoin-core-rpc/releases"
+# RELEASE_NOTES.md and not CHANGELOG.md: this url is what an index puts
+# behind "Changelog", and what a user following it wants is the release
+# notes, not the record behind them. CHANGELOG.md is linked from the
+# first lines of that file
+changelog = "https://github.com/btclib-org/bitcoin-core-rpc/blob/main/RELEASE_NOTES.md"
+repository = "https://github.com/btclib-org/bitcoin-core-rpc"
+issues = "https://github.com/btclib-org/bitcoin-core-rpc/issues"
+pull_requests = "https://github.com/btclib-org/bitcoin-core-rpc/pulls"
 
 [dependency-groups]
 # what it takes to develop, build and test this package. hypothesis is

@@ -185,7 +185,7 @@ INCLUDED = dict(map(included, sorted(Path(__file__).parent.glob("*_link.md"))))
 # to files that keep changing, and a reader following one wants the file
 # as it stands. The base url comes from pyproject.toml, where every url
 # this project publishes is declared
-BLOB = f"{PYPROJECT['project']['urls']['GitHub']}/blob/main/"
+BLOB = f"{PYPROJECT['project']['urls']['repository']}/blob/main/"
 
 
 class RootFileLinks(SphinxPostTransform):
