@@ -23,6 +23,34 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`CONTRIBUTING.md` is the organization's file down to `## This
+  repository in particular`.** Section 14 of `btclib-org/.github` has it
+  verbatim to that heading and this tree's below it, and
+  `tests/verbatim_test.py` there compares the halves that are meant to
+  agree. What the shared half already says is gone from here rather than
+  said twice in this repository's words: where an issue is filed, the
+  prose style, what a pull request is and answers, one subject per pull
+  request, how a review is exchanged and how a change lands. Each of
+  those now points at the section of the standard that decides it.
+
+  What stayed is what only this tree can say: the constraint that this
+  is one source file with nothing but the standard library behind it,
+  the commands that build the environment and run the gates, the editor
+  files, the command each CI job runs verbatim, the cadence table, the
+  mutation session, the live node and the secrets baseline. The gates
+  moved here from `CLAUDE.md`, a human having no reason to open an
+  agent's file to learn how to run one, and `REVIEWING.md` reads which
+  checks are required from this file's last section.
+
+  The toolchain badges move under that heading with them, the shared
+  half being byte-compared and a badge line being this repository's.
+  `.gitattributes` pointed here for the union-merge reasoning and now
+  points at section 9, which is where it went; `docs/source/conf.py`
+  named `CONTRIBUTING.md`'s links to `CODE_OF_CONDUCT.md` and
+  `RELEASING.md` as the reason the root files are not copied into the
+  documentation tree, and names `README.md`'s link to `LICENSE`
+  instead, that being the one such link left.
+
 - **`.yamllint.yaml` is the organization's copy, byte for byte.** It is
   one of the files section 14 of `btclib-org/.github` calls verbatim,
   and the copy there has moved: `document-start` is raised from the

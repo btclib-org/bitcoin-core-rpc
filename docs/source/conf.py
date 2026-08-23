@@ -151,11 +151,11 @@ html_theme = "sphinx_rtd_theme"
 # renders the link text with no link at all.
 #
 # Not copying the root files into this directory at build time either.
-# CONTRIBUTING.md links to CODE_OF_CONDUCT.md and RELEASING.md, neither of
-# which is part of the documentation -- no shim includes either, which is
-# what decides it -- so copies leave those two dead however many are made;
-# and the copies are generated files in a source tree, which is a second
-# definition of files that already exist.
+# README.md links to LICENSE, which is not part of the documentation --
+# no shim includes it, which is what decides it -- so copies leave that
+# link dead however many are made; and the copies are generated files in
+# a source tree, which is a second definition of files that already
+# exist.
 
 # a shim is one myst include fence, and everything after the directive
 # name on that line is the directive's argument: the path of the file the

@@ -10,6 +10,8 @@
 # the same existing entry edited on two branches merges in silence rather
 # than being flagged. That is why neither file states how many entries it
 # has — a count is exactly such an edit, and union would have kept both
-# numbers. CONTRIBUTING.md carries the rest of the reasoning.
+# numbers. Section 9 of btclib-org/.github carries the rest of the
+# reasoning, CONTRIBUTING.md being the same file everywhere and pointing
+# there for it.
 CHANGELOG.md merge=union
 RELEASE_NOTES.md merge=union
