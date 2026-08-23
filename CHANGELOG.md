@@ -29,6 +29,13 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`REVIEWING.md` is the organization's copy.** A review reads the prose
+  that stays in the tree, treats a commit message or a pull request's
+  body as a finding only where it decides something, and asks a stated
+  count, a measurement nothing re-derives, or the history of the code
+  told in a comment to go — section 14 of the standard, the shared half
+  byte for byte.
+
 - **Every source file opens with `COPYRIGHT`'s three lines, and
   `notice-rgx` is that file transcribed** (btclib-org/.github#119). The
   headers carried the MIT permission notice in full, on the argument
