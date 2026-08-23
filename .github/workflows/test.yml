@@ -185,7 +185,7 @@ jobs:
           # An empty list is not a documentation change, it is a question
           # this could not answer, so the count is checked before the
           # pattern
-          prose='^(AUTHORS|CHANGELOG|CLAUDE|CODE_OF_CONDUCT|COMPARISON|CONTRIBUTING|RELEASE_NOTES|RELEASING|REPOSITORY|REVIEWING|SECURITY)\.md$|^\.github/[^/]*\.md$|^\.github/mutation/[^/]*\.toml$|^\.secrets\..*baseline$'
+          prose='^(AUTHORS|CHANGELOG|CLAUDE|COMPARISON|CONTRIBUTING|RELEASE_NOTES|RELEASING|REPOSITORY|REVIEWING|SECURITY)\.md$|^\.github/[^/]*\.md$|^\.github/mutation/[^/]*\.toml$|^\.secrets\..*baseline$'
           if [ ! -s files.txt ] || grep -qvE "$prose" files.txt; then
             echo "code=true" >> "$GITHUB_OUTPUT"
             echo "something the jobs below read changed: everything runs"
