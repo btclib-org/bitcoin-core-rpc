@@ -543,7 +543,6 @@ fail_under = 100.0
 [tool.mypy]
 strict = true
 show_column_numbers = true
-show_error_codes = true
 # the organization's list, section 6 of btclib-org/.github, the same in
 # every repository that runs mypy (btclib-org/.github#165). A code that
 # finds nothing here stays: it is a ratchet for the next line it would
@@ -647,18 +646,13 @@ select = [
 ignore = [
     # docstrings: every public module, class, method and function must
     # carry one -- D100/D104 and the D101/D102/D103 left out of this list
-    # enforce exactly that. The two still ignored are the ones pep257 does
-    # not ask for, for every dunder and every constructor still to be
-    # written and not only the ones already in the tree: __init__ is
-    # documented by its class, and a magic method by the data model it
-    # implements
+    # enforce exactly that. The docstring rules ignored here are the ones
+    # pep257 does not ask for, for every dunder and every constructor
+    # still to be written and not only the ones already in the tree:
+    # __init__ is documented by its class, and a magic method by the data
+    # model it implements
     "undocumented-magic-method", # D105
     "undocumented-public-init",  # D107
-    # pydocstyle's own alternatives, and neither is a finite exception:
-    # selecting D211 or D212 instead trades one violation for the other on
-    # every class and every multi-line summary the tree has or will have
-    "incorrect-blank-line-before-class", # D203, conflicts with D211
-    "multi-line-summary-second-line",    # D213, conflicts with D212
     # code length is enforced by the formatter, which reflows to its 88
     # columns everything it is allowed to rewrite. What is left for E501 to
     # find is what no width the formatter controls can break: a url in the
@@ -736,6 +730,11 @@ max-complexity = 10
 max-doc-length = 80
 
 [tool.ruff.lint.pydocstyle]
+# the convention is also what settles the pairs ruff calls incompatible, so
+# `ignore` above names neither half of one: beside a declared convention
+# such an entry changes no diagnostic and silences no warning, and the
+# warning ruff prints over such a pair appears only where nothing has
+# settled it. Section 5 of btclib-org/.github (btclib-org/.github#178)
 convention = "pep257"
 
 [tool.ruff.lint.flake8-copyright]

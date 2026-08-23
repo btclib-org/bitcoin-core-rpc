@@ -601,21 +601,45 @@ repos:
       - id: uv-lock
   # what is tracked and not in the sdist, and what is in the sdist and not
   # tracked, both ways round, against the patterns of
-  # [tool.uv.build-backend]. Nothing is configured here: the hook's own
-  # manifest already passes --no-isolation and --inject-junk and installs
-  # uv, which is the whole of what this needs. --no-isolation is what
-  # pre-commit.ci requires -- an isolated build environment cannot be
-  # created there (no ensurepip in the interpreter, read-only virtualenv
-  # app data) -- and it costs nothing to build without one, the backend
-  # being the copy bundled in that uv. --inject-junk plants the tool's own
-  # list of leavings beside the sources for the length of the run; the one
-  # of them a pattern here reaches is tests/package/anything.egg-info,
-  # which is what source-exclude in [tool.uv.build-backend] answers
+  # [tool.uv.build-backend]. --no-isolation is in the hook's own entry, and
+  # pre-commit.ci requires it -- an isolated build environment cannot be
+  # created there (no ensurepip in the interpreter, read-only virtualenv app
+  # data).
+  # --installer=pip is what has the archive packed by the backend named
+  # below. The default is uv|pip, which resolves to uv wherever the `uv`
+  # package is importable or a uv is on PATH, and check-sdist then runs
+  # `uv build` -- not PEP 517 for this backend: given a requires the running
+  # uv satisfies, uv builds with the copy of uv_build bundled in itself,
+  # whatever the environment holds, so a specifier here would decide
+  # nothing. With --installer=pip check-sdist runs
+  # `python -m build --no-isolation`, which does read the hook environment.
+  # What that keeps is the environment inside [build-system]'s requires,
+  # `build` refusing one that falls outside it with `ERROR Missing
+  # dependencies`. It does not keep the two specifiers equal: a requires
+  # widened past the line below leaves that line satisfying it and green,
+  # the half btclib-org/.github#145 leaves open.
+  # args: and additional_dependencies: each replace the manifest's list
+  # rather than adding to it, so --inject-junk is repeated and the uv the
+  # manifest installs is out of the environment, which the pip installer
+  # does not need. --inject-junk plants the tool's own list of leavings
+  # beside the sources for the length of the run; the one of them a pattern
+  # here reaches is tests/package/anything.egg-info, which is what
+  # source-exclude in [tool.uv.build-backend] answers.
+  # Section 12 of btclib-org/.github is the rule (btclib-org/.github#197)
   - repo: https://github.com/henryiii/check-sdist
     rev: v1.6.0
     hooks:
       - id: check-sdist
+        args: [--inject-junk, --installer=pip]
+        additional_dependencies: ["uv_build>=0.12.5,<0.13"]
+  # pyroma reads the metadata through `build` too, which takes its
+  # non-isolated path where the environment satisfies requires and falls
+  # back to an isolated build otherwise. The specifier is [build-system]'s
+  # own, so the environment satisfies the declaration by construction and
+  # the fallback -- a virtual environment pre-commit.ci cannot create -- is
+  # never asked for
   - repo: https://github.com/regebro/pyroma
     rev: "5.0.1"
     hooks:
       - id: pyroma
+        additional_dependencies: ["uv_build>=0.12.5,<0.13"]
