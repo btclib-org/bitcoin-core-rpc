@@ -303,12 +303,12 @@ jobs:
   # still answers the way tests/_data says it does. It gates every pull
   # request already, so the commits under a tag have been asked -- but the
   # tag's own tree has not, and a release is the last moment where the
-  # answer is still cheap to act on. bitcoind.yml has declared
+  # answer is still cheap to act on. integration-bitcoind.yml has declared
   # workflow_call for this since it became a gate; until now nothing called
   # it, which made that trigger a promise the file kept and this one did not
   integration:
     name: Run the integration workflow
-    uses: ./.github/workflows/bitcoind.yml
+    uses: ./.github/workflows/integration-bitcoind.yml
 
   publish-testpypi:
     name: Publish to TestPyPI

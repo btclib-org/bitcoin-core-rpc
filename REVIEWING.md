@@ -452,5 +452,5 @@ because that document, and not this one, is where the rule lives.
 - Is the suite still hermetic? `Recorded` in `tests/__init__.py` answers
   from `tests/_data` and opens no socket, and that — not the absence of
   a node — is what keeps it so. What a live node answers is
-  `bitcoind.yml`'s question and the command `CONTRIBUTING.md` gives for
-  one of your own.
+  `integration-bitcoind.yml`'s question and the command `CONTRIBUTING.md` gives
+  for one of your own.

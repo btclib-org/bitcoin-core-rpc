@@ -167,7 +167,8 @@ tag exercises the first.
    uv run --isolated --no-project \
      --index https://test.pypi.org/simple/ \
      --with bitcoin-core-rpc \
-     python -c "import bitcoin_core_rpc; print(bitcoin_core_rpc.DEFAULT_TIMEOUT)"
+     python -c "import bitcoin_core_rpc;
+     print(bitcoin_core_rpc.DEFAULT_TIMEOUT)"
    ```
 
 1. Check that the `attest` job is green. It signs a rehearsal's files too,
@@ -182,10 +183,10 @@ tag exercises the first.
 ## A live node has already been asked
 
 The recorded replies say what Core sent when they were recorded, and whether
-Core still sends that is checked on every pull request: `bitcoind.yml` is a
-required check, and `release.yml` calls it again on the tag. Nothing to
-dispatch here, and nothing to remember -- the step this section used to be
-is what the required check replaced.
+Core still sends that is checked on every pull request:
+`integration-bitcoind.yml` is a required check, and `release.yml` calls it again
+on the tag. Nothing to dispatch here, and nothing to remember -- the step this
+section used to be is what the required check replaced.
 
 Dispatch it by hand only to ask about a Core version the matrix does not
 carry, or when a run needs repeating without a push: Actions → bitcoind →
@@ -461,8 +462,8 @@ result.
    than one that may already hold it, and run something with it:
 
    ```shell
-   uv run --isolated --no-project --with bitcoin-core-rpc \
-     python -c "import bitcoin_core_rpc; print(bitcoin_core_rpc.DEFAULT_TIMEOUT)"
+   uv run --isolated --no-project --with bitcoin-core-rpc \ python -c "import
+   bitcoin_core_rpc; print(bitcoin_core_rpc.DEFAULT_TIMEOUT)"
    ```
 
    then check the attestations — the JSON API answers `null` for

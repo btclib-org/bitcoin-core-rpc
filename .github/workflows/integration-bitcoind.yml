@@ -1,5 +1,5 @@
 ---
-name: bitcoind
+name: integration-bitcoind
 
 # The one claim the suite cannot make. Every reply under tests/_data is
 # Core's own and the suite classifies all of them without opening a socket,
@@ -31,7 +31,7 @@ name: bitcoind
 # included, and the cells run concurrently. What a whole run costs today
 # is in the run log rather than in this comment:
 #
-#     gh run list --workflow=bitcoind.yml --limit 1
+#     gh run list --workflow=integration-bitcoind.yml --limit 1
 #
 # Being required is also why the pull_request trigger below carries no
 # `paths`: a required check that never runs blocks a merge, where a skipped

@@ -23,8 +23,9 @@ without `-txindex`, verbatim, including the trailing sentence
 `JSONRPCError` appends.
 
 Nothing here was invented; nothing here was captured either, and a node's
-answer is what settles a disagreement. `.github/workflows/bitcoind.yml` is
-where that question is asked of two live bitcoind versions.
+answer is what settles a disagreement.
+`.github/workflows/integration-bitcoind.yml` is where that question is
+asked of two live bitcoind versions.
 
 ## What they carry is chain data, and it verifies itself
 

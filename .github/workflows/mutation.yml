@@ -20,7 +20,7 @@ name: mutation
 
 on:
   schedule:
-    # Sunday, an hour before bitcoind.yml: a session measured in
+    # Sunday, an hour before integration-bitcoind.yml: a session measured in
     # minutes takes the first of the two slots that day rather than
     # running beside the other, twenty concurrent jobs being what the
     # whole organization shares.

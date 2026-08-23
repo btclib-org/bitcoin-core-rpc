@@ -166,19 +166,26 @@ Everything above is the same file in every repository of the
 organization; everything below is this one's, and the comparison stops at
 this heading.
 
-<!-- The toolchain badges are here rather than in the README because they
-report no state: each names a choice, and this is the file that says how
-the choice is enforced and what the command for it is. The README keeps the
-badges that can turn red. btclib and btclib-secp256k1 do the same. -->
-[![calendar versioning: yyyy.m.d](https://img.shields.io/badge/cal_ver-yyyy.m.d-1674b1.svg?logo=calver)](https://calver.org/)
+<!-- The toolchain badges are here rather than in the README because they report
+no state: each names a choice, and this is the file that says how the choice is
+enforced and what the command for it is. The README keeps the badges that can
+turn red. btclib and btclib-secp256k1 do the same. --> [![calendar versioning:
+yyyy.m.d](<https://img.shields.io/badge/cal_ver-yyyy.m.d-1674b1.svg?logo=calver>)](<https://calver.org/>)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
-[![format: ruff](https://img.shields.io/badge/format-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/formatter/)
-[![lint: ruff](https://img.shields.io/badge/lint-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/)
-[![docstrings: ruff](https://img.shields.io/badge/docstrings-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/rules/#pydocstyle-d)
-[![type check: mypy](https://img.shields.io/badge/type_check-mypy-yellowgreen.svg?logo=mypy)](https://mypy-lang.org/)
-[![lint: markdownlint-cli2](https://img.shields.io/badge/lint-markdownlint--cli2-yellowgreen.svg?logo=markdown)](https://github.com/DavidAnson/markdownlint-cli2)
-[![pre-commit enabled](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
-[![GitHub repository: btclib-org/bitcoin-core-rpc](https://img.shields.io/badge/GitHub-btclib--org%2Fbitcoin--core--rpc-181717?logo=github)](https://github.com/btclib-org/bitcoin-core-rpc/)
+[![format:
+ruff](https://img.shields.io/badge/format-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/formatter/)
+[![lint:
+ruff](https://img.shields.io/badge/lint-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/)
+[![docstrings:
+ruff](https://img.shields.io/badge/docstrings-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/rules/#pydocstyle-d)
+[![type check:
+mypy](https://img.shields.io/badge/type_check-mypy-yellowgreen.svg?logo=mypy)](https://mypy-lang.org/)
+[![lint:
+markdownlint-cli2](https://img.shields.io/badge/lint-markdownlint--cli2-yellowgreen.svg?logo=markdown)](https://github.com/DavidAnson/markdownlint-cli2)
+[![pre-commit
+enabled](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![GitHub repository:
+btclib-org/bitcoin-core-rpc](https://img.shields.io/badge/GitHub-btclib--org%2Fbitcoin--core--rpc-181717?logo=github)](https://github.com/btclib-org/bitcoin-core-rpc/)
 
 To get an overview of the project, read the [README](./README.md) and the
 docstring at the top of `bitcoin_core_rpc/__init__.py`, which is where the
@@ -210,9 +217,9 @@ uv sync                       # create the environment
 uv run pre-commit install     # so a commit runs the lint gate
 ```
 
-The suite opens no socket and needs no node: every client in it is built
-with a `transport=` that answers from bytes committed under `tests/_data`.
-What a *live* node answers is a separate question, asked by `bitcoind.yml`
+The suite opens no socket and needs no node: every client in it is built with a
+`transport=` that answers from bytes committed under `tests/_data`. What a
+*live* node answers is a separate question, asked by `integration-bitcoind.yml`
 and by the command under [A live node](#a-live-node) below.
 
 The gate is the suite, the hooks and the documentation build:
@@ -382,7 +389,7 @@ UV_PROJECT_ENVIRONMENT=.venv-3.10 uv run --locked --no-default-groups \
 
 ### What gates a merge, and what only reports
 
-`lint.yml`, `test.yml`, `docs.yml` and `bitcoind.yml` produce the
+`lint.yml`, `test.yml`, `docs.yml` and `integration-bitcoind.yml` produce the
 required checks, and `REPOSITORY.md` reads the rule back from the
 endpoint rather than restating it. So a diff does not reach a review
 without having passed them or passing them beside it on the same sha,
@@ -484,8 +491,8 @@ afterwards, so nothing else may read the file while it runs.
 
 ### A live node
 
-`bitcoind.yml` is the one claim the recorded replies cannot make. Against
-a `bitcoind` of your own — it runs on a regtest chain in a temporary
+`integration-bitcoind.yml` is the one claim the recorded replies cannot make.
+Against a `bitcoind` of your own — it runs on a regtest chain in a temporary
 datadir, on Core's own rpc port, and leaves nothing behind:
 
 ```shell

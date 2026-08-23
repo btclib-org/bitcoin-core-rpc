@@ -145,8 +145,8 @@ carry a union merge driver that would keep both sides' numbers.
   `published.yml` is `pypi-install.yml`, which says what it asks of the
   published package rather than that there is one: it installs it from
   the index and round-trips a call through it. `integration.yml` is
-  `bitcoind.yml`, integration naming neither of the two sides it joins,
-  where the other side is a live node the workflow downloads and starts.
+  `integration-bitcoind.yml`, integration naming neither of the two sides it
+  joins, where the other side is a live node the workflow downloads and starts.
 
   **No job name moved**, and that is the constraint the renames were
   written under: a job name is the context a required status check
@@ -1975,24 +1975,22 @@ carry a union merge driver that would keep both sides' numbers.
 
 - **COMPARISON.md**, the case for this client against `AuthServiceProxy`:
   the comparison table row by row, the three rows that carry the weight --
-  amounts, credentials and errors, enforced by construction rather than
-  left to discipline -- and the consequence of the typed errors that
-  nothing announces, a refused connection arriving as a `FetchError` and
-  no longer as the `OSError` an `except` clause was written for. Then the
-  three features this client does not have and what decides each: dynamic
-  dispatch, which absorbs typos of the client's own surface and returns
-  `Any` where the package ships `py.typed`; batching, whose correlation
-  and partial failure JSON-RPC 2.0 section 6 settles, and whose cost is a
-  timeout covering several node operations, a `max_body_size` that stops
-  mapping onto an answer, and a third parsing branch -- reachable through
-  `http_request` and `auth_header` for the WAN link a batch pays on; and
-  one connection per call, which is CPython's `do_open` setting
-  `Connection: close` rather than a choice made here, negligible per call
-  on loopback and socket churn in aggregate. The README's
-  ["Migrating from `AuthServiceProxy`"](./README.md#migrating-from-authserviceproxy)
-  is the line-by-line rewrite; this is why the rewrite is worth doing.
-  Linked from the README, and from `docs/source/index.rst` alongside the
-  other root documents.
+  amounts, credentials and errors, enforced by construction rather than left to
+  discipline -- and the consequence of the typed errors that nothing announces,
+  a refused connection arriving as a `FetchError` and no longer as the `OSError`
+  an `except` clause was written for. Then the three features this client does
+  not have and what decides each: dynamic dispatch, which absorbs typos of the
+  client's own surface and returns `Any` where the package ships `py.typed`;
+  batching, whose correlation and partial failure JSON-RPC 2.0 section 6
+  settles, and whose cost is a timeout covering several node operations, a
+  `max_body_size` that stops mapping onto an answer, and a third parsing branch
+  -- reachable through `http_request` and `auth_header` for the WAN link a batch
+  pays on; and one connection per call, which is CPython's `do_open` setting
+  `Connection: close` rather than a choice made here, negligible per call on
+  loopback and socket churn in aggregate. The README's ["Migrating from
+  `AuthServiceProxy`"](./README.md#migrating-from-authserviceproxy) is the
+  line-by-line rewrite; this is why the rewrite is worth doing. Linked from the
+  README, and from `docs/source/index.rst` alongside the other root documents.
 
 ### Changed
 
