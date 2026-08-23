@@ -101,7 +101,7 @@ permissions:
 # trigger's own comment above has the evidence. A push carries no
 # pull_request context, so github.ref is still what groups it, unchanged
 concurrency:
-  group: bitcoind-${{ github.event.pull_request.number || github.ref }}
+  group: integration-bitcoind-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
