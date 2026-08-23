@@ -1,22 +1,6 @@
 # Copyright (c) The btclib developers
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
+# Distributed under the MIT software license, see the accompanying
+# LICENSE file or https://opensource.org/license/mit for the full text.
 
 """Configuration file for the Sphinx documentation builder.
 
@@ -47,9 +31,9 @@ PYPROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = PYPROJECT["project"]["name"]
-# no year, and that is the same decision the module header states for the
-# MIT notice it embeds: MIT asks for none, and a year is a thing that looks
-# out of date every January without anything having changed
+# no year, and that is the decision COPYRIGHT and LICENSE state: MIT asks
+# for none, and a year is a thing that looks out of date every January
+# without anything having changed
 project_copyright = "The btclib developers"
 author = "The btclib developers"
 # read from pyproject.toml, the one place the version is declared, and not

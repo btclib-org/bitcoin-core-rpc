@@ -29,6 +29,25 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **Every source file opens with `COPYRIGHT`'s three lines, and
+  `notice-rgx` is that file transcribed** (btclib-org/.github#119). The
+  headers carried the MIT permission notice in full, on the argument
+  that the copied-out module has no `LICENSE` beside it; that issue
+  decided section 5 states one notice for every tree, the pointer form,
+  and that a self-contained one in one tree is a second notice -- the
+  third line of `COPYRIGHT` names the URL of the license text, and a
+  copy loses `AUTHORS.md` and `pyproject.toml` with the `LICENSE`
+  anyway. `git ls-files '*.py'` names every file rewritten, and
+  `uvx ruff check --select CPY .` passes on them; `notice-rgx` is byte
+  for byte what `tests/copyright_test.py` of `btclib-org/.github`
+  derives from `COPYRIGHT`, where before it was the long notice that
+  test refused. `CLAUDE.md`, the README's *Vendoring*, the module
+  docstring's own vendoring paragraph and `docs/source/conf.py`'s year
+  comment each argued the embedded notice and now describe the pointer;
+  the entry further down this section saying the headers "still carry
+  the MIT permission notice in full" describes the tree between that
+  landing and this one.
+
 - **The lint gate runs `pretty-format-json`, `toml-comment-width` and
   `decoded-subprocess-encoding`** (btclib-org/.github#130 and
   btclib-org/.github#134). `pretty-format-json` was left out on the

@@ -330,10 +330,11 @@ else. `pyproject.toml` records what the alternatives were measured to do.
 ## Vendoring
 
 Copy `bitcoin_core_rpc/__init__.py` whole from a release tag, **rename it
-to `bitcoin_core_rpc.py`**, keep the license notice at the top of it — MIT,
-embedded rather than referenced, because a copy has no `LICENSE` beside it
-— and record the tag next to the copy. An update is a replacement of the
-whole file, and this shows every behavioral change first:
+to `bitcoin_core_rpc.py`**, keep the copyright notice at the top of it —
+three lines, naming the holder and the URL of the MIT license text, since a
+copy has no `LICENSE` beside it — and record the tag next to the copy. An
+update is a replacement of the whole file, and this shows every behavioral
+change first:
 
 ```shell
 git diff OLD..NEW -- bitcoin_core_rpc/__init__.py

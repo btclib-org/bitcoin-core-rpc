@@ -22,10 +22,12 @@ is `CONTRIBUTING.md`'s *The one constraint*; what follows is what the
 file is made of.
 
 - the file is installed as a top-level module *and* meant to be copied,
-  so it carries the MIT notice embedded rather than referenced — a copy
-  has no `LICENSE` beside it, and `[tool.ruff.lint.flake8-copyright]` in
-  `pyproject.toml` is where that is argued. There is deliberately no
-  version constant in it: the release tag is the version
+  and it opens with `COPYRIGHT`'s three lines like every other source
+  file of the organization — the pointer form, whose third line names
+  the URL of the license text a copy has no `LICENSE` beside it for;
+  `[tool.ruff.lint.flake8-copyright]` in `pyproject.toml` is where the
+  self-contained notice it used to carry was weighed and lost. There is
+  deliberately no version constant in it: the release tag is the version
 - layers, such as they are: `http_request` and `urlopen_transport` open
   the socket and map everything below an HTTP status onto `FetchError`;
   `BitcoinCoreRpcClient.call` builds the request, and `_reply_object`,

@@ -1,22 +1,6 @@
 # Copyright (c) The btclib developers
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
+# Distributed under the MIT software license, see the accompanying
+# LICENSE file or https://opensource.org/license/mit for the full text.
 
 """A standalone JSON-RPC client against Bitcoin Core.
 
@@ -117,11 +101,12 @@ nobody else.
 **Vendoring and updates.** `pip install bitcoin-core-rpc` is the
 supported way to get this file; copying it is for a project that ships one
 artifact and takes no dependency for it. Copy it whole from a release
-tag, **rename it to `bitcoin_core_rpc.py`**, keep the license notice
-above, and record the tag beside the copy. It is named `__init__.py` here
-so that `py.typed` can sit beside it and a consumer's type checker reads
-these annotations -- PEP 561 puts that marker inside a package directory
-and nowhere else -- and the rename is what that costs.
+tag, **rename it to `bitcoin_core_rpc.py`**, keep the copyright notice
+above -- its third line names the license text a copy has no LICENSE
+beside it for -- and record the tag beside the copy. It is named
+`__init__.py` here so that `py.typed` can sit beside it and a consumer's
+type checker reads these annotations -- PEP 561 puts that marker inside a
+package directory and nowhere else -- and the rename is what that costs.
 The upstream source is
 `https://github.com/btclib-org/bitcoin-core-rpc/blob/main/bitcoin_core_rpc/__init__.py`,
 and the raw source of a release is
