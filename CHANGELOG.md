@@ -1,3 +1,9 @@
+<!-- markdownlint-disable MD022 MD032 -->
+<!-- This file is merge=union, so a rebase joins two sections and drops
+     the blank line between them without a conflict: the rule is off
+     here for the duration of btclib-org/.github#33, and goes back on
+     when that queue is empty. btclib-org/.github#138 is the record. -->
+
 # Changelog
 
 <!-- markdownlint-configure-file
@@ -22,6 +28,56 @@ carry a union merge driver that would keep both sides' numbers.
 ## v2026.9 (work in progress, not released yet)
 
 ### Repository
+
+- **This file stops asking for the blank line a union merge drops.**
+  MD022 and MD032 are off for `CHANGELOG.md` alone, by a comment at its
+  head and not by an edit to `.markdownlint.jsonc`, which is section 14's
+  verbatim copy: a rebase of two branches that each appended a section
+  joins them without the blank line between, and the rule would then fail
+  the gate on a file that never conflicted. btclib-org/.github#138 is the
+  record, and the comment says when it goes back on.
+
+- **`claude-review.yml` reports red on anything but an ack of this
+  head.** The job ended at a step testing whether the action had run at
+  all, so a `CHANGES REQUESTED`, a run that posted no comment, and an ack
+  naming a sha the branch had moved past each left the check green --
+  btclib-org/.github#146 measured that guard and nothing past it in every
+  copy of the workflow. The step btclib-org/.github carries at `18e6c64`
+  is here now, with its comment: it reads the last verdict `claude[bot]`
+  posted on the pull request and fails unless it is an `ACK` whose sha is
+  a prefix of the head. Run outside the workflow against this
+  repository's own pull requests, with `REPO`, `NUMBER` and `HEAD_SHA` in
+  the environment: on PR 222 at its head it prints `the review acked
+  18affcac...` and exits 0; with any other head it exits 1 naming both
+  shas; on PR 219 and PR 215, where no `claude[bot]` verdict was posted,
+  it exits 1 saying so. Still not a required check, and red there gates
+  nothing. The two copies differ beyond this step -- the header, the
+  checkout comment, `allowed_bots` and the prompt are each this
+  repository's -- and those stay as they were.
+
+- **`CODE_OF_CONDUCT.md` is gone, and the inherited copy is what GitHub
+  shows.** Section 14 of `btclib-org/.github` no longer lists it and
+  section 2 no longer asks for one: the file was a pointer to the PSF
+  code of conduct, and the copy in `btclib-org/.github` is displayed for
+  a public repository carrying none (btclib-org/.github#123). The entry
+  further down this section that calls it one of three verbatim files
+  describes the tree between that landing and this one. `test.yml`'s
+  `prose` pattern stops naming it, a name nothing matches being a rule
+  that has quietly stopped applying. Nothing else linked it: on the tree
+  before this, `git grep -n CODE_OF_CONDUCT` answered with that pattern,
+  the file itself and this file's earlier entries.
+
+- **`COPYRIGHT` leaves the sdist.** `license-files` here was already
+  `["LICENSE", "AUTHORS.md"]`, so the wheel never carried it, and
+  `source-include` named it by hand. btclib-org/.github#135 decides that
+  every package of the organization ships the same set and the file is
+  not in it -- the holder a consumer needs is in `LICENSE`, and
+  `COPYRIGHT` is the source of a header rather than a statement to a
+  consumer. Measured on `uv build` before and after: the sdist's root
+  loses `COPYRIGHT` (and `CODE_OF_CONDUCT.md`, above) and nothing else,
+  and the wheel's `dist-info/licenses/` is `AUTHORS.md` and `LICENSE`
+  both times. `[tool.check-sdist]` `git-only` gains the name, that hook
+  otherwise reporting a tracked file the archive does not carry.
 
 - **The build backend is `uv_build`, and `MANIFEST.in` is gone with the
   include list it was.** btclib-org/.github#118 settles that a

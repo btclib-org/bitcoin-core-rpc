@@ -254,8 +254,12 @@ module-root = ""
 # for the glob to take by accident -- the workflows are under .github,
 # which an sdist does not carry.
 #
-# COPYRIGHT is named on its own: it is not a `license-files` entry here,
-# and it carries no extension for one of the patterns above to reach
+# COPYRIGHT is not here, and not in `license-files` above either: it is
+# the organization's notice, a repository file and not a distributed one,
+# and a consumer of the package has the holder in LICENSE already
+# (btclib-org/.github#135). Extensionless, so no pattern above reaches it
+# by accident, and [tool.check-sdist] below is where the hook is told it
+# stays out on purpose
 source-include = [
     "*.jsonc",
     "*.md",
@@ -263,7 +267,6 @@ source-include = [
     "*.yaml",
     ".python-version",
     ".secrets.baseline",
-    "COPYRIGHT",
     "uv.lock",
     "docs/**",
     "tests/**",
@@ -334,8 +337,10 @@ package = ["bitcoin_core_rpc"]
 # [tool.uv.build-backend] source-exclude names is not repeated here:
 # check-sdist reads that list for the uv backend, so this holds only what
 # no include pattern adds in the first place -- the workspaces of an
-# editor and of an agent, and the two files git itself reads. Patterns
-# are gitignore's, so a directory covers what is under it at any depth.
+# editor and of an agent, the two files git itself reads, and COPYRIGHT,
+# which [tool.uv.build-backend] above says why the sdist does not carry.
+# Patterns are gitignore's, so a directory covers what is under it at any
+# depth.
 #
 # .github is on check-sdist's own default ignore list, which is why the
 # workflows and the scripts they call need no entry here
@@ -344,6 +349,7 @@ git-only = [
     ".gitattributes",
     ".gitignore",
     ".vscode/",
+    "COPYRIGHT",
 ]
 
 [tool.pytest.ini_options]
