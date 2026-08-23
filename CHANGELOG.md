@@ -29,6 +29,54 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`ignore` names no half of a pair `convention = "pep257"` settles**
+  (btclib-org/.github#178). Under a declared convention ruff disables
+  `incorrect-blank-line-before-class` (D203) and
+  `multi-line-summary-second-line` (D213) whether or not `ignore` names
+  them, so an entry for either reads as an enforced choice and decides
+  nothing. Measured with the ruff `uv.lock` pins, over a tree carrying a
+  module written to violate both: `ruff check --no-cache .` answers
+  `All checks passed!` with the entries and without them, and ruff's
+  incompatible-pair warning appears only where the convention itself is
+  taken out. Section 5 of the standard is the rule, and it now sits at
+  the key that decides it.
+
+- **`[tool.mypy]` sets no `show_error_codes`** (btclib-org/.github#191).
+  mypy has no such option: `Options` carries `hide_error_codes`, `False`
+  before any config file is read, and `config_parser.py`'s generic
+  `show_`/`hide_` inversion is the whole of why the key parses.
+  `mypy --help` under the locked mypy writes `--hide-error-codes` as the
+  flag that changes the default and gives `--show-error-codes` as its
+  inverse, which is what section 6 of the standard reads as a setting
+  mypy has already; the same erroring file reports the same message,
+  error code included, with the line and without it.
+  `show_column_numbers` stays -- its default is `False`, and section 6's
+  sample carries it.
+
+- **`check-sdist` and `pyroma` build with the backend `[build-system]`
+  admits** (btclib-org/.github#197). check-sdist's default installer is
+  `uv build`, and that is not PEP 517 for this backend: given
+  `build-backend = "uv_build"` and a `requires` the running uv satisfies,
+  it builds with the copy bundled in whichever uv is importable or on
+  `PATH`, so the backend that packed the archive the gate compares against
+  git was not one this file declares -- measured with a `requires` whose
+  ceiling excludes the running uv, where `uv build` warns that the
+  declaration does not contain its own version and builds the sdist
+  anyway. `args: [--inject-junk, --installer=pip]` puts check-sdist on
+  `python -m build --no-isolation`, which does read the hook environment,
+  and `additional_dependencies` names `[build-system]`'s own specifier;
+  the hook then fails with `ERROR Missing dependencies` where the two
+  disagree, which with the manifest's args it passed. What that does not
+  keep is the two specifiers equal: a `requires` widened past the hook's
+  line leaves it satisfied and green, the half btclib-org/.github#145
+  leaves open. `pyroma` reads the metadata through `build` as well,
+  without isolation where the environment satisfies `requires` and falling
+  back to an isolated build otherwise -- the environment pre-commit.ci
+  cannot create -- and here it was the fallback that ran: in the
+  environment that hook had, `build.util.project_wheel_metadata('.',
+  isolated=False)` raises `BuildBackendException: Backend 'uv_build' is
+  not available.`
+
 - **The question form names the Slack link beside it rather than
   `CONTRIBUTING.md`.** The sentence pointed at `CONTRIBUTING.md`, which
   carries no such link: the channel is a contact link in
@@ -173,14 +221,12 @@ carry a union merge driver that would keep both sides' numbers.
 - **`.gitattributes` is the organization's file** (btclib-org/.github#102).
   Section 14 of the standard names it as the same file in every
   repository, and `tests/verbatim_test.py` there compares the copies it
-  finds; this one differed in its comment alone: a "here" and a "now"
-  written for this tree, a closing sentence that sent the reader to
-  section 9 by way of `CONTRIBUTING.md`, and the wrapping those words
-  moved. It is now byte for byte the copy in `btclib-org/.github`, the
-  two `merge=union` lines unchanged under it. This tree has no attribute
-  of its own to keep under `## This repository in particular`, so it
-  carries no such heading. `git check-attr merge` still answers `union`
-  for both files.
+  finds; the difference here was in the comment and never in the two
+  `merge=union` lines. It is byte for byte the copy in
+  `btclib-org/.github`, on the digest of the raw file the contents
+  endpoint serves. This tree has no attribute of its own to keep under
+  `## This repository in particular`, so it carries no such heading.
+  `git check-attr merge` still answers `union` for both files.
 
 - **`COPYRIGHT` leaves the sdist.** `license-files` here was already
   `["LICENSE", "AUTHORS.md"]`, so the wheel never carried it, and
