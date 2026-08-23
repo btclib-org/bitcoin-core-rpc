@@ -382,8 +382,8 @@ repos:
   # types, and it is uv's file to write. .taplo.toml holds the formatting
   # choices and the reasoning for them, as .yamllint.yaml and [tool.typos]
   # do. taplo-lint is not enabled beside this: it validates against a schema
-  # catalogue it fetches, and pyroma and check-manifest below already read
-  # the metadata offline
+  # catalogue it fetches, and pyroma and check-sdist below already read
+  # this file, and build from it, offline
   - repo: https://github.com/ComPWA/taplo-pre-commit
     rev: v0.9.3
     hooks:
@@ -446,11 +446,11 @@ repos:
         # so that every machine and pre-commit.ci check what CI checks --
         # the runner image happens to carry shellcheck, so leaving it to
         # chance would mean CI checking more than a commit does.
-        # Pinned, unlike the setuptools below, because nothing bumps an
-        # additional dependency: pre-commit.ci moves rev, dependabot has no
-        # pre-commit ecosystem. That is the point rather than the cost -- a
-        # shellcheck release adding a check would otherwise turn a pull
-        # request red for having changed nothing
+        # Pinned, because nothing bumps an additional dependency:
+        # pre-commit.ci moves rev, dependabot has no pre-commit ecosystem.
+        # That is the point rather than the cost -- a shellcheck release
+        # adding a check would otherwise turn a pull request red for
+        # having changed nothing
         additional_dependencies:
           - shellcheck-py==0.11.0.1
           - pyflakes==3.4.0
@@ -536,21 +536,22 @@ repos:
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
-  - repo: https://github.com/mgedmin/check-manifest
-    rev: "0.51"
+  # what is tracked and not in the sdist, and what is in the sdist and not
+  # tracked, both ways round, against the patterns of
+  # [tool.uv.build-backend]. Nothing is configured here: the hook's own
+  # manifest already passes --no-isolation and --inject-junk and installs
+  # uv, which is the whole of what this needs. --no-isolation is what
+  # pre-commit.ci requires -- an isolated build environment cannot be
+  # created there (no ensurepip in the interpreter, read-only virtualenv
+  # app data) -- and it costs nothing to build without one, the backend
+  # being the copy bundled in that uv. --inject-junk plants the tool's own
+  # list of leavings beside the sources for the length of the run; the one
+  # of them a pattern here reaches is tests/package/anything.egg-info,
+  # which is what source-exclude in [tool.uv.build-backend] answers
+  - repo: https://github.com/henryiii/check-sdist
+    rev: v1.6.0
     hooks:
-      - id: check-manifest
-        description: Check the completeness of MANIFEST.in for Python packages.
-        language: python
-        pass_filenames: false
-        always_run: true
-        # check-manifest builds an sdist with "python -m build"; on
-        # pre-commit.ci build cannot create its isolated environment (no
-        # ensurepip in the interpreter, read-only virtualenv app data), so
-        # build the sdist in the hook environment itself, which just needs
-        # the build requirements (setuptools) to be available
-        args: [--no-build-isolation]
-        additional_dependencies: [setuptools]
+      - id: check-sdist
   - repo: https://github.com/regebro/pyroma
     rev: "5.0.1"
     hooks:

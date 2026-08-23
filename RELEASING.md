@@ -129,16 +129,17 @@ same files).
 
 **What it answers is whether the publish path still works**, so it earns
 its run when that path or what travels it has moved: `release.yml` or a
-workflow it calls, `pyproject.toml`'s packaging metadata, `MANIFEST.in`,
+workflow it calls, `pyproject.toml`'s packaging metadata — the build
+backend and the patterns of `[tool.uv.build-backend]` above all —
 `normalize_sdist.py`, the trusted publisher registration, or the addition
 of a file the distribution has to carry. A cycle that changed the module
 and the prose and nothing else is one the tag's own run judges as well,
-every job up to `publish-pypi` being the same job — and skipping it is the
-maintainer's call to make and to say out loud in the release pull request,
-not a step to leave silently undone. What is given up either way is the
-token exchange and the upload, which no rehearsal on `main` proves for
-PyPI anyway: `pypi` and `testpypi` are two registrations, and only the
-tag exercises the first.
+every job up to `publish-pypi` being the same job — and skipping it is
+the maintainer's call to make and to say out loud in the release pull
+request, not a step to leave silently undone. What is given up either way
+is the token exchange and the upload, which no rehearsal on `main` proves
+for PyPI anyway: `pypi` and `testpypi` are two registrations, and only
+the tag exercises the first.
 
 1. On GitHub, Actions → release → Run workflow, and pick the branch to
    rehearse (usually `main`).
@@ -591,14 +592,29 @@ gh attestation verify dist/bitcoin_core_rpc-2026.8.8.tar.gz \
   --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
 ```
 
-Two things bound that guarantee, and both are worth knowing before
+Three things bound that guarantee, and each is worth knowing before
 reading a mismatch as tampering:
 
-- **the build backend is resolved, not pinned.** `[build-system] requires`
-  asks for `setuptools>=77` and an isolated build takes whatever is
-  current, so a rebuild months later runs a setuptools the release never
-  saw. A mismatch dates the rebuild before it accuses anyone; pinning the
-  backend to a version is the fix, and the cost is a floor that ages.
+- **the build reads the working directory, not git.** `uv_build` walks
+  the tree through the glob patterns of `[tool.uv.build-backend]`, so an
+  *untracked* file matching one of them is packed like any other and
+  changes the digest. `tests/**` and `docs/**` are the patterns wide
+  enough for that to happen by accident, and `source-exclude` beside them
+  names what a linter or a type checker is known to leave there — but the
+  rule is the directory, not the list. Rebuild in a clean export, which
+  is what the checkout above is only if nothing was ever built in it:
+
+  ```shell
+  d=$(mktemp -d) && git archive v2026.8.8 | tar -x -C "$d" && cd "$d"
+  ```
+
+- **the build backend is bounded, not pinned.** `[build-system] requires`
+  asks for `uv_build>=0.12.5,<0.13` and an isolated build takes whatever
+  in that range is current, so a rebuild months later runs a backend the
+  release never saw. What the ceiling bounds is the *content* of the
+  archive; its member metadata is `normalize_sdist.py`'s answer and not
+  the backend's, which is the whole reason that script runs over an sdist
+  already deterministic without it.
 - **the rehearsal is a different version, by construction.** A TestPyPI
   dispatch appends `.dev<run*100+attempt>` to the version, so its files are not
   a second build of the release's — they are their own artifact, published

@@ -299,12 +299,15 @@ and install one. This is the one build there is (issue #1166):
 same job, and its own `publish-testpypi` and `publish-pypi` jobs download
 the `dist` artifact this job uploads rather than building a second copy
 — so what the checks below judge is what an index ends up serving, byte
-for byte. The first two commands are what make the wheel and the sdist
-reproducible; `sha256sum` after them is the digest a rebuild from the
-tag is compared against, per RELEASING.md's "Rebuild a release from its
-tag". The distribution files are uploaded before anything below installs
-a package: installing a dependency executes its code, and a compromised
-one must not reach a `dist/` that still has to be handed on:
+for byte. The first two commands are what make the sdist's determinism
+this tree's rather than the backend's — `uv_build` already writes a fixed
+timestamp into both archives and ignores `SOURCE_DATE_EPOCH`, and
+`normalize_sdist.py`'s docstring is where that measurement and the reason
+to run it anyway are. `sha256sum` after them is the digest a rebuild from
+the tag is compared against, per RELEASING.md's "Rebuild a release from
+its tag". The distribution files are uploaded before anything below
+installs a package: installing a dependency executes its code, and a
+compromised one must not reach a `dist/` that still has to be handed on:
 
 ```shell
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)

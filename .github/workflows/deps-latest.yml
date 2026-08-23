@@ -218,10 +218,10 @@ jobs:
           enable-cache: true
       - name: Upgrade every dependency to its latest release
         run: uv lock --upgrade
-      # setuptools and the build backend are resolved by uv build itself,
-      # not from uv.lock, so this step is at latest whether or not the one
-      # above ran: the build requirement in pyproject.toml is a lower
-      # bound, and uv builds in an isolated environment
+      # the build backend is resolved by uv build itself, not from
+      # uv.lock, so this step is at latest whether or not the one above
+      # ran: the build requirement in pyproject.toml bounds a range rather
+      # than naming a version, and uv builds in an isolated environment
       - name: Build the distribution files
         run: uv build
       - name: Check the metadata and the long description

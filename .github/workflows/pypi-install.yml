@@ -125,9 +125,9 @@ jobs:
           # the path a resolver takes if it is ever asked for the sdist
           # rather than the wheel PyPI also serves: this package has no
           # compiled step behind either, so the risk a wheel-only cell
-          # cannot see is `MANIFEST.in` or `[tool.setuptools]` drift, not a
-          # build failure. One cell is enough, being the same sdist on
-          # every platform
+          # cannot see is drift in `[tool.uv.build-backend]`, not a build
+          # failure. One cell is enough, being the same sdist on every
+          # platform
           - os: ubuntu-latest
             python-version: "3.13"
             no-binary: true

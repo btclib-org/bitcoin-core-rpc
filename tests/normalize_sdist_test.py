@@ -23,8 +23,16 @@
 `normalize` exists for one property -- two archives whose content agrees
 normalize to the same bytes, whatever the metadata of their members said --
 and that is what is asserted here, on archives staged by hand rather than
-on a build of this tree: a build carries the modes of the checkout it ran
-in, so it can only ever show the one case the runner happens to produce.
+on a build of this tree. A build cannot show it: `uv_build` writes one
+fixed timestamp and one pair of modes into every member, so two of its
+archives differ in no metadata for the property to bite on. What
+`normalize` does over one of them is rewrite it -- every member's mtime
+moves from uv's 0 to `SOURCE_DATE_EPOCH`, and the digest with it, which
+is what `test.yml`'s step is for. The metadata a member can otherwise
+carry is what the archives below are staged with, and the script's own
+docstring is why that case has to keep being answered by this tree
+rather than by the backend.
+
 RELEASING.md's "Rebuild a release from its tag" is what the property is
 for, a verifier's digest having to agree with the published one.
 
@@ -63,10 +71,10 @@ def _staged_sdist(archive: Path, *, mode: int, mtime: float) -> None:
     """Write an sdist of one directory and one file, with these member bits.
 
     Two members because the mode a directory takes is not the one a file
-    takes, and the staging directory setuptools tars first is what the
-    script exists for. `mtime` is a float on purpose: a sub-second
-    timestamp is what writes the PAX record whose length moves the
-    checksum.
+    takes, and an sdist carries both. `mtime` is a float on purpose: a
+    sub-second timestamp is what writes the PAX record whose length moves
+    the checksum, and clearing those records is half of what the script
+    does.
     """
     with tarfile.open(archive, "w:gz", format=tarfile.PAX_FORMAT) as tar:
         directory = tarfile.TarInfo("pkg-1.0")
@@ -92,11 +100,12 @@ def _members(archive: Path) -> list[tuple[str, int, float, int, str]]:
 def test_two_archives_differing_only_in_a_mode_normalize_alike(
     normalizer: ModuleType, tmp_path: Path
 ) -> None:
-    """The property the script exists for, across the umask of a checkout.
+    """The property the script exists for, across two member modes.
 
-    A checkout under a umask of 002 carries group write where the runner's
-    carries 022, and the content of every file agrees: the archives are the
-    same source tree, so the digests a verifier compares have to agree too.
+    One archive carries group write where the other does not, and the
+    content of every file agrees: the archives are the same source tree, so
+    the digests a verifier compares have to agree too. Which backend wrote
+    which mode is the question this makes not matter.
     """
     theirs = tmp_path / "umask-022.tar.gz"
     ours = tmp_path / "umask-002.tar.gz"
