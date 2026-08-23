@@ -398,8 +398,10 @@ repos:
   # indented under nothing, a value that is octal by accident are read by
   # nothing else at all.
   # Configured in .yamllint.yaml rather than in args here, as codespell
-  # and typos are configured in pyproject.toml: the default set, the two
-  # rules left off, and a width that is not 80 need a paragraph each
+  # and typos are configured in pyproject.toml: every place that file
+  # departs from the default set carries the reason it does, and a hook
+  # argument has no room for a paragraph. That file is the organization's
+  # copy, byte for byte, which is why the reasoning is not restated here
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.38.0
     hooks:

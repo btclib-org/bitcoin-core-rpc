@@ -23,6 +23,23 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`.yamllint.yaml` is the organization's copy, byte for byte.** It is
+  one of the files section 14 of `btclib-org/.github` calls verbatim,
+  and the copy there has moved: `document-start` is raised from the
+  default set's warning to `error`, the pre-commit hook running plain
+  `yamllint` with no `--strict`, where a warning exits 0 -- so at the
+  inherited level the rule reported the convention and gated nothing. It
+  costs this tree nothing today:
+
+  ```shell
+  git ls-files '*.yml' '*.yaml' \
+      | xargs -I{} sh -c 'head -1 {} | grep -q "^---" || echo {}'
+  ```
+
+  answers with nothing here. The hook's own comment no longer lists what
+  the file departs from the default set in, that list being one more
+  thing to keep in step with the file itself.
+
 - **`AUTHORS.md` names this repository's authors.** It pointed at this
   repository's contributor graph while calling them btclib's, which is
   the shape section 14 of `btclib-org/.github` gives for why the file
