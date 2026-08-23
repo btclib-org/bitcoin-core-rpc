@@ -23,6 +23,18 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **A bare `uv run pytest` is the coverage gate, and the prose that said
+  otherwise is gone.** `CLAUDE.md` carried "`uv run pytest` is not the
+  coverage gate" and a longer command to use instead; `--cov` has been
+  in `addopts` since it moved there so that the ratchet is what a bare
+  run measures, and `pyproject.toml` says as much beside the flag. The
+  run answers with `Required test coverage of 100.0% reached`, which is
+  the gate. What is true, and is what the moved prose now says, is that
+  a *selective* run is reported and not gated:
+  `uv run pytest tests/transport_test.py` prints the whole tree's
+  coverage and passes, `tests/conftest.py`'s `pytest_configure` being
+  what makes the difference.
+
 - **`CLAUDE.md` holds only what no document written for a human can.**
   The commands, the gates and how they lie are `CONTRIBUTING.md`'s last
   section, and the review rules are `REVIEWING.md`: a human had to open

@@ -207,7 +207,6 @@ linters and packaging tools itself.
 
 ```shell
 uv sync                       # create the environment
-uv run pytest                 # the suite
 uv run pre-commit install     # so a commit runs the lint gate
 ```
 
@@ -216,23 +215,27 @@ with a `transport=` that answers from bytes committed under `tests/_data`.
 What a *live* node answers is a separate question, asked by `bitcoind.yml`
 and by the command under [A live node](#a-live-node) below.
 
-The gate is a suite run with coverage measured, the hooks, and the
-documentation build, and neither command above is the whole of any of
-them:
+The gate is the suite, the hooks and the documentation build:
 
 ```shell
-uv run pytest --cov=bitcoin_core_rpc --cov=tests
+uv run pytest
 uv run pre-commit run --all-files
 uv run --locked --no-default-groups --group docs \
     sphinx-build -W --keep-going -b html docs/source docs/build/html
 ```
 
-`fail_under = 100.0` is enforced only where coverage is measured, which a
-plain `pytest` does not do. And no hook reads reStructuredText, so a
-docstring docutils cannot parse fails the documentation build with every
+`--cov` is in `addopts`, so the bare `pytest` above is the coverage gate
+and `fail_under = 100.0` is what it answers against; `pyproject.toml`
+says why the flag sits there rather than in the workflow that used to
+carry it. A selective run is reported and not gated —
+`uv run pytest tests/transport_test.py` prints a coverage of the whole
+tree and passes — and `tests/conftest.py`'s `pytest_configure` is what
+makes that difference.
+
+The documentation build is the one to remember, because no hook reads
+reStructuredText: a docstring docutils cannot parse fails it with every
 hook green — a name ending in an underscore is a reference to a link
-target (``mult_``, and the fix is those very backticks). Reproduce that
-build before calling the gate green.
+target (``mult_``, and the fix is those very backticks).
 
 **Check exit codes, not filtered output.** `pre-commit run ... | grep -v
 Passed` hides a failure, and `grep` finding nothing exits 1, which is not
