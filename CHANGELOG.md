@@ -23,6 +23,16 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`CLAUDE.md` holds only what no document written for a human can.**
+  The commands, the gates and how they lie are `CONTRIBUTING.md`'s last
+  section, and the review rules are `REVIEWING.md`: a human had to open
+  an agent's file to learn how to run a gate, and an agent's file was
+  the second place a review rule was written. What is left is what those
+  two cannot say because it is about a session rather than about the
+  tree -- what the module is made of, the worktree rule, the model, and
+  the failure modes that otherwise cost a session, `cancelled` not being
+  `failure` and a draft pull request running nothing among them.
+
 - **`REVIEWING.md` is the organization's file down to the same heading,
   and `.claude/commands/review.md` is its copy of the invocation.** A
   review that means one thing here and another in a sibling is no
