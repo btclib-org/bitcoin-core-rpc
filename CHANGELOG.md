@@ -23,6 +23,31 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`claude-review.yml` points at the file that states the ceiling,
+  instead of at a measurement taken of something else.** Its header
+  promised that "`REPOSITORY.md` measures what a commit at that ceiling
+  costs in wall clock". `REPOSITORY.md` does measure a wall clock
+  against that ceiling, but one job's and not one commit's -- the
+  seconds of a slot a single `Analyze (python)` held -- while what it
+  says a *commit* asks for is a count of jobs, which `42e600e`
+  superseded. Following it does land on a measurement, which is what
+  makes the wrong generality worse than a dangling reference: the reader
+  arrives at a number and takes it for the one that was named. The
+  ceiling is `CONTRIBUTING.md`'s to state, and `CONTRIBUTING.md` is also
+  where what the platform sweeps ask of it is accounted for, so the
+  sentence names that file. Restating the number here would be one more
+  copy of what the tree already repeats:
+
+  ```shell
+  git grep -n 'concurrent jobs' -- '*.yml' '*.md'
+  ```
+
+  That form rather than `'twenty concurrent'`, which misses two of them:
+  `CONTRIBUTING.md`, where the sentence wraps between the two words, and
+  this very workflow, whose header stops repeating the number here. The
+  narrower pattern answers with neither the file the ceiling belongs to
+  nor the file this entry is about.
+
 - **A bare `uv run pytest` is the coverage gate, and the prose that said
   otherwise is gone.** `CLAUDE.md` carried "`uv run pytest` is not the
   coverage gate" and a longer command to use instead; `--cov` has been
