@@ -23,6 +23,30 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **A workflow's file name says its own subject, and a shared prefix
+  groups a family.** `ubuntu.yml`, `macos.yml` and `windows.yml` are now
+  `os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml`: the platform
+  sweep is a family, and the prefix is what says so in a directory
+  listing that is read alphabetically. `latest.yml` is
+  `deps-latest.yml`, `latest` having named an adjective without the noun
+  it qualified -- what that workflow moves is the dependency resolution,
+  the `os-*` sweep being the one that holds it at the lock.
+  `published.yml` is `pypi-install.yml`, which says what it asks of the
+  published package rather than that there is one: it installs it from
+  the index and round-trips a call through it. `integration.yml` is
+  `bitcoind.yml`, integration naming neither of the two sides it joins,
+  where the other side is a live node the workflow downloads and starts.
+
+  **No job name moved**, and that is the constraint the renames were
+  written under: a job name is the context a required status check
+  carries, and `integration: every job passed` is one of them, so
+  renaming it would drop a check and add another under a rule that
+  blocks every open pull request in between -- REPOSITORY.md's *Required
+  checks on main* has the cost in full. Each workflow's `name:` key
+  and its concurrency group follow its file, the group being a literal
+  this repository writes for itself rather than a name anything else
+  reads.
+
 - **A `TODO` that opens a comment no longer passes lint**
   (btclib-org/.github#87). Ruff's `FIX` family joins
   `[tool.ruff.lint] select`, so a comment beginning `TODO`, `FIXME`,

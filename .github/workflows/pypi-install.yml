@@ -1,5 +1,5 @@
 ---
-name: published
+name: pypi-install
 
 # the sentinel on what users actually install. Every other workflow here
 # tests artifacts built in the same run, from the tree that triggered it:
@@ -42,8 +42,8 @@ on:
         type: string
         default: ""
   schedule:
-    # Wednesday, the hour after latest.yml, and the pair is why it is
-    # weekly: latest.yml upgrades every dependency and runs the suite,
+    # Wednesday, the hour after deps-latest.yml, and the pair is why it is
+    # weekly: deps-latest.yml upgrades every dependency and runs the suite,
     # this asks what the index actually serves, and read together they
     # separate a break this tree caused from one that arrived. What it
     # watches is external rot -- a new pip, a new runner image, a yanked
@@ -65,7 +65,7 @@ on:
     # would wait for its next push to be checked at all
     types: [opened, reopened, synchronize, ready_for_review]
     paths:
-      - .github/workflows/published.yml
+      - .github/workflows/pypi-install.yml
 
 # least privilege for the GITHUB_TOKEN: everything running in a job
 # (actions, pip) can read the token, so it must not be able to write to
@@ -78,7 +78,7 @@ permissions:
 # sample worth keeping, and none supersedes the others. A concurrent run
 # queues instead
 concurrency:
-  group: published-${{ github.ref }}
+  group: pypi-install-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -100,7 +100,7 @@ jobs:
         # -- no compiled extension, one universal wheel for every
         # interpreter -- but the install, and an install breaks from
         # outside, on one image's pip or one image's runner. So every
-        # image ubuntu.yml, macos.yml and windows.yml run between them,
+        # image os-ubuntu.yml, os-macos.yml and os-windows.yml run between them,
         # against the two ends of the supported range and the
         # free-threaded build
         os:
@@ -115,7 +115,7 @@ jobs:
           # actions/setup-python has no CPython 3.10 build for Windows
           # arm64 -- "The version '3.10' with architecture 'arm64' was not
           # found for Windows Enterprise", measured on this matrix.
-          # windows.yml's own windows-11-arm cells do not need this: they
+          # os-windows.yml's own windows-11-arm cells do not need this: they
           # provision Python through astral-sh/setup-uv, which fetches
           # python-build-standalone's distributions rather than reading
           # this action's version manifest, and that one goes back further

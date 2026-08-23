@@ -81,16 +81,16 @@ read by every checkout of this repository.
 | `test` | pull request, push | — |
 | `lint`, `docs` | pull request, push | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
-| `integration` | pull request, push | Core's two ends, then 5 chains |
+| `bitcoind` | pull request, push | Core's two ends, then 5 chains |
 | `codeql` | push to main, and weekly | 2 languages |
-| `ubuntu` | weekly, a release | 2 ubuntu images × 7 interpreters |
-| `macos` | weekly, a release | 2 macOS images × 7 interpreters |
-| `windows` | weekly, a release | 2 Windows images × 7 interpreters |
-| `latest` | weekly | 3 images × the floor and the ceiling, upgraded |
-| `integration` | weekly | every Core major, then 5 chains on the newest |
+| `os-ubuntu` | weekly, a release | 2 ubuntu images × 7 interpreters |
+| `os-macos` | weekly, a release | 2 macOS images × 7 interpreters |
+| `os-windows` | weekly, a release | 2 Windows images × 7 interpreters |
+| `deps-latest` | weekly | 3 images × the floor and the ceiling, upgraded |
+| `bitcoind` | weekly | every Core major, then 5 chains on the newest |
 | `links` | weekly | — |
 | `mutation` | weekly | — |
-| `published` | weekly, a release | what PyPI serves |
+| `pypi-install` | weekly, a release | what PyPI serves |
 | `release` | a tag | the workflows it calls |
 
 Which workflows that last row covers is
@@ -112,13 +112,13 @@ price of every review: macOS queues 15.7 and 13.1 minutes on average against
 0.1 to 0.3 elsewhere, on cells that each run in under a minute, and the
 fourteen Windows cells were 9.4 of the run's 16.9 runner-minutes.
 
-**What the sentinels vary, they vary whole.** `ubuntu` runs the images and
-the interpreters the gate does not sweep *and* the cell it does, and
-`integration` runs every Core major including the two it gates on. A matrix
+**What the sentinels vary, they vary whole.** `os-ubuntu` runs the images
+and the interpreters the gate does not sweep *and* the cell it does, and
+`bitcoind` runs every Core major including the two it gates on. A matrix
 with the gate's cells cut out of it is one nobody can read the shape of, and
 whoever asked what ran would have to re-derive the hole from the gate.
 
-`windows-latest` is in `windows` rather than on the gate, and the
+`windows-latest` is in `os-windows` rather than on the gate, and the
 platform-conditional branch it answers for is the datadir table in
 `default_datadir`, whose rows the suite drives by patching `sys.platform` —
 every row but the running one, so `%APPDATA%` and the `Path.home()` under it
@@ -126,11 +126,11 @@ are asked for real only on a Windows runner. That question does not vary
 with the architecture the interpreter targets, which is why one row of that
 matrix answers it and the rest are there for the standard library beneath.
 
-`ubuntu`, `macos` and `windows` hold the dependencies at the lock and move
-the platform; `latest` moves both, and one variable each is what lets the
-pair be read as a difference — `macos.yml`'s header states that reading
-for its own column, and it is the same on the other two. Every workflow
-here also takes `workflow_dispatch`, gates included, `claude-review`
+`os-ubuntu`, `os-macos` and `os-windows` hold the dependencies at the lock
+and move the platform; `deps-latest` moves both, and one variable each is
+what lets the pair be read as a difference — `os-macos.yml`'s header states
+that reading for its own column, and it is the same on the other two. Every
+workflow here also takes `workflow_dispatch`, gates included, `claude-review`
 excepted — `grep -c workflow_dispatch: .github/workflows/*.yml` is what says
 so, and for `codeql` and the three image workflows it is the only way to ask
 about a branch at all. `claude-review` takes none because both its jobs read
@@ -150,11 +150,11 @@ tree those checks already passed.
 Each command below is the one a CI job runs, verbatim. Keep this section
 true when a workflow changes.
 
-`ubuntu.yml`, `macos.yml` and `windows.yml`, the suite job of each — the
-suite, on one cell of a platform matrix. `--no-cov` undoes the `--cov`
-addopts carries: a cell asks whether one (image, interpreter) pair
-passes, and the `coverage` job below is where coverage is measured once,
-gated, and reported instead:
+`os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml`, the suite job of
+each — the suite, on one cell of a platform matrix. `--no-cov` undoes the
+`--cov` addopts carries: a cell asks whether one (image, interpreter)
+pair passes, and the `coverage` job below is where coverage is measured
+once, gated, and reported instead:
 
 ```shell
 uv run --locked --no-default-groups --group test pytest --no-cov
@@ -287,7 +287,7 @@ afterwards, so nothing else may read the file while it runs.
 
 ### A live node
 
-`integration.yml` is the one claim the recorded replies cannot make. Against
+`bitcoind.yml` is the one claim the recorded replies cannot make. Against
 a `bitcoind` of your own — it runs on a regtest chain in a temporary
 datadir, on Core's own rpc port, and leaves nothing behind:
 

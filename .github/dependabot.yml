@@ -7,7 +7,7 @@
 # every pull request here runs the merge gate -- four platforms across
 # seven interpreters, the live-node smoke test, the hooks and the
 # documentation build -- so both ecosystems group their updates into a
-# single pull request rather than paying for that once each. macos.yml is
+# single pull request rather than paying for that once each. os-macos.yml is
 # not in the gate and is not pre-validation either: it holds the lock, so
 # an upgrade never reaches it. Neither declares a
 # target-branch: without one dependabot opens against the default branch,

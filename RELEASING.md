@@ -182,13 +182,13 @@ tag exercises the first.
 ## A live node has already been asked
 
 The recorded replies say what Core sent when they were recorded, and whether
-Core still sends that is checked on every pull request: `integration.yml` is a
+Core still sends that is checked on every pull request: `bitcoind.yml` is a
 required check, and `release.yml` calls it again on the tag. Nothing to
 dispatch here, and nothing to remember -- the step this section used to be
 is what the required check replaced.
 
 Dispatch it by hand only to ask about a Core version the matrix does not
-carry, or when a run needs repeating without a push: Actions → integration →
+carry, or when a run needs repeating without a push: Actions → bitcoind →
 Run workflow. CONTRIBUTING.md has the same command for a node of your own.
 
 ## Release to PyPI
@@ -199,8 +199,8 @@ this release included: the steps that retitle the notes and set the
 version are one pull request, the one that opens the next cycle is
 another, and the tag names the commit the first of them left behind.
 
-`latest` is worth dispatching before the tag rather than waiting for its
-cron, because what it answers is cheaper to know before a version is
+`deps-latest` is worth dispatching before the tag rather than waiting for
+its cron, because what it answers is cheaper to know before a version is
 consumed than after. It gates nothing, so it will not stop you: reading it
 is the point.
 
@@ -213,14 +213,15 @@ Whether to close that drift now — `uv lock --upgrade`, gated by nothing
 here — or leave it for Dependabot's own pull requests is a decision
 worth stating rather than defaulting by omission: silence at the tag
 reads as "nobody looked", not as "looked and chose to leave it". State
-the choice in the release pull request, next to `latest`'s own result.
+the choice in the release pull request, next to `deps-latest`'s own
+result.
 
 1. Read what is open, and land first anything that fixes the release path
    itself:
 
    ```shell
    gh pr list --state open
-   gh pr list --state open --search "release.yml OR published.yml"
+   gh pr list --state open --search "release.yml OR pypi-install.yml"
    ```
 
    A pull request touching `release.yml`, anything under
@@ -235,8 +236,8 @@ the choice in the release pull request, next to `latest`'s own result.
 
    It is not caught anywhere else: every one of those workflows is
    green on the pull request that fixes it, which is what makes it look
-   like something that can wait. `published.yml` is the case to watch, its
-   own failures arriving after PyPI has already accepted the files.
+   like something that can wait. `pypi-install.yml` is the case to watch,
+   its own failures arriving after PyPI has already accepted the files.
 
    The reverse question is worth the same minute: a pull request that is
    *not* ready is one this release ships without, so what the notes claim
@@ -477,9 +478,9 @@ the choice in the release pull request, next to `latest`'s own result.
    `release.yml` calls that workflow once PyPI has accepted the files, with
    the tag's version, and it waits for the index to serve that version
    before installing anything — so it cannot pass by testing the release
-   before this one. It installs from PyPI on every image `ubuntu.yml`,
-   `macos.yml` and `windows.yml` run between them, at both ends of the
-   supported interpreter range and on the free-threaded build, and
+   before this one. It installs from PyPI on every image `os-ubuntu.yml`,
+   `os-macos.yml` and `os-windows.yml` run between them, at both ends of
+   the supported interpreter range and on the free-threaded build, and
    round-trips a JSON-RPC call against it. From then on it runs weekly on
    its own, and a failure means the outside world moved, not this
    repository — a new
@@ -507,7 +508,7 @@ the choice in the release pull request, next to `latest`'s own result.
 
    **No CycloneDX bill of materials is among them, on purpose.** btclib
    attaches one; this repository declares `dependencies = []` in
-   `pyproject.toml`, and `published.yml` already asserts that against
+   `pyproject.toml`, and `pypi-install.yml` already asserts that against
    the installed package on every run. btclib's `RELEASING.md` (the
    "Read the bill of materials attached to the release" step) has the
    full reasoning for why that makes one redundant here, and issue

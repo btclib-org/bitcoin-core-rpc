@@ -41,7 +41,7 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 | `Lint and type-check` | `lint.yml`, first job |
 | `Build the documentation` | `docs.yml`, its only job |
 | `test: every job passed` | `test.yml`, aggregate over its jobs |
-| `integration: every job passed` | `integration.yml`, over its cells |
+| `integration: every job passed` | `bitcoind.yml`, over its cells |
 
 The last row is whichever context was added most recently, that endpoint
 appending rather than sorting — so the tail of this table moves whenever a
@@ -222,11 +222,12 @@ of this: the name is what the rule matches, and `Build the documentation`
 kept reporting when it left `lint.yml` for `docs.yml`.
 
 No sentinel appears in the rule, and none of them may: `mutation.yml`,
-`links.yml`, `latest.yml`, `ubuntu.yml`, `macos.yml`, `windows.yml` and
-`published.yml` are each expected to go red for reasons no pull request
-introduced -- an upgrade upstream, a link on somebody else's website, a
-runner image -- and a red check nobody can act on from a branch is noise.
-`integration.yml` is in the rule rather than in that list, its cost having
+`links.yml`, `deps-latest.yml`, `os-ubuntu.yml`, `os-macos.yml`,
+`os-windows.yml` and `pypi-install.yml` are each expected to go red for
+reasons no pull request introduced -- an upgrade upstream, a link on
+somebody else's website, a runner image -- and a red check nobody can act
+on from a branch is noise.
+`bitcoind.yml` is in the rule rather than in that list, its cost having
 been measured rather than assumed: 12 to 24 seconds a cell, the download
 of a live bitcoind included, and the cells run concurrently. What it
 answers is the one claim a recording cannot make, and that belongs in

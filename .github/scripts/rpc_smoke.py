@@ -61,7 +61,7 @@ is read rather than only in passing, on the way to `--protocol`'s own
 question.
 
 Run it against a node of your own with `--bitcoind`; CONTRIBUTING.md
-carries the command, and `.github/workflows/integration.yml` the download
+carries the command, and `.github/workflows/bitcoind.yml` the download
 that verifies which binary it is.
 
 `tests/rpc_smoke_test.py` covers every function with no client behind it
@@ -70,7 +70,7 @@ that verifies which binary it is.
 Everything else here is `# pragma: no cover`: it takes a real
 `BitcoinCoreRpcClient` talking to a real node, and mocking that node
 would be the recording this script exists to not trust. That half is
-`integration.yml`'s to monitor, against Core itself.
+`bitcoind.yml`'s to monitor, against Core itself.
 """
 
 from __future__ import annotations

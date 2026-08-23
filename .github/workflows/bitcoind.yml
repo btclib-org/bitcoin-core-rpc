@@ -1,5 +1,5 @@
 ---
-name: integration
+name: bitcoind
 
 # The one claim the suite cannot make. Every reply under tests/_data is
 # Core's own and the suite classifies all of them without opening a socket,
@@ -31,7 +31,7 @@ name: integration
 # included, and the cells run concurrently. What a whole run costs today
 # is in the run log rather than in this comment:
 #
-#     gh run list --workflow=integration.yml --limit 1
+#     gh run list --workflow=bitcoind.yml --limit 1
 #
 # Being required is also why the pull_request trigger below carries no
 # `paths`: a required check that never runs blocks a merge, where a skipped
@@ -101,7 +101,7 @@ permissions:
 # trigger's own comment above has the evidence. A push carries no
 # pull_request context, so github.ref is still what groups it, unchanged
 concurrency:
-  group: integration-${{ github.event.pull_request.number || github.ref }}
+  group: bitcoind-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

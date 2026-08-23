@@ -1,5 +1,5 @@
 ---
-name: ubuntu
+name: os-ubuntu
 
 # every ubuntu cell, once a week and run whole: both architectures
 # against every interpreter, the cell the merge gate already runs
@@ -26,10 +26,10 @@ name: ubuntu
 # module does and the part that moves most between releases; `Path.home()`
 # resolves through the passwd database here and through the registry on
 # Windows, where `%APPDATA%` is what `default_datadir` reads instead, so
-# windows.yml is the one place either is asked for real rather than
+# os-windows.yml is the one place either is asked for real rather than
 # patched; `decimal` is libmpdec on CPython and a Python implementation
 # on PyPy, and the exact parsing of an amount is a promise this client
-# makes. macos.yml and windows.yml are that argument on their own
+# makes. os-macos.yml and os-windows.yml are that argument on their own
 # platforms, and each says what its own cells add to it.
 #
 # It gates no commit and no merge -- a regression sits on main for at most
@@ -40,7 +40,7 @@ on:
   schedule:
     # Friday, alone: a platform sentinel is two architectures times every
     # interpreter, and three of them in one morning is the queue this
-    # design exists to avoid. macos.yml and windows.yml share Saturday
+    # design exists to avoid. os-macos.yml and os-windows.yml share Saturday
     # between them; this one takes the day before.
     # The time is section 10's grid and not this file's to restate.
     # Only the default branch schedules workflows, so on any other branch
@@ -65,7 +65,7 @@ permissions:
 # alongside test.yml, and with that expression the two would share a group
 # and cancel each other
 concurrency:
-  group: ubuntu-${{ github.ref }}
+  group: os-ubuntu-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -84,7 +84,7 @@ jobs:
           - ubuntu-latest
           - ubuntu-24.04-arm
         # every interpreter this package claims, where the merge gate
-        # runs the one .python-version pins. macos.yml and windows.yml
+        # runs the one .python-version pins. os-macos.yml and os-windows.yml
         # carry the same list, so each of the three moves the platform
         # and nothing else and a difference between them is the
         # platform's. tests/interpreters_test.py is what keeps this list
