@@ -26,9 +26,9 @@ siblings, `generate_chain`, `check_serialization`, `check_chain_answers`
 and everything `smoke` calls in turn all talk to a real
 `BitcoinCoreRpcClient` backed by a real bitcoind, which is the one thing
 this script exists to have -- a mock of it would be testing that the mock
-agrees with itself. `.github/workflows/integration.yml` is where that half
-is exercised, against Core itself, on a schedule and before a release; it
-is not duplicated here.
+agrees with itself. `.github/workflows/integration-bitcoind.yml` is
+where that half is exercised, against Core itself, on a schedule and
+before a release; it is not duplicated here.
 
 What is covered is the half with no node behind it: `check`, the plain
 predicate every other function calls; `port_is_free`, a socket check;

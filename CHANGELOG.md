@@ -23,6 +23,158 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **A bare `uv run pytest` is the coverage gate, and the prose that said
+  otherwise is gone.** `CLAUDE.md` carried "`uv run pytest` is not the
+  coverage gate" and a longer command to use instead; `--cov` has been
+  in `addopts` since it moved there so that the ratchet is what a bare
+  run measures, and `pyproject.toml` says as much beside the flag. The
+  run answers with `Required test coverage of 100.0% reached`, which is
+  the gate. What is true, and is what the moved prose now says, is that
+  a *selective* run is reported and not gated:
+  `uv run pytest tests/transport_test.py` prints the whole tree's
+  coverage and passes, `tests/conftest.py`'s `pytest_configure` being
+  what makes the difference.
+
+- **`CLAUDE.md` holds only what no document written for a human can.**
+  The commands, the gates and how they lie are `CONTRIBUTING.md`'s last
+  section, and the review rules are `REVIEWING.md`: a human had to open
+  an agent's file to learn how to run a gate, and an agent's file was
+  the second place a review rule was written. What is left is what those
+  two cannot say because it is about a session rather than about the
+  tree -- what the module is made of, the worktree rule, the model, and
+  the failure modes that otherwise cost a session, `cancelled` not being
+  `failure` and a draft pull request running nothing among them.
+
+- **`REVIEWING.md` is the organization's file down to the same heading,
+  and `.claude/commands/review.md` is its copy of the invocation.** A
+  review that means one thing here and another in a sibling is no
+  standard, which is section 14's reason for comparing the two halves
+  that are meant to agree. What the shared half says is gone from the
+  tail: what is under review, what to look for, what a finding contains,
+  what becomes of a collateral finding, the gates as evidence, the
+  verdict and the re-review. The tail keeps what a review of *this* tree
+  checks and a generic one does not -- a dependency or a second module,
+  both JSON-RPC dialects, the boundary the layers draw, and whether the
+  suite is still hermetic.
+
+  `.claude/commands/review.md` had drifted into naming this tree's
+  facts, which is not what a verbatim file can carry: those facts are in
+  the tail above, and the command is the invocation again.
+
+- **`CONTRIBUTING.md` is the organization's file down to `## This
+  repository in particular`.** Section 14 of `btclib-org/.github` has it
+  verbatim to that heading and this tree's below it, and
+  `tests/verbatim_test.py` there compares the halves that are meant to
+  agree. What the shared half already says is gone from here rather than
+  said twice in this repository's words: where an issue is filed, the
+  prose style, what a pull request is and answers, one subject per pull
+  request, how a review is exchanged and how a change lands. Each of
+  those now points at the section of the standard that decides it.
+
+  What stayed is what only this tree can say: the constraint that this
+  is one source file with nothing but the standard library behind it,
+  the commands that build the environment and run the gates, the editor
+  files, the command each CI job runs verbatim, the cadence table, the
+  mutation session, the live node and the secrets baseline. The gates
+  moved here from `CLAUDE.md`, a human having no reason to open an
+  agent's file to learn how to run one, and `REVIEWING.md` reads which
+  checks are required from this file's last section.
+
+  The toolchain badges move under that heading with them, the shared
+  half being byte-compared and a badge line being this repository's.
+  `.gitattributes` pointed here for the union-merge reasoning and now
+  points at section 9, which is where it went; `docs/source/conf.py`
+  named `CONTRIBUTING.md`'s links to `CODE_OF_CONDUCT.md` and
+  `RELEASING.md` as the reason the root files are not copied into the
+  documentation tree, and names `README.md`'s link to `LICENSE`
+  instead, that being the one such link left.
+
+- **`.yamllint.yaml` is the organization's copy, byte for byte.** It is
+  one of the files section 14 of `btclib-org/.github` calls verbatim,
+  and the copy there has moved: `document-start` is raised from the
+  default set's warning to `error`, the pre-commit hook running plain
+  `yamllint` with no `--strict`, where a warning exits 0 -- so at the
+  inherited level the rule reported the convention and gated nothing. It
+  costs this tree nothing today:
+
+  ```shell
+  git ls-files '*.yml' '*.yaml' \
+      | xargs -I{} sh -c 'head -1 {} | grep -q "^---" || echo {}'
+  ```
+
+  answers with nothing here. The hook's own comment no longer lists what
+  the file departs from the default set in, that list being one more
+  thing to keep in step with the file itself.
+
+- **`AUTHORS.md` names this repository's authors.** It pointed at this
+  repository's contributor graph while calling them btclib's, which is
+  the shape section 14 of `btclib-org/.github` gives for why the file
+  cannot be verbatim: a shared pointer is accurate only while one graph
+  stays a superset of the others, and the first person to contribute
+  somewhere else goes uncredited in silence.
+
+- **`LICENSE`, `COPYRIGHT` and `CODE_OF_CONDUCT.md` are the
+  organization's copies, byte for byte.** Section 14 of
+  `btclib-org/.github` calls the three verbatim, and
+  `tests/verbatim_test.py` there compares them across the repositories,
+  so a copy that reads better here is a copy that fails everywhere.
+  `LICENSE` gains the `MIT License` title and loses the `2017-2026`
+  range -- a range is a line nobody updates, and `COPYRIGHT` states the
+  holder without one, so the two disagree the first January nobody
+  remembers. `CODE_OF_CONDUCT.md` is the file GitHub falls back to for a
+  repository of the organization carrying none, which is why a
+  repository that carries one carries that one.
+
+  `COPYRIGHT` is now the three-line notice the other trees point at, and
+  the headers here still carry the MIT permission notice in full: what
+  the ruff `CPY` rule requires of a source file is `notice-rgx` in
+  `pyproject.toml` and never this file, and the argument for the long
+  form -- a vendored copy has no `LICENSE` beside it to point at -- is
+  about `bitcoin_core_rpc.py`, which is copied, and not about
+  `COPYRIGHT`, which is not. That comment says so where the rule is, and
+  names the section it departs from.
+
+- **A workflow's file name says its own subject, and a shared prefix
+  groups a family.** `ubuntu.yml`, `macos.yml` and `windows.yml` are now
+  `os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml`: the platform
+  sweep is a family, and the prefix is what says so in a directory
+  listing that is read alphabetically. `latest.yml` is
+  `deps-latest.yml`, `latest` having named an adjective without the noun
+  it qualified -- what that workflow moves is the dependency resolution,
+  the `os-*` sweep being the one that holds it at the lock.
+  `published.yml` is `pypi-install.yml`, which says what it asks of the
+  published package rather than that there is one: it installs it from
+  the index and round-trips a call through it. `integration.yml` is
+  `integration-bitcoind.yml`, integration naming neither of the two sides it
+  joins, where the other side is a live node the workflow downloads and starts.
+
+  **No job name moved**, and that is the constraint the renames were
+  written under: a job name is the context a required status check
+  carries, and `integration: every job passed` is one of them, so
+  renaming it would drop a check and add another under a rule that
+  blocks every open pull request in between -- REPOSITORY.md's *Required
+  checks on main* has the cost in full. Each workflow's `name:` key
+  and its concurrency group follow its file, the group being a literal
+  this repository writes for itself rather than a name anything else
+  reads.
+
+  **What the rename leaves owed is a row apiece in section 10's
+  calendar.** That table gives a workflow a day and an hour under its
+  file stem, `tests/grid_test.py` of `btclib-org/.github` reads it
+  against the trees, and a stem it does not name is reported as a cron
+  on no calendar. No cron moved -- this repository's minute is `12` and
+  each still lands on the slot its old name held -- so what is owed is
+  the table, in the repository that holds it:
+
+  ```shell
+  grep -l 'cron:' .github/workflows/*.yml
+  ```
+
+  against section 10's workflow table. The rows this repository leaves
+  behind stay answered by btclib, whose `.github/workflows` still
+  schedules every one of the old names, so none of them is left dangling
+  by this.
+
 - **A `TODO` that opens a comment no longer passes lint**
   (btclib-org/.github#87). Ruff's `FIX` family joins
   `[tool.ruff.lint] select`, so a comment beginning `TODO`, `FIXME`,
@@ -1823,24 +1975,22 @@ carry a union merge driver that would keep both sides' numbers.
 
 - **COMPARISON.md**, the case for this client against `AuthServiceProxy`:
   the comparison table row by row, the three rows that carry the weight --
-  amounts, credentials and errors, enforced by construction rather than
-  left to discipline -- and the consequence of the typed errors that
-  nothing announces, a refused connection arriving as a `FetchError` and
-  no longer as the `OSError` an `except` clause was written for. Then the
-  three features this client does not have and what decides each: dynamic
-  dispatch, which absorbs typos of the client's own surface and returns
-  `Any` where the package ships `py.typed`; batching, whose correlation
-  and partial failure JSON-RPC 2.0 section 6 settles, and whose cost is a
-  timeout covering several node operations, a `max_body_size` that stops
-  mapping onto an answer, and a third parsing branch -- reachable through
-  `http_request` and `auth_header` for the WAN link a batch pays on; and
-  one connection per call, which is CPython's `do_open` setting
-  `Connection: close` rather than a choice made here, negligible per call
-  on loopback and socket churn in aggregate. The README's
-  ["Migrating from `AuthServiceProxy`"](./README.md#migrating-from-authserviceproxy)
-  is the line-by-line rewrite; this is why the rewrite is worth doing.
-  Linked from the README, and from `docs/source/index.rst` alongside the
-  other root documents.
+  amounts, credentials and errors, enforced by construction rather than left to
+  discipline -- and the consequence of the typed errors that nothing announces,
+  a refused connection arriving as a `FetchError` and no longer as the `OSError`
+  an `except` clause was written for. Then the three features this client does
+  not have and what decides each: dynamic dispatch, which absorbs typos of the
+  client's own surface and returns `Any` where the package ships `py.typed`;
+  batching, whose correlation and partial failure JSON-RPC 2.0 section 6
+  settles, and whose cost is a timeout covering several node operations, a
+  `max_body_size` that stops mapping onto an answer, and a third parsing branch
+  -- reachable through `http_request` and `auth_header` for the WAN link a batch
+  pays on; and one connection per call, which is CPython's `do_open` setting
+  `Connection: close` rather than a choice made here, negligible per call on
+  loopback and socket churn in aggregate. The README's ["Migrating from
+  `AuthServiceProxy`"](./README.md#migrating-from-authserviceproxy) is the
+  line-by-line rewrite; this is why the rewrite is worth doing. Linked from the
+  README, and from `docs/source/index.rst` alongside the other root documents.
 
 ### Changed
 

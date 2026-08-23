@@ -41,7 +41,7 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 | `Lint and type-check` | `lint.yml`, first job |
 | `Build the documentation` | `docs.yml`, its only job |
 | `test: every job passed` | `test.yml`, aggregate over its jobs |
-| `integration: every job passed` | `integration.yml`, over its cells |
+| `integration: every job passed` | `integration-bitcoind.yml`, over its cells |
 
 The last row is whichever context was added most recently, that endpoint
 appending rather than sorting — so the tail of this table moves whenever a
@@ -159,10 +159,10 @@ Steps 1 and 2 are `gh api` calls a person makes; the `PATCH` body is the
 list in full, that endpoint replacing the object rather than merging into
 it.
 
-The steps above have been performed, and the setting reads `not-configured`. They
-are kept because the setting can be configured again from the repository's
-code security settings, and this is the order that takes it off again
-without leaving the rule waiting on a check nothing produces.
+The steps above have been performed, and the setting reads `not-configured`.
+They are kept because the setting can be configured again from the repository's
+code security settings, and this is the order that takes it off again without
+leaving the rule waiting on a check nothing produces.
 
 Things outlive the switch, and a reader meets them with nothing in the
 tree to explain them. GitHub keeps a generated
@@ -222,12 +222,13 @@ of this: the name is what the rule matches, and `Build the documentation`
 kept reporting when it left `lint.yml` for `docs.yml`.
 
 No sentinel appears in the rule, and none of them may: `mutation.yml`,
-`links.yml`, `latest.yml`, `ubuntu.yml`, `macos.yml`, `windows.yml` and
-`published.yml` are each expected to go red for reasons no pull request
-introduced -- an upgrade upstream, a link on somebody else's website, a
-runner image -- and a red check nobody can act on from a branch is noise.
-`integration.yml` is in the rule rather than in that list, its cost having
-been measured rather than assumed: 12 to 24 seconds a cell, the download
+`links.yml`, `deps-latest.yml`, `os-ubuntu.yml`, `os-macos.yml`,
+`os-windows.yml` and `pypi-install.yml` are each expected to go red for
+reasons no pull request introduced -- an upgrade upstream, a link on
+somebody else's website, a runner image -- and a red check nobody can act
+on from a branch is noise.
+`integration-bitcoind.yml` is in the rule rather than in that list, its cost
+having been measured rather than assumed: 12 to 24 seconds a cell, the download
 of a live bitcoind included, and the cells run concurrently. What it
 answers is the one claim a recording cannot make, and that belongs in
 front of a merge.
@@ -485,7 +486,8 @@ Read back:
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/actions/permissions/workflow \
   --jq '{default_workflow_permissions, can_approve_pull_request_reviews}'
-# {"default_workflow_permissions":"read","can_approve_pull_request_reviews":false}
+# {"default_workflow_permissions":"read",
+#  "can_approve_pull_request_reviews":false}
 ```
 
 It had to be set by hand because it had already drifted from the
@@ -497,18 +499,18 @@ Nothing is wrong today: the value read back is `read`,
 `can_approve_pull_request_reviews` is `false`, and every workflow here
 declares `permissions: contents: read` besides.
 
-What is left is that the *next* move of the organization default will
-not reach this repository, and nothing says so. Neither this endpoint
-nor `/actions/permissions` beside it (`enabled`, `allowed_actions`,
-`sha_pinning_required`) carries a field distinguishing an override from
-an inheritance, and `PUT` accepts `read` or `write` and neither `null`
-nor `inherit` — checked against [the REST
+What is left is that the *next* move of the organization default will not reach
+this repository, and nothing says so. Neither this endpoint nor
+`/actions/permissions` beside it (`enabled`, `allowed_actions`,
+`sha_pinning_required`) carries a field distinguishing an override from an
+inheritance, and `PUT` accepts `read` or `write` and neither `null` nor
+`inherit` — checked against [the REST
 documentation](https://docs.github.com/en/rest/actions/permissions?apiVersion=2022-11-28)
-rather than assumed. The repository's Settings → Actions → General page
-is the only other candidate for a control that clears the override; it
-was not checked — no interactive session against it was available when
-this section was written, so its absence here is a gap in what was
-checked, not a finding that no such control exists.
+rather than assumed. The repository's Settings → Actions → General page is the
+only other candidate for a control that clears the override; it was not checked
+— no interactive session against it was available when this section was written,
+so its absence here is a gap in what was checked, not a finding that no such
+control exists.
 
 **Whoever moves the organization default must move this repository
 with it**, by hand, with the command above, or it is left behind again.
