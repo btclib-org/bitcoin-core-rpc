@@ -29,6 +29,13 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **The question form names the Slack link beside it rather than
+  `CONTRIBUTING.md`.** The sentence pointed at `CONTRIBUTING.md`, which
+  carries no such link: the channel is a contact link in
+  `.github/ISSUE_TEMPLATE/config.yml`, shown to the reader as *Chat with
+  the developers* on the page that offers the form
+  (btclib-org/.github#101).
+
 - **`REVIEWING.md` says the reviewer runs the whole suite, every time.**
   The organization's copy, shared half byte for byte (section 14): the
   test suite is run whole on the sha under review, never a subset and
