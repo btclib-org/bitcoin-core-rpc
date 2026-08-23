@@ -29,6 +29,23 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`links.yml` accepts every status lychee would accept unasked, and
+  stops passing a cache no step keeps** (btclib-org/.github#110 and
+  btclib-org/.github#111). `--accept 200,206,429` replaced lychee's
+  default range rather than adding to it -- `lychee --help` gives that
+  default as `100..=103,200..=299` -- so a host answering `201` or `204`
+  was a dead link, to name a `206` the default already covered; the
+  argument is now that range with `429` added, a rate limit being an
+  answer from a host that is alive. `--cache --max-cache-age 1d` is gone
+  with the clause that credited it: on the tree before this,
+  `grep -c 'actions/cache\|lycheecache' .github/workflows/links.yml`
+  answered `0`, so the file lychee wrote at the end of a run was read by
+  no later one, and the comment's "the retries, the timeout and the
+  cache are what keep a slow or throttling host from being reported as a
+  dead one" named a mechanism that was not there. Dropped rather than made
+  true with an `actions/cache` pair, because the issue's own measurement
+  is that lychee collapses repeated URLs without it.
+
 - **This file stops asking for the blank line a union merge drops.**
   MD022 and MD032 are off for `CHANGELOG.md` alone, by a comment at its
   head and not by an edit to `.markdownlint.jsonc`, which is section 14's

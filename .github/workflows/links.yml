@@ -114,9 +114,9 @@ jobs:
           # each recorded reply came from and how to check a copy against
           # a live node, prose for a reader rather than a citation in a
           # comment.
-          # --no-progress because the log is not a terminal; the retries,
-          # the timeout and the cache are what keep a slow or throttling
-          # host from being reported as a dead one.
+          # --no-progress because the log is not a terminal; the retries
+          # and the timeout are what keep a slow or throttling host from
+          # being reported as a dead one.
           # --timeout 45, against lychee's default of 20: what is being
           # bought is the difference between a host that is slow from a
           # runner and a host that is gone, and lychee's default is short
@@ -125,15 +125,28 @@ jobs:
           # unreachable for a minute is the failure mode this workflow was
           # built not to gate on. If a URL times out run after run it
           # belongs in a .lycheeignore, with the measurement beside it, and
-          # not here
+          # not here.
+          # No --cache: the flag writes a cache file at the end of a run,
+          # and no step here saves or restores it, so the next run starts
+          # from a fresh workspace and reads nothing. It decided nothing
+          # within a run either, lychee collapsing repeated URLs on its own
+          # (btclib-org/.github#111 has the measurement). A flag that is
+          # passed and does nothing reads as a mechanism, and the sentence
+          # that used to credit it with absorbing a throttling host
+          # described one that was not there.
+          # --accept: lychee's own default range with 429 added to it,
+          # rather than a list of codes: `lychee --help` gives that default
+          # as 100..=103,200..=299, and the flag replaces the range rather
+          # than adding to it, so the "200,206,429" this file used to pass
+          # narrowed it -- a 201 or a 204 became a dead link -- to add a
+          # 206 the default already covered. 429 is the one code worth
+          # adding, a rate limit being an answer from a host that is alive
           args: >-
             --no-progress
             --max-retries 3
             --retry-wait-time 10
             --timeout 45
-            --cache
-            --max-cache-age 1d
-            --accept 200,206,429
+            --accept 100..=103,200..=299,429
             "*.md" "docs/**/*.rst" "docs/**/*.md" "tests/**/*.md"
           # fail the job, rather than only summarizing: a green run that
           # found dead links is the state this workflow exists to end
