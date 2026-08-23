@@ -125,16 +125,30 @@ repos:
         # is given that directory and fails on what it cannot parse, which
         # is the question this hook asks
         exclude: ^\.vscode/
-      # no pretty-format-json, and check-hooks-apply is what settled it:
-      # every .json in this tree is under tests/_data, those bodies are
-      # what bitcoind writes -- `JSONRPCReplyObj` builds them compact and
-      # `WriteReply` appends the newline, which is why they are one line
-      # each -- and a reformat would void the claim tests/_data/README.md
-      # makes about them. So the hook would be added with an exclude that
-      # leaves it matching nothing, which is a line that reads as a rule
-      # while enforcing none. check-json above still asks the question
-      # worth asking of them, which is whether they parse.
-      # - id: pretty-format-json
+      # hand-written json, which is `.claude/` here -- `git ls-files
+      # '*.json'` is the measure, and the hook's own defaults, two-space
+      # indent and sorted keys, are how that file is already written.
+      # --autofix because every other fixing hook here corrects rather
+      # than reports.
+      # Two directories excluded, for two different reasons.
+      # .vscode, for the reason check-json above is given the same
+      # exclude: those files are jsonc, this hook parses json, and
+      # prettier below is what formats them instead -- at its own indent,
+      # which is not this hook's and does not have to be, no other tool
+      # reading them.
+      # tests/_data, because those bodies are what bitcoind writes --
+      # `JSONRPCReplyObj` builds them compact and `WriteReply` appends the
+      # newline, which is why they are one line each -- and a reformat
+      # would void the claim tests/_data/README.md makes about them,
+      # silently, this hook correcting rather than reporting. Excluded by
+      # directory rather than by name so that the next reply recorded
+      # there is safe before anyone remembers this line; check-json above
+      # still asks the question worth asking of them, which is whether
+      # they parse
+      - id: pretty-format-json
+        name: pretty-format-json (in place fixes)
+        args: [--autofix]
+        exclude: ^(\.vscode/|tests/_data/)
       - id: check-merge-conflict
       - id: check-vcs-permalinks
       - id: detect-private-key
@@ -407,6 +421,33 @@ repos:
     hooks:
       - id: yamllint
         name: yamllint (the default rule set, less two)
+  # the width of a toml comment, which was the last prose here held to
+  # nothing: markdown has MD013, a Python comment has W505, a yaml line
+  # has yamllint above, and [tool.ruff.lint.pycodestyle] in pyproject.toml
+  # names 80 columns as the width of every comment in this tree while
+  # nothing read toml for it. A local pygrep rule because nothing off the
+  # shelf does it: taplo above formats values and leaves comments alone,
+  # by design, a formatter that reflowed prose being a formatter that
+  # rewrites it.
+  # `.{80}\S*[ \t]` reports a line only when whitespace is left past
+  # column 80, which is MD013's amnesty and ruff's: a comment ending in a
+  # link that cannot be broken is not a defect. Without the amnesty this
+  # would be stricter on toml prose than the rules it mirrors are on the
+  # same sentences in a .py or a .md.
+  # The `#` after optional indent selects a comment and not a long value:
+  # `addopts` in pyproject.toml is a single token no width can break, and
+  # a value is not prose.
+  # pygrep matches bytes, so a non-ascii character would count as its
+  # utf-8 length. Every toml file here is ascii today, and the error is
+  # in the safe direction anyway -- a line reported one column early is
+  # rewrapped, never a line silently let through
+  - repo: local
+    hooks:
+      - id: toml-comment-width
+        name: toml comment width (80 columns, unbreakable links exempt)
+        language: pygrep
+        entry: '^(?=[ \t]*#).{80}\S*[ \t]'
+        files: \.toml$
   # .github/dependabot.yml is validated by nothing else here: check-yaml
   # above asks whether it is yaml, and actionlint below reads workflows
   # and not this. A typo in a package-ecosystem or a directory is not an
@@ -505,6 +546,28 @@ repos:
         name: pydoclint (arguments and return values)
         args: [--config=pyproject.toml]
         files: ^bitcoin_core_rpc/.*\.py$
+  # a child process decoded through `text=True` takes the locale's
+  # encoding, by the same rule an `open` without one does -- what a
+  # failure reports then depends on what Windows decoded the child's
+  # stderr as, and the standalone test runs the copied module under a
+  # second interpreter with its output captured. No linter here has an
+  # opinion on the keyword: ruff's unspecified-encoding reads `open` and
+  # the pathlib and tempfile spellings and stops there, and this tree
+  # does not select it (issue #225).
+  # `encoding=` is what the call wanted anyway: passing it puts subprocess
+  # in text mode, so the fix is one keyword in place of another and never
+  # a mode change.
+  # A literal keyword rather than a call-shaped pattern, because pygrep is
+  # line based and a call like that spans several lines. It costs nothing
+  # to be that blunt: there is no reason to write `text=True` that
+  # `encoding="utf-8"` does not answer
+  - repo: local
+    hooks:
+      - id: decoded-subprocess-encoding
+        name: a decoded subprocess names its encoding, not text=True
+        language: pygrep
+        entry: '\b(text|universal_newlines)=True'
+        files: \.py$
   # not the mirrors-mypy hook: it injects --ignore-missing-imports, which
   # turns an unresolved (or misspelled) import into Any, the opposite of
   # strict, and it type checks in an isolated environment, where the

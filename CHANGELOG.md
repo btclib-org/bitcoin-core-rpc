@@ -29,6 +29,74 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **Every source file opens with `COPYRIGHT`'s three lines, and
+  `notice-rgx` is that file transcribed** (btclib-org/.github#119). The
+  headers carried the MIT permission notice in full, on the argument
+  that the copied-out module has no `LICENSE` beside it; that issue
+  decided section 5 states one notice for every tree, the pointer form,
+  and that a self-contained one in one tree is a second notice -- the
+  third line of `COPYRIGHT` names the URL of the license text, and a
+  copy loses `AUTHORS.md` and `pyproject.toml` with the `LICENSE`
+  anyway. `git ls-files '*.py'` names every file rewritten, and
+  `uvx ruff check --select CPY .` passes on them; `notice-rgx` is byte
+  for byte what `tests/copyright_test.py` of `btclib-org/.github`
+  derives from `COPYRIGHT`, where before it was the long notice that
+  test refused. `CLAUDE.md`, the README's *Vendoring*, the module
+  docstring's own vendoring paragraph and `docs/source/conf.py`'s year
+  comment each argued the embedded notice and now describe the pointer;
+  the entry further down this section saying the headers "still carry
+  the MIT permission notice in full" describes the tree between that
+  landing and this one.
+
+- **The lint gate runs `pretty-format-json`, `toml-comment-width` and
+  `decoded-subprocess-encoding`** (btclib-org/.github#130 and
+  btclib-org/.github#134). `pretty-format-json` was left out on the
+  claim that every `.json` here was under `tests/_data`, so that an
+  exclude would leave it matching nothing; `git ls-files '*.json'` on
+  the tree before this answers `.claude/settings.json` as well, and the
+  hook now reads that file, with `.vscode/` and `tests/_data/` excluded
+  for the two reasons beside it -- `tests/_data/README.md` already said
+  the hook was configured to leave that directory alone, and is true
+  now. The two local pygrep hooks are section 4's, in the text btclib
+  carries: the first holds a toml comment to the 80 columns
+  `[tool.ruff.lint.pycodestyle]` already names for every other comment
+  in the tree, and every comment in `pyproject.toml` was under it by
+  hand; the second refuses `text=True` on a subprocess, and
+  `tests/standalone_test.py` passed it once, now `encoding="utf-8"`,
+  the same text mode with the decoding named.
+
+- **`[project.urls]` carries the seven links section 3 of
+  `btclib-org/.github` names, keyed as the other two published packages
+  key them** (btclib-org/.github#133). v2026.8.20 is on the index with
+  six -- `Homepage`, `Download`, `Documentation`, `GitHub`, `Issues` and
+  `Pull Requests`, as `pypi.org/pypi/bitcoin-core-rpc/json` reports them
+  -- and no changelog, which is the one link from a version already
+  published back to what changed in it. `GitHub` is `repository`,
+  `changelog` points at `RELEASE_NOTES.md` for the reason
+  `btclib-secp256k1` gives beside its own, and every key is lowercase
+  with an underscore, so that a check reading the set back across the
+  three packages keys on one spelling. `docs/source/conf.py` read the
+  `GitHub` key for the base of its links to the root files and now reads
+  `repository`; the documentation build with `-W` is what would have
+  caught the rename without it.
+
+- **`links.yml` accepts every status lychee would accept unasked, and
+  stops passing a cache no step keeps** (btclib-org/.github#110 and
+  btclib-org/.github#111). `--accept 200,206,429` replaced lychee's
+  default range rather than adding to it -- `lychee --help` gives that
+  default as `100..=103,200..=299` -- so a host answering `201` or `204`
+  was a dead link, to name a `206` the default already covered; the
+  argument is now that range with `429` added, a rate limit being an
+  answer from a host that is alive. `--cache --max-cache-age 1d` is gone
+  with the clause that credited it: on the tree before this,
+  `grep -c 'actions/cache\|lycheecache' .github/workflows/links.yml`
+  answered `0`, so the file lychee wrote at the end of a run was read by
+  no later one, and the comment's "the retries, the timeout and the
+  cache are what keep a slow or throttling host from being reported as a
+  dead one" named a mechanism that was not there. Dropped rather than made
+  true with an `actions/cache` pair, because the issue's own measurement
+  is that lychee collapses repeated URLs without it.
+
 - **This file stops asking for the blank line a union merge drops.**
   MD022 and MD032 are off for `CHANGELOG.md` alone, by a comment at its
   head and not by an edit to `.markdownlint.jsonc`, which is section 14's
