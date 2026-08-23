@@ -462,8 +462,9 @@ result.
    than one that may already hold it, and run something with it:
 
    ```shell
-   uv run --isolated --no-project --with bitcoin-core-rpc \ python -c "import
-   bitcoin_core_rpc; print(bitcoin_core_rpc.DEFAULT_TIMEOUT)"
+   uv run --isolated --no-project --with bitcoin-core-rpc \
+     python -c "import bitcoin_core_rpc; \
+       print(bitcoin_core_rpc.DEFAULT_TIMEOUT)"
    ```
 
    then check the attestations — the JSON API answers `null` for

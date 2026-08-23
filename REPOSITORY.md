@@ -484,9 +484,10 @@ gh api -X PUT repos/btclib-org/bitcoin-core-rpc/actions/permissions/workflow \
 Read back:
 
 ```shell
-gh api repos/btclib-org/bitcoin-core-rpc/actions/permissions/workflow \ --jq
-'{default_workflow_permissions, can_approve_pull_request_reviews}' #
-{"default_workflow_permissions":"read","can_approve_pull_request_reviews":false}
+gh api repos/btclib-org/bitcoin-core-rpc/actions/permissions/workflow \
+  --jq '{default_workflow_permissions, can_approve_pull_request_reviews}'
+# {"default_workflow_permissions":"read",
+#  "can_approve_pull_request_reviews":false}
 ```
 
 It had to be set by hand because it had already drifted from the
