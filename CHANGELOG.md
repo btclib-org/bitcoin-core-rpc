@@ -146,6 +146,23 @@ carry a union merge driver that would keep both sides' numbers.
   this repository writes for itself rather than a name anything else
   reads.
 
+  **What the rename leaves owed is a row apiece in section 10's
+  calendar.** That table gives a workflow a day and an hour under its
+  file stem, `tests/grid_test.py` of `btclib-org/.github` reads it
+  against the trees, and a stem it does not name is reported as a cron
+  on no calendar. No cron moved -- this repository's minute is `12` and
+  each still lands on the slot its old name held -- so what is owed is
+  the table, in the repository that holds it:
+
+  ```shell
+  grep -l 'cron:' .github/workflows/*.yml
+  ```
+
+  against section 10's workflow table. The rows this repository leaves
+  behind stay answered by btclib, whose `.github/workflows` still
+  schedules every one of the old names, so none of them is left dangling
+  by this.
+
 - **A `TODO` that opens a comment no longer passes lint**
   (btclib-org/.github#87). Ruff's `FIX` family joins
   `[tool.ruff.lint] select`, so a comment beginning `TODO`, `FIXME`,
