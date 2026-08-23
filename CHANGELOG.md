@@ -23,6 +23,22 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`REVIEWING.md` is the organization's file down to the same heading,
+  and `.claude/commands/review.md` is its copy of the invocation.** A
+  review that means one thing here and another in a sibling is no
+  standard, which is section 14's reason for comparing the two halves
+  that are meant to agree. What the shared half says is gone from the
+  tail: what is under review, what to look for, what a finding contains,
+  what becomes of a collateral finding, the gates as evidence, the
+  verdict and the re-review. The tail keeps what a review of *this* tree
+  checks and a generic one does not -- a dependency or a second module,
+  both JSON-RPC dialects, the boundary the layers draw, and whether the
+  suite is still hermetic.
+
+  `.claude/commands/review.md` had drifted into naming this tree's
+  facts, which is not what a verbatim file can carry: those facts are in
+  the tail above, and the command is the invocation again.
+
 - **`CONTRIBUTING.md` is the organization's file down to `## This
   repository in particular`.** Section 14 of `btclib-org/.github` has it
   verbatim to that heading and this tree's below it, and
