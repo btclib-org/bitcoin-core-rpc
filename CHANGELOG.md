@@ -29,6 +29,23 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **The lint gate runs `pretty-format-json`, `toml-comment-width` and
+  `decoded-subprocess-encoding`** (btclib-org/.github#130 and
+  btclib-org/.github#134). `pretty-format-json` was left out on the
+  claim that every `.json` here was under `tests/_data`, so that an
+  exclude would leave it matching nothing; `git ls-files '*.json'` on
+  the tree before this answers `.claude/settings.json` as well, and the
+  hook now reads that file, with `.vscode/` and `tests/_data/` excluded
+  for the two reasons beside it -- `tests/_data/README.md` already said
+  the hook was configured to leave that directory alone, and is true
+  now. The two local pygrep hooks are section 4's, in the text btclib
+  carries: the first holds a toml comment to the 80 columns
+  `[tool.ruff.lint.pycodestyle]` already names for every other comment
+  in the tree, and every comment in `pyproject.toml` was under it by
+  hand; the second refuses `text=True` on a subprocess, and
+  `tests/standalone_test.py` passed it once, now `encoding="utf-8"`,
+  the same text mode with the decoding named.
+
 - **`[project.urls]` carries the seven links section 3 of
   `btclib-org/.github` names, keyed as the other two published packages
   key them** (btclib-org/.github#133). v2026.8.20 is on the index with
