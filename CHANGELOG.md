@@ -23,6 +23,27 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`LICENSE`, `COPYRIGHT` and `CODE_OF_CONDUCT.md` are the
+  organization's copies, byte for byte.** Section 14 of
+  `btclib-org/.github` calls the three verbatim, and
+  `tests/verbatim_test.py` there compares them across the repositories,
+  so a copy that reads better here is a copy that fails everywhere.
+  `LICENSE` gains the `MIT License` title and loses the `2017-2026`
+  range -- a range is a line nobody updates, and `COPYRIGHT` states the
+  holder without one, so the two disagree the first January nobody
+  remembers. `CODE_OF_CONDUCT.md` is the file GitHub falls back to for a
+  repository of the organization carrying none, which is why a
+  repository that carries one carries that one.
+
+  `COPYRIGHT` is now the three-line notice the other trees point at, and
+  the headers here still carry the MIT permission notice in full: what
+  the ruff `CPY` rule requires of a source file is `notice-rgx` in
+  `pyproject.toml` and never this file, and the argument for the long
+  form -- a vendored copy has no `LICENSE` beside it to point at -- is
+  about `bitcoin_core_rpc.py`, which is copied, and not about
+  `COPYRIGHT`, which is not. That comment says so where the rule is, and
+  names the section it departs from.
+
 - **A workflow's file name says its own subject, and a shared prefix
   groups a family.** `ubuntu.yml`, `macos.yml` and `windows.yml` are now
   `os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml`: the platform
