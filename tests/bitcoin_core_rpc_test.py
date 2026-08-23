@@ -39,6 +39,7 @@ from typing import Any, get_args
 from urllib.request import Request
 
 import pytest
+from typing_extensions import override
 
 from bitcoin_core_rpc import (
     _CHAIN_FROM_NETWORK,
@@ -119,6 +120,7 @@ def echoed(body: bytes, request_id: str) -> bytes:
 class Echoing(Recorded):
     """A Recorded answering with the request's own id, as a node does."""
 
+    @override
     def __call__(self, request: Request, timeout: float) -> tuple[int, bytes]:
         """Answer the next scripted reply, with this request's id in it."""
         status, body = super().__call__(request, timeout)
@@ -1133,6 +1135,7 @@ def test_the_cookie_read_stops_after_the_sentinel_octet(
             super().__init__(COOKIE_LINE.encode("ascii"))
             self.reads: list[int | None] = []
 
+        @override
         def read(self, size: int | None = -1, /) -> bytes:
             self.reads.append(size)
             return super().read(size)
@@ -1893,6 +1896,7 @@ class Shifty(dict):  # type: ignore[type-arg]
         super().__init__(*args, **kwargs)
         self.reads = 0
 
+    @override
     def items(self) -> Any:
         """Answer this reading's value, having spoiled the next one."""
         self.reads += 1

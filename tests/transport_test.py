@@ -37,6 +37,7 @@ from urllib.request import (
 from urllib.response import addinfourl
 
 import pytest
+from typing_extensions import override
 
 import bitcoin_core_rpc as transport_module
 from bitcoin_core_rpc import (
@@ -698,6 +699,7 @@ def test_a_transport_equal_to_the_default_is_still_the_callers_transport(
         def __init__(self) -> None:
             self.requests: list[Request] = []
 
+        @override
         def __eq__(self, other: object) -> bool:
             return other is urlopen_transport
 
@@ -986,6 +988,7 @@ class RecordedBody(BytesIO):
         super().__init__(data)
         self.reads: list[int] = []
 
+    @override
     def read1(self, size: int | None = -1, /) -> bytes:
         """Record the size asked for, and answer as a BytesIO does."""
         self.reads.append(-1 if size is None else size)
@@ -1013,6 +1016,7 @@ class RecordedHTTP(HTTPHandler):
     # `HTTPResponse` read off a socket; the chain downstream only takes a
     # status, headers and bytes off it, which is what an `addinfourl` is --
     # and what `FileHandler.file_open` beside it answers with
+    @override
     def http_open(self, req: Request) -> addinfourl:  # type: ignore[override]
         """Record the request and answer the scripted response."""
         self.requests.append(req)

@@ -33,6 +33,16 @@ carry a union merge driver that would keep both sides' numbers.
   The organization's copy, shared half byte for byte (section 14): the
   test suite is run whole on the sha under review, never a subset and
   never relied on from the author's run.
+- **mypy's optional error codes are the organization's list**, section 6
+  of the standard, the same in every repository that runs mypy
+  (btclib-org/.github#165). `explicit-override`, `possibly-undefined`,
+  `redundant-expr` and `unused-awaitable` join;
+  `narrowed-type-not-subtype` goes, the locked mypy enabling it by
+  default. What `explicit-override` asked for: `@override` on the test
+  doubles, from `typing_extensions`, declared in the `test` group -- and
+  a named ignore on the client's own overriding methods, `typing` having
+  the decorator from 3.12 while the one-file module holds to a 3.10
+  floor and the standard library alone.
 
 - **`REVIEWING.md` is the organization's copy.** A review reads the prose
   that stays in the tree, treats a commit message or a pull request's

@@ -329,6 +329,7 @@ dev = [
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "sphinx-rtd-theme" },
     { name = "twine" },
+    { name = "typing-extensions" },
 ]
 docs = [
     { name = "myst-parser", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -352,6 +353,7 @@ test = [
     { name = "pytest-cov" },
     { name = "pytest-randomly" },
     { name = "pytest-xdist" },
+    { name = "typing-extensions" },
 ]
 
 [package.metadata]
@@ -380,6 +382,7 @@ dev = [
     { name = "sphinx" },
     { name = "sphinx-rtd-theme" },
     { name = "twine" },
+    { name = "typing-extensions" },
 ]
 docs = [
     { name = "myst-parser" },
@@ -398,6 +401,7 @@ test = [
     { name = "pytest-cov" },
     { name = "pytest-randomly" },
     { name = "pytest-xdist" },
+    { name = "typing-extensions" },
 ]
 
 [[package]]

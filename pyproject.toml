@@ -162,6 +162,11 @@ test = [
     "pytest-cov",
     "pytest-randomly",
     "pytest-xdist",
+    # `override` for the test doubles: typing has it from 3.12 and the
+    # interpreter floor is 3.10. The module itself cannot take it either
+    # way -- standalone_test.py reads its imports and refuses any outside
+    # the standard library
+    "typing-extensions",
 ]
 # a floor here and on nothing else in this group: the suppressions in this
 # tree are written `ruff: ignore`, and 0.16 is the first release that reads
@@ -539,23 +544,23 @@ fail_under = 100.0
 strict = true
 show_column_numbers = true
 show_error_codes = true
-# the optional error codes strict does not turn on, surveyed one by one
-# over the module and the tests: each of them finds nothing today, so each
-# is a ratchet and none is a cleanup. Two carry their own weight beyond
-# that -- ignore-without-code makes every "type: ignore" name the rule it
-# silences, so a blanket one cannot creep in, and deprecated reports a
-# stdlib API on its way out, which on a 3.10 to 3.14 spread is the same
-# early warning filterwarnings = ["error"] buys at runtime
+# the organization's list, section 6 of btclib-org/.github, the same in
+# every repository that runs mypy (btclib-org/.github#165). A code that
+# finds nothing here stays: it is a ratchet for the next line it would
+# catch, not a cleanup of this one
 enable_error_code = [
     "deprecated",
     "exhaustive-match",
+    "explicit-override",
     "ignore-without-code",
     "mutable-override",
-    "narrowed-type-not-subtype",
+    "possibly-undefined",
+    "redundant-expr",
     "redundant-self",
     "truthy-bool",
     "truthy-iterable",
     "unimported-reveal",
+    "unused-awaitable",
 ]
 # the three siblings set it too, and unlike the list above it is not a
 # ratchet with nothing to catch: the survey that added it here found a
