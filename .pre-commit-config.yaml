@@ -568,6 +568,20 @@ repos:
         language: pygrep
         entry: '\b(text|universal_newlines)=True'
         files: \.py$
+  # Scoped to bitcoin_core_rpc, which is what actually travels when this
+  # file is vendored: a comment here is read by someone who took only
+  # this file and has never heard of btclib. The organization that
+  # publishes the package is allowed -- "btclib-org" in a URL, "The
+  # btclib developers" in the copyright line -- because a consumer does
+  # care who publishes it; naming the downstream package that depends on
+  # this one is not.
+  - repo: local
+    hooks:
+      - id: no-downstream-name-in-package
+        name: the shipped module does not name btclib, org spelling excepted
+        language: pygrep
+        entry: 'btclib(?!-secp256k1|_secp256k1|-org|\.org|-node|_node|-benchmarks| developers)'
+        files: ^bitcoin_core_rpc/.*\.py$
   # not the mirrors-mypy hook: it injects --ignore-missing-imports, which
   # turns an unresolved (or misspelled) import into Any, the opposite of
   # strict, and it type checks in an isolated environment, where the

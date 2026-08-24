@@ -1573,6 +1573,19 @@ carry a union merge driver that would keep both sides' numbers.
   fast-forward that brings a clean checkout forward without working in
   it.
 
+- **The shipped module's exception-naming comment no longer names
+  `btclib`** (btclib-org/.github#81). This package is zero-dependency
+  and vendorable, so `bitcoin_core_rpc/__init__.py` is read by people who
+  copied only that file and have never heard of `btclib`; the comment
+  explaining the `BtcRpc` prefix stated a collision with `btclib`'s own
+  `BTClibValueError` that is not that reader's. It now gives the reason a
+  distinct prefix is worth having without naming the dependent: a
+  consumer already carrying an error hierarchy of its own should not have
+  to tell two `ValueError` subclasses apart. A
+  `no-downstream-name-in-package` pygrep hook holds the shipped module to
+  it, the organization spelling and the copyright line's "The btclib
+  developers" excepted.
+
 ## v2026.8.20
 
 ### Repository
