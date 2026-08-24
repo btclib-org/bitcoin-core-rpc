@@ -1607,6 +1607,28 @@ carry a union merge driver that would keep both sides' numbers.
   it and not the repository meets the project with no organization
   beside it (btclib-org/.github#98).
 
+- **`no-downstream-name-in-package` matches `Btclib` and `BtclibError`,
+  not only `btclib`** (btclib-org/.github#299). The hook took no `args`,
+  so it matched case-sensitively and let a downstream name that opens a
+  sentence or sits in a class-name-style compound through where the same
+  name mid-sentence would not; `btclib-secp256k1`'s copy of the same
+  hook already carries `args: ["-i"]`, so the two enforced different
+  rules under one name. `args: ["-i"]` here now closes that gap.
+
+- **`REPOSITORY.md` and `RELEASING.md` stop citing `btclib`'s own state
+  to justify this repository's choices** (btclib-org/.github#81). A
+  required-check name, a GitHub Actions concurrency count, an `--admin`
+  merge precedent and a CycloneDX bill-of-materials decision each
+  reasoned from what `btclib` does or measures, standing in for
+  reasoning that holds on its own; the bill-of-materials paragraph also
+  sent its reader to `btclib`'s own `RELEASING.md` for "the full
+  reasoning" instead of stating it. Each now reasons from this
+  repository's own configuration alone. The `no-downstream-name-in-package`
+  hook does not reach either file, only the package directory that
+  ships, which is why this half needed a reading rather than a red hook;
+  with it, this repository carries the last box `btclib-org/.github#81`
+  had open.
+
 ## v2026.8.20
 
 ### Repository

@@ -356,8 +356,8 @@ result.
    arrive. `--admin` is the flag that clears it — the pair
    REPOSITORY.md's "Branch protection" describes, `enforce_admins`
    `false` together with holding `admin` — and it is the one to reach
-   for first: measured directly on btclib across four pull requests
-   (#1111, #1113, #1114, #1133), each landing from `BLOCKED` and
+   for first: measured directly on a sibling organization repository
+   across four pull requests, each landing from `BLOCKED` and
    `REVIEW_REQUIRED` with a verified signature. Name the release
    commit's title and body explicitly when using it — `gh pr merge <n>
    --squash --admin --subject "<title>" --body-file <path>` — rather
@@ -451,8 +451,8 @@ result.
    on an ordinary `ubuntu-latest` label, past the point where the
    environment approval has already gone through, is not this repository's
    problem to fix: the org's GitHub Actions concurrency is shared across
-   every `btclib-org` repository, and a burst of CI elsewhere (`btclib`,
-   `btclib-secp256k1`) is enough to queue this one behind it. Confirm
+   every `btclib-org` repository, and a burst of CI elsewhere in the
+   organization is enough to queue this one behind it. Confirm
    there is nothing to fix rather than assume it — githubstatus.com green,
    no `pending_deployments` left on the run, no concurrency group of this
    repository's own blocking it — then wait; cancelling or re-dispatching
@@ -509,16 +509,13 @@ result.
    unreachable, not a second way to write release notes — and they are worth
    replacing by hand if it ever fires.
 
-   **No CycloneDX bill of materials is among them, on purpose.** btclib
-   attaches one; this repository declares `dependencies = []` in
-   `pyproject.toml`, and `pypi-install.yml` already asserts that against
-   the installed package on every run. btclib's `RELEASING.md` (the
-   "Read the bill of materials attached to the release" step) has the
-   full reasoning for why that makes one redundant here, and issue
-   [btclib-org/btclib#1159](https://github.com/btclib-org/btclib/issues/1159)
-   has the evaluation behind it — a real runtime dependency arriving
-   here being the most direct way to change the answer. That trigger is
-   this repository's own; the other is not. If the generator ever learns
+   **No CycloneDX bill of materials is among them, on purpose.** This
+   repository declares `dependencies = []` in `pyproject.toml`, and
+   `pypi-install.yml` already asserts that against the installed package
+   on every run, so a bill of materials would list nothing beyond what
+   those already prove empty. A real runtime dependency arriving here is
+   the most direct way to change the answer, and that trigger is this
+   repository's own. If the generator ever learns
    to describe a component `Requires-Dist` cannot express, the question
    reopens for this repository and its siblings at once, and
    [btclib-org/.github#24](https://github.com/btclib-org/.github/issues/24)

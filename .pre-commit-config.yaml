@@ -580,6 +580,7 @@ repos:
       - id: no-downstream-name-in-package
         name: the shipped module does not name btclib, org spelling excepted
         language: pygrep
+        args: ["-i"]
         entry: 'btclib(?!-secp256k1|_secp256k1|-org|\.org|-node|_node|-benchmarks| developers)'
         files: ^bitcoin_core_rpc/.*\.py$
   # not the mirrors-mypy hook: it injects --ignore-missing-imports, which

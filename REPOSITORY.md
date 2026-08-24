@@ -49,9 +49,10 @@ check is renamed, a rename being a drop and an add.
 
 **Each row above is a job name or an aggregate**, and that is a
 rule rather than an inconsistency: a workflow with one job needs no
-aggregate, the job *being* the context. It is also the answer to why
-btclib's live-node check is `Regtest against Bitcoin Core` where this
-one is `integration: every job passed`. The two workflows ask the same
+aggregate, the job *being* the context. It is also the answer to why a
+sibling repository's own live-node check can be a bare job name,
+`Regtest against Bitcoin Core`, where this one is
+`integration: every job passed`. The two workflows ask the same
 question of a real node and are governed by the same rule; there it is one
 job and here it is a matrix whose cells the trigger decides, so there the
 job name is the context and here an aggregate has to be. Making the two
@@ -62,8 +63,9 @@ in the rule — which is the first thing this section forbids.
 `codeql: every job passed` is not among them, and that is the one place a
 check was traded for the slots it held. GitHub Free gives an organization
 twenty concurrent jobs, shared across every repository in it: a commit here
-asked for forty-four and one in btclib for thirty-nine, so a pull request
-in either waited for a slot rather than for the work. `codeql.yml` now runs
+asked for forty-four and a concurrent one elsewhere in the organization for
+thirty-nine, so a pull request in either waited for a slot rather than for
+the work. `codeql.yml` now runs
 on `main` and on its Tuesday schedule, the analysis landing on the merge
 commit rather than ahead of it, and it still produces that aggregate — the
 name is available, so requiring it again is a patch to the rule and nothing
