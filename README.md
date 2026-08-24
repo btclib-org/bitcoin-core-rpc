@@ -367,3 +367,8 @@ answered against.
 - Releases: <https://github.com/btclib-org/bitcoin-core-rpc/releases>
 - [CHANGELOG.md](./CHANGELOG.md), and [RELEASE_NOTES.md](./RELEASE_NOTES.md)
   for what a release asks a user to act on
+
+---
+
+The btclib organization and its projects are actively supported by
+[DGI](https://dgi.io) and [CheckSig](https://checksig.com).
