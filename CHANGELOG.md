@@ -1586,6 +1586,12 @@ carry a union merge driver that would keep both sides' numbers.
   it, the organization spelling and the copyright line's "The btclib
   developers" excepted.
 
+- **`README.md` ends with the line naming who supports the work.** The
+  organization standard states the line as tier 1's, for the reason
+  `SECURITY.md` is: the archive leaves github.com, and a reader who has
+  it and not the repository meets the project with no organization
+  beside it (btclib-org/.github#98).
+
 ## v2026.8.20
 
 ### Repository
