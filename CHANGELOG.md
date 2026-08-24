@@ -1563,6 +1563,16 @@ carry a union merge driver that would keep both sides' numbers.
   This repository's `.taplo.toml` already differs from the shared one
   and carries none of this, so it is untouched.
 
+- **`CLAUDE.md`'s primary-checkout paragraph names the read that cannot
+  go stale** (btclib-org/.github#255). It said reading the checkout was
+  fine and so was `git fetch`, without saying `git fetch` moves
+  `refs/remotes/origin/main` and leaves the work tree where it was, so a
+  `grep` or a `Read` against the checkout answered for whenever it was
+  last brought forward. The paragraph now names `git show
+  origin/main:<path>` as the read that does not go stale, and gives the
+  fast-forward that brings a clean checkout forward without working in
+  it.
+
 ## v2026.8.20
 
 ### Repository
