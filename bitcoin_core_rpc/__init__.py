@@ -196,11 +196,12 @@ __all__ = [
 # the names here catches those three and still separates a caller error from
 # a failure of the exchange.
 #
-# `BtcRpc` and not `BTClib`: btclib declares `BTClibValueError` and two more
-# of its own, and two classes of one name from two packages is an `except`
-# that reads correct at every call site and catches the wrong one at half of
-# them -- which btclib hit while taking this dependency. Distinct names put
-# the mistake in the source rather than in a test.
+# `BtcRpc`: a distinct prefix, so that a consumer already carrying an
+# error hierarchy of its own does not have to tell two `ValueError`
+# subclasses apart. Two classes of one name from two packages is an
+# `except` that reads correct at every call site and catches the wrong
+# one at half of them; distinct names put the mistake in the source
+# rather than in a test.
 #
 # The two carrying a field hand every constructor argument to
 # `BaseException.__init__` and compose their message in `__str__`, which is
