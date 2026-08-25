@@ -1,9 +1,3 @@
-<!-- markdownlint-disable MD022 MD032 -->
-<!-- This file is merge=union, so a rebase joins two sections and drops
-     the blank line between them without a conflict: the rule is off
-     here for the duration of btclib-org/.github#33, and goes back on
-     when that queue is empty. btclib-org/.github#138 is the record. -->
-
 # Changelog
 
 <!-- markdownlint-configure-file
@@ -28,6 +22,17 @@ carry a union merge driver that would keep both sides' numbers.
 ## v2026.9 (work in progress, not released yet)
 
 ### Repository
+
+- **Every fixable hook now fixes, and this file's lint derogation is
+  gone**, closing issue #249. `codespell` gains `--write-changes`, next
+  to `markdownlint-cli2` and `typos`, which already fixed in place.
+  With `markdownlint-cli2` repairing a joined file rather than only
+  reporting it, `CHANGELOG.md`'s two-comment directive disabling MD022
+  and MD032 has nothing left to guard: a rebase that drops the blank
+  line between two joined `###` sections is now the hook's own repair
+  on its next run, so the directive is gone and both rules apply to
+  this file again. `codespell --write-changes` over the whole tree
+  rewrote nothing, which is the measurement behind turning the flag on.
 
 - **`ignore` names no half of a pair `convention = "pep257"` settles**
   (btclib-org/.github#178). Under a declared convention ruff disables
