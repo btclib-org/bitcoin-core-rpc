@@ -227,14 +227,14 @@ repos:
     rev: v2.4.3
     hooks:
       - id: codespell
-        name: codespell (prose and comments)
+        name: codespell (prose and comments, in place fixes)
         # the "clear" dictionary alone, where codespell's default is
         # "clear,rare": the other four builtins make a hook whose findings
         # are mostly wrong, and such a hook gets an ignore list long enough
         # to hide a real typo. "rare" reports "lets" (as in "lets the
         # release workflow gate publication") and "falsy"; "usage" is not a
         # spell checker at all, flagging "master"
-        args: [--builtin, clear]
+        args: [--builtin, clear, --write-changes]
   # the second spell checker, and not a replacement for the one above:
   # codespell matches whole words and keeps the hyphen inside the token, so
   # `hex-strin` is invisible to it with every builtin dictionary enabled,
