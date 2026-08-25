@@ -108,15 +108,15 @@ beside it for -- and record the tag beside the copy. It is named
 type checker reads these annotations -- PEP 561 puts that marker inside a
 package directory and nowhere else -- and the rename is what that costs.
 The upstream source is
-`https://github.com/btclib-org/bitcoin-core-rpc/blob/main/bitcoin_core_rpc/__init__.py`,
+`https://github.com/btclib-org/bitcoin-core-rpc/blob/main/src/bitcoin_core_rpc/__init__.py`,
 and the raw source of a release is
-`https://raw.githubusercontent.com/btclib-org/bitcoin-core-rpc/<tag>/bitcoin_core_rpc/__init__.py`
+`https://raw.githubusercontent.com/btclib-org/bitcoin-core-rpc/<tag>/src/bitcoin_core_rpc/__init__.py`
 -- the whole path, so that it can be fetched as it stands. An update is a
 replacement of the whole file; this shows every behavioral change first:
 
 .. code-block:: console
 
-    git diff OLD..NEW -- bitcoin_core_rpc/__init__.py
+    git diff OLD..NEW -- src/bitcoin_core_rpc/__init__.py
 
 A vendored copy receives no fix automatically, where an installed one is a
 version an ordinary dependency bump moves, so the recorded tag is what

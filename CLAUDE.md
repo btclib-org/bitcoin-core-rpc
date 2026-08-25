@@ -15,7 +15,7 @@ against.
 
 ## Architecture
 
-One source file, `bitcoin_core_rpc/__init__.py`, with nothing but the
+One source file, `src/bitcoin_core_rpc/__init__.py`, with nothing but the
 standard library behind it. That it stays one file with no dependency is
 a rule a contributor is bound by rather than a fact about the code, so it
 is `CONTRIBUTING.md`'s *The one constraint*; what follows is what the

@@ -188,7 +188,7 @@ enabled](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-c
 btclib-org/bitcoin-core-rpc](https://img.shields.io/badge/GitHub-btclib--org%2Fbitcoin--core--rpc-181717?logo=github)](https://github.com/btclib-org/bitcoin-core-rpc/)
 
 To get an overview of the project, read the [README](./README.md) and the
-docstring at the top of `bitcoin_core_rpc/__init__.py`, which is where the
+docstring at the top of `src/bitcoin_core_rpc/__init__.py`, which is where the
 design and the reason behind every refusal are written down.
 
 What a *method* does is Bitcoin Core's, not this client's: an `RpcError`

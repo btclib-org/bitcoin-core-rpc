@@ -1634,6 +1634,22 @@ carry a union merge driver that would keep both sides' numbers.
   with it, this repository carries the last box `btclib-org/.github#81`
   had open.
 
+- **`bitcoin_core_rpc/` moves under `src/bitcoin_core_rpc/`** (issue
+  btclib-org/.github#313): section 2 of the organization's standard
+  puts every repository's package under `src/`, and this repository
+  had not yet converged. `[tool.uv.build-backend] module-root = ""` is
+  deleted rather than changed: that key existed only to override the
+  backend's own default, which is `src/`. Every path this repository's
+  own configuration and prose named the package by moves with it --
+  `.pre-commit-config.yaml`'s two `files:` patterns and one `exclude:`
+  pattern, the mypy invocation's arguments,
+  `.github/mutation/bitcoin_core_rpc.toml`'s `module-path`,
+  `[tool.check-wheel-contents] package`, and the citations in
+  `CLAUDE.md`, `CONTRIBUTING.md`, `README.md` and
+  `.vscode/settings.json`. `[tool.coverage.run] source` and every
+  `import bitcoin_core_rpc` keep naming the package unchanged, since an
+  import name is not a path.
+
 ## v2026.8.20
 
 ### Repository
