@@ -125,7 +125,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Internet",
     "Topic :: Software Development :: Libraries :: Python Modules",
-    # true, and it takes `bitcoin_core_rpc/py.typed` to be true: PEP 561's
+    # true, and it takes `src/bitcoin_core_rpc/py.typed` to be true: PEP 561's
     # marker is a file *inside a package directory*, so this claim and the
     # single-directory layout below are one decision. See
     # [tool.uv.build-backend]
@@ -216,10 +216,9 @@ dev = [
 required-version = ">=0.11.31"
 
 [tool.uv.build-backend]
-# bitcoin_core_rpc/ sits at the root of the repository, where the backend
-# looks under src/ by default. `module-name` is not written beside this: it
-# defaults to `project.name` normalized, which is this name already, and a
-# second declaration is a second thing to keep in agreement.
+# `module-name` is not written beside this: it defaults to `project.name`
+# normalized, which is this name already, and a second declaration is a
+# second thing to keep in agreement.
 #
 # What that name points at is a package directory holding one file, which
 # is a shape chosen for exactly one reason: `py.typed`. This distribution
@@ -253,8 +252,8 @@ required-version = ">=0.11.31"
 #
 # There is no package-data entry beside this: the backend copies what is
 # under `module-name` whole, `py.typed` and any other non-`.py` file
-# included, so nothing has to name that marker a second time
-module-root = ""
+# included, so nothing has to name that marker a second time.
+#
 # what the sdist carries beyond what the backend puts there by itself --
 # pyproject.toml, the module above, and the files `project.readme` and
 # `project.license-files` name. Patterns are anchored, so `*.md` is the
@@ -328,7 +327,7 @@ source-exclude = [
 # pattern that stopped reaching it, say -- because with no `package` given
 # check-wheel-contents reads the wheel's own RECORD and asks nothing
 # about the source tree the wheel was supposed to carry. `--package
-# bitcoin_core_rpc` is what asks that question: it diffs the wheel's
+# src/bitcoin_core_rpc` is what asks that question: it diffs the wheel's
 # `bitcoin_core_rpc/` against this checkout's, file for file, in both
 # directions (W101 missing, W102 extra). Measured against a wheel built
 # with `py.typed` stripped out and `RECORD` edited to match -- a build
@@ -345,7 +344,7 @@ source-exclude = [
 # directory has nothing to add to. See
 # btclib-org/btclib#1160 for that comparison across this organization's
 # three publishing repositories.
-package = ["bitcoin_core_rpc"]
+package = ["src/bitcoin_core_rpc"]
 
 [tool.check-sdist]
 # tracked files the sdist is meant not to carry. What

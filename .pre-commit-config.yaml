@@ -163,7 +163,7 @@ repos:
         # client source is the one file where the two are indistinguishable
         # to it, and `test_every_public_name_carries_a_docstring` is what
         # checks the arrangement it can no longer see
-        exclude: ^bitcoin_core_rpc/__init__\.py$
+        exclude: ^src/bitcoin_core_rpc/__init__\.py$
       # the hook's default, *_test.py, with neither args nor exclude.
       # What it is for is the one failure mode a test suite cannot report
       # on itself -- a file named so that pytest never collects it is not
@@ -545,7 +545,7 @@ repos:
       - id: pydoclint
         name: pydoclint (arguments and return values)
         args: [--config=pyproject.toml]
-        files: ^bitcoin_core_rpc/.*\.py$
+        files: ^src/bitcoin_core_rpc/.*\.py$
   # a child process decoded through `text=True` takes the locale's
   # encoding, by the same rule an `open` without one does -- what a
   # failure reports then depends on what Windows decoded the child's
@@ -582,7 +582,7 @@ repos:
         language: pygrep
         args: ["-i"]
         entry: 'btclib(?!-secp256k1|_secp256k1|-org|\.org|-node|_node|-benchmarks| developers)'
-        files: ^bitcoin_core_rpc/.*\.py$
+        files: ^src/bitcoin_core_rpc/.*\.py$
   # not the mirrors-mypy hook: it injects --ignore-missing-imports, which
   # turns an unresolved (or misspelled) import into Any, the opposite of
   # strict, and it type checks in an isolated environment, where the
@@ -604,7 +604,7 @@ repos:
         name: mypy (strict, in the project environment)
         entry: >
           uv run --locked --no-default-groups --group lint --group test
-          mypy bitcoin_core_rpc tests .github/scripts
+          mypy src/bitcoin_core_rpc tests .github/scripts
         language: system
         types: [python]
         pass_filenames: false
