@@ -454,8 +454,8 @@ skip = "*/_data/*.json,.secrets.baseline,uv.lock"
 # documents a spell checker has to name what it catches. codespell has no
 # per-file configuration, so it holds everywhere it reads; what the rule
 # hides from it is what is written inside backticks, i.e. identifiers,
-# which are typos' half of the work and not this hook's -- the two hook
-# names say as much
+# which are typos' half of the work and not this hook's -- [tool.typos]
+# below configures that half, and this table the other
 ignore-regex = '`[^`]*`'
 
 # the second spell checker, and the pair is deliberate: the two are blind
@@ -471,7 +471,14 @@ ignore-regex = '`[^`]*`'
 # the same files [tool.codespell] skips above, for the reasons given there,
 # and the list has to be written again rather than shared because the glob
 # syntax differs: "*/_data/*.json" matches at any depth for codespell and
-# one directory deep for typos
+# one directory deep for typos.
+#
+# This table is silent without --force-exclude in the hook's args:
+# pre-commit passes filenames, and typos honours its own exclude list only
+# under that flag. So the two are one setting written in two files, and
+# dropping the flag does not narrow the exclusion, it removes it. The
+# hook's other flag, --write-changes, is what makes that matter: it is
+# what would rewrite a recorded reply body rather than report it
 extend-exclude = [
     "**/_data/*.json",
     ".secrets.baseline",
