@@ -114,7 +114,7 @@ jobs:
       - name: Build the docs
         run: >
           uv run --locked --no-default-groups --group docs
-          sphinx-build -W --keep-going -b html docs/source docs/build/html
+          sphinx-build -n -W --keep-going -b html docs/source docs/build/html
       # the one defect the build above cannot report on itself: a link
       # myst cannot resolve is rendered as an anchor on the page it is
       # already on -- an id nothing has -- so -W passes over a dead link.

@@ -23,31 +23,36 @@ least one test, and the two halves together account for the whole list.
 
 | convention | tested in |
 | --- | --- |
+| the public surface | `standalone_test.py` |
 | the documentation | `standalone_test.py` |
 | the import graph | `standalone_test.py` |
 
-Not tested here: the public surface; the copyright header; the changelog;
-the build system; the calling convention; input validation.
+Not tested here: the copyright header; the changelog; the build system;
+the calling convention; input validation.
 
-One module answers two bullets, which is the shape section 7 has in mind
-where it says what must not be aligned is *where* these live. This
+One module answers several bullets, which is the shape section 7 has in
+mind where it says what must not be aligned is *where* these live. This
 package is one file, so the properties that elsewhere need a walk over a
 tree are here properties of that file, and they are stronger for it:
-**the documentation** is not "every module appears in the sphinx pages"
-but every name of `__all__` carrying a docstring `automodule` will
+**the public surface** is not a walk over a package's modules but a walk
+over the one module's own body, so every name it defines and does not
+underscore has to be in `__all__` and every name in `__all__` has to be
+defined; **the documentation** is not "every module appears in the sphinx
+pages" but every name of `__all__` carrying a docstring `automodule` will
 render, against `docs/source/api.rst`'s claim to list the whole public
 surface; **the import graph** is not "every module imports first" but the
 source importing nothing outside the standard library, and a copy of it
 running under `python -I -S` where nothing else is importable at all.
 
-Among those not tested, two are near misses worth naming so that
+The public surface is not one this repository could have declined.
+Section 7's escape clause — a repository needs the conventions its own
+prose states — stops short of it wherever an importable package is
+published, and this one publishes: `py.typed` ships, so which names are
+supported is the other half of a promise the distribution already makes.
+
+Among those not tested, one is a near miss worth naming so that
 "absent" is not read as "overlooked":
 
-- **The public surface.** `__all__` is declared, and
-  `standalone_test.py` reads it — but to ask whether each name is
-  documented, not whether the module's public names are all in it.
-  Section 7 asks for a census that fails when a new public name appears;
-  nothing here fails.
 - **The calling convention.** Two tests assert a keyword-only signature
   — `test_connection_controls_are_keyword_only` and
   `test_the_incremental_limit_is_keyword_only` — each about one function.

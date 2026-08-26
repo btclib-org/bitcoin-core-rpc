@@ -36,26 +36,35 @@ name: codeql
 # which is the order to repeat if it ever goes back on.
 
 on:
-  # main and the schedule below, and no pull_request trigger: this analysis
-  # is the one gate that was worth trading for the slots it held. GitHub
-  # Free gives an organization twenty concurrent jobs, shared across every
-  # repository in it, and this workflow's three of them were held while a
-  # pull request waited -- so the analysis lands on the merge commit rather
-  # than before it, and the aggregate below is no longer a required check
-  # on main. REPOSITORY.md's "Required checks on main" is where that rule
-  # is written down, and dropping the context there is a token operation
-  # that had to come first.
-  # What still reads a branch before it merges is lint.yml: zizmor is a
-  # pre-commit hook and reads exactly these files for an injected
-  # expression, which is the finding this workflow would otherwise be alone
-  # in making. What a merge defers is the rest -- the python queries -- for
-  # the time between that merge and the next run, which for main is the
-  # merge itself
+  # three triggers, and each answers something the other two cannot: the
+  # push below scans the commit a merge creates, the schedule scans an
+  # unchanged tree against a query pack that moved, and pull_request scans
+  # the branch while a finding is still cheap to answer. The last is also
+  # what the OpenSSF Scorecard's SAST check reads -- it walks a merged pull
+  # request's own commits and scores "SAST tool detected but not run on all
+  # commits" where no run ever touched them.
+  # It is a trade in the opposite direction from the one this file used to
+  # make: two more matrix cells on every push to a branch, against the
+  # ceiling on concurrent jobs REPOSITORY.md's "Plan-gated settings"
+  # measures. What buys it back is that the analysis is no longer deferred
+  # to a commit that is already the default branch.
+  # What reads a branch beside it is lint.yml: zizmor is a pre-commit hook
+  # and reads exactly these files for an injected expression, which is one
+  # of the findings here; the python queries are the rest.
+  # No `paths` filter on any of the three: a filter would have to name
+  # every path a query reads
   push:
     # a merge creates a commit that no pull request analysed, and an alert
     # is attributed to a branch: the default branch is where code scanning
     # reports what is open, so without a run here there is no baseline
     branches: [main]
+  pull_request:
+    # ready_for_review and closed, the same two types test.yml carries and
+    # for the reasons given there: a pull request marked ready gets the run
+    # the draft condition below withheld, and a closed one lands in this
+    # pull request's own concurrency group so that the merge cancels the
+    # run still holding it rather than some other group's
+    types: [opened, reopened, synchronize, ready_for_review, closed]
   schedule:
     # Tuesday, which the grid gives to this and nothing else. A weekly
     # run is what default setup performed and what a pull request trigger
@@ -66,9 +75,8 @@ on:
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
     - cron: "12 4 * * 2"
-  # the escape hatch, and with no pull_request trigger above it is the only
-  # way to analyse a branch before it is merged: worth reaching for on one
-  # that touches a workflow, which is what the actions queries read.
+  # the escape hatch: the analysis on demand for a branch whose pull
+  # request is not open yet, which the trigger above cannot reach.
   # No workflow_call, unlike the four gates release.yml reuses: a tag
   # publishes the tree those four already passed, and re-analysing it would
   # upload a second set of alerts against the same commit
@@ -85,7 +93,11 @@ permissions:
 # through github.workflow, as everywhere else here: in a called workflow
 # that expression is the caller's name
 concurrency:
-  group: codeql-${{ github.ref }}
+  # keyed on the pull request's number where there is one: github.ref for a
+  # closed, merged pull request resolves to the base branch's ref, so a
+  # group built from it alone would put the closed run in the push
+  # trigger's group and cancel the analysis of the merge commit
+  group: codeql-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -94,10 +106,10 @@ jobs:
     # job per language, so a red check names which analysis broke instead of
     # a matrix cell to open. It also lets the two run at once
     name: Analyze ${{ matrix.language }} with CodeQL
-    # no draft condition, where every job of test.yml carries one: this
-    # workflow no longer runs on a pull request at all, so there is no draft
-    # to skip and `github.event.pull_request.draft` is an expression that
-    # could only read empty here
+    # the same draft and closed condition every job of test.yml carries: a
+    # draft is not asking to be reviewed, and a closed pull request's run
+    # exists only to cancel the one its group is holding
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     permissions:
       # where the alerts are uploaded to; the one write in this workflow
@@ -156,15 +168,14 @@ jobs:
           # the first rather than adding to it
           category: /language:${{ matrix.language }}
 
-  # one answer to read per commit rather than one per language, which is
-  # what this job is for now that main's branch protection does not require
-  # it -- REPOSITORY.md's table is where that changed, and why. Kept rather
-  # than deleted because the name is then still produced: requiring this
-  # workflow again is a patch to the rule and nothing in the tree, which is
-  # the half of the exchange that cannot be made in a pull request.
-  # The matrix above produces one context per language, a set that moves
-  # whenever CodeQL gains a language worth adding; this job depends on the
-  # matrix instead, so adding one is enough to be covered by it
+  # one context for a branch rule to name, in place of job names that move:
+  # the matrix above produces one per language, a set that changes whenever
+  # CodeQL gains a language worth adding, and this job depends on the matrix
+  # instead, so adding one is enough to be covered by it.
+  # A required status check reports on the run a pull request has, so this
+  # name is requirable only because the pull_request trigger above exists;
+  # whether main's rule actually asks for it is REPOSITORY.md's "Required
+  # checks on main", which reads the endpoint rather than this file
   codeql-passed:
     # the name and not the id is what branch protection matches, and it
     # carries the workflow because a context is keyed by name alone: two
@@ -175,8 +186,12 @@ jobs:
     needs: [analyze]
     # not success(): a job whose dependencies failed is skipped, and a
     # skipped check reports "skipped", which reads as satisfied wherever a
-    # check is read at all. The gate has to run to be able to fail
-    if: ${{ always() }}
+    # check is read at all. The gate has to run to be able to fail. The
+    # draft and closed halves are the condition the analysis job carries,
+    # so a draft does not report a failure for work it declined
+    if: >-
+      ${{ !cancelled() && !github.event.pull_request.draft
+      && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

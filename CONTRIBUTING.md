@@ -36,9 +36,9 @@ restated here: a second wording is the one that goes stale, which is
 that section's own *One fact in one place*.
 
 A commit message is prose this tree ships too, though section 9 does not
-say so: squash is the only merge method and the landing commit carries
-the messages, so what is written in one is read on `main` long after the
-branch is gone.
+say so: [the only merge method the rule accepts][s11] puts it on `main`
+as the landing commit's body, so what is written in one is read there
+long after the branch is gone.
 
 ## Pull requests
 
@@ -52,6 +52,19 @@ it closes, and why a manual link in the Development panel is a trap
 neither of them shows, is [the standard's *What a pull request says it
 is*][s-title]. Read it before opening one; it is the rule most often
 found broken after the fact.
+
+**The two spellings are named here as well as there, against [section 9's
+*One fact in one place*][s9]**, the paragraph above naming the section
+and not the forms, which are the half a citation is got wrong in:
+`(closes #N)` cites an issue the change closes, wherever the citation
+sits — the title, the commit subject where [*Merge method*][s11] makes
+that the thing that lands, and a `CHANGELOG.md` entry — and `(issue #N)`
+is reserved for a `CHANGELOG.md` entry naming an issue the change does
+*not* close. One token holds one meaning whichever file it sits in, so
+the pair is chosen by what is true of the change rather than by which
+file is being written, and a tree's own landed subjects are not what to
+copy it from: nothing already landed is rewritten, so what a repository
+wrote before the rule stays where it is.
 
 `REVIEWING.md` is the standard a review is written against, and is this
 file's other half. Read before opening a pull request, it is what the
@@ -84,6 +97,36 @@ because a plain rebase replays the base's old commit inside the child,
 and the forge then shows the base's old text as additions with nothing
 red anywhere. Read the child's diff afterwards rather than trusting the
 rebase, and retarget each child onto `main` as its parent lands.
+
+### The landing queue
+
+Where more than one pull request is open against this repository, only
+one is carried to `main` at a time: rebased onto the tip, reviewed on
+that head, and landed, while every other one waits, untouched, for its
+turn. This governs which of several *already open* pull requests reaches
+`main` next; *One subject, opened as soon as it is written* above governs
+the moment before that, when a finished one is opened — the two do not
+conflict, since a pull request is still opened without delay and still
+waits its turn once several are open.
+
+The reason is CI throughput, not the ack a waiting pull request keeps —
+`REVIEWING.md`'s *The verdict* states what an ack belongs to, and
+*Landing it* below states which rebase voids one. Every rebase queues
+this repository's whole check matrix against the organization's ceiling
+on concurrent jobs, so rebasing every waiting pull request after each
+landing spends that capacity on runs the next landing invalidates
+anyway, and delays the one pull request that is actually next: work
+spent on a pull request that is not next is work that delays the one
+that is.
+
+Order is cheapest and least contended first, most invasive last, so that
+a large change does not sit at the head blocking everything behind it.
+
+The maintainer may declare a bounded exception — several pull requests in
+flight against one repository, for a named piece of work — trading the
+cost above for throughput; it is recorded as a comment in
+[btclib-org/.github](https://github.com/btclib-org/.github/issues), by
+*The issue tracker* above, and holds only for the work it names.
 
 ### The review
 
@@ -134,8 +177,18 @@ the merge button asks:
 
 ```shell
 gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge \
-  -f merge_method=squash
+  -f merge_method=squash -f sha=<the head the checks ran on>
 ```
+
+**The `sha` is not optional.** Reading the ack and merging are two
+calls, and the head is free to move between them — the push that would
+move it comes out of the same round the verdict does. Unpinned, the
+command takes whatever sits at the head when it runs; pinned, [the
+endpoint answers `409` where the head has moved][gh-merge], and a round
+lost that way is cheaper than a tree nobody has read reaching `main`.
+*The review* above anchors the exchange to a sha and [section 11][s11]
+has an ack name one: the pin is that rule reaching the call that
+performs the landing.
 
 **Verify what landed rather than trusting the answer**, the signature
 [the standard asks for][s-sigs] being a valid one rather than a
@@ -159,6 +212,7 @@ settings and why they are what they are.
 [s-title]: https://github.com/btclib-org/.github#what-a-pull-request-says-it-is
 [s-rev]: https://github.com/btclib-org/.github#review
 [s-sigs]: https://github.com/btclib-org/.github#signatures
+[gh-merge]: https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request
 
 ## This repository in particular
 
@@ -228,7 +282,7 @@ The gate is the suite, the hooks and the documentation build:
 uv run pytest
 uv run pre-commit run --all-files
 uv run --locked --no-default-groups --group docs \
-    sphinx-build -W --keep-going -b html docs/source docs/build/html
+    sphinx-build -n -W --keep-going -b html docs/source docs/build/html
 ```
 
 `--cov` is in `addopts`, so the bare `pytest` above is the coverage gate
@@ -371,14 +425,14 @@ cannot parse fails the workflow while pre-commit is green.
 
 ```shell
 uv run --locked --no-default-groups --group docs \
-    sphinx-build -W --keep-going -b html docs/source docs/build/html
+    sphinx-build -n -W --keep-going -b html docs/source docs/build/html
 ```
 
 `codeql.yml` has no line here, and it is the one gate that cannot: its jobs
 run `github/codeql-action` and no command of this project's, so reproducing
-it locally means the CodeQL CLI and a database rather than a `uv run`. What
-a branch can do instead is ask for the analysis it would get —
-`gh workflow run codeql.yml --ref <branch>`.
+it locally means the CodeQL CLI and a database rather than a `uv run`. An
+open pull request gets the analysis from the trigger; a branch without one
+asks for it with `gh workflow run codeql.yml --ref <branch>`.
 
 Another interpreter, which is what the matrix varies. Prefix it with
 `UV_PROJECT_ENVIRONMENT`, or `uv run --python <version>` rebuilds `.venv`
@@ -404,10 +458,11 @@ which is the reliance `REVIEWING.md` provides for.
 | `lint`, `docs` | pull request, push | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `bitcoind` | pull request, push | Core's two ends, then 5 chains |
-| `codeql` | push to main, and weekly | 2 languages |
+| `codeql` | pull request, push to main, and weekly | 2 languages |
 | `os-ubuntu` | weekly, a release | 2 ubuntu images × 7 interpreters |
 | `os-macos` | weekly, a release | 2 macOS images × 7 interpreters |
 | `os-windows` | weekly, a release | 2 Windows images × 7 interpreters |
+| `scorecard` | weekly, push to main | — |
 | `deps-latest` | weekly | 3 images × the floor and the ceiling, upgraded |
 | `bitcoind` | weekly | every Core major, then 5 chains on the newest |
 | `links` | weekly | — |
@@ -428,14 +483,14 @@ Which day each of the rest runs is section 10 of the organization
 standard, in `btclib-org/.github`, and not this file's to restate — one
 calendar covering six repositories is one thing to remember.
 
-Why so little gates is one number: GitHub Free gives an organization twenty
-concurrent jobs, shared across every repository in it. The platform sweeps
-on every commit ask for twice that between them, so a pull request spends
-its wall clock waiting for a slot rather than running anything.
-At that ceiling a second image before a review buys a rarer answer at the
-price of every review: macOS queues 15.7 and 13.1 minutes on average against
-0.1 to 0.3 elsewhere, on cells that each run in under a minute, and the
-fourteen Windows cells were 9.4 of the run's 16.9 runner-minutes.
+Why so little gates is the ceiling on concurrent jobs the plan puts on the
+whole organization, and `REPOSITORY.md`'s *Plan-gated settings* is where
+that figure lives, beside the command that re-derives it. The platform
+sweeps on every commit would ask for more than the ceiling between them, so
+a pull request would spend its wall clock waiting for a slot rather than
+running anything. At that ceiling a second image before a review buys a
+rarer answer at the price of every review, and macOS is the sharpest case:
+those cells wait for a runner far longer than they run.
 
 **What the sentinels vary, they vary whole.** `os-ubuntu` runs the images
 and the interpreters the gate does not sweep *and* the cell it does, and
@@ -456,19 +511,22 @@ and move the platform; `deps-latest` moves both, and one variable each is
 what lets the pair be read as a difference — `os-macos.yml`'s header states
 that reading for its own column, and it is the same on the other two. Every
 workflow here also takes `workflow_dispatch`, gates included, `claude-review`
-excepted — `grep -c workflow_dispatch: .github/workflows/*.yml` is what says
-so, and for `codeql` and the three image workflows it is the only way to ask
+and `scorecard` excepted — `grep -c workflow_dispatch: .github/workflows/*.yml`
+is what says so, and for the three image workflows it is the only way to ask
 about a branch at all. `claude-review` takes none because both its jobs read
 the pull request or the comment that triggered them, so a manual run would
-start with nothing to read.
+start with nothing to read. `scorecard` takes none because its triggers are
+the action's rather than this section's: `ossf/scorecard-action` names `push`
+and `schedule` as supported and calls `workflow_dispatch` experimental.
 
-`codeql` runs on `main` and on its weekly schedule and not on a pull
-request, which is the same arithmetic as the rows above: it holds slots
-while a review waits. What still reads a branch before it merges is
-`zizmor`, a `pre-commit` hook and therefore part of `lint`, which audits
-these workflows for an injected expression. `REPOSITORY.md` has the trade in
-full. It is also the one gate `release` does not call, a tag publishing the
-tree those checks already passed.
+`codeql` runs on a pull request as well as on `main` and its weekly
+schedule, and it produces a check no rule requires: the analysis reaches
+the branch while a finding is still cheap to answer, without a merge
+waiting on the slots it holds. What reads a branch beside it is `zizmor`, a
+`pre-commit` hook and therefore part of `lint`, which audits these
+workflows for an injected expression. `REPOSITORY.md` has the trade in
+full. `codeql` is also the one gate `release` does not call, a tag
+publishing the tree those checks already passed.
 
 ### Mutation testing
 

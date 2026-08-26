@@ -1,22 +1,17 @@
 ---
 name: os-windows
 
-# the third platform the merge gate does not wait for, and the argument is
-# os-macos.yml's applied to the rows beside those rather than a new one.
+# the third platform the merge gate does not wait for. What a sweep owes
+# and what a matrix buys a module built out of the standard library are
+# os-ubuntu.yml's header, which os-macos.yml reads the same way.
 #
-# The constraint is a ceiling and not a wall clock: GitHub Free gives an
-# organization twenty concurrent jobs, shared across every repository in it,
-# and this one asked for forty-four on every commit while btclib asked for
-# thirty-nine. Measured on one pull request run of the full four rows, the
-# fourteen Windows cells were 9.4 of the 16.9 runner-minutes -- more than
-# ubuntu's twenty-eight cells and every other job together -- and
-# windows-11-arm is the slower half of them, 40 to 77 seconds a cell against
-# 29 to 34 on windows-latest. The command that re-derives it, for whoever
-# doubts the split later:
-#
-#     id=$(gh run list --workflow=test.yml --limit 1 \
-#         --json databaseId --jq '.[0].databaseId')
-#     gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100"
+# What keeps these rows off the gate is not a cost of their own: the gate
+# runs one ubuntu cell on one interpreter, and every other image of every
+# platform is a sentinel for the same reason -- the ceiling on concurrent
+# jobs REPOSITORY.md's "Plan-gated settings" measures, beside the command
+# that re-derives it. Which of the two images below costs more
+# runner-minutes decides nothing here, both of them running weekly either
+# way.
 #
 # **Both images**, where the gate now carries neither. The one
 # platform-conditional branch in the client is the datadir table in

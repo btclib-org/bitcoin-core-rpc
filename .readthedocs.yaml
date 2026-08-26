@@ -62,4 +62,4 @@ build:
     - uv sync --locked --no-default-groups --group docs
     - >-
       uv run --locked --no-default-groups --group docs
-      sphinx-build -W --keep-going -b html docs/source $READTHEDOCS_OUTPUT/html
+      sphinx-build -n -W --keep-going -b html docs/source $READTHEDOCS_OUTPUT/html

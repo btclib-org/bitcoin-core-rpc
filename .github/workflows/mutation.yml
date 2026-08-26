@@ -22,8 +22,9 @@ on:
   schedule:
     # Sunday, an hour before integration-bitcoind.yml: a session measured in
     # minutes takes the first of the two slots that day rather than
-    # running beside the other, twenty concurrent jobs being what the
-    # whole organization shares.
+    # running beside the other, the ceiling on concurrent jobs being what
+    # the whole organization shares -- REPOSITORY.md's "Plan-gated
+    # settings" carries the figure.
     # The time is section 10's grid and not this file's to restate.
     # Cron runs from the default branch only, so this file gates nothing
     # until it reaches main -- on a branch it is reachable through the

@@ -46,6 +46,13 @@ release = PYPROJECT["project"]["version"]
 
 extensions = [
     # "m2r2",
+    # first, because -n below turns an unresolved cross-reference into a
+    # warning and every annotation of this module names something the
+    # standard library owns: without an inventory to resolve against,
+    # `pathlib.Path` and `collections.abc.Callable` are reported as this
+    # tree's own broken links and the triage measures sphinx's ignorance
+    # rather than the documentation
+    "sphinx.ext.intersphinx",
     "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
@@ -59,6 +66,10 @@ extensions = [
 # `.. todo::` renders as nothing at all, so the directive is a note to
 # nobody. Without the extension it is an unknown directive, which -W turns
 # into a failed build -- the open questions belong in the issue tracker
+
+# python alone: this module imports nothing else, so there is no second
+# inventory for an annotation of its public API to resolve against
+intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 
 source_suffix = [".rst", ".md"]
 
@@ -88,9 +99,14 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes.
-html_theme = "sphinx_rtd_theme"
+# furo: content first, the navigation in the left sidebar and the page's
+# own contents in the right, light and dark from one setting -- the shape
+# a reference generated from docstrings has. Section 3 of the organization
+# standard is where it was weighed against shibuya, whose landing pages
+# and announcement bars are surface this tree would carry and not use;
+# sphinx_rtd_theme is where a Read the Docs project starts by default,
+# which is a reason to find it in a tree rather than to keep it
+html_theme = "furo"
 
 # no html_static_path: this project overrides no stylesheet and ships no
 # image, so the "_static" the sphinx template declares was a directory that

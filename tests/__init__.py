@@ -4,13 +4,30 @@
 
 """What the tests share: a transport that opens no socket.
 
-Not one test here reaches the network, and none can: every client is built
-with `transport=` pointing at `Recorded` below, which answers from bytes
+Not one test here reaches the network. A client a test calls passes
+`transport=` pointing at `Recorded` below, which answers from bytes
 committed under `_data` and remembers the `urllib.request.Request` it was
-handed. A test that forgot the argument would fall back to
-`urlopen_transport` and try to reach 127.0.0.1, so the absence of a
-listening node is not what keeps the suite hermetic -- the argument is, and
-it is on every construction.
+handed.
+
+The argument is not on every construction, and the difference is worth
+knowing before copying a call site. A test that only reads a property off
+a client -- `for_wallet(name).url`, say -- leaves the default
+`urlopen_transport` in place and never calls it, so nothing resolves and
+nothing is opened. So two things keep this suite hermetic rather than
+one: `transport=` wherever a call is made, and no call at all on the
+clients built without it. The second is the weaker of the two, because
+nothing states it at the call site. Add a `.call()` to one of those
+constructions and it reaches 127.0.0.1 -- passing on a machine that runs
+bitcoind, failing where none listens, which is a property of the machine
+and not of this suite.
+
+That is a claim about the clients and not about the package: sockets are
+opened here, by `rpc_smoke_test.py`, which binds and listens on a loopback
+port of its own in order to test the port probe `.github/scripts/rpc_smoke.py`
+uses. Nothing leaves the machine and nothing needs a node, which is what
+the sentence above is for -- but section 7's convention is the stricter
+"the suite opens no socket", and a walk over `socket()` call sites rather
+than over client constructions would find those two and be right to.
 
 The recorded bodies are what bitcoind sends, byte for byte, newline
 included; `_data/README.md` says where each came from.

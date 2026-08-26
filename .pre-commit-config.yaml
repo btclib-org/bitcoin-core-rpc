@@ -70,16 +70,11 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        # the two trailing spaces that spell a line break in markdown are
-        # the one trailing whitespace this tree wants, and README.md's
-        # badge block is built out of them: one badge per line, which keeps
-        # a change to one line and every line inside MD013. Without this
-        # flag the hook strips them and the badges reflow into a paragraph,
-        # so the two tools disagreed -- markdownlint's MD009 allows exactly
-        # two (`br_spaces` defaults to 2) and this hook removed them. The
-        # extension list is the hook's own spelling for "in markdown only";
-        # anywhere else a trailing space is still an accident
-        args: [--markdown-linebreak-ext=md]
+        # no derogation for markdown's two-space line break: nothing here
+        # spells one. README.md's badge block groups its rows with blank
+        # lines, which is what btclib and btclib-secp256k1 do and what
+        # keeps the block's own comment true of what renders, so a
+        # trailing space anywhere in this tree is an accident
       - id: end-of-file-fixer
       - id: mixed-line-ending
         # not the default --fix=auto, which normalizes a file to its own

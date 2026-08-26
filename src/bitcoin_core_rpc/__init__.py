@@ -871,8 +871,11 @@ def datadir_subdir_from_chain(chain: str) -> str:
 # a cast at every such call site to say what the refusal below already says
 # at runtime.
 Chain = Literal["main", "test", "testnet4", "signet", "regtest"]
-"""Core's five chain names: what `-chain=` takes and `getblockchaininfo`
-reports, and what `from_chain` and the two lookups are spelled in.
+# no `phrase: rest` opening below, here or on any other attribute docstring:
+# napoleon reads that shape as `type: description` and renders the phrase as
+# the attribute's Type, which `-n` then reports as a class nothing declares
+"""Core's chain names, which `-chain=` takes and `getblockchaininfo`
+reports, and which `from_chain` and the two lookups are spelled in.
 
 What `chain_from_network` returns, and not what `network_from_chain` is
 annotated as taking.

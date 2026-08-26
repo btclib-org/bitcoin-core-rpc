@@ -85,16 +85,100 @@ def test_every_public_name_carries_a_docstring() -> None:
     `automodule` with `:members:` documents a class or a function by its
     docstring and a module-level assignment by the string literal that
     follows it -- a `#` comment is neither, so a constant carrying one is
-    absent from the built page rather than undescribed on it. Nine of the
-    names in `__all__` were, the type aliases and every constant among
-    them, which is the promise above being false about the interface a
-    consumer reads at readthedocs.
+    absent from the built page rather than undescribed on it. That is the
+    way this promise goes false without anything looking wrong: the
+    comment is right there in the source, and the page it never reaches
+    is the interface a consumer reads at readthedocs.
     """
     documented = _documented_names(_source_path().read_text(encoding="utf-8"))
     undocumented = sorted(set(bitcoin_core_rpc.__all__) - documented)
     # named, because pytest elides the difference of two sets this size and
     # what the next reader needs is which name arrived without one
     assert not undocumented, f"public names with no docstring: {undocumented}"
+
+
+def _public_names(source: str) -> set[str]:
+    """Return the module-level names a bare `import *` would offer.
+
+    Definitions and assignments, less whatever a leading underscore keeps
+    out. Imports are not read: a name this file imported is not part of
+    what it publishes, so counting them would report the standard library
+    as an unexported surface. Reading the source rather than the imported
+    module is what lets a constant and a type alias be seen at all --
+    neither carries a `__module__` to be filtered on.
+    """
+    names: set[str] = set()
+    for statement in ast.parse(source).body:
+        if isinstance(statement, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            names.add(statement.name)
+            continue
+        target = (
+            statement.targets[0]
+            if isinstance(statement, ast.Assign)
+            else statement.target
+            if isinstance(statement, ast.AnnAssign)
+            else None
+        )
+        name = getattr(target, "id", None)
+        if name is not None:
+            names.add(name)
+    return {name for name in names if not name.startswith("_")}
+
+
+def test_the_census_scan_reads_what_import_star_would() -> None:
+    """The scan below reports nothing on this tree, so it is read here.
+
+    Same reason as the docstring scan two tests up: a walk that finds no
+    unexported name is indistinguishable from one that finds nothing at
+    all. This source carries every shape the walk decides differently
+    about -- each kind of definition, a plain and an annotated
+    assignment, a target that is not a name, an import, and one of each
+    behind a leading underscore.
+    """
+    source = (
+        "import json\n"
+        "from decimal import Decimal\n"
+        "class Klass: pass\n"
+        "class _Private: pass\n"
+        "def function() -> None: pass\n"
+        "def _helper() -> None: pass\n"
+        "async def coroutine() -> None: pass\n"
+        "CONSTANT = 1\n"
+        "_PRIVATE = 2\n"
+        "ANNOTATED: int = 3\n"
+        "_ANNOTATED: int = 4\n"
+        "CONSTANT[0] = 5\n"
+    )
+    assert _public_names(source) == {
+        "Klass",
+        "function",
+        "coroutine",
+        "CONSTANT",
+        "ANNOTATED",
+    }
+
+
+def test_every_public_name_is_exported() -> None:
+    """`__all__` is the public surface, so nothing may be public beside it.
+
+    `CONTRIBUTING.md` says a name is public because that list says so and
+    not because it lacks an underscore, and this is what makes the
+    sentence true rather than aspirational: a name added to the module
+    without being exported fails here, which is the census section 7 of
+    the organization standard asks a publishing package for. `py.typed`
+    ships, so which names are supported is half of what the distribution
+    promises.
+    """
+    source = _source_path().read_text(encoding="utf-8")
+    exported = set(bitcoin_core_rpc.__all__)
+    # named rather than counted: what the next reader needs is which name
+    # arrived without an export, and a set difference pytest elides
+    unexported = sorted(_public_names(source) - exported)
+    assert not unexported, f"public names missing from __all__: {unexported}"
+    # the other direction, which fails at import time for a caller writing
+    # `from bitcoin_core_rpc import *` and nowhere else in this suite
+    missing = sorted(exported - _public_names(source))
+    assert not missing, f"__all__ names nothing defines: {missing}"
 
 
 def test_the_client_source_imports_only_the_standard_library() -> None:
