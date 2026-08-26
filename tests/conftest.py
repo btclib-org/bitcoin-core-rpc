@@ -12,15 +12,58 @@ addopts being the one thing bitcoin-core-rpc's suite and btclib's share.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
+
+
+def asks_for_everything(
+    file_or_dir: list[str] | None,
+    *,
+    invocation_dir: Path,
+    testpaths: list[Path],
+) -> bool:
+    """Return whether the paths named on the command line take the suite in.
+
+    No path at all is `testpaths`, which is the suite. A path at or
+    above one of those entries collects it whole, so what decides is
+    containment and not equality: read as equality, `pytest tests` is a
+    subset -- and it is what somebody types who means the whole suite
+    and says so.
+
+    The two bases are different directories, which `pytest .` run from
+    `tests/` shows: pytest reads a positional argument against the
+    directory it was invoked from, and `testpaths` against the rootdir.
+
+    `file_or_dir` is `None` rather than `[]` on the `--help` path, the
+    positional never having been parsed, and that names no path either
+    -- folding it in is what keeps `--help` from ending in a traceback
+    whose last frame is this file.
+    """
+    given = [(invocation_dir / path).resolve() for path in file_or_dir or []]
+    if not given:
+        return True
+    wanted = [path.resolve() for path in testpaths]
+    if not wanted:
+        # `all` over nothing is true, which would make every path named
+        # here the whole suite. Nothing names the suite, so a bare run
+        # collects the rootdir and anything asked for is less than it
+        return False
+    return all(
+        any(target == path or path in target.parents for path in given)
+        for target in wanted
+    )
 
 
 def coverage_fail_under(
     asked: float | None,
     configured: float | None,
-    file_or_dir: list[str],
+    file_or_dir: list[str] | None,
     keyword: str,
     markexpr: str,
+    *,
+    invocation_dir: Path,
+    testpaths: list[Path],
 ) -> float | None:
     """Return the coverage threshold this run's selection has to meet.
 
@@ -51,17 +94,21 @@ def coverage_fail_under(
     untouched whichever kind of run it is -- the caller naming the
     threshold is the one thing this must not overrule.
 
-    A subset is what pytest was *asked* for: paths, `-k` or `-m`. Not
-    every way a run can be short -- `--lf`, `--deselect` and an `-x` that
-    stops early are not read -- so those still meet the full threshold
-    and report a shortfall the tree does not have. They are the flags of
-    an iteration whose next run is the whole suite, and reading intent
-    off all of them would make this a second definition of what a real
-    run is.
+    A subset is what pytest was *asked* for: `-k`, `-m`, or paths that
+    leave part of the suite out, which is `asks_for_everything`'s
+    question and not whether a path was named at all. Not every way a
+    run can be short -- `--lf`, `--deselect` and an `-x` that stops early
+    are not read -- so those still meet the full threshold and report a
+    shortfall the tree does not have. They are the flags of an iteration
+    whose next run is the whole suite, and reading intent off all of
+    them would make this a second definition of what a real run is.
     """
     if asked is not None:
         return asked
-    if file_or_dir or keyword or markexpr:
+    whole_suite = asks_for_everything(
+        file_or_dir, invocation_dir=invocation_dir, testpaths=testpaths
+    )
+    if not whole_suite or keyword or markexpr:
         return 0
     return configured
 
@@ -76,6 +123,7 @@ def pytest_configure(config: pytest.Config) -> None:
     changes nothing -- the plugin never reads it back, and the run still
     fails on the whole tree's coverage.
     """
+    testpaths: list[str] = config.getini("testpaths")
     namespace = config.known_args_namespace
     namespace.cov_fail_under = coverage_fail_under(
         config.option.cov_fail_under,
@@ -83,4 +131,6 @@ def pytest_configure(config: pytest.Config) -> None:
         config.option.file_or_dir,
         config.option.keyword,
         config.option.markexpr,
+        invocation_dir=config.invocation_params.dir,
+        testpaths=[config.rootpath / path for path in testpaths],
     )
