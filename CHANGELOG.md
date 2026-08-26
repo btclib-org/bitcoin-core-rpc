@@ -23,6 +23,25 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **The coverage floor holds for `uv run pytest tests`, the spelling
+  that names the whole suite** (closes btclib-org/.github#430).
+  `testpaths` is `tests`, so that path collects exactly what a bare run
+  collects, and `tests/conftest.py` read it as a selection from the
+  suite and handed the run a threshold of zero: the same command passed
+  with the path named and failed without it, over the same tests and the
+  same total. `asks_for_everything` decides it by containment against
+  `testpaths` now — a path at or above an entry takes the suite in,
+  `./tests` and the absolute path being that same directory — and a file
+  under it is still the subset the floor comes off for. The hook is
+  handed two directories because pytest reads a positional argument
+  against the one it was invoked from and `testpaths` against the
+  rootdir. `--help`, where `config.option.file_or_dir` is `None` rather
+  than `[]`, names no path either and is folded into the same answer.
+  `btclib-node`'s `tests/conftest.py` is where that function comes from.
+  Whether `--lf`, `--deselect` and `--ignore` should relax the floor too
+  is a separate question, btclib-org/.github#424; `-k` and `-m` are
+  unchanged.
+
 - **`claude-review.yml`'s `mention` job refuses a missing credential in
   the words of the job it guards** (issue btclib-org/.github#402). That
   job answers an `@claude` comment and reviews nothing, so its step is
