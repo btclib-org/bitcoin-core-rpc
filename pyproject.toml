@@ -434,9 +434,9 @@ testpaths = ["tests"]
 # the home is exactly the ordering a fixed order would hide
 #
 # no `-n auto`, and its absence is measured rather than an omission: on this
-# suite a worker pool costs more than it saves, because the suite opens no
-# socket and the whole of it finishes before ten workers have started. Nine
-# interleaved runs each, medians, all of them green:
+# suite a worker pool costs more than it saves, because nothing here waits
+# on the network and the whole of it finishes before ten workers have
+# started. Nine interleaved runs each, medians, all of them green:
 #
 #     serial 0.50s against 0.90s parallel, and under coverage 0.65s
 #     against 1.23s -- 1.8x and 1.9x the wrong way

@@ -271,10 +271,11 @@ uv sync                       # create the environment
 uv run pre-commit install     # so a commit runs the lint gate
 ```
 
-The suite opens no socket and needs no node: every client in it is built with a
-`transport=` that answers from bytes committed under `tests/_data`. What a
-*live* node answers is a separate question, asked by `integration-bitcoind.yml`
-and by the command under [A live node](#a-live-node) below.
+No test here reaches the network and none needs a node: every client in it is
+built with a `transport=` that answers from bytes committed under
+`tests/_data`. What a *live* node answers is a separate question, asked by
+`integration-bitcoind.yml` and by the command under
+[A live node](#a-live-node) below.
 
 The gate is the suite, the hooks and the documentation build:
 

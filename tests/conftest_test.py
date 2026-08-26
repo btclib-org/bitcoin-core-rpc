@@ -14,7 +14,11 @@ of that command line can report on.
 from __future__ import annotations
 
 import re
+from argparse import Namespace
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 from tests.conftest import coverage_fail_under
 
@@ -22,17 +26,38 @@ _ROOT = Path(__file__).parents[1]
 # what `[tool.pytest.ini_options]` testpaths names, joined onto the
 # rootdir the way tests/conftest.py's pytest_configure joins it
 _TESTPATHS = [_ROOT / "tests"]
+# a nodeid for the cases that need one, out of the module whose path the
+# cases below also select on
+_ONE_TEST = "tests/transport_test.py::test_a_non_numeric_timeout_is_refused"
+
+
+def _options(**asked_for: object) -> Namespace:
+    """Return a `config.option` carrying what a command line asked for.
+
+    The defaults are what pytest leaves on that namespace for a command
+    line that passed none of these: `-k` and `-m` empty strings, the
+    three collection flags `None`, `--lf` False, and `--cov-fail-under`
+    None. A case names the flag it is about and inherits the rest.
+    """
+    defaults: dict[str, object] = {
+        "cov_fail_under": None,
+        "file_or_dir": [],
+        "keyword": "",
+        "markexpr": "",
+        "deselect": None,
+        "ignore": None,
+        "ignore_glob": None,
+        "lf": False,
+    }
+    return Namespace(**(defaults | asked_for))
 
 
 def _threshold(
-    file_or_dir: list[str] | None,
-    keyword: str = "",
-    markexpr: str = "",
-    *,
-    asked: float | None = None,
     configured: float | None = 100.0,
+    *,
     testpaths: list[Path] | None = None,
     invocation_dir: Path | None = None,
+    **asked_for: object,
 ) -> float | None:
     """Ask `coverage_fail_under` from the rootdir, unless told otherwise.
 
@@ -43,11 +68,8 @@ def _threshold(
     from the rootdir.
     """
     return coverage_fail_under(
-        asked,
         configured,
-        file_or_dir,
-        keyword,
-        markexpr,
+        _options(**asked_for),
         invocation_dir=_ROOT if invocation_dir is None else invocation_dir,
         testpaths=_TESTPATHS if testpaths is None else testpaths,
     )
@@ -60,8 +82,8 @@ def test_a_whole_run_is_gated_at_what_pyproject_configured() -> None:
     worth pinning: pyproject.toml is where 100 is decided, and a copy of
     it in this file would be a second place to change it.
     """
-    assert _threshold([]) == 100.0
-    assert _threshold([], configured=42.0) == 42.0
+    assert _threshold() == 100.0
+    assert _threshold(42.0) == 42.0
 
 
 def test_naming_the_suite_is_not_selecting_from_it() -> None:
@@ -74,7 +96,7 @@ def test_naming_the_suite_is_not_selecting_from_it() -> None:
     it, and a path above `testpaths` collects it whole too.
     """
     for path in ("tests", "./tests", "tests/", str(_ROOT / "tests"), str(_ROOT)):
-        assert _threshold([path]) == 100.0, path
+        assert _threshold(file_or_dir=[path]) == 100.0, path
 
 
 def test_a_path_is_read_against_where_pytest_was_started() -> None:
@@ -91,8 +113,8 @@ def test_a_path_is_read_against_where_pytest_was_started() -> None:
     From `tests/`, `pytest tests` names `tests/tests`, which collects
     none of the suite and is therefore a selection.
     """
-    assert _threshold(["tests"], invocation_dir=_ROOT / "tests") == 0
-    assert _threshold(["tests"]) == 100.0
+    assert _threshold(file_or_dir=["tests"], invocation_dir=_ROOT / "tests") == 0
+    assert _threshold(file_or_dir=["tests"]) == 100.0
 
 
 def test_the_help_path_is_no_selection_either() -> None:
@@ -102,7 +124,7 @@ def test_the_help_path_is_no_selection_either() -> None:
     `pytest_configure` fires anyway, so this is what reaches the hook on
     a command line that named no path at all.
     """
-    assert _threshold(None) == 100.0
+    assert _threshold(file_or_dir=None) == 100.0
 
 
 def test_a_tree_naming_no_testpaths_treats_every_path_as_a_subset() -> None:
@@ -112,27 +134,68 @@ def test_a_tree_naming_no_testpaths_treats_every_path_as_a_subset() -> None:
     than -- and `all` over an empty `testpaths` would answer the
     opposite, calling every path the whole suite.
     """
-    assert _threshold(["tests"], testpaths=[]) == 0
+    assert _threshold(file_or_dir=["tests"], testpaths=[]) == 0
+
+
+@pytest.mark.parametrize(
+    "asked_for",
+    [
+        {"keyword": "getbalance"},
+        {"markexpr": "integration"},
+        {"deselect": [_ONE_TEST]},
+        {"ignore": ["tests/transport_test.py"]},
+        {"ignore_glob": ["*transport_test.py"]},
+        {"lf": True},
+    ],
+    ids=lambda asked_for: next(iter(asked_for)),
+)
+def test_every_flag_that_narrows_a_run_drops_the_threshold(
+    asked_for: dict[str, Any],
+) -> None:
+    """Section 8's set, one flag at a time, with the paths saying nothing.
+
+    A flag missing from this list is one the hook can stop reading with
+    nothing turning red. Such a run measures the same source with fewer
+    tests against the whole suite's threshold, so it fails on the tests
+    it did not run and prints what a shortfall of the tree prints.
+    """
+    assert _threshold(**asked_for) == 0, asked_for
 
 
 def test_a_selected_subset_is_gated_at_nothing() -> None:
-    """Any of a partial path, `-k` or `-m` drops the threshold to zero.
+    """A partial path drops the threshold to zero, and so does a mixture.
 
     Zero and not None: None is what pytest-cov reads the configured
     threshold into, so it would restore the very gate this removes. The
-    last case is the suite named beside a `-k`: a run that also asked
-    for less is a selection whatever its paths say.
+    cases naming the whole suite beside a flag are what say that a run
+    which also asked for less is a selection whatever its paths say.
     """
     one_file = ["tests/transport_test.py"]
-    for file_or_dir, keyword, markexpr in (
-        (one_file, "", ""),
-        ([], "getbalance", ""),
-        ([], "", "integration"),
-        (one_file, "getbalance", "integration"),
-        (["tests"], "getbalance", ""),
-    ):
-        selection = (file_or_dir, keyword, markexpr)
-        assert _threshold(file_or_dir, keyword, markexpr) == 0, selection
+    cases: tuple[dict[str, Any], ...] = (
+        {"file_or_dir": one_file},
+        {"file_or_dir": one_file, "keyword": "getbalance", "markexpr": "integration"},
+        {"file_or_dir": ["tests"], "keyword": "getbalance"},
+        {"file_or_dir": ["tests"], "lf": True},
+    )
+    for asked_for in cases:
+        assert _threshold(**asked_for) == 0, asked_for
+
+
+def test_a_run_that_disabled_the_cache_plugin_is_gated_rather_than_crashed() -> None:
+    """`-p no:cacheprovider` leaves `--lf` off the namespace altogether.
+
+    The option is that plugin's, so without it there is no attribute to
+    read, and a command line that could not pass `--lf` did not pass it.
+    Reading it with a default is what keeps such a run gated at the
+    ratchet rather than ending in an AttributeError raised from
+    `pytest_configure`.
+    """
+    options = _options()
+    del options.lf
+    threshold = coverage_fail_under(
+        100.0, options, invocation_dir=_ROOT, testpaths=_TESTPATHS
+    )
+    assert threshold == 100.0
 
 
 def test_cov_is_not_the_last_token_of_addopts() -> None:
@@ -165,8 +228,9 @@ def test_cov_is_not_the_last_token_of_addopts() -> None:
 
 def test_an_explicit_threshold_survives_either_kind_of_run() -> None:
     """`--cov-fail-under` is the caller's, and outranks both branches."""
-    assert _threshold(["tests/transport_test.py"], asked=90.0) == 90.0
-    assert _threshold([], asked=90.0) == 90.0
+    partial = ["tests/transport_test.py"]
+    assert _threshold(file_or_dir=partial, cov_fail_under=90.0) == 90.0
+    assert _threshold(cov_fail_under=90.0) == 90.0
     # zero is a threshold somebody asked for, not a missing answer: it
     # has to survive the `is not None` test rather than be falsy
-    assert _threshold([], asked=0) == 0
+    assert _threshold(cov_fail_under=0) == 0
