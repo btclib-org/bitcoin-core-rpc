@@ -23,6 +23,22 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`claude-review.yml`'s `mention` job refuses a missing credential in
+  the words of the job it guards** (issue btclib-org/.github#402). That
+  job answers an `@claude` comment and reviews nothing, so its step is
+  `Refuse to answer without a credential` and its message ends `without
+  it this workflow answers nothing`. The comment above the step gives
+  the reason by pointing at the review job's own rather than restating a
+  measurement made there (issue btclib-org/.github#410).
+
+- **`claude-review.yml`'s `claude_args` comment names the `gh pr`
+  subcommands this file uses** (issue btclib-org/.github#398): `diff`,
+  `review` and `view`, which
+  `grep -n 'gh pr ' .github/workflows/claude-review.yml` reads back.
+  Spelling the three out in `--allowedTools`, in place of
+  `Bash(gh pr:*)`, is what would put that line past the 100 columns
+  `yamllint` holds the file to.
+
 - **`claude-review.yml` converges to `btclib-org/.github`'s current
   mechanism** (issue btclib-org/.github#340) (issue
   btclib-org/.github#385). The job carries a job-level
