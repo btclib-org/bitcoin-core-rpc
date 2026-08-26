@@ -420,9 +420,9 @@ Which workflows that last row covers is
 not a list here: a list restated is one more thing to keep true.
 
 Those gates run one image on one interpreter: `ubuntu-latest`, and the
-version `.python-version` names. `claude-review` runs beside them and
-gates nothing: its own header says it must not become a required check,
-a review that gates a merge making a model's judgement a branch rule.
+version `.python-version` names. `claude-review` gates nothing: its own
+header says it must not become a required check, a review that gates a
+merge making a model's judgement a branch rule.
 
 Which day each of the rest runs is section 10 of the organization
 standard, in `btclib-org/.github`, and not this file's to restate — one

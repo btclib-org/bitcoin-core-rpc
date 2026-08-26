@@ -23,6 +23,33 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`claude-review.yml` converges to `btclib-org/.github`'s current
+  mechanism** (issue btclib-org/.github#340) (issue
+  btclib-org/.github#385). The job carries a job-level
+  `CLAUDE_REVIEW_ENABLED` switch, so a review left disabled
+  organization-wide skips cleanly instead of a step failing loudly; the
+  guard step reads `api_error_status` and `stop_reason` from the SDK's
+  own execution file, which the action's log otherwise drops; and the
+  verdict is posted as a pull request review of type `COMMENT` — one of
+  `ACK <sha>`, `CHANGES REQUESTED <sha>` or `NACK <sha>` — with the
+  verification step reading `pulls/<n>/reviews` in place of
+  `issues/<n>/comments`. The header keeps this tree's own reasoning
+  about `REPOSITORY.md`'s required-checks rule and its own accounting
+  of the concurrent-job ceiling.
+
+- **`claude-review.yml`'s `allowed_bots` comment cites the organization
+  standard by name for what account produces the ack of record**
+  (closes #234), landing with the convergence above: it named
+  `REVIEWING.md`, which does not state which account produces one.
+
+- **`CONTRIBUTING.md` no longer says `claude-review` runs beside the
+  other gates.** The `CLAUDE_REVIEW_ENABLED` switch the convergence
+  above adds is an organization variable that is currently unset, so
+  neither of the workflow's jobs runs in this tree at all while it
+  stays that way; the sentence claiming otherwise is the same one
+  `btclib-org/.github`'s own copy of `CONTRIBUTING.md` corrected in the
+  commit that introduced the switch.
+
 - **Every fixable hook now fixes, and this file's lint derogation is
   gone**, closing issue #249. `codespell` gains `--write-changes`, next
   to `markdownlint-cli2` and `typos`, which already fixed in place.
