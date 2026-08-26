@@ -93,6 +93,26 @@ carry a union merge driver that would keep both sides' numbers.
 
 ### Repository
 
+- **`claude-review.yml`'s header points at the ceiling's home** (closes
+  #269). Section 10 of the organization standard gives the ceiling on
+  concurrent jobs one home per tree, `REPOSITORY.md`'s *Plan-gated
+  settings*, beside the command that re-derives it and GitHub's own
+  table. This header named `CONTRIBUTING.md`, which states the ceiling
+  unnumbered and points on to that section: a pointer to a pointer, where
+  the other workflow comments that need the same reasoning name the
+  section themselves.
+
+  ```shell
+  git grep -n 'Plan-gated' -- '*.yml'
+  ```
+
+  One word: `'concurrent jobs'` and `'Plan-gated settings'` each answer
+  five, and a different five. It answers six — `claude-review`,
+  `codeql`, `mutation`, `os-macos`, `os-ubuntu`, `os-windows` — which is
+  every workflow comment here that states the ceiling. The command is
+  what finds them the next time the figure's home moves; this entry is
+  what one such move left behind.
+
 - **The badge row is a function of the tree and its order is section 2's**
   (closes #262, issue #256). The licence badge was
   `img.shields.io/badge/license-MIT-blue`, which renders `MIT` because the

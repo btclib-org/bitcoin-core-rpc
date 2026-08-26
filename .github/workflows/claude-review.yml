@@ -14,10 +14,11 @@ name: claude-review
 # are is REPOSITORY.md's to record and the endpoint's to answer.
 #
 # It is one more job on every pull request, which is not free: the ceiling
-# on concurrent jobs a run here competes for is CONTRIBUTING.md's to
-# state, and this job earns its slot by being short -- it reads a diff, it
-# does not build a matrix -- and by skipping a draft, which is the
-# condition test.yml and lint.yml already carry.
+# on concurrent jobs a run here competes for is the one REPOSITORY.md's
+# "Plan-gated settings" measures, beside the command that re-derives it,
+# and this job earns its slot by being short -- it reads a diff, it does
+# not build a matrix -- and by skipping a draft, which is the condition
+# test.yml and lint.yml already carry.
 
 on:
   pull_request:
