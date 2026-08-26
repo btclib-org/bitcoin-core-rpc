@@ -4,13 +4,13 @@ A standalone JSON-RPC client against Bitcoin Core.
 As used by the btclib library.
 
 <!-- The badges are what the reader decides with: the first line says what
-this is and whether it can be used, the second whether it works, the third
-where the code is and where to ask about it. A badge that reports no state
--- "we use ruff", "we use uv" -- reports a choice instead, and those are in
-CONTRIBUTING.md, beside the prose that says how the choice is enforced. One
-badge per line keeps a change to one line and every line inside MD013,
-whose 80 columns bind only where a space follows them. btclib and
-btclib-secp256k1 carry the same three lines. -->
+this is and whether it can be used, and the second whether it works. A
+badge that reports no state -- "we use ruff", "we use uv" -- reports a
+choice instead, and those are in CONTRIBUTING.md, beside the prose that
+says how the choice is enforced. One badge per line keeps a change to
+one line and every line inside MD013, whose 80 columns bind only where a
+space follows them. btclib and btclib-secp256k1 carry the same two
+lines. -->
 [![PyPI version](https://img.shields.io/pypi/v/bitcoin-core-rpc.svg?logo=pypi)](https://pypi.org/project/bitcoin-core-rpc/)
 [![downloads](https://static.pepy.tech/badge/bitcoin-core-rpc)](https://pepy.tech/project/bitcoin-core-rpc)
 [![development status](https://img.shields.io/pypi/status/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
@@ -20,8 +20,7 @@ btclib-secp256k1 carry the same three lines. -->
 [![lint workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml)
 [![docs workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/docs.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/docs.yml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/bitcoin-core-rpc/main.svg)](https://results.pre-commit.ci/latest/github/btclib-org/bitcoin-core-rpc/main)
-[![documentation build](https://readthedocs.org/projects/bitcoin-core-rpc/badge/?version=latest)](https://bitcoin-core-rpc.readthedocs.io)  
-[![GitHub repository: btclib-org/bitcoin-core-rpc](https://img.shields.io/badge/GitHub-btclib--org%2Fbitcoin--core--rpc-181717?logo=github)](https://github.com/btclib-org/bitcoin-core-rpc/)
+[![documentation build](https://readthedocs.org/projects/bitcoin-core-rpc/badge/?version=latest)](https://bitcoin-core-rpc.readthedocs.io)
 
 One source file with nothing but the standard library behind it, fully
 annotated and shipping `py.typed`. `BitcoinCoreRpcClient` invokes any one

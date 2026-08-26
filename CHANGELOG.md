@@ -1713,6 +1713,15 @@ carry a union merge driver that would keep both sides' numbers.
   writes to; `docs/_build/` matched no path in this tree and decided
   nothing.
 
+- **`README.md`'s badge row drops the link to the repository** (issue
+  btclib-org/.github#381). Section 2 of the organization standard
+  refuses it now: the badge renders the repository's name because the
+  URL says so, and the row is an audit, so the item that measures
+  nothing is the one that does not belong in it. `[project.urls]`'s
+  `repository` key already carries the same link for the reader who
+  meets this file as an index's long description or as an unpacked
+  sdist's README.
+
 ## v2026.8.20
 
 ### Repository
