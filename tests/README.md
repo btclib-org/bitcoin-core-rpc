@@ -28,7 +28,7 @@ least one test, and the two halves together account for the whole list.
 | the import graph | `standalone_test.py` |
 
 Not tested here: the copyright header; the changelog; the build system;
-the calling convention; input validation.
+the calling convention; input validation; the suite opens no socket.
 
 One module answers several bullets, which is the shape section 7 has in
 mind where it says what must not be aligned is *where* these live. This
@@ -59,6 +59,18 @@ Among those not tested, one is a near miss worth naming so that
   Section 7 asks for it as a rule over the package: keyword-only stays
   keyword-only, a private signature carries no default, a name's prefix
   promises what the call answers.
+
+**The suite opens no socket** is not a near miss but the one bullet this
+suite does not keep rather than merely leave untested.
+`rpc_smoke_test.py` binds a loopback port of its own and listens on it,
+to test the port probe `.github/scripts/rpc_smoke.py` uses against a port
+that is held and against one that is free. Nothing leaves the machine and
+no node is needed, but section 7 asks for this convention to be driven by
+a walk over the call sites, and a walk over `socket()` finds exactly
+those: a test of it here would carry that file written into it as an
+exception, which is the fixed list the bullet refuses. What keeps the
+clients hermetic is `transport=`, and `tests/__init__.py` is where that
+is written down.
 
 The copyright header, the changelog, the build system and input
 validation have nothing standing in for them. `normalize_sdist_test.py`

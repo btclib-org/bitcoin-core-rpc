@@ -4,18 +4,20 @@
 
 """What the whole suite shares: the coverage gate a selective run drops.
 
-`coverage_fail_under` below takes btclib's reasoning from its
-tests/conftest.py rather than deriving a second one: the two answer the
-same question about the same pytest hooks. The two docstrings are not the
-same text and cannot be -- each names an example path out of the suite it
-sits in -- so a difference between them is not a drift to close, and
-neither file is the other's copy of record. This file has no hypothesis
-profile and no golden-file fixture to carry, `--cov` in addopts being the
-one thing bitcoin-core-rpc's suite and btclib's share.
+`coverage_fail_under` below answers section 8 of the organization
+standard, which is where the set of invocations that count as a selection
+is decided; the pytest hooks it hangs on are btclib's tests/conftest.py's
+too, that file asking the same question of the same plugin. The two
+docstrings are not the same text and cannot be -- each names an example
+path out of the suite it sits in -- so a difference between them is not a
+drift to close, and neither file is the other's copy of record. This
+file has no hypothesis profile and no golden-file fixture to carry, `--cov`
+in addopts being the one thing bitcoin-core-rpc's suite and btclib's share.
 """
 
 from __future__ import annotations
 
+from argparse import Namespace
 from pathlib import Path
 
 import pytest
@@ -60,11 +62,8 @@ def asks_for_everything(
 
 
 def coverage_fail_under(
-    asked: float | None,
     configured: float | None,
-    file_or_dir: list[str] | None,
-    keyword: str,
-    markexpr: str,
+    options: Namespace,
     *,
     invocation_dir: Path,
     testpaths: list[Path],
@@ -88,31 +87,59 @@ def coverage_fail_under(
     out of the coverage configuration, so pyproject.toml stays the one
     place the number lives.
 
-    The two thresholds are two arguments because by the time any of this
-    runs they no longer agree. pytest-cov fills `cov_fail_under` from the
-    coverage configuration in `pytest_load_initial_conftests`, before
-    `pytest_configure`, so "the option is set" has stopped meaning
-    "somebody asked for it": what still means that is `config.option`,
-    which carries only what the command line and addopts put there. An
-    explicit `--cov-fail-under` is therefore `asked`, and is handed back
-    untouched whichever kind of run it is -- the caller naming the
-    threshold is the one thing this must not overrule.
+    The threshold and the selection arrive as two arguments because by
+    the time any of this runs the two namespaces no longer agree.
+    pytest-cov fills `cov_fail_under` from the coverage configuration in
+    `pytest_load_initial_conftests`, before `pytest_configure`, so "the
+    option is set" has stopped meaning "somebody asked for it": what
+    still means that is `options`, `config.option` itself, which carries
+    only what the command line and addopts put there. An explicit
+    `--cov-fail-under` is therefore `options.cov_fail_under`, and is
+    handed back untouched whichever kind of run it is -- the caller
+    naming the threshold is the one thing this must not overrule.
 
-    A subset is what pytest was *asked* for: `-k`, `-m`, or paths that
+    A subset is what pytest was *asked* for, and section 8 of the
+    organization standard is what names the set: `-k`, `-m`,
+    `--deselect`, `--ignore`, `--ignore-glob`, `--lf`, and paths that
     leave part of the suite out, which is `asks_for_everything`'s
-    question and not whether a path was named at all. Not every way a
-    run can be short -- `--lf`, `--deselect` and an `-x` that stops early
-    are not read -- so those still meet the full threshold and report a
-    shortfall the tree does not have. They are the flags of an iteration
-    whose next run is the whole suite, and reading intent off all of
-    them would make this a second definition of what a real run is.
+    question and not whether a path was named at all. A run that leaves
+    tests out measures the same source with fewer tests, so what the
+    report is short of is the tests that did not run -- a shortfall no
+    reader can tell from one the tree has, which is what teaches whoever
+    meets it to reach for `--no-cov`. What is read is that a flag was
+    passed and not what it came down to: an `--ignore` naming a path the
+    suite does not hold narrows nothing and drops the floor anyway, for
+    the reason the next paragraph gives of `--lf`.
+
+    `--lf` counts wherever it appears, rather than only where the cache
+    holds a failure to rerun. What the invocation asked for is what
+    decides, and the cache is a fact about the run before it: reading it
+    here would be a second implementation of the cacheprovider's own rule
+    for which tests `--lf` comes down to. What that costs is the `--lf`
+    finding nothing to rerun, which is the whole suite ungated, and the
+    bare run after it measures the tree again.
+
+    An `-x` that stops early is outside the set: what cuts that run short
+    is a failure and not what the invocation asked for.
     """
+    asked: float | None = options.cov_fail_under
     if asked is not None:
         return asked
-    whole_suite = asks_for_everything(
-        file_or_dir, invocation_dir=invocation_dir, testpaths=testpaths
+    narrowing = (
+        options.keyword,
+        options.markexpr,
+        options.deselect,
+        options.ignore,
+        options.ignore_glob,
+        # `-p no:cacheprovider` leaves `--lf` unregistered rather than
+        # false, and a run that cannot pass the flag has not passed it
+        getattr(options, "lf", False),
     )
-    if not whole_suite or keyword or markexpr:
+    if any(narrowing):
+        return 0
+    if not asks_for_everything(
+        options.file_or_dir, invocation_dir=invocation_dir, testpaths=testpaths
+    ):
         return 0
     return configured
 
@@ -130,11 +157,8 @@ def pytest_configure(config: pytest.Config) -> None:
     testpaths: list[str] = config.getini("testpaths")
     namespace = config.known_args_namespace
     namespace.cov_fail_under = coverage_fail_under(
-        config.option.cov_fail_under,
         namespace.cov_fail_under,
-        config.option.file_or_dir,
-        config.option.keyword,
-        config.option.markexpr,
+        config.option,
         invocation_dir=config.invocation_params.dir,
         testpaths=[config.rootpath / path for path in testpaths],
     )

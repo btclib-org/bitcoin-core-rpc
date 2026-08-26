@@ -60,6 +60,37 @@ carry a union merge driver that would keep both sides' numbers.
   nothing about this package. `[tool.uv.build-backend]` `source-exclude`
   now names them.
 
+- **A run narrowed by `--deselect`, `--ignore`, `--ignore-glob` or `--lf`
+  is reported and not gated** (closes #268). `tests/conftest.py`'s
+  `coverage_fail_under` read `-k`, `-m` and the paths alone, so
+  `uv run pytest --ignore=tests/transport_test.py` was handed the whole
+  suite's floor with part of the suite left out and ended in `Required
+  test coverage of 100.0% not reached` — the shortfall being the tests
+  that did not run, printed the way one of the tree's own would be.
+  Section 8 of the organization standard names the set, and it is the
+  set the hook now reads. `--lf` counts wherever it appears rather than
+  only where the cache holds a failure to rerun: what decides is what
+  the invocation asked for, and the price is the `--lf` that finds
+  nothing to rerun and so is the whole suite ungated. The hook takes
+  `config.option` rather than one parameter per flag, so what a run
+  asked for is read in one place.
+
+- **The convention declaration names section 7's socket bullet** (issue
+  btclib-org/.github#458). `tests/conventions_test.py`'s `_CONVENTIONS`
+  is the vocabulary `tests/README.md`'s declaration is written in, and
+  **the suite opens no socket** was missing from it — a name outside the
+  tuple fails the check, so that convention could be put in neither half
+  of the declaration, neither the table nor *Not tested here*. It is
+  declared not tested, with the reason: `rpc_smoke_test.py` binds a
+  loopback port of its own and listens on it to test the port probe
+  `.github/scripts/rpc_smoke.py` uses, so a walk over `socket()` call
+  sites — which is how section 7 asks for the convention to be driven —
+  finds those constructions, and a test of it here would carry that file
+  written into it as the exemption the bullet refuses. The sentences
+  that asserted the opposite in passing, in `CONTRIBUTING.md`'s
+  environment section and in `pyproject.toml`'s `-n auto` comment, say
+  instead what holds: no test here reaches the network.
+
 ### Repository
 
 - **The badge row is a function of the tree and its order is section 2's**
