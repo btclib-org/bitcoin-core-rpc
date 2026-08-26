@@ -7,20 +7,40 @@ As used by the btclib library.
 this is and whether it can be used, and the second whether it works. A
 badge that reports no state -- "we use ruff", "we use uv" -- reports a
 choice instead, and those are in CONTRIBUTING.md, beside the prose that
-says how the choice is enforced. One badge per line keeps a change to
-one line and every line inside MD013, whose 80 columns bind only where a
-space follows them. btclib and btclib-secp256k1 carry the same two
-lines. -->
+says how the choice is enforced. One badge per line keeps a change to one
+line and every line inside MD013, whose 80 columns bind only where a space
+follows them. Which badge is here at all is a property of the tree and
+never a curation, and the order is section 2's; the two lines are a blank
+line apart, so the grouping this comment describes is the one a reader
+sees. btclib and btclib-secp256k1 carry the same two lines.
+The OpenSSF Scorecard badge sits in the sentinels' calendar order like
+every other: section 10 gives scorecard a day/hour row, and the
+exception that section states for it -- its triggers are the action's
+own -- is to the trigger rule rather than to the calendar. -->
 [![PyPI version](https://img.shields.io/pypi/v/bitcoin-core-rpc.svg?logo=pypi)](https://pypi.org/project/bitcoin-core-rpc/)
 [![downloads](https://static.pepy.tech/badge/bitcoin-core-rpc)](https://pepy.tech/project/bitcoin-core-rpc)
 [![development status](https://img.shields.io/pypi/status/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)  
-[![supported Python versions](https://img.shields.io/pypi/pyversions/bitcoin-core-rpc.svg?logo=python)](https://pypi.org/project/bitcoin-core-rpc/)  
+[![license](https://img.shields.io/github/license/btclib-org/bitcoin-core-rpc.svg)](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/LICENSE)
+[![supported Python versions](https://img.shields.io/pypi/pyversions/bitcoin-core-rpc.svg?logo=python)](https://pypi.org/project/bitcoin-core-rpc/)
+[![wheel](https://img.shields.io/pypi/wheel/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
+[![implementation](https://img.shields.io/pypi/implementation/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
+[![GitHub release](https://img.shields.io/github/v/release/btclib-org/bitcoin-core-rpc.svg)](https://github.com/btclib-org/bitcoin-core-rpc/releases)
+
 [![test workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml)
 [![lint workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml)
 [![docs workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/docs.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/docs.yml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/bitcoin-core-rpc/main.svg)](https://results.pre-commit.ci/latest/github/btclib-org/bitcoin-core-rpc/main)
-[![documentation build](https://readthedocs.org/projects/bitcoin-core-rpc/badge/?version=latest)](https://bitcoin-core-rpc.readthedocs.io)
+[![links workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/links.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/links.yml)
+[![codeql workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/codeql.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/codeql.yml)
+[![deps-latest workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/deps-latest.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/deps-latest.yml)
+[![pypi-install workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/pypi-install.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/pypi-install.yml)
+[![os-ubuntu workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-ubuntu.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-ubuntu.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/btclib-org/bitcoin-core-rpc/badge)](https://scorecard.dev/viewer/?uri=github.com/btclib-org/bitcoin-core-rpc)
+[![os-macos workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-macos.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-macos.yml)
+[![os-windows workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-windows.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-windows.yml)
+[![mutation workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/mutation.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/mutation.yml)
+[![integration-bitcoind workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/integration-bitcoind.yml/badge.svg)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/integration-bitcoind.yml)
+[![documentation build](https://app.readthedocs.org/projects/bitcoin-core-rpc/badge/?version=latest)](https://bitcoin-core-rpc.readthedocs.io)
 
 One source file with nothing but the standard library behind it, fully
 annotated and shipping `py.typed`. `BitcoinCoreRpcClient` invokes any one

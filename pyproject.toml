@@ -153,9 +153,27 @@ pull_requests = "https://github.com/btclib-org/bitcoin-core-rpc/pulls"
 [dependency-groups]
 # what it takes to develop, build and test this package. hypothesis is
 # absent, unlike in a codec library where the malformed input nobody wrote
-# down is the point: what this module refuses is a shape -- a mapping keyed
-# by an int, a body that is not utf-8, a status -- and the shapes are
-# enumerable, which is what the parametrized cases below `tests/` are
+# down is the point. Most of what this module refuses is a shape -- a
+# mapping keyed by an int, a body that is not utf-8, a status -- and the
+# shapes are enumerable, which is what the parametrized cases below
+# `tests/` are.
+#
+# `_read_bounded` is the half that reasoning does not cover, and it was
+# measured rather than assumed: its arithmetic is over indices, which is
+# the space a generator searches and a case list does not. What the search
+# would buy here is nothing, for two reasons in the code. The accumulator
+# is one bytearray and the body is decoded once, after the loop, so a
+# chunk boundary falling inside a multibyte character is not a state this
+# module can reach. And a body is cut in two places, both of them reached
+# only under a non-200: `_read_bounded`'s `truncate=True`, and the
+# `MAX_ERROR_BODY_SIZE` slice taken where a caller's own transport
+# returned a non-200 without raising, which `_read_bounded` never sees.
+# Under a non-200 `_reply_object` answers every parse failure -- a split
+# character included -- with the status, which is what the untruncated
+# body answers with too. Grepping `truncate` alone finds one of the two,
+# which is why both are named here. What is left is two indices,
+# `max_body_size` and one past it, and `tests/transport_test.py` asserts
+# both, in each direction and against a disagreeing `Content-Length`
 test = [
     "coverage",
     "pytest",
@@ -184,7 +202,7 @@ mutation = ["cosmic-ray"]
 # Named check, not build, so that --only-group build means the same thing
 # in btclib-secp256k1, which genuinely needs a group for building wheels
 check = ["check-sdist", "check-wheel-contents", "pyroma", "twine"]
-docs = ["myst-parser", "sphinx", "sphinx_rtd_theme"]
+docs = ["furo", "myst-parser", "sphinx"]
 dev = [
     { include-group = "test" },
     { include-group = "lint" },
@@ -284,6 +302,19 @@ source-exclude = [
     # and *.pyo are the backend's own default excludes and are not
     # repeated
     "/docs/build",
+    # the three test modules whose subject is not in the archive. `.github`
+    # is not shipped -- it is on check-sdist's own default ignore list --
+    # and each of these reads it: the first two load a script out of
+    # `.github/scripts` by path, `.github/scripts` being no package, and
+    # the third reads the interpreter matrices out of `.github/workflows`.
+    # Shipped, they are a `FileNotFoundError` and a failed assertion rather
+    # than a test, so a downstream packager building from the sdist and
+    # running the suite -- which is what a distribution build does -- reads
+    # a red run that says nothing about this package. Anchored, so that
+    # nothing else of that name anywhere goes with them
+    "/tests/rpc_smoke_test.py",
+    "/tests/normalize_sdist_test.py",
+    "/tests/interpreters_test.py",
     # a cache a linter or a type checker writes beside the file it has
     # just read, and not something anyone puts there on purpose: the VS
     # Code mypy extension .vscode/extensions.json recommends writes one
@@ -593,53 +624,19 @@ exclude = [
 # code its own comment has to translate
 preview = true
 explicit-preview-rules = true
-# the same selection btclib-org holds its Python to. What the survey behind
-# it rejected, with the reason rather than a count: N (uppercase math
-# symbols are a convention elsewhere in the org), COM (COM812, which ruff's
-# own documentation recommends against alongside the formatter), EM, FBT,
-# EXE (all EXE001, the shebang-not-executable finding that
-# .pre-commit-config.yaml records the same decision about), TC, PTH, ARG,
-# ANN, SLF (tests reaching into private members on purpose), PERF.
-# TD is left out for a different reason than any of those, the survey
-# never having reached it: against the FIX below, which refuses a TODO,
-# a FIXME, an XXX or a HACK that opens a comment, every unsuppressed
-# line TD could discipline is a line FIX already refuses. The two are
-# redundant, and refusing a marker is worth more here than formatting it
-select = [
-    "A",   # flake8-builtins: a name that shadows a builtin
-    "B",   # flake8-bugbear
-    "BLE", # flake8-blind-except
-    "C4",  # flake8-comprehensions
-    "C90", # mccabe, at ruff's default with suppressed exceptions
-    # flake8-copyright, replacing the copyright-notice pre-commit hook:
-    # a rule living inside ruff's own file-selection logic checks
-    # whatever files it is given the same way regardless of who is
-    # asking, unlike the retired hook, which checked only staged files
-    # unless given --enforce-all
-    "CPY",
-    "D",    # pydocstyle
-    "E",    # pycodestyle errors
-    "ERA",  # eradicate: code that was commented out instead of deleted
-    "F",    # pyflakes
-    "FIX",  # flake8-fixme: unfinished work belongs in an issue, not a comment
-    "FURB", # refurb
-    "I",    # isort
-    "ISC",  # flake8-implicit-str-concat
-    "PGH",  # pygrep-hooks
-    "PIE",  # flake8-pie
-    "PL",   # pylint
-    "PT",   # flake8-pytest-style
-    "RET",  # flake8-return
-    "RSE",  # flake8-raise
-    "RUF",  # ruff-specific rules
-    "S",    # flake8-bandit
-    "SIM",  # flake8-simplify
-    "T20",  # flake8-print: a library writes to no stream of its own
-    "TID",  # flake8-tidy-imports: absolute, so the layering is readable
-    "TRY",  # tryceratops
-    "UP",   # pyupgrade
-    "W",    # pycodestyle warnings
-]
+# Every rule family ruff ships, present ones and a release's future ones
+# alike, rather than a hand-picked list: a list is a thing that rots, since
+# nothing forces a second edit here the day ruff ships a family nobody has
+# looked at yet. `ALL` takes a new family in on the pull request that bumps
+# ruff's own pinned rev instead, which is the day somebody is already
+# looking at what changed. Section 5 of the organization standard states
+# the rule, and `ignore` below is where every declined rule's reason
+# lives -- a rule the formatter conflicts with, cited from ruff's own
+# docs/formatter.md and not argued here since that list is the vendor's; a
+# rule this tree declines on its own merits, argued beside it; or a finding
+# that is real and is not in `ignore` at all, fixed at its site or answered
+# with a `# noqa` that RUF100 retires the day it stops being needed
+select = ["ALL"]
 # a rule and not a family, and unreached by PL above: PLW1514 is a
 # preview rule, so a family in `select` never reaches it -- a preview
 # rule runs only where `extend-select` names it exactly. It asks that
@@ -651,7 +648,38 @@ select = [
 # decoded-subprocess-encoding pre-commit hook refuses the same defect
 # one layer out, at a subprocess call rather than at open()
 extend-select = ["unspecified-encoding"]
+# named rather than coded, here and in per-file-ignores below: an entry
+# that suppresses a single rule can say which, so the reason sits in the
+# comment and the rule sits in the entry, with no code left to look up
+# between them. Where the entry declines a whole family for a construct
+# this tree does not contain, the family has no name of its own to give it
+# and the bare prefix is the only spelling that says "every member"
 ignore = [
+    # ruff's own docs/formatter.md, under "Conflicting lint rules", read at
+    # the ruff revision .pre-commit-config.yaml pins: each of these is
+    # undone by the formatter's own rewriting, so selecting it is a lint
+    # failure the next `ruff format` produces again. The list is the
+    # vendor's and does not change with this tree.
+    # `incorrect-blank-line-before-class` (D203) needs no entry: the pep257
+    # convention below already disables it in favour of D211, the other
+    # half of the pair ruff calls incompatible, and does so without the
+    # warning ruff reserves for a pair nothing has settled.
+    # `multi-line-implicit-string-concatenation` (ISC002) needs none
+    # either, the vendor's own condition being "if used without ISC001",
+    # and ISC001 stays selected here
+    "tab-indentation",
+    "indentation-with-invalid-multiple",
+    "indentation-with-invalid-multiple-comment",
+    "over-indented",
+    "docstring-tab-indentation",
+    "triple-single-quotes",
+    "bad-quotes-inline-string",
+    "bad-quotes-multiline-string",
+    "bad-quotes-docstring",
+    "avoidable-escaped-quote",
+    "unnecessary-escaped-quote",
+    "missing-trailing-comma",
+    "prohibited-trailing-comma",
     # docstrings: every public module, class, method and function must
     # carry one -- D100/D104 and the D101/D102/D103 left out of this list
     # enforce exactly that. The docstring rules ignored here are the ones
@@ -693,6 +721,105 @@ ignore = [
     # check --select TRY003 --no-cache .` lists the sites, spread the same
     # way
     "raise-vanilla-args", # TRY003
+    # flake8-errmsg asks the same message to be built in a named variable
+    # before a raise names it, so the entry above already gives the reason
+    # this tree keeps the opposite shape. `dot-format-in-exception` finds
+    # nothing today, this module having no `.format()` call left to catch,
+    # and the same argument declines it rather than leaving a hole one
+    # could reopen unnoticed
+    "raw-string-in-exception",
+    "f-string-in-exception",
+    "dot-format-in-exception",
+    # flake8-unused-arguments cannot tell a parameter nobody reads from a
+    # signature that is not this code's to choose. Both shapes are here:
+    # `redirect_request` overrides `HTTPRedirectHandler`'s method and
+    # matches urllib's seven positional parameters while using none of
+    # them, and every recorded transport in `tests/` implements the
+    # `transport(request, timeout)` contract `call` invokes, which is what
+    # makes one substitutable for another. The member codes this tree does
+    # not hit today read the same call sites through a classmethod, a
+    # staticmethod or a lambda instead
+    "unused-function-argument",
+    "unused-method-argument",
+    "unused-class-method-argument",
+    "unused-static-method-argument",
+    "unused-lambda-argument",
+    # flake8-annotations' any-type alone, and it is the module's subject
+    # rather than a gap in its annotations: an rpc result is whatever the
+    # node's JSON gives back, `RpcError.data` is whatever the method put
+    # there, and a caller narrows what it asked for. Faking a narrower
+    # type here would be a cast nothing can check. The rest of the family
+    # stays selected, mypy in strict mode already refusing an unannotated
+    # definition
+    "any-type",
+    # flake8-boolean-trap: a caller reading `f(x, True)` cannot say what
+    # the flag means without opening the signature. Every site is a test
+    # double or the smoke script's own switch, where the call and the
+    # definition are a screen apart and the argument is the case being
+    # driven; the shipped module's own flags are keyword-only already,
+    # which is the rule this one approximates
+    "boolean-type-hint-positional-argument",
+    "boolean-default-value-positional-argument",
+    "boolean-positional-value-in-call",
+    # flake8-type-checking asks an import used only in an annotation to
+    # move behind `if TYPE_CHECKING:` so it costs nothing at runtime. What
+    # it would buy is an import this tree does not pay for -- every name
+    # it names is the standard library's, already imported by something
+    # else in the same process -- against the one property `CONTRIBUTING`
+    # calls the constraint: a file meant to be read and copied, where an
+    # import written twice, once guarded and once quoted, is a shape a
+    # reader has to decode. `runtime-cast-value` is the same trade at a
+    # `cast()`
+    "typing-only-first-party-import",
+    "typing-only-third-party-import",
+    "typing-only-standard-library-import",
+    "runtime-cast-value",
+    # flake8-self: a caller outside the module reaching into a private
+    # attribute is what this rule is for, and it cannot tell that caller
+    # from a test asserting an implementation detail on purpose -- the
+    # bounded read's own offset and chunk size, which is where this
+    # module's arithmetic lives and what `tests/transport_test.py` is
+    # about
+    "private-member-access",
+    # zero-finding for a construct this tree does not contain, so
+    # selecting it reads as an enforced invariant while enforcing nothing.
+    # `git grep -E 'import logging|datetime|await |^#!|sys\.version'` over
+    # the `.py` files answers with nothing, and the module imports nothing
+    # outside the standard library at all, which is the rest of it: DTZ
+    # without a naive datetime, G and LOG without logging, ASYNC without
+    # await, NPY without NumPy, PD without pandas, EXE without a shebang
+    # to check an executable bit against (the decision
+    # .pre-commit-config.yaml already states for
+    # check-shebang-scripts-are-executable), AIR without Airflow, DJ
+    # without Django, FAST without FastAPI, INT without gettext, ICN
+    # without an import this tree aliases at all, and YTT without a
+    # `sys.version` comparison
+    "DTZ",
+    "G",
+    "LOG",
+    "ASYNC",
+    "NPY",
+    "PD",
+    "EXE",
+    "AIR",
+    "DJ",
+    "FAST",
+    "INT",
+    "ICN",
+    "YTT",
+    # flake8-todos disciplines the format of a marker FIX refuses
+    # outright: the seven names below are the whole family, and each asks
+    # a question about a TODO, FIXME, XXX or HACK comment that a tree FIX
+    # holds clean cannot contain. The first also steers a refused FIXME
+    # toward TODO, which FIX002 refuses just as hard, and TD is not even a
+    # superset of FIX -- HACK draws no TD diagnostic at all
+    "invalid-todo-tag",
+    "missing-todo-author",
+    "missing-todo-link",
+    "missing-todo-colon",
+    "missing-todo-description",
+    "invalid-todo-capitalization",
+    "missing-space-after-todo-colon",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -702,6 +829,14 @@ ignore = [
 # asked. T20 is selected for the module, which writes to no stream of its
 # own; a script whose caller is a workflow step is the case it is not about
 ".github/scripts/rpc_smoke.py" = ["T201"]
+# flake8-no-pep420: each is a standalone entry point a workflow step
+# invokes with `python .github/scripts/<name>.py`, never an import -- the
+# directory holds no __init__.py because it is not a package, and adding
+# one to satisfy this rule would make it look like one
+".github/scripts/*.py" = ["INP001"]
+# sphinx imports this one by its own convention, reading docs/source/ as a
+# configuration directory rather than as a package; same reason
+"docs/source/conf.py" = ["INP001"]
 # the D rules are not here: a public test function, fixture or method
 # states what it verifies -- the property, the vector, the failure mode --
 # under the same docstring gate as the module's public interface. D102/D103

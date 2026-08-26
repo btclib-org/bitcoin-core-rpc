@@ -60,22 +60,20 @@ strings match would mean
 inventing a job whose only purpose is to be named, or naming a matrix cell
 in the rule — which is the first thing this section forbids.
 
-`codeql: every job passed` is not among them, and that is the one place a
-check was traded for the slots it held. GitHub Free gives an organization
-twenty concurrent jobs, shared across every repository in it: a commit here
-asked for forty-four and a concurrent one elsewhere in the organization for
-thirty-nine, so a pull request in either waited for a slot rather than for
-the work. `codeql.yml` now runs
-on `main` and on its Tuesday schedule, the analysis landing on the merge
-commit rather than ahead of it, and it still produces that aggregate — the
-name is available, so requiring it again is a patch to the rule and nothing
-in the tree.
+`codeql: every job passed` is not among them, and it is a name this rule
+could take: `codeql.yml` runs on a pull request, so the aggregate reports
+on the run a pull request has, which is what a required status check needs
+and what an aggregate exists to give one. Adding it is a patch to the rule
+and nothing in the tree. What holds it back is the ceiling on concurrent
+jobs *Plan-gated settings* below measures — the analysis is two more cells
+a merge would wait for — against a workflow whose findings `lint.yml`
+already covers in part on every branch.
 
-What still reads a branch before it merges is the workflow half of the same
-question: `zizmor` is a pre-commit hook, so `lint.yml` audits these very
-files for an injected expression on every pull request, and that check is
-required. What a merge defers is the rest of the analysis, for the time
-between that merge and the next run — which for `main` is the merge itself.
+The workflow half of the same question is required, and separately:
+`zizmor` is a pre-commit hook, so `lint.yml` audits these very files for
+an injected expression on every pull request. What an unrequired CodeQL
+run defers is not the analysis but the blocking — the alerts are raised
+against the branch either way, and a merge is what stops waiting on them.
 
 `Build the documentation` is named on its own on purpose: a rule naming
 `Lint and type-check` alone would leave a red docs build outside the
@@ -253,10 +251,23 @@ gh api -X PATCH repos/btclib-org/bitcoin-core-rpc/code-quality/setup \
 
 What decided it is the ceiling the section above already trades against,
 not the queries. `Analyze (python)` ran on every pull request and every
-push to `main` -- `Code Quality: PR #N` in the run list -- for some 44
-seconds of a slot each time, and the twenty concurrent jobs are shared
-with every other repository in the organization, where the same setting
-was on.
+push to `main`, and what it cost is still readable from the check runs of
+a commit of that era rather than from the run list, which no longer names
+it:
+
+```shell
+gh api \
+  "repos/btclib-org/bitcoin-core-rpc/commits/dbd3263/check-runs?per_page=100" \
+  --jq '.check_runs[] | select(.name == "Analyze (python)")
+        | (.completed_at | fromdate) - (.started_at | fromdate)'
+# 44
+```
+
+`per_page` is load-bearing: that commit carries more check runs than a
+default page holds, and this one is not on the first page. A slot held for
+that long on every commit is a slot shared with every other repository in
+the organization, where the same setting was on -- *Plan-gated settings*
+below is where the ceiling's own figure lives.
 
 What it produced in exchange cannot be read from outside a browser. There
 is no `code-quality/alerts` and no `code-quality/analyses`, both 404, and
@@ -559,6 +570,23 @@ it disabled that link is a 404, so the setting and the two files go
 together.
 
 ## Plan-gated settings
+
+**The ceiling on concurrent jobs lives here**, and nowhere else in this
+tree: it is a number the plan decides rather than anything this repository
+configures, so prose that needs the reasoning — a workflow header,
+`CONTRIBUTING.md` — states the ceiling unnumbered and points here. A date
+beside the figure would say when it was true and not that it still is,
+where the command answers for the day it is run:
+
+```shell
+gh api orgs/btclib-org --jq .plan.name    # free
+```
+
+[GitHub's own table](https://docs.github.com/en/actions/reference/limits)
+is what turns that answer into a number, and on the free plan it is twenty
+concurrent jobs, shared across every repository in the organization. That
+is what every trade above spends: a check required of a pull request holds
+a slot every other pull request in the organization then waits for.
 
 Some settings cannot be enabled and fail silently: secret scanning's
 non-provider patterns and validity checks need paid Secret Protection, and

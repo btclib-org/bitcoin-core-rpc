@@ -10,10 +10,18 @@
   }
 -->
 
-Every change of a release, in full: what changed, why, and what it cost.
+An entry for anything a reader would notice, in the group it belongs to:
+what changed, why, and what it cost. That is section 9 of
+[the organization standard][std] and `CONTRIBUTING.md`'s own sentence,
+and it is narrower than "every change" — a comment reworded inside a
+workflow changes nothing a reader of this repository meets, and lands
+without an entry. Where the two readings differ, what decides is whether
+somebody who did not write the change would see it.
 [RELEASE_NOTES.md](./RELEASE_NOTES.md) has the release notes, which say
 what a user has to act on; this file is the record behind them, and is
 where a claim in those notes can be checked.
+
+[std]: https://github.com/btclib-org/.github
 
 Neither file counts its entries: `grep -c '^- '` does that, whereas a
 stated number is a line every open branch has to edit, and the two files
@@ -21,7 +29,166 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.9 (work in progress, not released yet)
 
+### Changed
+
+- **The documentation is built with `furo` and with `-n` beside `-W`**
+  (issue #256). Section 3 of the organization standard picks the theme
+  for the shape a reference generated from docstrings has, and section 5
+  asks for nitpick mode: `-W` never sees a cross-reference that resolves
+  to nothing, so a renamed class in a `:class:` role is a green build and
+  a dead link. `sphinx.ext.intersphinx` lands with it and comes first,
+  without which every annotation naming `pathlib.Path` or
+  `collections.abc.Callable` would be reported as this tree's own broken
+  link. `nitpick_ignore` is empty, which is what the build answering
+  clean means.
+
+- **`Chain`'s docstring no longer opens with a phrase napoleon reads as a
+  type** (issue #256). `Core's five chain names: what -chain= takes` has
+  the shape napoleon parses as `type: description`, so the built page
+  carried a `Type: Core's five chain names` field naming a class nothing
+  declares — invisible while `-W` alone ran, and the first thing `-n`
+  reports. The docstring says the same in a sentence that is not that
+  shape.
+
+- **The sdist ships no test module it cannot run** (closes #220).
+  `tests/rpc_smoke_test.py` and `tests/normalize_sdist_test.py` load a
+  script out of `.github/scripts` by path and `tests/interpreters_test.py`
+  reads the workflow matrices, and `.github` is not in the archive — it is
+  on `check-sdist`'s own default ignore list. Unpacked and run, those
+  three were a `FileNotFoundError` and a failed assertion rather than a
+  test, so a packager building from the sdist read a red suite that said
+  nothing about this package. `[tool.uv.build-backend]` `source-exclude`
+  now names them.
+
 ### Repository
+
+- **The badge row is a function of the tree and its order is section 2's**
+  (closes #262, issue #256). The licence badge was
+  `img.shields.io/badge/license-MIT-blue`, which renders `MIT` because the
+  URL says so rather than because `LICENSE` does; the derived form
+  replaces it. Read the Docs is named at `app.readthedocs.org`, the other
+  spelling answering `307` to it. What the property rule adds is `wheel`,
+  `implementation`, `github/v/release` and a badge per sentinel, in the
+  order section 10's calendar gives them. The rows are grouped by a blank
+  line as `btclib` and `btclib-secp256k1` group theirs, which is what makes
+  the block's own comment true of what renders: two hard line breaks split
+  it into a row the comment did not describe. `trailing-whitespace` keeps
+  no markdown derogation now, nothing here spelling a line break that way.
+
+- **ruff selects every family it ships** (issue #256). `select = ["ALL"]`
+  rather than a hand-picked list, which is a thing that rots: nothing
+  forces a second edit the day ruff ships a family nobody has looked at.
+  What each newly reached family costs is in `ignore`, one entry per rule
+  and the reason beside it — the formatter's own conflict list cited from
+  ruff's `docs/formatter.md`, the declines this tree argues for itself,
+  and the families whose construct this tree does not contain. `PYI034` is
+  answered where it fires instead, with a `# noqa` that `RUF100` retires
+  the day the interpreter floor reaches `Self`.
+
+- **`codeql.yml` runs on a pull request** (closes #233, issue #256). The
+  OpenSSF Scorecard's `SAST` check walks a merged pull request's own
+  commits and scored the analysis as run on none of them, the workflow
+  producing no run there. The same trigger is what makes
+  `codeql: every job passed` a name a branch rule could require, which is
+  what an aggregate job is for: without it the job produced a context no
+  rule could ask for. Whether the rule asks is `REPOSITORY.md`'s, which
+  reads the endpoint.
+
+- **`scorecard.yml`, and `griffe check` in the release path** (issue
+  #256). `gh api repos/btclib-org/bitcoin-core-rpc --jq '.fork, .private'`
+  answers `false` and `false`, which is the property section 10 keys the
+  sentinel on; its calendar row already exists and its minute is this
+  repository's. The `public-api` job compares the tag being cut against
+  the tag before it and the publish jobs wait on it: the public-surface
+  census asserts that `__all__` is declared and that what it names exists,
+  which never asks whether this release took something the last one gave.
+
+- **The public surface is a census** (closes #235). Section 7 stops its
+  escape clause short of a repository publishing an importable package,
+  and this one publishes. `standalone_test.py` walks the module's own body
+  and fails when a name it defines and does not underscore is missing from
+  `__all__`, or when `__all__` names something nothing defines — the
+  second being a failure a caller writing `from bitcoin_core_rpc import *`
+  would otherwise be the first to see. `tests/README.md` moves the bullet
+  from *Not tested here* to the table.
+
+- **The ceiling on concurrent jobs has one home** (issue
+  btclib-org/.github#412). The figure was stated in four workflow headers,
+  in `CONTRIBUTING.md` and twice in `REPOSITORY.md`, none of them beside a
+  command. It now lives in `REPOSITORY.md`'s *Plan-gated settings*, with
+  `gh api orgs/btclib-org --jq .plan.name` and GitHub's own table beside
+  it; every other statement gives the reasoning with the ceiling unnumbered
+  and points there. A date beside the number was the rejected
+  alternative: it says when the figure was true and never that it still is.
+
+- **`pypi-install.yml`'s index-wait step runs on every trigger** (issue
+  btclib-org/.github#49). Guarded by `if: inputs.version != ''` a tag was
+  the script's only execution path, and a step a release is the first to
+  run is a step whose defect ships with that release — which this script
+  has already done, in more than one repository of the organization. The
+  empty case is a condition around the loop rather than an early `exit 0`,
+  and that is the whole point of the change: bash parses a script as it
+  runs, so an exit at the top leaves what follows unparsed and the weekly
+  runs would go on not reading it. Measured — a syntax error below an
+  early `exit 0` prints and exits `0`, the same error inside a branch the
+  run does not take exits `2`.
+
+- **The queue measurements that nothing re-derives are gone** (closes
+  #213, #216, #217). `os-windows.yml`'s header weighed "the fourteen
+  Windows cells" against "ubuntu's twenty-eight", where the second
+  contained the first, and named a job pair `42e600e` had already
+  superseded; `os-macos.yml` offered a command reading `test.yml`'s latest
+  run, which carries no macOS cell, for a figure taken from a matrix the
+  gate no longer has. Both headers now say why those rows are off the
+  gate, which is the ceiling above, and state no count of their own.
+  `REPOSITORY.md`'s code-quality figure keeps its number and gains the
+  command that answers it — the check runs of a commit of that era, since
+  the run-list name it pointed at is gone, and `per_page` is load-bearing
+  there.
+
+- **`CHANGELOG.md` says what section 9 says it holds** (closes #218). The
+  head claimed "every change of a release, in full", which a
+  workflow-comment change refutes by landing without an entry. The rule is
+  the standard's and `CONTRIBUTING.md`'s: an entry for anything a reader
+  would notice.
+
+- **`CONTRIBUTING.md` and `REVIEWING.md` take the standard's shared half
+  byte for byte** (closes #246). Everything above
+  *This repository in particular* is now identical to
+  `btclib-org/.github`'s copy, which is what section 14 compares. What
+  arrives with it: *The landing queue*, the two citation spellings named
+  rather than pointed at, the `sha` pin on the merge call, and
+  `REVIEWING.md`'s verdict section, whose ack of record is a review rather
+  than a comment — which `claude-review.yml` already does, `e57f9a6`
+  having converged it on `gh pr review --comment` before this branch
+  existed, so the shared half arrives describing a workflow this tree
+  already runs rather than one it owes.
+
+- **`tests/conftest.py` no longer claims to keep btclib's docstring in
+  full** (closes #265). It does not, and cannot: each docstring names an
+  example path out of the suite it sits in. What is true is that this tree
+  took the reasoning rather than deriving a second one, which is what the
+  sentence says now.
+
+- **`tests/__init__.py`'s claim is about the clients** (closes #248). No
+  test builds a client that could reach a node, which is the property
+  `transport=` on every construction buys. Sockets are opened here:
+  `rpc_smoke_test.py` binds and listens on a loopback port to test the
+  port probe, so section 7's stricter "the suite opens no socket" is not
+  what this suite answers, and the docstring says so rather than leaving a
+  walk over `socket()` call sites to find it.
+
+- **hypothesis stays out, and `_read_bounded` is why that was measured**
+  (closes #253). Its arithmetic is over indices, which is the space a
+  generator searches and a case list does not — but a chunk boundary
+  cannot split a character here, the body being accumulated in one
+  bytearray and decoded once after the loop, and both places a body is
+  cut — `_read_bounded`'s `truncate=True`, and the `MAX_ERROR_BODY_SIZE`
+  slice on a caller's own transport, which `_read_bounded` never sees —
+  are reached only under a non-200, where every parse failure is answered
+  with the status. What is left is two indices, `max_body_size`
+  and one past it, which `tests/transport_test.py` already asserts in each
+  direction. The exemption's comment carries that measurement.
 
 - **The coverage floor holds for `uv run pytest tests`, the spelling
   that names the whole suite** (closes btclib-org/.github#430).

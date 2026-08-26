@@ -236,6 +236,103 @@ jobs:
           echo "run $GITHUB_RUN_NUMBER attempt $GITHUB_RUN_ATTEMPT: $suffix"
           echo "version-suffix=$suffix" >> "$GITHUB_OUTPUT"
 
+  # what the suite cannot ask: did this release take something the last
+  # one gave. standalone_test.py's census asserts that `__all__` is
+  # declared and that what it names exists, which answers whether the
+  # surface is *stated* and never whether it *changed*; RELEASE_NOTES.md
+  # is where a caller is told to act and is written by hand, so nothing in
+  # the tree notices an entry that is missing.
+  #
+  # The release path and not the merge gate, which is the choice worth
+  # stating because the second reads as stricter. Before 1.0 a package
+  # breaks its surface deliberately, so a gate reporting every break has
+  # nothing to say about which of them are allowed and ends in a human
+  # deciding -- this answer, arriving more often and earlier than it is
+  # wanted. Here it arrives once, where RELEASE_NOTES.md is being written
+  public-api:
+    name: Check the public API against the last release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # the previous tag has to be reachable in this checkout for the
+          # step below to find it, and the single-commit checkout every
+          # other job here takes would not carry it
+          fetch-depth: 0
+          fetch-tags: true
+      # a release tag is already on the remote by the time this job runs,
+      # so the "latest tag" griffe resolves on its own is the release being
+      # cut rather than the one before it -- and a tag compared against
+      # itself reports no break whatever changed. The previous tag is
+      # resolved explicitly instead, by walking the ref's own ancestry
+      # rather than by a version sort, so a tag pushed on a branch this
+      # history never merged is not taken as "previous". A rehearsal has no
+      # tag of its own and asks from HEAD directly
+      - name: Resolve the previous release
+        id: previous
+        env:
+          REF: >-
+            ${{ github.event_name == 'push' && format('{0}^', github.ref_name)
+            || 'HEAD' }}
+        run: |
+          if tag=$(git describe --tags --abbrev=0 --match 'v*' "$REF" 2>&1); then
+            echo "previous release: $tag"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+            echo "has-previous=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "no previous v* tag reachable from $REF: $tag"
+            echo "has-previous=false" >> "$GITHUB_OUTPUT"
+          fi
+      # caching off, as in version-check above and for the reason given
+      # there: this job runs on the triggers that comment names, and must
+      # not trust a cache entry written by a run it cannot vouch for
+      - name: Setup uv
+        if: steps.previous.outputs.has-previous == 'true'
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: false
+      # griffe runs from PyPI through uvx rather than from a dependency
+      # group: unlike pre-commit, which uv.lock pins because every
+      # contributor's own run has to agree with the gate's, this runs at
+      # release time only and on one maintainer's action, so a group buys
+      # a reproducibility nothing here needs. The version pin is what
+      # keeps the comparison from answering differently on two release
+      # days for a reason belonging to neither release.
+      # -s . -s src covers both layouts this package has published under:
+      # the tags through v2026.8.20 carry bitcoin_core_rpc/ at the
+      # repository root and the working tree has it under src/, and a
+      # search path finding nothing in one reference is skipped in favour
+      # of the other -- so this line does not have to change once a tag
+      # carries the src layout too.
+      # No base ref on a rehearsal: workflow_dispatch has no tag to read a
+      # public surface at, so the comparison falls back to griffe's own
+      # default, which is the current code
+      - name: Check the public API against the previous release
+        if: steps.previous.outputs.has-previous == 'true'
+        env:
+          PREVIOUS_TAG: ${{ steps.previous.outputs.tag }}
+          BASE_REF: ${{ github.event_name == 'push' && github.ref_name || '' }}
+        run: |
+          base_args=()
+          if [ -n "$BASE_REF" ]; then
+            base_args=(-b "$BASE_REF")
+          fi
+          if ! uvx griffe==2.2.0 check bitcoin_core_rpc -s . -s src \
+              -a "$PREVIOUS_TAG" "${base_args[@]}" -f github; then
+            msg="the public API changed since $PREVIOUS_TAG:"
+            echo "::error::$msg add a breaking-changes bullet to" \
+              "RELEASE_NOTES.md, or say here why the change is not one"
+            exit 1
+          fi
+      - name: Skip the check (no previous release to compare against)
+        if: steps.previous.outputs.has-previous == 'false'
+        run: |
+          echo "::notice::no previous v* tag is reachable; nothing to" \
+            "compare this release's public API against"
+
   # the whole build/test matrix, exactly as a pull request runs it, and
   # now the build too: test.yml's `dist` job builds the distribution
   # files, checks them and uploads them, so this call is what makes them
@@ -312,7 +409,7 @@ jobs:
 
   publish-testpypi:
     name: Publish to TestPyPI
-    needs: [test, lint, docs, ubuntu, macos, windows, integration]
+    needs: [public-api, test, lint, docs, ubuntu, macos, windows, integration]
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.repository == 'btclib-org/bitcoin-core-rpc'
@@ -338,7 +435,7 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [test, lint, docs, ubuntu, macos, windows, integration]
+    needs: [public-api, test, lint, docs, ubuntu, macos, windows, integration]
     if: >-
       github.event_name == 'push' &&
       github.repository == 'btclib-org/bitcoin-core-rpc'

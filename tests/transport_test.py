@@ -107,7 +107,10 @@ class FakeResponse:
             {} if content_length is None else {"Content-Length": content_length}
         )
 
-    def __enter__(self) -> FakeResponse:
+    # PYI034 asks for `Self`, which is typing's from 3.11 and this suite's
+    # floor is 3.10. Nothing subclasses this double, so the concrete return
+    # type says exactly what a caller gets
+    def __enter__(self) -> FakeResponse:  # noqa: PYI034
         return self
 
     def __exit__(

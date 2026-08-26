@@ -4,10 +4,14 @@
 
 """What the whole suite shares: the coverage gate a selective run drops.
 
-Ported from btclib's tests/conftest.py, whose docstring on
-`coverage_fail_under` this one keeps in full: this file has no
-hypothesis profile and no golden-file fixture to carry, `--cov` in
-addopts being the one thing bitcoin-core-rpc's suite and btclib's share.
+`coverage_fail_under` below takes btclib's reasoning from its
+tests/conftest.py rather than deriving a second one: the two answer the
+same question about the same pytest hooks. The two docstrings are not the
+same text and cannot be -- each names an example path out of the suite it
+sits in -- so a difference between them is not a drift to close, and
+neither file is the other's copy of record. This file has no hypothesis
+profile and no golden-file fixture to carry, `--cov` in addopts being the
+one thing bitcoin-core-rpc's suite and btclib's share.
 """
 
 from __future__ import annotations

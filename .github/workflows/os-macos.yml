@@ -6,19 +6,16 @@ name: os-macos
 # then owes, and what a matrix buys on a module built out of the standard
 # library.
 #
-# macOS is where the wait that ended the old arrangement came from.
-# Measured on one pull request run of the six-image matrix the gate used
-# to carry, each cell finishes in under a minute while the macOS cells
-# wait 15.7 and 13.1 minutes on average for a runner, against 0.1 to 0.3
-# for ubuntu and windows: 45 jobs, 17 minutes of work, 212 minutes of
-# queueing. The command that re-derives it, for whoever doubts the split
-# later:
+# macOS is where the wait that ended the old arrangement came from. These
+# cells finish quickly and then queue for a runner far longer than the
+# ubuntu and windows cells beside them, so a gate carrying them spent a
+# review's wall clock on the scarcest runner family in the fleet rather
+# than on the work. What settles it is not a cost of this repository's
+# either way: it is the ceiling on concurrent jobs REPOSITORY.md's
+# "Plan-gated settings" measures, beside the command that re-derives it,
+# and this workflow is that ceiling applied to the macOS rows.
 #
-#     id=$(gh run list --workflow=test.yml --limit 1 \
-#         --json databaseId --jq '.[0].databaseId')
-#     gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100"
-#
-# What these cells buy is narrower than the count suggests, and the reason
+# What these cells buy is narrower than the matrix suggests, and the reason
 # is in the client: the one platform-conditional branch in it is the datadir
 # table in `default_datadir`, which the suite drives by patching
 # `sys.platform` -- so the macOS row of that table is already asserted on
