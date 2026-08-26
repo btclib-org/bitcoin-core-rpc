@@ -27,12 +27,14 @@ name: deps-latest
 # Scope: what uv resolves. Not the pre-commit hook revisions, which are
 # pinned in .pre-commit-config.yaml and bumped by pre-commit.ci's weekly
 # pull request -- that pull request runs the merge gate, so ruff and the
-# other pinned hooks already have their sentinel. mypy is the exception
+# other pinned hooks already have their sentinel. mypy is one exception
 # and the reason the lint job below is here at all: its hook is local and
-# shells out to uv, so it is the lock that pins it. Not sphinx at latest
-# either: the lint workflow builds the documentation from the lock, and
-# read the docs builds it on its own schedule and reports its own
-# failures.
+# shells out to uv, so it is the lock that pins it. typos is the other:
+# its repo: local hook pins a version by hand in .pre-commit-config.yaml,
+# which neither pre-commit.ci nor this job's own upgrade ever moves. Not
+# sphinx at latest either: the lint workflow builds the documentation
+# from the lock, and read the docs builds it on its own schedule and
+# reports its own failures.
 #
 # Nothing here gates anything, by construction: a separate workflow, with
 # no aggregate job, named by no branch protection rule. That is the point.

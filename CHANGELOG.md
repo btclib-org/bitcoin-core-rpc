@@ -1693,6 +1693,26 @@ carry a union merge driver that would keep both sides' numbers.
   `import bitcoin_core_rpc` keep naming the package unchanged, since an
   import name is not a path.
 
+- **`.pre-commit-config.yaml`'s `typos` hook converges to
+  `btclib-org/.github`'s `repo: local` shape** (issue
+  btclib-org/.github#399). `autoupdate` walks every `repo:` entry except
+  `local` and `meta`, so the `crate-ci/typos` mirror kept receiving the
+  moving `v1` alias that `pinned-rev` then refused on every run;
+  `additional_dependencies: [typos==1.49.0]` now carries the pin in
+  place of `rev:`, and the comment explaining why is `btclib-org/.github`'s
+  own, taken across unchanged. Two comments this repository carries on
+  its own claimed every pre-commit hook's revision is kept current
+  either by pre-commit.ci or, for `mypy` alone, by `deps-latest.yml`'s
+  own upgrade -- neither reaches `typos` any longer, and
+  `.github/dependabot.yml` and `deps-latest.yml` are corrected in the
+  same diff.
+
+- **`.gitignore` no longer names `docs/_build/`** (issue
+  btclib-org/.github#411). `build/`, already present above it, ignores
+  `docs/build/html`, the directory `docs.yml`'s `sphinx-build` step
+  writes to; `docs/_build/` matched no path in this tree and decided
+  nothing.
+
 ## v2026.8.20
 
 ### Repository

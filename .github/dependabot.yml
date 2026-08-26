@@ -2,7 +2,10 @@
 # two of the three ecosystems this repo has, deliberately: the pre-commit
 # hook revs are left out because dependabot has no pre-commit ecosystem;
 # pre-commit.ci updates them instead, weekly, as configured in the ci:
-# block of .pre-commit-config.yaml
+# block of .pre-commit-config.yaml -- except typos, whose repo: local
+# hook autoupdate skips on purpose (see the comment beside it), so the
+# version pinned in its additional_dependencies moves by nobody until a
+# hand edit does.
 #
 # every pull request here runs the merge gate -- four platforms across
 # seven interpreters, the live-node smoke test, the hooks and the
