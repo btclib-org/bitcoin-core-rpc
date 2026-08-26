@@ -63,9 +63,9 @@ readme = "README.md"
 #
 # AUTHORS.md is named beside LICENSE rather than dropped, and the list is
 # read rather than defaulted: both files are under `dist-info/licenses/` in
-# the built wheel, and the MIT notice this repository carries names
-# "Ferdinando M. Ametrano and btclib contributors" -- AUTHORS.md being
-# where that list is kept.
+# the built wheel, and the MIT notice this repository carries names "The
+# btclib developers" -- AUTHORS.md being where the members of that
+# collective are listed.
 #
 # Naming LICENSE here is also what puts it in the sdist, extensionless and
 # reached by no pattern of [tool.uv.build-backend] source-include below
@@ -194,26 +194,10 @@ dev = [
 ]
 
 [tool.uv]
-# the oldest uv allowed to touch uv.lock. Not the uv-lock hook's rev in
-# .pre-commit-config.yaml -- that number moves on pre-commit.ci's own
-# schedule and was never this one -- but a ceiling nobody here sets:
-# whatever uv dependabot-core bundles for its uv-ecosystem updater
-# (uv/Dockerfile's `FROM ghcr.io/astral-sh/uv:...`, upstream in
-# dependabot/dependabot-core). That updater runs `uv lock` with exactly
-# the uv it ships and refuses rather than upgrading itself when this key
-# asks for more, so a floor past its pin silently stops every lock
-# update Dependabot attempts, security ones included, and only a human
-# bumping that Dockerfile moves the ceiling back out -- btclib's issue
-# #485 is this same failure caught there first. Declared here the floor
-# still holds for every uv command, not Dependabot's alone, so an older
-# uv on a developer's machine says so instead of rewriting the lock in a
-# format the runners then fail to read -- uv is pre-1.0 and changes that
-# format. It also reaches CI without a second pin: setup-uv, given no
-# version input, reads this key -- and since a bare minimum specifier
-# makes setup-uv install the latest uv regardless, lowering the floor
-# does not lower what the runners run: they are never behind it, and
-# there is nothing here to go stale
-required-version = ">=0.11.31"
+# the oldest uv that may read uv.lock, at the ceiling rather than safely
+# below it -- section 1 of the organization standard argues why, and
+# section 15 carries the command that re-derives the ceiling
+required-version = ">=0.12.5"
 
 [tool.uv.build-backend]
 # `module-name` is not written beside this: it defaults to `project.name`
@@ -316,6 +300,13 @@ source-exclude = [
     # plants tests/package/anything.egg-info beside the sources for the
     # length of it
     "*.egg-info",
+    # coverage.py's own data file, written beside the tree it measured
+    # rather than under a cache directory: `cd tests && uv run pytest .`
+    # leaves `tests/.coverage` behind, gitignored and unanchored the same
+    # way as the three cache entries above
+    ".coverage",
+    ".coverage.*",
+    "coverage.xml",
 ]
 
 [tool.check-wheel-contents]
@@ -567,13 +558,13 @@ enable_error_code = [
     "unimported-reveal",
     "unused-awaitable",
 ]
-# the three siblings set it too, and unlike the list above it is not a
-# ratchet with nothing to catch: the survey that added it here found a
-# runtime isinstance guard on a value whose static type already promised
-# more than an untrusted source can keep. Each site it flags gets its own
-# narrow `# type: ignore[unreachable]`, naming the code, rather than a
-# blanket exemption that would silence the check everywhere the sites are
-# legitimate
+# set the same way across the organization, and unlike the list above it
+# is not a ratchet with nothing to catch: the survey that added it here
+# found a runtime isinstance guard on a value whose static type already
+# promised more than an untrusted source can keep. Each site it flags
+# gets its own narrow `# type: ignore[unreachable]`, naming the code,
+# rather than a blanket exemption that would silence the check
+# everywhere the sites are legitimate
 warn_unreachable = true
 # the oldest interpreter this package supports, and also the oldest mypy
 # can be aimed at. Keep the key: without it mypy targets whatever runs it,
@@ -649,6 +640,17 @@ select = [
     "UP",   # pyupgrade
     "W",    # pycodestyle warnings
 ]
+# a rule and not a family, and unreached by PL above: PLW1514 is a
+# preview rule, so a family in `select` never reaches it -- a preview
+# rule runs only where `extend-select` names it exactly. It asks that
+# `open`, `read_text` and `write_text` name an encoding rather than take
+# the locale's: UTF-8 wherever this suite is usually read, cp1252 on
+# Windows, which os-windows.yml answers weekly and before a release and
+# nothing else asks about in between. Zero findings when it was
+# selected, which makes it a ratchet and not a cleanup; the
+# decoded-subprocess-encoding pre-commit hook refuses the same defect
+# one layer out, at a subprocess call rather than at open()
+extend-select = ["unspecified-encoding"]
 ignore = [
     # docstrings: every public module, class, method and function must
     # carry one -- D100/D104 and the D101/D102/D103 left out of this list
@@ -656,7 +658,9 @@ ignore = [
     # pep257 does not ask for, for every dunder and every constructor
     # still to be written and not only the ones already in the tree:
     # __init__ is documented by its class, and a magic method by the data
-    # model it implements
+    # model it implements. The convention above leaves both rules
+    # enabled, so naming neither here would ask every such site for a
+    # docstring of its own
     "undocumented-magic-method", # D105
     "undocumented-public-init",  # D107
     # code length is enforced by the formatter, which reflows to its 88
@@ -777,8 +781,10 @@ style = "google"
 arg-type-hints-in-docstring = false
 check-return-types = false
 # left at its default, and that is a deviation from btclib-secp256k1,
-# which turns it off. There a docstring is a summary line and the option
-# is what stops one from passing unread; here every docstring of the
+# which turns it off: there almost every docstring already carries an
+# Args and a Returns list, so `false` holds a short one -- `wipe`,
+# taking and returning nothing -- to the same question as a long one
+# rather than skipping it for its length. Here every docstring of the
 # module is prose that names each parameter in sentences -- `call` on
 # `params`, `request_timeout` and `max_body_size`, `http_request` on
 # `max_body_size` and `timeout` -- so turning it off asks for an Args

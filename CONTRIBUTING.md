@@ -294,7 +294,7 @@ uv run --locked --no-default-groups --group test \
 ```
 
 `test.yml`, the `dist` job — build the distribution files, check them
-and install one. This is the one build there is (issue #1166):
+and install one. This is the one build there is (issue btclib-org/btclib#1166):
 `release.yml`'s `test` job calls this workflow, so a tag runs the very
 same job, and its own `publish-testpypi` and `publish-pypi` jobs download
 the `dist` artifact this job uploads rather than building a second copy

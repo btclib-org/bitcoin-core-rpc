@@ -1741,6 +1741,56 @@ carry a union merge driver that would keep both sides' numbers.
   meets this file as an index's long description or as an unpacked
   sdist's README.
 
+- **`pyproject.toml`'s comments are corrected against measurement**
+  (closes #226) (closes #242) (closes #230) (closes #239) (closes #247).
+  The `license-files` comment quotes the notice `LICENSE` carries, "The
+  btclib developers", rather than a holder no notice in the tree names.
+  The `warn_unreachable` comment drops a count of sibling repositories
+  that no longer describes the organization. The
+  `skip-checking-short-docstrings` comment states btclib-secp256k1's
+  current reason for turning the option off, an Args/Returns form on
+  almost every docstring there, rather than its retired one. The
+  docstring-`ignore` comment adds the fact that the `pep257` convention
+  leaves `undocumented-magic-method` and `undocumented-public-init`
+  enabled, so naming neither entry is what asks a docstring at every
+  such site.
+
+- **`[tool.check-sdist] source-exclude` gains `.coverage`, `.coverage.*`
+  and `coverage.xml`** (closes #264). coverage.py writes its data file
+  beside the tree it measured rather than under a cache directory, so
+  `cd tests && uv run pytest .` left `tests/.coverage` behind, gitignored
+  and swept into the sdist by the `tests/**` include; the three new
+  entries are unanchored, the same shape as the three cache entries
+  already there.
+
+- **`[tool.uv] required-version` rises to the ceiling Dependabot's own
+  uv-ecosystem updater allows** (closes #250), and the comment beside it
+  points at the organization standard's own argument and its command to
+  re-derive the ceiling rather than restating either.
+
+- **Ruff's `unspecified-encoding` (`PLW1514`) is now selected**
+  (closes #225). It is a preview rule, unreached by the `PL` family
+  already selected, and asks that `open`, `read_text` and `write_text`
+  name an encoding rather than take the locale's -- the defect
+  `decoded-subprocess-encoding` already refuses one layer out, at a
+  subprocess call. No source in the tree fails it, which makes the
+  change a ratchet rather than a cleanup.
+
+- **`CONTRIBUTING.md` and `RELEASING.md` qualify a bare `#1166` as
+  `btclib-org/btclib#1166`** (closes #221), the three sites citing
+  btclib's own issue rather than one of this repository's.
+
+- **This release's `check-sdist`/`pyroma` entry overstates what
+  `pyroma`'s non-isolated build call checks** (closes #238). `pyroma`'s
+  `wheel_metadata()` calls the backend's PEP 517 hook directly through
+  `build.util.project_wheel_metadata(..., isolated=False)`, which never
+  reads `[build-system]`'s `requires`, and falls back to an isolated
+  build only when that call raises a `BuildException` or
+  `BuildBackendException` -- in this tree's own hook environment the
+  backend-import failure that entry's own next sentence already quotes,
+  not a `requires` check. That entry is not rewritten, being already
+  landed; this corrects the record beside it.
+
 ## v2026.8.20
 
 ### Repository
