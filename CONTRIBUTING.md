@@ -482,7 +482,7 @@ merge making a model's judgement a branch rule.
 
 Which day each of the rest runs is section 10 of the organization
 standard, in `btclib-org/.github`, and not this file's to restate — one
-calendar covering six repositories is one thing to remember.
+calendar covering the organization is one thing to remember.
 
 Why so little gates is the ceiling on concurrent jobs the plan puts on the
 whole organization, and `REPOSITORY.md`'s *Plan-gated settings* is where
