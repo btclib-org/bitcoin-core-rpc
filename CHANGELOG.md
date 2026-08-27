@@ -2055,6 +2055,15 @@ carry a union merge driver that would keep both sides' numbers.
   the divergence states its reason where it is, which is what section 9
   asks of a deviation.
 
+- **The downloads badge's link target is the plural
+  `pepy.tech/projects/bitcoin-core-rpc`** (closes #281). The singular
+  answers `308`, matching the reason section 2 of the organization
+  standard already gives for the Read the Docs spelling it fixed the
+  same way: a link that works only because a third party keeps
+  forwarding it is a dependency nobody here recorded. The badge's image,
+  `static.pepy.tech/badge/bitcoin-core-rpc`, is section 2's own spelling
+  and is unchanged; only the href moves.
+
 ## v2026.8.20
 
 ### Repository
