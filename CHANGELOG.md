@@ -2064,6 +2064,20 @@ carry a union merge driver that would keep both sides' numbers.
   `static.pepy.tech/badge/bitcoin-core-rpc`, is section 2's own spelling
   and is unchanged; only the href moves.
 
+- **`claude-review.yml` takes `closed` among its `pull_request` types, and
+  declines it at step level rather than on the job** (closes #278).
+  Section 10 of the organization standard gives `closed` the reason of
+  landing a merge in the pull request's own concurrency group to cancel a
+  run still holding it, and this job's group is job-level rather than
+  workflow-level: the job itself, not only the workflow run, has to be
+  scheduled on a closed event to enter that group, so its `if:` stays open
+  to the event rather than declining it the way `lint.yml`'s
+  workflow-level group lets its job do. `github.event.action != 'closed'`
+  sits on the review step and on each step that reports a verdict
+  instead, so closing or merging a pull request cancels the run still
+  holding `claude-review-<number>` and concludes green, without starting a
+  review of a pull request nobody is looking at any more.
+
 ## v2026.8.20
 
 ### Repository
