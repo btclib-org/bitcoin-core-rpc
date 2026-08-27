@@ -2034,6 +2034,15 @@ carry a union merge driver that would keep both sides' numbers.
   group, and section 2 reads it as the last of the sentinels without being
   among them, `scorecard` being the calendar's last row.
 
+- **The calendar sentence points at section 10 and states no number**
+  (closes #276). It gave the calendar six repositories, where section
+  10's second table names more. Section 9 of the organization standard
+  asks prose never to state how many of anything a file holds: a total is
+  exact on the day it is written and stays grammatical after it stops
+  being true. The clause beside it already says the calendar is not this
+  file's to restate, and a count of what it covers restates that table.
+  The phrase is now the one `btclib-secp256k1`'s copy carries.
+
 ## v2026.8.20
 
 ### Repository
