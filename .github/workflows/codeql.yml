@@ -66,15 +66,16 @@ on:
     # run still holding it rather than some other group's
     types: [opened, reopened, synchronize, ready_for_review, closed]
   schedule:
-    # Tuesday, which the grid gives to this and nothing else. A weekly
-    # run is what default setup performed and what a pull request trigger
-    # cannot replace: a query pack updates without anybody touching the
-    # repository, so the analysis of an unchanged tree is a different
-    # answer this week than last.
+    # Sunday, with scorecard.yml the hour after: the grid's two security
+    # rows share the day and not the hour. A weekly run is what default
+    # setup performed and what a pull request trigger cannot replace: a
+    # query pack updates without anybody touching the repository, so the
+    # analysis of an unchanged tree is a different answer this week than
+    # last.
     # The time is section 10's grid and not this file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "12 4 * * 2"
+    - cron: "12 4 * * 0"
   # the escape hatch: the analysis on demand for a branch whose pull
   # request is not open yet, which the trigger above cannot reach.
   # No workflow_call, unlike the four gates release.yml reuses: a tag

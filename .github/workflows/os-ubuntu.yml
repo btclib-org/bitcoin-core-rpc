@@ -40,10 +40,10 @@ name: os-ubuntu
 
 on:
   schedule:
-    # Friday, alone: a platform sentinel is two architectures times every
-    # interpreter, and three of them in one morning is the queue this
-    # design exists to avoid. os-macos.yml and os-windows.yml share Saturday
-    # between them; this one takes the day before.
+    # Friday, hour 04: a platform sentinel is two architectures times
+    # every interpreter, and three of them in one morning is the queue
+    # this design exists to avoid. os-macos.yml has Thursday and
+    # os-windows.yml the hour after this one.
     # The time is section 10's grid and not this file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone

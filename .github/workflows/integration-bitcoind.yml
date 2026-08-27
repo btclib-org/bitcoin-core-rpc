@@ -22,9 +22,9 @@ name: integration-bitcoind
 #
 # How many majors the protocol cells ask is the one thing a schedule
 # changes here: the boundary pair before a merge, every supported major on
-# Sunday. The `versions` job below is where that is decided and where the
-# pins are, and it is a job rather than two literals in a matrix because a
-# digest belongs in one place.
+# the weekly run. The `versions` job below is where that is decided and
+# where the pins are, and it is a job rather than two literals in a matrix
+# because a digest belongs in one place.
 #
 # It gates a merge on a cost that is measured rather than assumed: every
 # cell here finishes in 12 to 24 seconds, the download of bitcoind
@@ -50,14 +50,14 @@ on:
   push:
     branches: [main]
   schedule:
-    # Sunday, the hour after mutation.yml: the two runs that share that
-    # day are an hour apart rather than concurrent, and this is the wider
-    # of them -- every supported major against every chain, where a pull
-    # request is asked about the compatibility boundary alone.
+    # Tuesday, hour 05: the grid's slot for what a tree does against
+    # software it does not ship. This is the wide run -- every supported
+    # major against every chain, where a pull request is asked about the
+    # compatibility boundary alone.
     # The time is section 10's grid and not this file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "12 5 * * 0"
+    - cron: "12 5 * * 2"
   workflow_call:
   workflow_dispatch:
   # no `paths` here any more: see the note above on a required check that
@@ -120,11 +120,11 @@ jobs:
   # demonstrate that. The newest entry is whatever is current, and the
   # middle ones are every other supported major.
   #
-  # A merge is asked the two ends and Sunday is asked all of them. The
-  # sweep is not the gate's complement but the whole list, the two ends
-  # included: a matrix with a hole in it is one nobody can read the shape
-  # of, and whoever asked what ran would have to re-derive the hole from
-  # the gate.
+  # A merge is asked the two ends and the weekly run is asked all of them.
+  # The sweep is not the gate's complement but the whole list, the two
+  # ends included: a matrix with a hole in it is one nobody can read the
+  # shape of, and whoever asked what ran would have to re-derive the hole
+  # from the gate.
   #
   # Each digest is the SHA256SUMS entry of the release directory, written
   # here rather than fetched beside the file it describes: a checksum file

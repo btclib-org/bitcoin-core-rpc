@@ -35,14 +35,14 @@ name: os-macos
 
 on:
   schedule:
-    # Saturday, with os-windows.yml an hour later: the two platforms the
-    # merge gate does not wait for, on the day the grid gives to
-    # platforms. Red in both is the tree; red in one is that platform,
-    # which is the whole of what running them apart buys.
+    # Thursday, where os-ubuntu.yml and os-windows.yml have Friday: the
+    # platforms the merge gate does not wait for, run apart rather than
+    # together. Red in all of them is the tree; red in one is that
+    # platform, which is the whole of what running them apart buys.
     # The time is section 10's grid and not this file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "12 4 * * 6"
+    - cron: "12 5 * * 4"
   # lets release.yml gate a publication on this platform too, which is what
   # keeps a weekly sentinel from being the only thing that ever asks
   workflow_call:

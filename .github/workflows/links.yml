@@ -18,12 +18,12 @@ name: links
 
 on:
   schedule:
-    # Monday, with vendored data an hour later where a repository has
-    # any: both ask whether what this tree points at is still there.
+    # Saturday, the day the grid gives to a tree's own health: this asks
+    # whether what it points at is still there.
     # The time is section 10's grid and not this file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "12 4 * * 1"
+    - cron: "12 4 * * 6"
   # the escape hatch, and the way to check a branch before merging a
   # documentation change that adds links
   workflow_dispatch:
