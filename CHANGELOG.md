@@ -2009,6 +2009,31 @@ carry a union merge driver that would keep both sides' numbers.
   not a `requires` check. That entry is not rewritten, being already
   landed; this corrects the record beside it.
 
+- **Every `cron:` here fires at the instant section 10's calendar gives
+  that workflow and this repository** (issue btclib-org/.github#480). The
+  calendar's rows sit in the order of what they ask about -- the depth a
+  tree's suite is tested to, what it does against software it does not
+  ship, what it depends on and what it publishes, its platforms, its own
+  health and its security -- so a workflow's day and hour follow its
+  family. The minute is this repository's row in that section's second
+  table, and it does not move. `dependabot.yml` is untouched, section 10
+  keeping `deps-latest` on the day before Dependabot's own.
+
+- **`README.md`'s badge block is section 2's three groups** (issue
+  btclib-org/.github#480). What the software is opens with the release
+  identity as a pair, the PyPI version beside `github/v/release`, which is
+  how section 2 says those two are read: where they disagree, a release
+  reached the forge and not the index. The licence and `wheel` sit in that
+  group, this tree having a `LICENSE` and publishing a wheel, and section
+  2 derives the row from such properties rather than curating it. The CI
+  group is the gates in the order a commit meets them, Read the Docs among
+  them because it answers `passing`, `failing` or `unknown` as the
+  workflow badges around it do, and then the sentinels in the calendar's
+  order -- so the badge order is the calendar order over that subset, and
+  the two move together or not at all. The Scorecard badge is the OpenSSF
+  group, and section 2 reads it as the last of the sentinels without being
+  among them, `scorecard` being the calendar's last row.
+
 ## v2026.8.20
 
 ### Repository
