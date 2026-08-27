@@ -2043,6 +2043,18 @@ carry a union merge driver that would keep both sides' numbers.
   file's to restate, and a count of what it covers restates that table.
   The phrase is now the one `btclib-secp256k1`'s copy carries.
 
+- **`pypi-install.yml` says why its `pull_request` types leave out
+  `closed`** (closes #273). Section 10 of the organization standard names
+  `closed` among the types, and its reason is the merge landing in the
+  pull request's own concurrency group to cancel the run still holding
+  it. This workflow's group carries `cancel-in-progress: false`, so a
+  closed event cancels nothing whichever group it lands in; and the job's
+  condition declines a draft and says nothing about a close, so the run
+  such an event added would install from the index on every cell of the
+  matrix, for a pull request nobody is on. The types are unchanged and
+  the divergence states its reason where it is, which is what section 9
+  asks of a deviation.
+
 ## v2026.8.20
 
 ### Repository

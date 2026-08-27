@@ -62,7 +62,21 @@ on:
     # ready_for_review, so a pull request marked ready gets the run the
     # draft condition below withheld while it was a draft: the default
     # types do not include it, and without it a readied pull request
-    # would wait for its next push to be checked at all
+    # would wait for its next push to be checked at all.
+    # closed, which section 10 names beside these, is deliberately absent.
+    # What it buys there is a merge landing in the pull request's own
+    # concurrency group and cancelling the run still holding it; the
+    # concurrency block below cancels nothing at all, for the reason
+    # stated there, so a closed event here would supersede no run
+    # whichever group it landed in. What it would do instead is add one:
+    # the condition on the job below declines a draft and says nothing
+    # about a close, so the run a merge or an abandonment started would
+    # install from the index on every cell of the matrix, for a pull
+    # request nobody is on any more. links.yml is the other workflow here
+    # whose pull_request trigger is filtered to its own configuration,
+    # and it carries the type with what the type needs: a group keyed on
+    # the pull request's number, cancel-in-progress: true, and
+    # github.event.action != 'closed' guarding its job
     types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - .github/workflows/pypi-install.yml
