@@ -139,8 +139,20 @@ jobs:
       # worst shape a gate can take: measured on the first run after the
       # organization secret was deleted -- the action found the token
       # empty, reviewed nothing, and reported success. Fail loudly
-      # instead, and say which secret and where it lives
+      # instead, and say which secret and where it lives.
+      #
+      # `github.event.action != 'closed'` because the review step below
+      # is the only other step of this job that reads that secret, and
+      # it declines that event: without it the invariant would be
+      # asserted over a credential the run never reaches, and the empty
+      # secret that fails it would be a red check on a pull request
+      # already merged or closed. No `!cancelled()` beside it, unlike
+      # the step that reports a review that never ran: an `if:` naming
+      # no status check function is evaluated as `success() && ...`,
+      # which is what a precondition wants, an earlier failure leaving
+      # this invariant nothing to protect
       - name: Refuse to review without a credential
+        if: ${{ github.event.action != 'closed' }}
         env:
           TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
