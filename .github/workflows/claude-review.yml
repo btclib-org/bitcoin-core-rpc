@@ -26,8 +26,16 @@ on:
     # draft condition below withheld while it was a draft: the default
     # types do not include it, and without it a readied pull request would
     # wait for its next push to be reviewed at all. The same reasoning
-    # links.yml carries for the same type
-    types: [opened, reopened, synchronize, ready_for_review]
+    # links.yml carries for the same type.
+    # closed too: the concurrency block below is job-level rather than
+    # workflow-level, so it is the review job itself, and not the
+    # workflow run, that has to be scheduled for a closed event to enter
+    # the group and cancel a run it is still holding -- unlike
+    # lint.yml's workflow-level group, which a job's own if: cannot keep
+    # out of. The job's if: below is left open to the event for exactly
+    # that reason; what declines the actual review on a closed pull
+    # request is the step-level if: further down
+    types: [opened, reopened, synchronize, ready_for_review, closed]
   # the on-demand half: somebody writes @claude in a comment on a pull
   # request, or on a line of its diff, and asks for something the automatic
   # pass did not answer
@@ -65,12 +73,20 @@ jobs:
     # section 11's *Review* is where what it does is stated rather than
     # here a second time.
     #
-    # On the job and not on a step. A step declining to run leaves
-    # `steps.review.outcome` at `skipped`, which the guard below reads as
-    # anything-but-success and reports as a review that never ran -- a
-    # deliberate switch-off turned into a permanent red check, pointing
-    # at a runner line no skipped step wrote. A skipped job costs nothing
-    # and says nothing
+    # On the job and not on a step, for the switch, the fork check and the
+    # draft check: a step declining to run leaves `steps.review.outcome`
+    # at `skipped`, which the guard below reads as anything-but-success
+    # and reports as a review that never ran -- a deliberate switch-off
+    # turned into a permanent red check, pointing at a runner line no
+    # skipped step wrote. A skipped job costs nothing and says nothing.
+    #
+    # `closed` is deliberately not excluded here, unlike draft: the
+    # concurrency block below names this job rather than the workflow, so
+    # a closed event has to pass this `if:` and be scheduled for the job
+    # to enter that group at all and cancel the run it is still holding.
+    # What declines the review itself on a closed event is the
+    # `github.event.action != 'closed'` on the review step below, not
+    # this line
     if: >-
       ${{ vars.CLAUDE_REVIEW_ENABLED == 'true'
           && github.event_name == 'pull_request'
@@ -136,6 +152,13 @@ jobs:
           fi
       - name: Review against REVIEWING.md
         id: review
+        # closed declines here rather than on the job: the job has to run
+        # on a closed event so that the concurrency block above cancels
+        # the run it is still holding, and this is the step that must not
+        # -- a review of a pull request nobody is looking at any more,
+        # spending the same model call and runner slot the cancellation
+        # exists to save
+        if: ${{ github.event.action != 'closed' }}
         uses: anthropics/claude-code-action@3f854a8fb5146b39d5cbf8b57f70d80810e1366f # v1
         # a diff read and a comment posted; a review past this is hung
         # on the API or on its own reasoning, and either way it has
@@ -244,8 +267,17 @@ jobs:
       # the fact to report rather than leave to the step's own error. A
       # job cancelled by the concurrency group is the one case this
       # still skips, a superseded review having nothing to say.
+      #
+      # `github.event.action != 'closed'` beside it for a different
+      # reason than the review step's own: on a closed event the review
+      # step above declines on purpose, leaving `steps.review.outcome`
+      # at `skipped` -- exactly the shape this guard exists to turn red
+      # for every other trigger. Without this exclusion a closed pull
+      # request would report the same "no verdict was written" error the
+      # comment above describes, over a review that was never asked to
+      # write one
       - name: Refuse to report a review that never ran
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && github.event.action != 'closed' }}
         env:
           OUTCOME: ${{ steps.review.outcome }}
           EXECUTION: ${{ steps.review.outputs.execution_file }}
@@ -331,7 +363,17 @@ jobs:
       # Red, and gating nothing: this check is not required, and what
       # the colour buys is a reader who sees a refusal in the checks
       # instead of under the fold at the foot of a comment.
+      #
+      # `github.event.action != 'closed'` for the reason the step above
+      # carries it: the review step declines a closed event on purpose,
+      # so no verdict names this head and the query below would read
+      # that absence as a review that posted nothing. No `!cancelled()`
+      # beside it, unlike that step: the implicit `success()` here is
+      # what keeps a review that failed from being reported twice, once
+      # as an outcome that is not success and again as a missing
+      # verdict.
       - name: Refuse to report anything but an ack of this head
+        if: ${{ github.event.action != 'closed' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
