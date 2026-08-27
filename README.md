@@ -25,7 +25,7 @@ says how the choice is enforced.
 [![GitHub release](https://img.shields.io/github/v/release/btclib-org/bitcoin-core-rpc.svg)](https://github.com/btclib-org/bitcoin-core-rpc/releases)
 [![development status](https://img.shields.io/pypi/status/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
 [![license](https://img.shields.io/github/license/btclib-org/bitcoin-core-rpc.svg)](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/LICENSE)
-[![downloads](https://static.pepy.tech/badge/bitcoin-core-rpc)](https://pepy.tech/project/bitcoin-core-rpc)
+[![downloads](https://static.pepy.tech/badge/bitcoin-core-rpc)](https://pepy.tech/projects/bitcoin-core-rpc)
 [![supported Python versions](https://img.shields.io/pypi/pyversions/bitcoin-core-rpc.svg?logo=python)](https://pypi.org/project/bitcoin-core-rpc/)
 [![implementation](https://img.shields.io/pypi/implementation/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
 [![wheel](https://img.shields.io/pypi/wheel/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
