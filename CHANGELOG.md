@@ -2078,6 +2078,20 @@ carry a union merge driver that would keep both sides' numbers.
   holding `claude-review-<number>` and concludes green, without starting a
   review of a pull request nobody is looking at any more.
 
+- **`claude-review.yml`'s credential check declines a closed event**
+  (closes #283). The review job is scheduled on a close so that it
+  enters `claude-review-<number>` and cancels the run still holding it,
+  and the review step -- the only other step of that job reading
+  `CLAUDE_CODE_OAUTH_TOKEN` -- declines that event, as does each step
+  that reports a verdict. So on a close the check asserted its invariant
+  over a credential the run never reaches, where the empty secret that
+  fails it is a red check on a pull request already merged or closed. It
+  carries the same `github.event.action != 'closed'` its neighbours do,
+  and no `!cancelled()` beside it: an `if:` naming no status check
+  function is evaluated as `success() && ...`, which is what a
+  precondition wants, where the step reporting a review that never ran
+  has to fire after a failure and says so where it sits.
+
 ## v2026.8.20
 
 ### Repository
