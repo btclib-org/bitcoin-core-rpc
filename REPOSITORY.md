@@ -563,6 +563,44 @@ gh api repos/btclib-org/bitcoin-core-rpc/pages   # 404
 
 This tree serves no GitHub Pages site of its own.
 
+## Read the Docs, which is bitcoin-core-rpc.readthedocs.io
+
+**What connects this repository to Read the Docs is the organization-wide
+`read-the-docs-community` GitHub App, not a per-repository webhook.**
+
+```shell
+gh api orgs/btclib-org/installations \
+  --jq '.installations[] | select(.app_slug == "read-the-docs-community")
+        | [.app_slug, .repository_selection]'
+# ["read-the-docs-community","all"]
+```
+
+`repository_selection: all` is what makes that the connection for every
+repository of the organization at once, this one included, rather than a
+setting this repository carries on its own. The repository itself carries
+no hook:
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc/hooks --jq length
+# 0
+```
+
+**A per-repository webhook existed here and is gone.** It pointed at
+`https://app.readthedocs.org/api/v2/webhook/btclib-bitcoin-core-rpc/330990/`,
+carried `active: true`, and its last delivery had been answered 404 for a
+push that still built and served the documentation — the App, not the
+hook, was what carried the build. A hook in that state is not a fallback
+the App can be checked against: nothing reads its delivery log unless
+asked, so an `active: true` webhook silently refused reads as configured
+right up until somebody opens the settings page, and if the App were ever
+removed it would be trusted to still be serving a connection it had
+already stopped serving. It was deleted rather than repaired, since the
+App already does the whole of what the hook was for (issue #291).
+
+Deleting the sibling's own webhook is not implied by this: each
+repository's connection is its own to read back, and the command above is
+the same one either way.
+
 ## Security settings
 
 All of these are repository settings and none of them is in the tree, so

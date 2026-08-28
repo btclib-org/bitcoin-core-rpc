@@ -2225,6 +2225,14 @@ carry a union merge driver that would keep both sides' numbers.
   entry is not rewritten, being already landed; this corrects the record
   beside it.
 
+- **`REPOSITORY.md` records what connects this repository to Read the
+  Docs** (closes #291). An `active: true` webhook whose deliveries 404ed
+  is deleted rather than repaired: the documentation kept building and
+  serving throughout, because the connection that actually carries it is
+  the organization-wide `read-the-docs-community` GitHub App
+  (`repository_selection: all`), and the repository now carries no hook
+  of its own. A dead hook reads as a fallback and is not one.
+
 ## v2026.8.20
 
 ### Repository
