@@ -9,6 +9,7 @@ bitcoin-core-rpc documentation
 
    README <readme_link.md>
    COMPARISON <comparison_link.md>
+   MIGRATING <migrating.md>
    PYTHON MODULE <api>
    CONTRIBUTING <contributing_link.md>
    REVIEWING <reviewing_link.md>
