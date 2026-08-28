@@ -164,3 +164,30 @@ jobs:
             echo "::error::the links above resolve to no page (unresolved relative path)"
             exit 1
           fi
+      # the other defect the build above cannot report on itself: automodule
+      # skips a data member with no word about it where its attribute
+      # docstring is not in the module being documented -- api.rst's own
+      # automodule-per-submodule block is what makes every name findable
+      # this way, and this step is what proves the page it wrote still
+      # carries all of them. `-n -W` sees a malformed cross-reference and
+      # nothing else, so a name silently dropped is a green build either
+      # way.
+      #
+      # In this job rather than in the suite: the project is already
+      # installed here for autodoc's own sake (see the build step above),
+      # so the check reads `bitcoin_core_rpc.__all__` for nothing this job
+      # was not already paying. This job runs no suite at all; putting the
+      # check there instead would mean a second sphinx build, and the
+      # `docs` group in every environment that does run one --
+      # `test.yml`'s `coverage` job on every pull request, and
+      # `os-macos.yml`'s, `os-windows.yml`'s, `os-ubuntu.yml`'s,
+      # `deps-latest.yml`'s and `mutation.yml`'s besides -- for a question
+      # the suite cannot even ask without one: `docs/build/html` is this
+      # job's own output, not a fixture the suite carries.
+      # `tests/check_api_page_test.py` is where the script's own logic is
+      # proven, against a page invented for the purpose rather than a real
+      # build
+      - name: Check the built page lists the whole public surface
+        run: >
+          uv run --locked --no-default-groups --group docs
+          python .github/scripts/check_api_page.py docs/build/html/api.html

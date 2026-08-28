@@ -40,8 +40,16 @@ underscore, and every such name has to be in `__all__` and every name in
 `__all__` has to be defined by one of the four; **the documentation** is
 not "every module appears in the sphinx pages" but every name of
 `__all__` carrying a docstring `automodule` will render, against
-`docs/source/api.rst`'s claim to list the whole public surface; **the
-import graph** is not "every module imports first" but the four
+`docs/source/api.rst`'s claim to list the whole public surface -- a
+property of the sources rather than of what got rendered, since
+`automodule` drops a data member with no word about it where its
+attribute docstring is not in the module being documented, and
+`sphinx-build -n -W` does not see the drop as a defect. `docs.yml`'s own
+step is the other half, reading the page a real build wrote against
+`bitcoin_core_rpc.__all__` with `.github/scripts/check_api_page.py`,
+which is why this half is table-declared here and that one is not: it
+does not run in this suite; **the import graph** is not "every module
+imports first" but the four
 importing nothing outside the standard library and each other, in the
 order `errors < chains < transport < client`, and `chains.py` and
 `errors.py` each leaving `urllib.request`, `ssl` and `socket` out of a

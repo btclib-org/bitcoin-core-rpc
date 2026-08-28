@@ -2160,6 +2160,29 @@ carry a union merge driver that would keep both sides' numbers.
   index showing the two fields as one link being cheaper than the field
   tools read for that purpose specifically.
 
+- **`docs.yml` checks the built api page against `__all__`** (closes
+  #299). `automodule` drops a data member with no attribute docstring in
+  the module being documented, silently -- `-n -W` sees no malformed
+  cross-reference and no failure, and a facade re-exporting a constant
+  through `__getattr__` is exactly that shape, measured on the tree that
+  introduced it: 20 of 30 names on the built page, every function, class
+  and exception, and no constant or type alias. `.github/scripts/
+  check_api_page.py` reads the page the job already built and refuses one
+  missing a name of `bitcoin_core_rpc.__all__`, in this job rather than in
+  the suite: the project is already installed here for autodoc's own
+  sake. This job runs no suite at all; the suite would need the `docs`
+  group installed in every environment that does run one --
+  `test.yml`'s `coverage` job on every pull request, and `os-macos.yml`'s,
+  `os-windows.yml`'s, `os-ubuntu.yml`'s, `deps-latest.yml`'s and
+  `mutation.yml`'s besides -- for a second sphinx build the suite cannot
+  even ask for correctly, `docs/build/html` being this job's own output
+  and not a fixture the suite carries.
+  `tests/check_api_page_test.py` proves the comparison itself catches a
+  missing name, against a page invented for the purpose. The stale
+  example anchor at `.pre-commit-config.yaml`'s local-link-prefix hook,
+  naming a pre-split id the page has not carried since the split, is
+  fixed alongside it.
+
 ## v2026.8.20
 
 ### Repository
