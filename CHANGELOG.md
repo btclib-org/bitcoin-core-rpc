@@ -2092,6 +2092,21 @@ carry a union merge driver that would keep both sides' numbers.
   precondition wants, where the step reporting a review that never ran
   has to fire after a failure and says so where it sits.
 
+- **`claude-review.yml` checks the repository out only where a step reads
+  it** (closes #285). The review job is scheduled on a close so that it
+  enters `claude-review-<number>` and cancels the run still holding it,
+  and every other step of it declines that event: the review step, which
+  is the only one that opens the tree, and the steps that report a
+  verdict, which read the API with the repository from the event context
+  and the action's own execution file. So `Checkout code` fetched the
+  repository onto a runner for a job with nothing left to look at it,
+  against the ceiling on concurrent jobs `REPOSITORY.md`'s *Plan-gated
+  settings* measures. It carries the same
+  `github.event.action != 'closed'` its neighbours do: what contests a
+  job-level concurrency group is the job being scheduled, which its own
+  `if:` still is, so the cancellation is unchanged and the job concludes
+  green with every step skipped.
+
 ## v2026.8.20
 
 ### Repository

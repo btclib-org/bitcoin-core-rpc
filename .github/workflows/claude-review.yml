@@ -125,7 +125,25 @@ jobs:
     steps:
       # every action pinned to a commit SHA with the tag in the comment: a
       # tag, let alone a branch, is a name its owner can move
+      #
+      # `github.event.action != 'closed'` because no other step of this
+      # job opens the tree on a close. The review step is the only one
+      # that reads it at all, and it declines that event; the steps that
+      # report a verdict read the API with the repository from the event
+      # context, `repos/$REPO/...`, and the action's own execution file.
+      # The validation that does read this file is the action's own, and
+      # it runs inside the review step, so it declines the event with it.
+      #
+      # Guarding it costs no cancellation. What contests a job-level
+      # concurrency group is whether the job is scheduled -- the `if:`
+      # above, left open to a close for exactly that -- rather than what
+      # its steps then do, so with every step declining the job still
+      # enters `claude-review-<number>` and cancels the run still holding
+      # it. It concludes green there with every step skipped, which is
+      # the shape an `every job passed` sentinel job runs in on a run
+      # where nothing upstream failed.
       - name: Checkout code
+        if: ${{ github.event.action != 'closed' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # nothing here needs a token: the diff comes from `gh pr diff`
