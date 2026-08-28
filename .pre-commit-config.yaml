@@ -310,7 +310,7 @@ repos:
   # one grep sees every one; the same destinations without the "./"
   # render the destination alone, which no single pattern reaches
   # without also matching the autodoc anchors these pages carry, such as
-  # href="#bitcoin_core_rpc.BitcoinCoreRpcClient.call".
+  # href="#bitcoin_core_rpc.client.BitcoinCoreRpcClient.call".
   #
   # "../" is the row with nothing downstream behind it at all, which is
   # why it is refused here rather than allowed as an ordinary relative
