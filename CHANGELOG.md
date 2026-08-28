@@ -2219,6 +2219,12 @@ carry a union merge driver that would keep both sides' numbers.
   named a package in neither the dependency groups nor the lock, and is
   removed.
 
+- **This release's own entry for issue #256 also cites section 3 for the
+  theme decision** (closes #304). Section 3 is *`pyproject.toml` is the
+  configuration*; the decision is section 2's *The documentation*. That
+  entry is not rewritten, being already landed; this corrects the record
+  beside it.
+
 ## v2026.8.20
 
 ### Repository
