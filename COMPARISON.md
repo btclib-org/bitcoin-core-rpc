@@ -100,34 +100,35 @@ carries a per-method parameter type, so a caller who wants one keeps
 
 ### Batching
 
-One call is one HTTP request. Correlation and partial failure are not
-what makes a batch a non-goal: JSON-RPC 2.0 §6 settles both — an array of
-requests, responses in any order matched by `id`, an error object in the
-slot of the member that failed — and this module already assigns unique
-ids and already parses one member.
+`call_batch` sends several `(method, params)` pairs in one HTTP POST and
+reads each member's reply the way `call` reads its own: JSON-RPC 2.0 §6's
+own rule — an array of requests answered by an array of responses in any
+order, matched by `id`, an error object in the slot of the member that
+failed — is what this module already had the pieces for, a unique id per
+request and one function reading one reply object.
 
-What a batch buys is amortisation of the round trip, and the deployment
-this client targets is a loopback node, where the round trip is already
-close to free. Against that:
+That last part is what had stood against it: reusing `_reply_object` and
+the version discrimination behind it, per member, is what makes a batch
+member's reply no different a thing to parse than a lone call's, so
+there is no third parsing branch, legacy-1.1-shaped or otherwise, to
+establish against a live node first. The other two costs a batch weighs
+were real and stay real — they do not disappear, they move to the
+caller reaching for `call_batch` over a loop of `call`, and its own
+docstring is where they are named for that caller:
 
-- one timeout would cover several node operations. A timeout is not a
-  deadline, the node may still be executing, so a batch turns "this call
-  may have run" into an unknown number of executed wallet commands, of
-  unknown identity;
-- `max_body_size` stops mapping onto an answer: the bound becomes the sum
-  of the replies, and a refusal is no longer attributable to a member;
-- the legacy 1.1 reply shape for a batch is a third parsing branch, to be
-  established against Core rather than deduced from the 2.0
-  specification, in a module whose parsing is deliberately two functions
-  and not one with a flag.
+- one timeout now covers several node operations. A timeout is not a
+  deadline, the node may still be executing, so `request_timeout` on a
+  batch turns "this call may have run" into an unknown number of
+  executed wallet commands, of unknown identity;
+- `max_body_size` no longer maps onto one answer: the bound is the sum
+  of every member's reply, and a refusal is no longer attributable to
+  one of them.
 
-A loop over `call` is the equivalent on loopback. Over a WAN or a TLS
-link, where a round trip costs something, it is not — and batching is not
-reachable through `HttpTransport` the way keep-alive is, that transport
-receiving a `Request` whose body is already a single object. It is
-reachable through public API all the same: `http_request` is exported and
-`auth_header()` is public, so a caller can POST the array to `client.url`
-through `client.transport` and match the replies by `id`.
+A batch amortises the round trip, and the deployment this client targets
+is a loopback node, where the round trip is already close to free — a
+loop over `call` costs the same there. It is over a WAN or a TLS link,
+where a round trip costs something, that `call_batch` is the one worth
+reaching for.
 
 ### One connection per call
 

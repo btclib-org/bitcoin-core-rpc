@@ -157,6 +157,38 @@ derived from the client built for the node: calling it on a client that is
 already a wallet endpoint is refused rather than composing
 `/wallet/hot/wallet/cold`, which is no path Core serves.
 
+`call_raw` is `call` with the envelope handed back instead of read: the
+same request, the same params validation, with the protocol marker an
+argument rather than always `"2.0"` — a string is sent verbatim, `None`
+sends no marker at all. The answer is the HTTP status and whatever the
+body parses to, with neither `id`, `error` nor shape interpreted — an
+array or a bare scalar comes back exactly as parsed rather than being
+refused the way `call`'s own reply is, which is what a harness testing
+a server's own conformance wants in place of a result already extracted.
+
+```python
+status, reply = client.call_raw("getblockcount", jsonrpc=None)
+```
+
+## Batching
+
+`call_batch` sends several `(method, params)` pairs in one HTTP POST,
+each built and each member's reply read the way `call` builds and reads
+its own. The result is a list aligned with the input: a member's
+`RpcError` sits at its own position rather than raising and discarding
+every answer beside it.
+
+```python
+results = client.call_batch(
+    [("getblockhash", [700_000]), ("getblockcount", None)]
+)
+```
+
+Only a failure of the whole exchange raises — a non-2xx status, a reply
+that is not an array — exactly as `call` raises for its own request.
+[COMPARISON.md](./COMPARISON.md#batching) has where this is worth
+reaching for over a loop of `call`, and where it is not.
+
 ## Attribute-style calls
 
 `RpcChannel` wraps a client for a caller who wants `rpc.getblockcount()`
@@ -214,10 +246,6 @@ than a match on the text of a message.
 
 ## What it does not do
 
-- **batches.** One call is one HTTP request. A batch needs an api for
-  correlating the answers and for partly failing, which is a question of
-  its own; a loop over `call` is the replacement, an equivalent beside
-  the node and not over a link where the round trip costs something.
 - **notifications**, a request sent with no `id`, which a node does not
   answer.
 - **retries**, per above.
@@ -282,17 +310,18 @@ balance = hot.getbalance()
 balance = client.for_wallet("hot").call("getbalance")
 ```
 
-**A batch.** There is none, per [What it does not
-do](#what-it-does-not-do), and a loop is what replaces it: the calls go one
-HTTP request each rather than several in one, and each answer is a value or
-an exception where a batch answered with a list to inspect.
+**A batch.** `call_batch` replaces `batch_`, with one difference a
+caller migrating has to know: an entry of the result answers with the
+node's own `result`, or with the `RpcError` itself rather than raising
+it, a batch's whole point being that one member failing does not
+discard the rest.
 
 ```python
 # AuthServiceProxy
 hashes = rpc.batch_([["getblockhash", height] for height in heights])
 
 # this client
-hashes = [client.call("getblockhash", [height]) for height in heights]
+hashes = client.call_batch([("getblockhash", [height]) for height in heights])
 ```
 
 **An error.** `JSONRPCException` becomes the exceptions [When it goes

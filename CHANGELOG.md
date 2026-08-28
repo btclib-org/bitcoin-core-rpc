@@ -29,6 +29,34 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.9 (work in progress, not released yet)
 
+### Added
+
+- **`call_batch` sends several rpc methods in one HTTP request** (closes
+  #294). Each member is built the way `call` builds its own request --
+  the 2.0 marker, an id of its own, the same params validation, refused
+  by position where it fails -- and the answer is a list aligned with
+  the input: position i holds member i's `result`, or its `RpcError` as
+  a value, matched to its request by id rather than by where the reply
+  array happened to put it. Only a failure of the whole exchange raises.
+  `COMPARISON.md`'s *Batching* has what changed the earlier refusal: a
+  batch member's reply is read by the same version discrimination a lone
+  call's is, so there is no second parsing branch to establish against a
+  live node first, where the round trip a batch amortises stays worth it
+  beside a node reached over a WAN or a TLS link and not beside the
+  loopback one this client targets.
+
+- **`call_raw` hands back the envelope instead of extracting a `result`
+  from it** (closes #295). The same authenticated request `call` builds,
+  with the protocol marker itself an argument -- a string sent verbatim,
+  `None` sending none at all, `"2.0"` the default -- and the answer is
+  the HTTP status and whatever `_parsed_json_body`'s safe json reading
+  parses the body into, with neither the id, the error member nor the
+  shape read any further: an array or a bare scalar comes back exactly
+  as parsed rather than being refused the way `call`'s own reply is. For
+  a caller testing a server's own handling of the protocol rather than
+  asking a node something, which is deliberately not this client's job
+  for a request it would refuse to build in the first place.
+
 ### Changed
 
 - **The documentation is built with `furo` and with `-n` beside `-W`**
