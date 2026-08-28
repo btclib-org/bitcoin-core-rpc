@@ -111,6 +111,17 @@ carry a union merge driver that would keep both sides' numbers.
   read `bitcoin_core_rpc.RpcError` -- `except`, `isinstance` and
   unpickling all match on the class and do not see it.
 
+### Tests
+
+- **`assert_chain`'s `signet_challenge` and `_read_bounded`'s `truncate`
+  stay keyword-only** (closes #298). A mutation run turned the bare `*,`
+  before each into `/,` and the suite still passed: every call already
+  gives `chain` and `deadline` positionally and the keyword-only
+  parameter by keyword, which the mutant accepts the same way.
+  `test_signet_challenge_is_keyword_only` and
+  `test_truncate_is_keyword_only` call each positionally instead, joining
+  the two `tests/README.md`'s near-miss note already named.
+
 ### Repository
 
 - **`claude-review.yml`'s header points at the ceiling's home** (closes

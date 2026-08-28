@@ -46,6 +46,7 @@ from bitcoin_core_rpc.transport import (
     DEFAULT_MAX_BODY_SIZE,
     DEFAULT_TIMEOUT,
     MAX_ERROR_BODY_SIZE,
+    _read_bounded,
     http_request,
     urlopen_transport,
 )
@@ -557,6 +558,13 @@ def test_the_body_of_a_failure_is_truncated_not_refused() -> None:
         status, body = http_request(URL, max_body_size=64, transport=Recorded(error))
     assert status == 404
     assert len(body) == MAX_ERROR_BODY_SIZE
+
+
+def test_truncate_is_keyword_only() -> None:
+    """`_read_bounded`'s `deadline` is positional, `truncate` cannot join it."""
+    read_bounded: Any = _read_bounded
+    with pytest.raises(TypeError):
+        read_bounded(None, 0, "", 0.0, True)
 
 
 def test_the_failure_body_limit_is_64_kib() -> None:

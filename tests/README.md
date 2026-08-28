@@ -56,12 +56,15 @@ supported is the other half of a promise the distribution already makes.
 Among those not tested, one is a near miss worth naming so that
 "absent" is not read as "overlooked":
 
-- **The calling convention.** Two tests assert a keyword-only signature
-  — `test_connection_controls_are_keyword_only` and
-  `test_the_incremental_limit_is_keyword_only` — each about one function.
-  Section 7 asks for it as a rule over the package: keyword-only stays
-  keyword-only, a private signature carries no default, a name's prefix
-  promises what the call answers.
+- **The calling convention.** Four tests assert a keyword-only signature
+  — `test_connection_controls_are_keyword_only`,
+  `test_the_incremental_limit_is_keyword_only`,
+  `test_signet_challenge_is_keyword_only` and
+  `test_truncate_is_keyword_only` — each about one function, and none of
+  them a walk over every signature the package has. Section 7 asks for it
+  as a rule over the package: keyword-only stays keyword-only, a private
+  signature carries no default, a name's prefix promises what the call
+  answers.
 
 **The suite opens no socket** is not a near miss but the one bullet this
 suite does not keep rather than merely leave untested.
