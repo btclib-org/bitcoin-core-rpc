@@ -138,7 +138,7 @@ classifiers = [
 # is what a reader sees, and one spelling across the three published
 # packages is what lets a check read the set back
 [project.urls]
-homepage = "https://btclib.org"
+homepage = "https://bitcoin-core-rpc.readthedocs.io/"
 documentation = "https://bitcoin-core-rpc.readthedocs.io/"
 download = "https://github.com/btclib-org/bitcoin-core-rpc/releases"
 # RELEASE_NOTES.md and not CHANGELOG.md: this url is what an index puts

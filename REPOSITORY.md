@@ -544,6 +544,25 @@ for the answer.
 environments both require a review, and `pypi` is restricted to `v*` tags.
 `RELEASING.md` records the reasoning.
 
+**The repository's `.homepage` names this tree's own documentation
+site**, read back from the endpoint rather than from `pyproject.toml`'s
+own copy of it (issue btclib-org/.github#533):
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc --jq '.homepage'
+# https://bitcoin-core-rpc.readthedocs.io/
+```
+
+`[project.urls] homepage` carries the identical string: a releasing
+tree's home is its own documentation, not `btclib.org`, the sibling's
+project page the field named before.
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc/pages   # 404
+```
+
+This tree serves no GitHub Pages site of its own.
+
 ## Security settings
 
 All of these are repository settings and none of them is in the tree, so
