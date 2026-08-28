@@ -2211,6 +2211,14 @@ carry a union merge driver that would keep both sides' numbers.
   naming a pre-split id the page has not carried since the split, is
   fixed alongside it.
 
+- **`docs/source/conf.py`'s theme comment cites section 2 of the
+  organization standard, correcting a citation to section 3** (closes
+  #287). Section 3 is *`pyproject.toml` is the configuration*; the theme
+  decision -- furo weighed against shibuya -- is section 2's *The
+  documentation*. The commented-out `"m2r2"` line opening `extensions`
+  named a package in neither the dependency groups nor the lock, and is
+  removed.
+
 ## v2026.8.20
 
 ### Repository

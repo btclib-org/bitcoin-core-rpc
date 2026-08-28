@@ -45,7 +45,6 @@ release = PYPROJECT["project"]["version"]
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    # "m2r2",
     # first, because -n below turns an unresolved cross-reference into a
     # warning and every annotation of this module names something the
     # standard library owns: without an inventory to resolve against,
@@ -102,7 +101,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # furo: content first, the navigation in the left sidebar and the page's
 # own contents in the right, light and dark from one setting -- the shape
-# a reference generated from docstrings has. Section 3 of the organization
+# a reference generated from docstrings has. Section 2 of the organization
 # standard is where it was weighed against shibuya, whose landing pages
 # and announcement bars are surface this tree would carry and not use;
 # sphinx_rtd_theme is where a Read the Docs project starts by default,
