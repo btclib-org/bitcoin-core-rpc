@@ -51,12 +51,17 @@ are `FetchError`, so one `except FetchError` is the equivalent of the one
 `except JSONRPCException`; what catching them apart buys is the status a
 retry policy reads.
 
-``batch_`` is what a consumer loses -- Core's maintained fork spells it
-`batch`. Several calls in one request is a named non-goal: a batch needs
-an api for correlating the answers and for partly failing. A loop over
-`call` is the replacement, at one HTTP request each -- an equivalent
-beside the node, where the round trip is close to free, and not over a
-link where it costs something, which is where a batch pays.
+``batch_`` is what a consumer loses under that name -- Core's maintained
+fork spells it `batch` -- and `call_batch` is what replaces it. Several
+`(method, params)` pairs travel in one HTTP POST, each built the way
+`call` builds its own single request, and the answer is a list aligned
+with the input: position i holds member i's `result`, or its `RpcError`
+as a value, matched to its request by `id` rather than by array
+position. Only a failure of the whole exchange -- a non-2xx status, a
+reply that is not an array, a reply no member's id claims -- raises,
+exactly as `call` raises. `COMPARISON.md`'s *Batching* has the case for
+reaching for it over a loop of `call`, and where a loop remains the
+better choice.
 
 Notifications -- a request sent with no `id`, which a node does not answer
 -- are a non-goal too, and no `AuthServiceProxy` consumer is giving one

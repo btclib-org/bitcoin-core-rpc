@@ -6,8 +6,13 @@
 
 The layer that decides what a status and a body *mean*: `_reply_object`,
 `_legacy_result` and `_v2_result` are the JSON-RPC 1.1 and 2.0 reply
-shapes, and `BitcoinCoreRpcClient.call` is what builds the request they
-answer.
+shapes, `_discriminate` is what picks between the latter two, and
+`BitcoinCoreRpcClient.call` is what builds the request they answer.
+`call_batch` sends several such requests in one HTTP exchange and reads
+each member's reply with the same `_discriminate`, by way of
+`_batch_reply_array`'s array-shaped counterpart to `_reply_object`;
+`call_raw` builds one request the same way `call` does and hands back
+whatever `_parsed_json_body` parses, unread and unshaped past that.
 """
 
 from __future__ import annotations
@@ -320,15 +325,25 @@ def _unreadable(where: str, cause: Exception) -> FetchError:
     return FetchError(f"{where}: a reply the json parser refused ({cause})")
 
 
-def _reply_object(where: str, status: int, payload: bytes) -> Mapping[str, Any]:
-    """Return the json object a reply is, or say what arrived instead.
+def _parsed_json_body(where: str, status: int, payload: bytes) -> Any:
+    """Return the json value a reply's body decodes to, whatever shape it is.
 
-    One rule for every body that is not a json-rpc reply, whichever way it
-    is not one: none of them can be a *correlated* answer, so none can be
-    this call's rpc error, and on a non-200 what is left to report is the
-    status -- the 401 with the empty body Core sends, or a 503 whose body
-    is whatever stands in front of the node. Reporting the encoding of an
-    error page would name the symptom and hide the cause.
+    The parsing half of `_reply_object`, split out so `_batch_reply_array`
+    and `call_raw` share it rather than repeating it: every caller reads
+    the body the same way this far -- the same `Decimal` numbers, the
+    same three refused constants, the same non-200 outranking a body that
+    will not parse -- and what differs is whether anything is asked of
+    the shape once parsing succeeds, which is each caller's own question
+    and not this function's. `call_raw` asks nothing of it at all: the
+    envelope is the caller's own question there, an object, an array or a
+    bare scalar alike.
+
+    One rule for every body that is not readable json, whichever way it
+    is not: none of them can be a *correlated* answer, so on a non-200
+    what is left to report is the status -- the 401 with the empty body
+    Core sends, or a 503 whose body is whatever stands in front of the
+    node. Reporting the encoding of an error page would name the symptom
+    and hide the cause.
 
     The status cannot be consulted before this, which is why the rule
     lives here and not at the top of `_result`: a 1.1 error object
@@ -336,7 +351,7 @@ def _reply_object(where: str, status: int, payload: bytes) -> Mapping[str, Any]:
     giving up on the status first would cost.
     """
     try:
-        reply = json.loads(
+        return json.loads(
             payload, parse_float=_json_number, parse_constant=_refuse_constant
         )
     except FetchError as e:
@@ -364,14 +379,76 @@ def _reply_object(where: str, status: int, payload: bytes) -> Mapping[str, Any]:
         if status != 200:
             raise _http_error(where, status) from e
         raise _unreadable(where, e) from e
+
+
+def _reply_object(where: str, status: int, payload: bytes) -> Mapping[str, Any]:
+    """Return the json object a reply is, or say what arrived instead.
+
+    `_parsed_json_body` is the parsing, shared with `_batch_reply_array`;
+    what is this function's own is the shape a *lone* call's reply has to
+    be -- an array, a string or a number is no more a json-rpc answer
+    than a page of html is, so a 503 whose body is `[1, 2, 3]` is a 503.
+    """
+    reply = _parsed_json_body(where, status, payload)
     if not isinstance(reply, dict):
-        # read, and still not a reply: an array, a string or a number is
-        # no more a json-rpc answer than a page of html is, so a 503 whose
-        # body is `[1, 2, 3]` is a 503
         if status != 200:
             raise _http_error(where, status)
         raise FetchError(f"{where}: not a json-rpc reply, but a {type(reply).__name__}")
     return reply
+
+
+def _batch_reply_array(where: str, status: int, payload: bytes) -> Sequence[Any]:
+    """Return the json array a batch reply is, or say what arrived instead.
+
+    `_reply_object`'s own check, widened for the one place a top-level
+    array is the answer instead of one object: a batch reply is an array
+    of the same reply objects a lone call's is, so what is shared is
+    `_parsed_json_body`'s safe reading, and what differs is only the
+    container `isinstance` demands of it.
+
+    `call_batch` calls this only once it has already ruled out a non-200
+    status, unlike `_reply_object`, which is reached before that question
+    is settled -- so there is no second status check here, a body that
+    parses to something other than an array being this function's own
+    refusal to make in every case that reaches it.
+    """
+    reply = _parsed_json_body(where, status, payload)
+    if not isinstance(reply, list):
+        err_msg = f"{where}: not a json-rpc batch reply, but a {type(reply).__name__}"
+        raise FetchError(err_msg)
+    return reply
+
+
+def _discriminate(
+    where: str, request_id: str, status: int, reply: Mapping[str, Any]
+) -> Any:
+    """Return a reply object's `result`, 1.1 and 2.0 read the same way.
+
+    The version-reading half of `_result`, kept apart from `_reply_object`
+    so `call_batch` can reuse exactly this for each member of a batch
+    reply: which of `_legacy_result` and `_v2_result` applies is the
+    `jsonrpc` member's presence, and that question does not care whether
+    `reply` came from a lone call's own body or from one element of a
+    batch's array -- there is no second version check to write for it.
+    """
+    if "jsonrpc" not in reply:
+        # the member and not its value: `"jsonrpc": null` is a reply
+        # that names no protocol, which is not the same thing as a
+        # 1.1 reply, and it is the member's absence that means 1.1
+        return _legacy_result(where, request_id, status, reply)
+    marker = reply["jsonrpc"]
+    if marker != "2.0":
+        # a version this module does not read, so the object is no
+        # answer -- and under a non-200 the status is what is left to
+        # report, as it is for a body that would not parse at all. A
+        # `"jsonrpc": "1.0"` beside a 503 is a 503, and losing that
+        # would cost the caller the policy `HttpError.status` is for
+        if status != 200:
+            raise _http_error(where, status)
+        err_msg = f"{where}: json-rpc version {marker!r}, neither 2.0"
+        err_msg += " nor the legacy reply that carries no version at all"
+        raise FetchError(err_msg)
+    return _v2_result(where, request_id, status, reply)
 
 
 def _legacy_result(
@@ -442,6 +519,81 @@ def _v2_result(
     if has_error:
         raise _rpc_error(where, reply["error"])
     return reply["result"]
+
+
+def _batch_member_request(
+    index: int, method: Any, params: Any, request_id: str
+) -> dict[str, Any]:
+    """Return one batch member's request object, refusing what `call` would.
+
+    Built exactly as `call` builds a lone request -- the 2.0 marker, this
+    member's own id, the same params validation, through the same
+    `_params_member` and `_assert_json_params` -- with `index` named in
+    whatever this refuses, since a caller building `calls` from its own
+    data needs to know which entry is wrong rather than that entry number
+    `n` of an unindexed list is.
+    """
+    where = f"call_batch member {index}"
+    if not isinstance(method, str):
+        raise BtcRpcTypeError(f"{where}: rpc method that is not a string: {method!r}")
+    try:
+        params_member = _params_member(params)
+        _assert_json_params(params_member)
+    except BtcRpcTypeError as e:
+        raise BtcRpcTypeError(f"{where}: {e}") from e
+    except BtcRpcValueError as e:
+        raise BtcRpcValueError(f"{where}: {e}") from e
+    return {
+        "jsonrpc": "2.0",
+        "id": request_id,
+        "method": method,
+        "params": params_member,
+    }
+
+
+def _correlated_batch_replies(
+    where: str, request_ids: Sequence[str], replies: Sequence[Any]
+) -> dict[Any, Mapping[str, Any]]:
+    """Return each batch reply keyed by the id of the member it answers.
+
+    JSON-RPC 2.0 section 6 lets a batch answer in any order, matched by
+    `id` alone, so a reply's position in the array is not what tells one
+    member's answer from another's -- `call_batch` looks each one up by
+    id rather than trusting the order Core happened to send them in.
+
+    Every failure here is the whole exchange's, as `call_batch`'s own
+    docstring promises: a reply that is not itself a json object cannot
+    be attributed to any member, so it is not one member's failure to
+    report; two replies sharing an id or one answering an id nobody sent
+    are a node that did not read the batch it was sent; and a request
+    with no reply among them is `len(replies)` disagreeing with the
+    batch that was sent, whatever the count says.
+    """
+    if len(replies) != len(request_ids):
+        err_msg = f"{where}: {len(replies)} replies for {len(request_ids)} requests"
+        raise FetchError(err_msg)
+    by_id: dict[Any, Mapping[str, Any]] = {}
+    for reply in replies:
+        if not isinstance(reply, Mapping):
+            err_msg = f"{where}: a batch reply member that is not a json"
+            err_msg += f" object, but a {type(reply).__name__}"
+            raise FetchError(err_msg)
+        reply_id = reply.get("id")
+        if reply_id in by_id:
+            err_msg = f"{where}: two replies answering the same id {reply_id!r}"
+            raise FetchError(err_msg)
+        by_id[reply_id] = reply
+    sent_ids = set(request_ids)
+    unsent = [reply_id for reply_id in by_id if reply_id not in sent_ids]
+    if unsent:
+        err_msg = f"{where}: a reply answering id {unsent[0]!r}, which nobody sent"
+        raise FetchError(err_msg)
+    # every reply's id is distinct (checked above) and sent (checked just
+    # above this), and there are as many replies as requests (checked at
+    # the top): a set of N distinct members of a set of N is that set, so
+    # every request's id is a key of `by_id` by construction and no
+    # further check names one that is not
+    return by_id
 
 
 class BitcoinCoreRpcClient:
@@ -939,24 +1091,193 @@ class BitcoinCoreRpcClient:
     def _result(self, method: str, request_id: str, status: int, payload: bytes) -> Any:
         where = f"{method} at {self.url}"
         reply = _reply_object(where, status, payload)
-        if "jsonrpc" not in reply:
-            # the member and not its value: `"jsonrpc": null` is a reply
-            # that names no protocol, which is not the same thing as a
-            # 1.1 reply, and it is the member's absence that means 1.1
-            return _legacy_result(where, request_id, status, reply)
-        marker = reply["jsonrpc"]
-        if marker != "2.0":
-            # a version this module does not read, so the object is no
-            # answer -- and under a non-200 the status is what is left to
-            # report, as it is for a body that would not parse at all. A
-            # `"jsonrpc": "1.0"` beside a 503 is a 503, and losing that
-            # would cost the caller the policy `HttpError.status` is for
-            if status != 200:
-                raise _http_error(where, status)
-            err_msg = f"{where}: json-rpc version {marker!r}, neither 2.0"
-            err_msg += " nor the legacy reply that carries no version at all"
-            raise FetchError(err_msg)
-        return _v2_result(where, request_id, status, reply)
+        return _discriminate(where, request_id, status, reply)
+
+    def call_batch(
+        self,
+        calls: Sequence[tuple[str, Sequence[Any] | Mapping[str, Any] | None]],
+        *,
+        request_timeout: float | None = None,
+        max_body_size: int = DEFAULT_MAX_BODY_SIZE,
+    ) -> list[Any]:
+        """Invoke several rpc methods in one HTTP request.
+
+        `calls` is a sequence of `(method, params)` pairs, one per member,
+        `params` shaped exactly as `call`'s own -- a sequence for the
+        positional form, a mapping for the named one, `None` for no
+        parameters at all. Each member is built the way `call` builds its
+        one request: the 2.0 marker, an id of its own from the same
+        source `call` draws from, and the same params validation -- a
+        member that fails it is refused before anything is sent, naming
+        its position in `calls` rather than a position in a request Core
+        never sees.
+
+        The answer is a list aligned with `calls` rather than with
+        whatever order the array came back in: position i holds member
+        i's `result`, or its `RpcError` **as a value** -- a batch partly
+        failing is the ordinary case, and raising the first error would
+        discard every answer beside it. JSON-RPC 2.0 section 6 lets the
+        replies arrive in any order, matched by `id`, and that is how
+        this aligns them: never by position in the reply array.
+
+        Only a failure of the *whole* exchange raises, exactly as `call`
+        raises -- `HttpError` or `FetchError` for the lot: a non-2xx
+        status, a reply that is not an array, a reply that cannot be
+        attributed to any member, or a member with no reply among them.
+        Each member's own reply, once correlated by id, is read by the
+        same `_reply_object`-then-version discrimination `call` reads its
+        own with; there is no second parsing branch for a batch's shape.
+
+        `request_timeout` and `max_body_size` are `call`'s own controls,
+        and what each bounds changes shape here: this is one HTTP
+        exchange that is now N node operations, so `request_timeout`
+        bounds all of them together rather than one, and `max_body_size`
+        bounds the sum of every member's reply rather than any one of
+        them -- widen either the way a single large `call` would ask you
+        to, and for the same reason.
+
+        An empty `calls` is refused with `BtcRpcValueError`: JSON-RPC 2.0
+        section 6 has no shape for a batch of zero requests, its own rule
+        being that the server's answer to an invalid batch is a single
+        reply object rather than the array this method promises.
+        """
+        if not calls:
+            err_msg = "call_batch with no members: JSON-RPC 2.0 section 6 has"
+            err_msg += " no shape for an empty batch"
+            raise BtcRpcValueError(err_msg)
+        timeout = self.timeout if request_timeout is None else request_timeout
+        _assert_valid_timeout(timeout, "rpc request_timeout")
+        request_ids = [_rpc_id() for _ in calls]
+        members = [
+            _batch_member_request(index, method, params, request_id)
+            for index, ((method, params), request_id) in enumerate(
+                zip(calls, request_ids, strict=True)
+            )
+        ]
+        try:
+            body = json.dumps(members, allow_nan=False, default=_refuse_param).encode()
+        except ValueError as e:
+            raise BtcRpcValueError(f"rpc params json cannot carry: {e}") from e
+        status, payload = http_request(
+            self.url,
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": self.auth_header(),
+                "User-Agent": USER_AGENT,
+            },
+            timeout=timeout,
+            max_body_size=max_body_size,
+            transport=self.transport,
+        )
+        where = f"call_batch at {self.url}"
+        # read first, as `_v2_result` reads it for a lone 2.0 call: every
+        # member was sent with the 2.0 marker, so a non-2xx here is a
+        # failure of the one HTTP exchange behind the whole array and not
+        # a shape to attribute to any member's own reply
+        if status != 200:
+            raise _http_error(where, status)
+        replies = _batch_reply_array(where, status, payload)
+        by_id = _correlated_batch_replies(where, request_ids, replies)
+        results: list[Any] = []
+        for index, ((method, _params), request_id) in enumerate(
+            zip(calls, request_ids, strict=True)
+        ):
+            member_where = f"{method} at {self.url} (call_batch member {index})"
+            try:
+                result = _discriminate(
+                    member_where, request_id, status, by_id[request_id]
+                )
+            except RpcError as e:
+                results.append(e)
+            else:
+                results.append(result)
+        return results
+
+    def call_raw(
+        self,
+        method: str,
+        params: Sequence[Any] | Mapping[str, Any] | None = None,
+        *,
+        jsonrpc: str | None = "2.0",
+        request_timeout: float | None = None,
+        max_body_size: int = DEFAULT_MAX_BODY_SIZE,
+    ) -> tuple[int, Any]:
+        """Send one rpc request and hand back the envelope, unread.
+
+        The same authenticated POST `call` builds -- this url, the
+        `Authorization` header, `USER_AGENT`, a fresh id, the same params
+        validation -- with the protocol marker itself an argument rather
+        than the `"2.0"` `call` always sends: a string is sent verbatim
+        as `jsonrpc`, `None` sends no `jsonrpc` member at all, and the
+        default is `"2.0"`, `call`'s own.
+
+        The answer is the pair as it arrived: the HTTP status, and
+        whatever `_parsed_json_body` safely parses the body into --
+        `Decimal` numbers, the three non-number constants refused -- but
+        **not interpreted**: no id check, no version discrimination, no
+        `RpcError` raised, no `result` extracted, and no shape assumed
+        either. A conformant node answers with a json object, but this is
+        the seam a caller tests a server's own conformance through, so an
+        array, a bare string or number, or `null` comes back exactly as
+        parsed rather than being refused the way `call`'s own reply has
+        to be -- `_reply_object`'s object-shape gate is a rule about a
+        *correlated* answer, which is one interpretation this method does
+        not make. What the envelope holds is the caller's own question,
+        so the envelope is the answer, read exactly as far as `call`
+        reads before it starts asking what the reply *means*.
+
+        Below the status everything stays a `FetchError`, exactly as
+        `http_request` promises: a refused connection, an expired
+        timeout, a body that is not json at all -- a non-200 status with
+        an unparsable body is `HttpError`, precisely as it is for `call`.
+        This is a raw *reply*, not raw bytes -- a caller wanting the bytes
+        has `http_request` and `auth_header()` already, both public.
+
+        Deliberately out of scope: a request this client refuses to
+        build -- a missing `method`, a non-string one, params that are
+        neither a sequence nor a mapping. A client constructing an
+        invalid request on purpose is a conformance harness's job, and
+        `http_request` is the public seam such a harness builds on.
+        """
+        request_id = _rpc_id()
+        if not isinstance(method, str):
+            raise BtcRpcTypeError(f"rpc method that is not a string: {method!r}")
+        if jsonrpc is not None and not isinstance(jsonrpc, str):
+            # unreachable under `jsonrpc: str | None` above, which is not a
+            # promise a caller that skips type checking keeps -- the same
+            # shape as the constructor's own `cookie_path` check
+            err_msg = "call_raw jsonrpc marker that is neither a string nor None:"  # type: ignore[unreachable]
+            err_msg += f" {jsonrpc!r}"
+            raise BtcRpcTypeError(err_msg)
+        timeout = self.timeout if request_timeout is None else request_timeout
+        _assert_valid_timeout(timeout, "rpc request_timeout")
+        params_member = _params_member(params)
+        _assert_json_params(params_member)
+        request: dict[str, Any] = {}
+        if jsonrpc is not None:
+            request["jsonrpc"] = jsonrpc
+        request["id"] = request_id
+        request["method"] = method
+        request["params"] = params_member
+        try:
+            body = json.dumps(request, allow_nan=False, default=_refuse_param).encode()
+        except ValueError as e:
+            raise BtcRpcValueError(f"rpc params json cannot carry: {e}") from e
+        status, payload = http_request(
+            self.url,
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": self.auth_header(),
+                "User-Agent": USER_AGENT,
+            },
+            timeout=timeout,
+            max_body_size=max_body_size,
+            transport=self.transport,
+        )
+        where = f"{method} at {self.url}"
+        return status, _parsed_json_body(where, status, payload)
 
 
 class RpcChannel:

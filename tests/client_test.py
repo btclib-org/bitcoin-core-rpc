@@ -33,6 +33,7 @@ import pickle
 import re
 import sys
 from base64 import b64decode
+from collections.abc import Callable
 from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -144,6 +145,55 @@ def sent(endpoint: BitcoinCoreRpcClient) -> dict[str, object]:
     body = json.loads(recording(endpoint).body)
     assert isinstance(body, dict)
     return body
+
+
+def sent_members(endpoint: BitcoinCoreRpcClient) -> list[dict[str, object]]:
+    """Return the json array a client's only `call_batch` was sent with."""
+    body = json.loads(recording(endpoint).body)
+    assert isinstance(body, list)
+    return body
+
+
+class BatchEchoing(Recorded):
+    """A Recorded whose one answer is built from the ids `call_batch` sent.
+
+    `call_batch` assigns each member a fresh, unpredictable id, so a
+    batch reply cannot be scripted in advance the way a lone call's can:
+    there is nothing to echo a single id into. Built with a callable from
+    the ids actually sent, in request order, to the `(status, body)` to
+    answer with -- which lets a test build a reply in whatever member
+    order it wants to check correlation in, shuffled or not, while still
+    answering the ids this batch really used.
+    """
+
+    def __init__(self, builder: Callable[[list[str]], tuple[int, bytes]]) -> None:
+        super().__init__()
+        self._builder = builder
+
+    @override
+    def __call__(self, request: Request, timeout: float) -> tuple[int, bytes]:
+        """Build the scripted answer from the ids this request carries."""
+        self.requests.append(request)
+        self.timeouts.append(timeout)
+        data = request.data
+        assert isinstance(data, bytes)
+        members = json.loads(data)
+        assert isinstance(members, list)
+        ids = [member["id"] for member in members]
+        return self._builder(ids)
+
+
+def batch_client(
+    builder: Callable[[list[str]], tuple[int, bytes]], **kwargs: object
+) -> BitcoinCoreRpcClient:
+    """Return a client whose one `call_batch` is answered by `builder`."""
+    return BitcoinCoreRpcClient(
+        URL,
+        user=RPC_USER,
+        password=RPC_PASSWORD,
+        transport=BatchEchoing(builder),
+        **kwargs,  # type: ignore[arg-type]
+    )
 
 
 def test_from_chain_is_the_local_node_of_that_chain() -> None:
@@ -2116,3 +2166,385 @@ def test_channel_guards_every_name_starting_with_underscore() -> None:
     # names before `copy` falls back to its own generic reconstruction
     copy.deepcopy(channel)
     copy.copy(channel)
+
+
+def test_call_batch_sends_one_post_carrying_every_member() -> None:
+    """One HTTP request, each member built the way `call` builds its own."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        reply = [
+            {"jsonrpc": "2.0", "id": ids[0], "result": TIP_HEIGHT},
+            {"jsonrpc": "2.0", "id": ids[1], "result": TIP_ID},
+        ]
+        return 200, json.dumps(reply).encode()
+
+    endpoint = batch_client(builder)
+    results = endpoint.call_batch([("getblockcount", None), ("getbestblockhash", None)])
+    assert results == [TIP_HEIGHT, TIP_ID]
+    assert len(recording(endpoint).requests) == 1
+
+    members = sent_members(endpoint)
+    assert [member["method"] for member in members] == [
+        "getblockcount",
+        "getbestblockhash",
+    ]
+    assert all(member["jsonrpc"] == "2.0" for member in members)
+    assert all(member["params"] == [] for member in members)
+    ids = [member["id"] for member in members]
+    assert len(set(ids)) == 2
+
+
+def test_call_batch_a_members_own_error_is_a_value_at_its_position() -> None:
+    """A batch partly failing is the ordinary case, not a raised exception."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        error = {"code": -5, "message": "No such mempool or blockchain transaction"}
+        reply = [
+            {"jsonrpc": "2.0", "id": ids[0], "result": TIP_HEIGHT},
+            {"jsonrpc": "2.0", "id": ids[1], "error": error},
+        ]
+        return 200, json.dumps(reply).encode()
+
+    endpoint = batch_client(builder)
+    results = endpoint.call_batch(
+        [("getblockcount", None), ("getrawtransaction", [TX_ID])]
+    )
+    assert results[0] == TIP_HEIGHT
+    assert isinstance(results[1], RpcError)
+    assert results[1].code == -5
+
+
+def test_call_batch_a_legacy_members_result_is_read_the_same_way() -> None:
+    """No `jsonrpc` member is 1.1, per member, exactly as it is for `call`."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        reply = [{"result": TIP_HEIGHT, "error": None, "id": ids[0]}]
+        return 200, json.dumps(reply).encode()
+
+    endpoint = batch_client(builder)
+    assert endpoint.call_batch([("getblockcount", None)]) == [TIP_HEIGHT]
+
+
+def test_call_batch_a_legacy_members_error_is_a_value_too() -> None:
+    """The same per-member discrimination reads a 1.1 error as an `RpcError`."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        error = {"code": -5, "message": "No such mempool or blockchain transaction"}
+        reply = [{"result": None, "error": error, "id": ids[0]}]
+        return 200, json.dumps(reply).encode()
+
+    endpoint = batch_client(builder)
+    results = endpoint.call_batch([("getrawtransaction", [TX_ID])])
+    assert isinstance(results[0], RpcError)
+    assert results[0].code == -5
+
+
+def test_call_batch_aligns_by_id_and_not_by_reply_order() -> None:
+    """JSON-RPC 2.0 lets a batch answer in any order, matched by id alone."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        # answered in the reverse of the order the members were sent
+        reply = [
+            {"jsonrpc": "2.0", "id": ids[1], "result": "second"},
+            {"jsonrpc": "2.0", "id": ids[0], "result": "first"},
+        ]
+        return 200, json.dumps(reply).encode()
+
+    endpoint = batch_client(builder)
+    results = endpoint.call_batch([("a", None), ("b", None)])
+    assert results == ["first", "second"]
+
+
+def test_call_batch_refuses_an_empty_batch() -> None:
+    """JSON-RPC 2.0 section 6 has no shape for a batch of zero requests."""
+    endpoint = client()
+    with pytest.raises(BtcRpcValueError, match="no shape for an empty batch"):
+        endpoint.call_batch([])
+    assert recording(endpoint).requests == []
+
+
+def test_call_batch_refuses_a_non_string_method_naming_its_position() -> None:
+    """The refusal names the member's position in `calls`."""
+    endpoint = client()
+    with pytest.raises(BtcRpcTypeError, match="call_batch member 1"):
+        endpoint.call_batch([("getblockcount", None), (7, None)])  # type: ignore[list-item]
+    assert recording(endpoint).requests == []
+
+
+def test_call_batch_refuses_invalid_params_naming_its_position() -> None:
+    """The same params validation `call` applies, per member."""
+    endpoint = client()
+    with pytest.raises(BtcRpcTypeError, match="call_batch member 1"):
+        endpoint.call_batch(
+            [("getblockcount", None), ("send", [{"amount": Decimal("0.1")}])]
+        )
+
+
+def test_call_batch_refuses_a_non_finite_parameter_naming_its_position() -> None:
+    """The value check, and not only the type check, names the position too."""
+    endpoint = client()
+    with pytest.raises(BtcRpcValueError, match="call_batch member 0"):
+        endpoint.call_batch([("getblock", [float("nan")])])
+
+
+def test_call_batch_a_non_2xx_status_is_the_whole_exchanges_failure() -> None:
+    """One HTTP status covers every member alike."""
+
+    def builder(_ids: list[str]) -> tuple[int, bytes]:
+        return 503, b""
+
+    endpoint = batch_client(builder)
+    with pytest.raises(HttpError) as exc:
+        endpoint.call_batch([("getblockcount", None)])
+    assert exc.value.status == 503
+
+
+def test_call_batch_refuses_a_reply_that_is_not_an_array() -> None:
+    """A batch reply is an array; one json object is a lone call's shape."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        body = json.dumps({"jsonrpc": "2.0", "id": ids[0], "result": 1}).encode()
+        return 200, body
+
+    endpoint = batch_client(builder)
+    with pytest.raises(FetchError, match="not a json-rpc batch reply"):
+        endpoint.call_batch([("getblockcount", None)])
+
+
+def test_call_batch_a_reply_member_that_is_not_a_json_object() -> None:
+    """An array element that is not itself an object cannot answer a member."""
+
+    def builder(_ids: list[str]) -> tuple[int, bytes]:
+        return 200, json.dumps([1, 2]).encode()
+
+    endpoint = batch_client(builder)
+    with pytest.raises(FetchError, match="member that is not a json"):
+        endpoint.call_batch([("a", None), ("b", None)])
+
+
+def test_call_batch_a_short_reply_array_is_the_whole_exchanges_failure() -> None:
+    """Fewer replies than requests: a member is missing from the answer."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        reply = [{"jsonrpc": "2.0", "id": ids[0], "result": 1}]
+        return 200, json.dumps(reply).encode()
+
+    endpoint = batch_client(builder)
+    with pytest.raises(FetchError, match="1 replies for 2 requests"):
+        endpoint.call_batch([("a", None), ("b", None)])
+
+
+def test_call_batch_a_reply_answering_an_unsent_id_is_the_whole_exchanges_failure() -> (
+    None
+):
+    """A reply naming an id nobody sent cannot be attributed to any member."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        reply = [
+            {"jsonrpc": "2.0", "id": ids[0], "result": 1},
+            {"jsonrpc": "2.0", "id": "nobody-sent-this", "result": 2},
+        ]
+        return 200, json.dumps(reply).encode()
+
+    endpoint = batch_client(builder)
+    with pytest.raises(FetchError, match="nobody sent"):
+        endpoint.call_batch([("a", None), ("b", None)])
+
+
+def test_call_batch_two_replies_sharing_an_id_is_the_whole_exchanges_failure() -> None:
+    """Two replies answering the same id cannot both be that member's."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        reply = [
+            {"jsonrpc": "2.0", "id": ids[0], "result": 1},
+            {"jsonrpc": "2.0", "id": ids[0], "result": 2},
+        ]
+        return 200, json.dumps(reply).encode()
+
+    endpoint = batch_client(builder)
+    with pytest.raises(FetchError, match="two replies answering the same id"):
+        endpoint.call_batch([("a", None), ("b", None)])
+
+
+def test_call_batch_the_clients_timeout_reaches_the_transport() -> None:
+    """`request_timeout` bounds the one exchange, as `call`'s own does."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        reply = [{"jsonrpc": "2.0", "id": ids[0], "result": 1}]
+        return 200, json.dumps(reply).encode()
+
+    endpoint = batch_client(builder, timeout=2.5)
+    endpoint.call_batch([("getblockcount", None)])
+    assert recording(endpoint).timeouts == [2.5]
+
+
+def test_call_batch_can_widen_the_timeout_for_itself() -> None:
+    """One timeout for the whole array, widened the way `call`'s own is."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        reply = [{"jsonrpc": "2.0", "id": ids[0], "result": 1}]
+        return 200, json.dumps(reply).encode()
+
+    endpoint = batch_client(builder, timeout=2.5)
+    endpoint.call_batch([("getblockcount", None)], request_timeout=3600.0)
+    assert recording(endpoint).timeouts == [3600.0]
+
+
+def test_call_batch_bounds_the_sum_of_every_members_reply() -> None:
+    """`max_body_size` is the whole array's bound, not any one member's."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        reply = [{"jsonrpc": "2.0", "id": ids[0], "result": "a" * 2048}]
+        return 200, json.dumps(reply).encode()
+
+    endpoint = batch_client(builder)
+    with pytest.raises(FetchError, match="more than the max_body_size of 1024"):
+        endpoint.call_batch([("getblockcount", None)], max_body_size=1024)
+
+
+def test_call_batch_a_number_too_long_for_this_interpreter_to_write() -> None:
+    """The encoder's own refusal, on the way out, before anything is sent."""
+    endpoint = client()
+    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+        endpoint.call_batch([("send", [10**5000])])
+    assert recording(endpoint).requests == []
+
+
+def test_call_raw_sends_the_2_0_marker_by_default() -> None:
+    """The default is `call`'s own, and reaches the node the same way."""
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    endpoint.call_raw("getblockcount")
+    request = recording(endpoint).request
+    assert request.get_method() == "POST"
+    assert request.get_header("Authorization") is not None
+    assert request.get_header("User-agent") == USER_AGENT
+    assert sent(endpoint)["jsonrpc"] == "2.0"
+
+
+def test_call_raw_sends_the_marker_verbatim() -> None:
+    """A string is sent as `jsonrpc` exactly as given, not only the default."""
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    endpoint.call_raw("getblockcount", jsonrpc="1.0")
+    assert sent(endpoint)["jsonrpc"] == "1.0"
+
+
+def test_call_raw_with_no_marker_sends_none_at_all() -> None:
+    """`jsonrpc=None` omits the member rather than sending it as null."""
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    endpoint.call_raw("getblockcount", jsonrpc=None)
+    assert "jsonrpc" not in sent(endpoint)
+
+
+def test_call_raw_hands_back_an_error_envelope_unraised() -> None:
+    """No `RpcError` raised: the envelope is the answer, error included."""
+    error = {"code": -5, "message": "No such mempool or blockchain transaction"}
+    body = json.dumps({"jsonrpc": "2.0", "error": error, "id": "x"}).encode()
+    status, reply = verbatim((200, body)).call_raw("getrawtransaction", [TX_ID])
+    assert status == 200
+    assert reply["error"] == error
+    assert "result" not in reply
+
+
+def test_call_raw_hands_back_a_result_envelope_unread() -> None:
+    """No `result` extracted: the whole reply object is the answer."""
+    body = json.dumps({"jsonrpc": "2.0", "result": TIP_HEIGHT, "id": "x"}).encode()
+    status, reply = verbatim((200, body)).call_raw("getblockcount")
+    assert status == 200
+    assert reply == {"jsonrpc": "2.0", "result": TIP_HEIGHT, "id": "x"}
+
+
+def test_call_raw_does_not_check_the_id() -> None:
+    """No id check: a reply naming another call's id comes back as-is."""
+    body = json.dumps(
+        {"jsonrpc": "2.0", "result": 1, "id": "someone-elses-id"}
+    ).encode()
+    status, reply = verbatim((200, body)).call_raw("getblockcount")
+    assert status == 200
+    assert reply["id"] == "someone-elses-id"
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        (b"[1, 2, 3]", [1, 2, 3]),
+        (b'"hello"', "hello"),
+        (b"42", 42),
+        (b"null", None),
+    ],
+    ids=["array", "string", "number", "null"],
+)
+def test_call_raw_hands_back_whatever_the_body_parses_to(
+    body: bytes, expected: object
+) -> None:
+    """No shape assumed: a non-conformant reply comes back as parsed."""
+    status, reply = verbatim((200, body)).call_raw("getblockcount")
+    assert status == 200
+    assert reply == expected
+
+
+def test_call_raw_a_non_json_body_is_still_a_fetch_error() -> None:
+    """Below the status, everything stays a `FetchError`, per `http_request`."""
+    with pytest.raises(FetchError, match="not json"):
+        verbatim((200, b"not json")).call_raw("getblockcount")
+
+
+def test_call_raw_a_non_2xx_status_with_an_unreadable_body_is_an_http_error() -> None:
+    """A non-200 status with a body that will not parse stays `HttpError`."""
+    with pytest.raises(HttpError) as exc:
+        verbatim((503, b"<html>the proxy in front of the node</html>")).call_raw(
+            "getblockcount"
+        )
+    assert exc.value.status == 503
+
+
+def test_call_raw_refuses_a_non_string_method() -> None:
+    """The one refusal left: a request `call` would refuse too."""
+    endpoint = client()
+    with pytest.raises(BtcRpcTypeError, match="rpc method that is not a string"):
+        endpoint.call_raw(7)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("jsonrpc", [1, 2.0, True, [], {}])
+def test_call_raw_refuses_a_jsonrpc_marker_that_is_not_a_string_or_none(
+    jsonrpc: object,
+) -> None:
+    """`jsonrpc` is a string sent verbatim or `None`, and nothing else."""
+    endpoint = client()
+    with pytest.raises(BtcRpcTypeError, match="jsonrpc marker"):
+        endpoint.call_raw("getblockcount", jsonrpc=jsonrpc)  # type: ignore[arg-type]
+
+
+def test_call_raw_validates_params_like_call() -> None:
+    """The same params validation `call` applies, whatever `jsonrpc` is."""
+    endpoint = client()
+    with pytest.raises(BtcRpcTypeError, match="Decimal rpc parameter"):
+        endpoint.call_raw("send", [{"amount": Decimal("0.1")}])
+
+
+def test_call_raw_the_clients_timeout_reaches_the_transport() -> None:
+    """The client's own timeout, exactly as `call` inherits it."""
+    endpoint = client((200, recorded_body("getblockcount.json")), timeout=2.5)
+    endpoint.call_raw("getblockcount")
+    assert recording(endpoint).timeouts == [2.5]
+
+
+def test_call_raw_can_widen_the_timeout_for_itself() -> None:
+    """`request_timeout`, `call`'s own control, reaches `call_raw` too."""
+    endpoint = client((200, recorded_body("getblockcount.json")), timeout=2.5)
+    endpoint.call_raw("getblockcount", request_timeout=3600.0)
+    assert recording(endpoint).timeouts == [3600.0]
+
+
+def test_call_raw_bounds_the_reply_like_call() -> None:
+    """`max_body_size`, `call`'s own control, bounds `call_raw`'s reply too."""
+    oversized = b'{"jsonrpc":"2.0","result":' + b"9" * 1100 + b',"id":"x"}'
+    with pytest.raises(FetchError, match="more than the max_body_size of 1024"):
+        client((200, oversized)).call_raw("getblockcount", max_body_size=1024)
+
+
+def test_call_raw_a_number_too_long_for_this_interpreter_to_write() -> None:
+    """The encoder's own refusal, on the way out, before anything is sent."""
+    endpoint = client()
+    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+        endpoint.call_raw("send", [10**5000])
+    assert recording(endpoint).requests == []
