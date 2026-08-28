@@ -406,6 +406,14 @@ def test_assert_chain_is_the_check_from_chain_makes() -> None:
         endpoint.assert_chain("main")
 
 
+def test_signet_challenge_is_keyword_only() -> None:
+    """`chain` is positional, `signet_challenge` cannot be mistaken for it."""
+    endpoint = BitcoinCoreRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD)
+    assert_chain: Any = endpoint.assert_chain
+    with pytest.raises(TypeError):
+        assert_chain("main", CUSTOM_CHALLENGE)
+
+
 def test_a_signet_is_identified_by_its_challenge_and_not_by_its_name() -> None:
     """`signet` alone means the default signet, and refuses every other.
 
