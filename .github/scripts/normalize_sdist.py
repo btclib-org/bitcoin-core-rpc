@@ -2,49 +2,41 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Rewrite an sdist so that two builds of one commit are the same bytes.
+"""Rewrite an sdist's member metadata to this repository's own values.
 
-The backend already does that, and this runs anyway. `uv_build` writes a
-fixed timestamp into every member of both archives and ignores
-`SOURCE_DATE_EPOCH` entirely, which is measurable in one command:
+Every field it rewrites but one already carries the value it writes,
+coming out of `uv build --sdist` and measurable with
+`tarfile.getmembers()`: `uid` and `gid` are `0`, `uname` and `gname` are
+`""`, and the mode is `0o644` for a file and `0o755` for a directory.
+`mtime` is the exception -- every member is `0`, and `uv_build` ignores
+`SOURCE_DATE_EPOCH` entirely:
 
     uv build -o a && SOURCE_DATE_EPOCH=1000000000 uv build -o b \
       && shasum -a 256 a/* b/*
 
-answers with one digest per artefact across the two directories, and
-`tarfile` reports a single distinct `mtime` of 0 in the `.tar.gz`
-against `(1980, 1, 1)` in the wheel's zip entries. Nothing here has to
-be done for the archive to be reproducible today.
+answers with one digest per artefact across the two directories. So
+rewriting `mtime` is where this step changes the published bytes.
+`test.yml`'s `dist` job exports `SOURCE_DATE_EPOCH` from the commit date
+and runs this script over the build, and the archive it hands on carries
+a different sha256 from the one `uv build` wrote, on any commit whose
+timestamp is not `0`. That archive is what the index serves and what the
+attestation vouches for, so this step decides those bytes rather than
+standing as insurance over a backend that already writes them.
 
-What this buys is that the property belongs to this repository rather
-than to the backend, and btclib's copy of this file is where that
-argument is written: a fixed `mtime` of 0 is uv's choice and uv is free
-to revisit it, while a release rebuilt from its tag has to give the
-bytes the attestation vouches for however many backends later that is.
-Rewriting the metadata to a value derived from the commit makes the
-answer this tree's, so a backend that later writes member metadata of
-its own leaves the rebuilt digest where it was. What that cannot cover
-is a backend that changes what is *in* the archive -- 0.12.0 is where
-`pyproject.toml.orig` appeared beside the normalized copy -- and the
-ceiling in `[build-system]` is what bounds that.
+What running it on the other fields buys is that they stay this
+repository's answer whatever a future `uv_build` writes there, the same
+reason a release rebuilt from its tag has to give back the bytes the
+attestation vouches for however many backends later that is.
 
-What is *in* the archive is already deterministic; what is not is the
-metadata of the members. This rewrites that metadata and nothing else:
-every timestamp becomes `SOURCE_DATE_EPOCH`, ownership becomes root
-with no names, every mode becomes 0644 or 0755, and the gzip header
-carries the same timestamp instead of the moment it was compressed. The
-order of the members and every byte of their content are the archive's
-own.
-
-The mode is rewritten for the reason the timestamp is: 0644 and 0755
-are what `uv_build` writes today, so the line is a no-op against the
-current backend and an answer of this tree's own against any other --
-one that could take the mode from the working directory it walks, and
-so put the umask of a checkout in the published archive. Nothing in the
-sdist needs the executable bit -- no source file here opens with a
-shebang, which `.pre-commit-config.yaml` records as a decision rather
-than an accident -- so one mode for files and one for directories is
-the whole of it.
+What is *in* the archive is already deterministic; only the metadata of
+the members is rewritten here, and nothing else: `mtime` becomes
+`SOURCE_DATE_EPOCH`, ownership becomes root with no names, mode becomes
+`0o644` for a file and `0o755` for a directory -- nothing in the sdist
+needs the executable bit, no source file here opening with a shebang,
+which `.pre-commit-config.yaml` records as a decision rather than an
+accident -- and the gzip header carries the same timestamp instead of
+the moment it was compressed. The order of the members and every byte of
+their content are the archive's own.
 
 `PAX_FORMAT` with the extended headers cleared, rather than
 `USTAR_FORMAT`: an integral timestamp needs no PAX record, so the two
@@ -57,8 +49,10 @@ Run it after `uv build` and before anything reads dist/:
     uv run --no-project --python 3.14 \
         .github/scripts/normalize_sdist.py dist/
 
-RELEASING.md has the command that verifies a published release against
-a rebuild of its tag.
+RELEASING.md's "Rebuild a release from its tag" is what that is for: the
+command there runs this script over the rebuild, and a rebuild that
+skips it answers with the `mtime` `uv_build` wrote rather than the one
+the published archive carries.
 """
 
 from __future__ import annotations

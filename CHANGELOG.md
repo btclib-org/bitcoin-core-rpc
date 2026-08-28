@@ -2107,6 +2107,19 @@ carry a union merge driver that would keep both sides' numbers.
   `if:` still is, so the cancellation is unchanged and the job concludes
   green with every step skipped.
 
+- **`normalize_sdist.py` states what the step decides** (closes #289).
+  Its docstring presented the rewrite as a step the backend had made
+  unnecessary, and sent the reader to btclib's copy of the file for an
+  argument that copy does not make. `uv_build` writes an `mtime` of `0`
+  into every member of the sdist and ignores `SOURCE_DATE_EPOCH`, so this
+  script moves every one of them to the commit's second and the archive's
+  sha256 with it: the digest the attestation vouches for is the step's
+  output, and dropping it as inert publishes other bytes. Section 12 of
+  the organization standard states the property a published sdist owes
+  and leaves the mechanism to the tree, so the reason now sits beside the
+  command in `RELEASING.md`, beside the step in `test.yml` and beside the
+  block in `CONTRIBUTING.md`.
+
 ## v2026.8.20
 
 ### Repository

@@ -610,8 +610,9 @@ reading a mismatch as tampering:
   in that range is current, so a rebuild months later runs a backend the
   release never saw. What the ceiling bounds is the *content* of the
   archive; its member metadata is `normalize_sdist.py`'s answer and not
-  the backend's, which is the whole reason that script runs over an sdist
-  already deterministic without it.
+  the backend's, which is why the command above runs that script and why
+  a rebuild that skips it disagrees with the published archive on every
+  member's `mtime`.
 - **the rehearsal is a different version, by construction.** A TestPyPI
   dispatch appends `.dev<run*100+attempt>` to the version, so its files are not
   a second build of the release's — they are their own artifact, published
