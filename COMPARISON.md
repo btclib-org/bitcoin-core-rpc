@@ -59,12 +59,12 @@ one this client absorbs.
 
 ## Non-goals
 
-Two features are absent by decision, on a criterion common to both: the
-file is meant to be copied, so its public API is permanent and its size is
-the vendoring caller's to audit. What is cheap to add downstream belongs
+Two features are absent by decision, on a criterion common to both:
+`__all__` is the public surface this package publishes, and a name added
+to it is a name kept forever. What is cheap to add downstream belongs
 downstream — the session, the array. A third, dynamic dispatch, looks like
 the same case and is not: see below for why it is offered rather than left
-to a caller's own copy.
+to a caller's own code.
 
 ### Dynamic dispatch
 
@@ -77,7 +77,7 @@ What changes is that the sugar, `client.getblockcount()`, is now offered
 as `RpcChannel`, wrapping a client rather than replacing its surface. Not
 downstream, and not because a caller could not write `__getattr__`
 themselves: two things about it are this package's to get right, not a
-vendoring caller's to rediscover.
+caller's own code to rediscover.
 
 `call`'s own keyword-only controls — `request_timeout` and
 `max_body_size` today — have to be excluded from `params` rather than

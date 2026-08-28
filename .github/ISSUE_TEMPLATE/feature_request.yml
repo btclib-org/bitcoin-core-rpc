@@ -7,13 +7,12 @@ body:
   - type: markdown
     attributes:
       value: >
-        This is one source file with nothing but the standard library
-        behind it, and that is the constraint every request meets first:
-        an addition that needs a dependency, or a second module, is one
-        this project cannot take without ceasing to be what it is. What
-        belongs here is what the JSON-RPC exchange with a node needs.
-        What a *method* does belongs to
-        [bitcoin/bitcoin](https://github.com/bitcoin/bitcoin/issues).
+        This is a package with nothing but the standard library behind
+        it, and that is the constraint every request meets first: an
+        addition that needs a dependency is one this project cannot take
+        without ceasing to be what it is. What belongs here is what the
+        JSON-RPC exchange with a node needs. What a *method* does belongs
+        to [bitcoin/bitcoin](https://github.com/bitcoin/bitcoin/issues).
 
   - type: textarea
     id: what

@@ -372,9 +372,8 @@ jobs:
       # what none of the three above does: install the wheel, alone, from
       # an empty directory, and use it. There is no dependency to resolve,
       # which is itself the thing asserted -- `importlib.metadata.requires`
-      # reads the `Requires-Dist` the wheel carries, and a dependency added
-      # to pyproject.toml by accident is a dependency a vendored copy of
-      # this file silently does not have.
+      # reads the `Requires-Dist` the wheel carries, and this is what
+      # catches a dependency added to pyproject.toml by accident.
       # The version is asserted rather than printed, because a wheel
       # shipping no metadata would print nothing and pass; and a call goes
       # through a transport of its own, because importing a module proves

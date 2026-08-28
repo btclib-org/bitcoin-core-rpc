@@ -251,12 +251,14 @@ rather than an issue here.
 
 ### The one constraint
 
-**This is one source file with nothing but the standard library behind
-it**, and it stays that way. A dependency here is a dependency a vendored
-copy silently does not have, and a second module is a second file to copy;
-`tests/standalone_test.py` is what fails when either happens — it reads the
-imports of the source, and it runs a copy of it under `python -I -S`, where
-no site package is reachable.
+**This package carries nothing but the standard library behind it**, and
+it stays that way: `errors.py`, `chains.py`, `transport.py` and
+`client.py`, each importing only the standard library and each other in
+the order `errors < chains < transport < client`.
+`tests/census_test.py` is what fails when a module takes a dependency
+outside that or imports one later than itself in that order — it reads
+the imports of every source file with `ast` rather than trusting what
+ran.
 
 `__all__` is the public surface. A name is public because that list says
 so, not because it happens to lack a leading underscore.

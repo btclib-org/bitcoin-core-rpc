@@ -14,7 +14,7 @@ and it costs something: an absent convention test reads exactly like a
 convention this repository does not have, and a `grep` over `tests/`
 cannot tell the two apart — the suites of the organization name the same
 idea three different ways, and this one folds several checks into the
-file that is about its single module.
+file that is about the package's own census.
 
 So which of them this repository tests is **declared here**, and
 `conventions_test.py` asserts the declaration is true: every convention
@@ -23,26 +23,29 @@ least one test, and the two halves together account for the whole list.
 
 | convention | tested in |
 | --- | --- |
-| the public surface | `standalone_test.py` |
-| the documentation | `standalone_test.py` |
-| the import graph | `standalone_test.py` |
+| the public surface | `census_test.py` |
+| the documentation | `census_test.py` |
+| the import graph | `census_test.py` |
 
 Not tested here: the copyright header; the changelog; the build system;
 the calling convention; input validation; the suite opens no socket.
 
 One module answers several bullets, which is the shape section 7 has in
 mind where it says what must not be aligned is *where* these live. This
-package is one file, so the properties that elsewhere need a walk over a
-tree are here properties of that file, and they are stronger for it:
-**the public surface** is not a walk over a package's modules but a walk
-over the one module's own body, so every name it defines and does not
-underscore has to be in `__all__` and every name in `__all__` has to be
-defined; **the documentation** is not "every module appears in the sphinx
-pages" but every name of `__all__` carrying a docstring `automodule` will
-render, against `docs/source/api.rst`'s claim to list the whole public
-surface; **the import graph** is not "every module imports first" but the
-source importing nothing outside the standard library, and a copy of it
-running under `python -I -S` where nothing else is importable at all.
+package is `errors.py`, `chains.py`, `transport.py` and `client.py` behind
+an `__init__.py` facade, and the three properties below read the four,
+`__init__.py` re-exporting rather than defining: **the public surface**
+walks every one of the four for a name it defines and does not
+underscore, and every such name has to be in `__all__` and every name in
+`__all__` has to be defined by one of the four; **the documentation** is
+not "every module appears in the sphinx pages" but every name of
+`__all__` carrying a docstring `automodule` will render, against
+`docs/source/api.rst`'s claim to list the whole public surface; **the
+import graph** is not "every module imports first" but the four
+importing nothing outside the standard library and each other, in the
+order `errors < chains < transport < client`, and `chains.py` and
+`errors.py` each leaving `urllib.request`, `ssl` and `socket` out of a
+fresh interpreter's `sys.modules`.
 
 The public surface is not one this repository could have declined.
 Section 7's escape clause — a repository needs the conventions its own

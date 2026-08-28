@@ -475,13 +475,12 @@ this heading.
 Each of these is a question, and the document that answers it is named
 because that document, and not this one, is where the rule lives.
 
-- Does the diff add **a dependency, or a second module**? Both are what
-  this package exists not to have: it is installed as a top-level module
-  *and* meant to be copied, so a dependency is one a vendored copy
-  silently lacks and a second file is a second file to copy.
-  `tests/standalone_test.py` is what fails on either, walking the
-  imports with `ast` and running the file under `python -I -S`.
-  `CONTRIBUTING.md`'s *The one constraint* states it.
+- Does the diff add **a dependency**? This package exists not to have
+  one: `errors.py`, `chains.py`, `transport.py` and `client.py` import
+  only the standard library and each other, in that order.
+  `tests/census_test.py` is what fails on it, walking the imports of
+  every module with `ast`. `CONTRIBUTING.md`'s *The one constraint*
+  states it.
 - Does a change to the reply path keep **both JSON-RPC dialects** right?
   Core answers 1.1 by default and 2.0 to a request carrying the marker,
   and under 1.1 an rpc error arrives as the body of an HTTP 500 — which

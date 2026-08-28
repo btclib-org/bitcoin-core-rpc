@@ -91,6 +91,26 @@ carry a union merge driver that would keep both sides' numbers.
   environment section and in `pyproject.toml`'s `-n auto` comment, say
   instead what holds: no test here reaches the network.
 
+- **The client is a package of four modules, not one file** (closes
+  #292). `errors.py` is the exception hierarchy, `chains.py` the chain
+  and network vocabulary, `transport.py` the urllib layer, `client.py`
+  the RPC client built on the three beneath it; a module imports only
+  the ones before it in that order. `__init__.py` is a facade that
+  re-exports today's `__all__` unchanged, `TYPE_CHECKING` importing
+  `client.py` and `transport.py`'s names for a type checker while
+  `__getattr__` resolves them at runtime only when asked for, so
+  importing `bitcoin_core_rpc.chains` or `bitcoin_core_rpc.errors` alone
+  still leaves `urllib.request`, `ssl` and `socket` out of
+  `sys.modules`. `tests/census_test.py` replaces
+  `tests/standalone_test.py`'s single-file walk with the same properties
+  read across the four, plus the import order and the socket-layer
+  isolation as tests of their own. The constraint this keeps is
+  "nothing but the standard library behind it"; vendoring a single file
+  is no longer what the shape is for. Every exception's qualified name
+  gained `.errors`, `bitcoin_core_rpc.errors.RpcError` where a traceback
+  read `bitcoin_core_rpc.RpcError` -- `except`, `isinstance` and
+  unpickling all match on the class and do not see it.
+
 ### Repository
 
 - **`claude-review.yml`'s header points at the ceiling's home** (closes

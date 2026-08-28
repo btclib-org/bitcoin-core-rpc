@@ -12,6 +12,21 @@ in this file — read it before upgrading, rather than a digit.
 
 ## v2026.9 (work in progress, not released yet)
 
+`bitcoin_core_rpc` is now a package of four modules —
+`errors.py`, `chains.py`, `transport.py`, `client.py` — behind an
+`__init__.py` that still answers every name `import bitcoin_core_rpc` did
+before. Nothing in the public surface moved, so `pip install` or a
+dependency bump is the whole of what this asks of you. If you took a copy
+of the old single file rather than installing it, that copy is now the
+only channel it will keep working through: this release is not a file to
+replace it with.
+
+Every public exception's qualified name gained `.errors` in it — a
+traceback now reads `bitcoin_core_rpc.errors.RpcError`, not
+`bitcoin_core_rpc.RpcError`. `except RpcError`, `isinstance` and
+unpickling all match on the class itself and do not see the difference;
+a log line or a test asserting the name as text does.
+
 ## v2026.8.20
 
 Nothing to act on. Every change this cycle is repository tooling —

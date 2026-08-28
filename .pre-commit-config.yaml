@@ -149,16 +149,18 @@ repos:
       - id: detect-private-key
       - id: debug-statements
       - id: check-docstring-first
-        # every module-level constant of the client carries a PEP 258
-        # attribute docstring -- the string literal *after* the assignment,
-        # which is what sphinx reads and what puts the nine names that had
-        # only a `#` comment on the built api page. This hook counts any
+        # every module-level constant carries a PEP 258 attribute
+        # docstring -- the string literal *after* the assignment, which is
+        # what sphinx reads and what puts a name that had only a `#`
+        # comment beside it off the built api page. This hook counts any
         # such literal as a second module docstring, having been written
-        # for the mistake of a docstring placed below the imports; the
-        # client source is the one file where the two are indistinguishable
-        # to it, and `test_every_public_name_carries_a_docstring` is what
-        # checks the arrangement it can no longer see
-        exclude: ^src/bitcoin_core_rpc/__init__\.py$
+        # for the mistake of a docstring placed below the imports;
+        # chains.py, transport.py and client.py each carry at least one
+        # such constant, where the two are indistinguishable to it, and
+        # `test_every_public_name_carries_a_docstring` is what checks the
+        # arrangement it can no longer see. `__init__.py` and `errors.py`
+        # carry none and need no exclusion, so they are not named here
+        exclude: ^src/bitcoin_core_rpc/(chains|transport|client)\.py$
       # the hook's default, *_test.py, with neither args nor exclude.
       # What it is for is the one failure mode a test suite cannot report
       # on itself -- a file named so that pytest never collects it is not
@@ -537,11 +539,11 @@ repos:
   # are off here and why.
   #
   # Scoped to bitcoin_core_rpc, which is where the contract has to be
-  # written down: the module is meant to be copied out of a distribution,
-  # so what a consumer reads is help() and an IDE tooltip on that one file,
-  # with no README beside it. Neither of the two other trees is that -- a
-  # test documents what it claims and not the fixtures it takes, and
-  # .github/scripts is read from the source tree by whoever changes it
+  # written down: what a consumer of the installed package reads is
+  # help() and an IDE tooltip, with no README beside it. Neither of the
+  # two other trees is that -- a test documents what it claims and not
+  # the fixtures it takes, and .github/scripts is read from the source
+  # tree by whoever changes it
   - repo: https://github.com/jsh9/pydoclint
     rev: 0.9.1
     hooks:
@@ -552,8 +554,8 @@ repos:
   # a child process decoded through `text=True` takes the locale's
   # encoding, by the same rule an `open` without one does -- what a
   # failure reports then depends on what Windows decoded the child's
-  # stderr as, and the standalone test runs the copied module under a
-  # second interpreter with its output captured. No linter here has an
+  # stderr as, and census_test.py runs a submodule under a second
+  # interpreter with its output captured. No linter here has an
   # opinion on the keyword: ruff's unspecified-encoding reads `open` and
   # the pathlib and tempfile spellings and stops there, and this tree
   # does not select it (issue #225).
@@ -571,13 +573,12 @@ repos:
         language: pygrep
         entry: '\b(text|universal_newlines)=True'
         files: \.py$
-  # Scoped to bitcoin_core_rpc, which is what actually travels when this
-  # file is vendored: a comment here is read by someone who took only
-  # this file and has never heard of btclib. The organization that
-  # publishes the package is allowed -- "btclib-org" in a URL, "The
-  # btclib developers" in the copyright line -- because a consumer does
-  # care who publishes it; naming the downstream package that depends on
-  # this one is not.
+  # Scoped to bitcoin_core_rpc, which is what an installed package
+  # actually ships: a comment here is read by a consumer who has never
+  # heard of btclib. The organization that publishes the package is
+  # allowed -- "btclib-org" in a URL, "The btclib developers" in the
+  # copyright line -- because a consumer does care who publishes it;
+  # naming the downstream package that depends on this one is not.
   - repo: local
     hooks:
       - id: no-downstream-name-in-package
