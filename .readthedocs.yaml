@@ -20,11 +20,11 @@
 # `stable` and each release tag are versions on read the docs' side, and
 # an automation rule is what activates a new tag there -- so a release
 # that keeps a permanent URL of its own and one that does not differ in
-# a setting, not in this file. Nothing in this tree records those
-# settings yet, REPOSITORY.md having no Read the Docs section where
-# btclib's has one; btclib-org/.github#26 is where the publishing
-# repositories are compared on them, and carries the commands that read
-# the state back.
+# a setting, not in this file. REPOSITORY.md's own Read the Docs section
+# records what connects this project to the service, and nothing yet
+# records the version-activation settings themselves; btclib-org/.github#26
+# is where the publishing repositories are compared on them, and carries
+# the commands that read the state back.
 
 # Required
 version: 2
