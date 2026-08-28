@@ -14,11 +14,11 @@ does not have. Nothing anywhere recorded which of the two it was.
 A filename cannot answer it either. The suites of the organization name
 the same idea three ways -- a module per bullet in btclib, a `test_`
 prefix in btclib-secp256k1, and here several of these checks folded into
-standalone_test.py, the one file that is about this package's single
-module, which is the honest shape for a package that is one module. So
-the audit reads a declaration rather than a directory, and this module is
-what keeps the declaration from being prose: section 7's own rule, that a
-convention worth stating is worth a test, applied to section 7 itself.
+census_test.py, the one file that is about this package's public surface
+rather than about any one of its modules. So the audit reads a
+declaration rather than a directory, and this module is what keeps the
+declaration from being prose: section 7's own rule, that a convention
+worth stating is worth a test, applied to section 7 itself.
 
 Some of them are tested here and some are not, which the declaration
 says out loud rather than leaving to be inferred from an absence.

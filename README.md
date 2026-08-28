@@ -47,13 +47,10 @@ says how the choice is enforced.
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/btclib-org/bitcoin-core-rpc/badge)](https://scorecard.dev/viewer/?uri=github.com/btclib-org/bitcoin-core-rpc)
 
-One source file with nothing but the standard library behind it, fully
-annotated and shipping `py.typed`. `BitcoinCoreRpcClient` invokes any one
-rpc method a node has, with positional or named parameters: one HTTP POST
-per call, basic authentication, the result or an exception.
-
-Install it, or copy the file — [Vendoring](#vendoring) below is how, and it
-is a supported way to use this rather than a fallback.
+Nothing but the standard library behind it, fully annotated and shipping
+`py.typed`. `BitcoinCoreRpcClient` invokes any one rpc method a node has,
+with positional or named parameters: one HTTP POST per call, basic
+authentication, the result or an exception.
 
 ```shell
 pip install bitcoin-core-rpc
@@ -347,27 +344,9 @@ your_code.py:4: error: Argument 1 to "call" of "BitcoinCoreRpcClient" has
 incompatible type "int"; expected "str"
 ```
 
-That marker is why the source is `src/bitcoin_core_rpc/__init__.py` and not a
-top-level module: PEP 561 puts it inside a package directory and nowhere
-else. `pyproject.toml` records what the alternatives were measured to do.
-
-## Vendoring
-
-Copy `src/bitcoin_core_rpc/__init__.py` whole from a release tag, **rename it
-to `bitcoin_core_rpc.py`**, keep the copyright notice at the top of it —
-three lines, naming the holder and the URL of the MIT license text, since a
-copy has no `LICENSE` beside it — and record the tag next to the copy. An
-update is a replacement of the whole file, and this shows every behavioral
-change first:
-
-```shell
-git diff OLD..NEW -- src/bitcoin_core_rpc/__init__.py
-```
-
-A vendored copy receives no security or compatibility fix automatically, so
-its recorded tag is what says whether it needs replacing. An installed one
-is a version an ordinary dependency bump moves, which is why installing is
-the default advice.
+That marker is why `py.typed` sits inside `src/bitcoin_core_rpc/`: PEP 561
+puts it inside a package directory and nowhere else. `pyproject.toml`
+records what the alternatives were measured to do.
 
 ## Security
 

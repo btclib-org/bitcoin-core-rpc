@@ -6,8 +6,8 @@
 
 `http_request` and `urlopen_transport` are the layer that opens the socket
 and maps everything below an HTTP status onto `FetchError`; what a status
-*means* is the client's question, and `bitcoin_core_rpc_test.py` is where
-that is asked.
+*means* is the client's question, and `client_test.py` is where that is
+asked.
 """
 
 from __future__ import annotations
@@ -39,15 +39,13 @@ from urllib.response import addinfourl
 import pytest
 from typing_extensions import override
 
-import bitcoin_core_rpc as transport_module
-from bitcoin_core_rpc import (
+from bitcoin_core_rpc import transport as transport_module
+from bitcoin_core_rpc.errors import BtcRpcTypeError, BtcRpcValueError, FetchError
+from bitcoin_core_rpc.transport import (
     _READ_CHUNK,
     DEFAULT_MAX_BODY_SIZE,
     DEFAULT_TIMEOUT,
     MAX_ERROR_BODY_SIZE,
-    BtcRpcTypeError,
-    BtcRpcValueError,
-    FetchError,
     http_request,
     urlopen_transport,
 )

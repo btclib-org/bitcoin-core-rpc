@@ -211,8 +211,7 @@ jobs:
       # the same round trip release.yml's own wheel smoke test makes,
       # against the real index instead of a build of this run. requires()
       # is asserted rather than printed, `dependencies = []` in
-      # pyproject.toml being a contract a vendored copy also holds only if
-      # nothing here ever adds one
+      # pyproject.toml being a contract this checks rather than trusts
       - name: Verify a JSON-RPC round trip, and the Decimal it produces
         shell: bash
         run: |

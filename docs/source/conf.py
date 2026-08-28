@@ -75,10 +75,11 @@ source_suffix = [".rst", ".md"]
 
 # anchors for h1 to h3, which is what makes a link to a heading of the same
 # markdown file resolve here. Without it myst generates no anchor at all,
-# so "[Vendoring](#vendoring)" -- a link GitHub and PyPI both follow, the
-# anchor being what those two derive from the heading text -- becomes an
-# xref to a target no page has, and -W fails the build. Three levels,
-# because that is how deep the root markdown files head their sections
+# so "[Talking to a node](#talking-to-a-node)" -- a link GitHub and PyPI
+# both follow, the anchor being what those two derive from the heading
+# text -- becomes an xref to a target no page has, and -W fails the
+# build. Three levels, because that is how deep the root markdown files
+# head their sections
 myst_heading_anchors = 3
 
 # no suppress_warnings, and myst.xref_missing least of all: the transform

@@ -62,7 +62,7 @@ jobs:
           # below has nothing to answer with otherwise, and it is also what
           # puts origin/<default branch> in this checkout at all. Only this
           # job pays for it, and it pays once per release -- this
-          # repository is one source file and its tests, so the history
+          # repository is a small package and its tests, so the history
           # `fetch-depth: 0` pulls is small next to what `test`, `lint` and
           # the rest of this same run already cost
           fetch-depth: 0
@@ -237,7 +237,7 @@ jobs:
           echo "version-suffix=$suffix" >> "$GITHUB_OUTPUT"
 
   # what the suite cannot ask: did this release take something the last
-  # one gave. standalone_test.py's census asserts that `__all__` is
+  # one gave. census_test.py asserts that `__all__` is
   # declared and that what it names exists, which answers whether the
   # surface is *stated* and never whether it *changed*; RELEASE_NOTES.md
   # is where a caller is told to act and is written by hand, so nothing in

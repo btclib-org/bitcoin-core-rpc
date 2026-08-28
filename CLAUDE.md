@@ -15,19 +15,24 @@ against.
 
 ## Architecture
 
-One source file, `src/bitcoin_core_rpc/__init__.py`, with nothing but the
-standard library behind it. That it stays one file with no dependency is
-a rule a contributor is bound by rather than a fact about the code, so it
-is `CONTRIBUTING.md`'s *The one constraint*; what follows is what the
-file is made of.
+A package of four modules under `src/bitcoin_core_rpc/`, `__init__.py`
+itself a facade re-exporting `__all__` rather than defining any of it:
+`errors.py` the exception hierarchy every other module raises out of,
+`chains.py` the chain and network vocabulary, `transport.py` the urllib
+layer, `client.py` the RPC client built on the three beneath it. A
+module may import any of the ones before it in that order and none of
+the ones after — `errors < chains < transport < client` — and none of
+the four takes a dependency outside the standard library. That the
+package stays that way is a rule a contributor is bound by rather than
+a fact about the code, so it is `CONTRIBUTING.md`'s *The one
+constraint*; what follows is what the package is made of.
 
-- the file is installed as a top-level module *and* meant to be copied,
-  and it opens with `COPYRIGHT`'s three lines like every other source
-  file of the organization — the pointer form, whose third line names
-  the URL of the license text a copy has no `LICENSE` beside it for;
-  `[tool.ruff.lint.flake8-copyright]` in `pyproject.toml` is where the
-  self-contained notice it used to carry was weighed and lost. There is
-  deliberately no version constant in it: the release tag is the version
+- every module opens with `COPYRIGHT`'s three lines like every other
+  source file of the organization — the pointer form, whose third line
+  names the URL of the license text — checked by
+  `[tool.ruff.lint.flake8-copyright]` in `pyproject.toml`. There is
+  deliberately no version constant anywhere in the package: the release
+  tag is the version
 - layers, such as they are: `http_request` and `urlopen_transport` open
   the socket and map everything below an HTTP status onto `FetchError`;
   `BitcoinCoreRpcClient.call` builds the request, and `_reply_object`,
@@ -40,12 +45,13 @@ file is made of.
   judged — which is why `_legacy_result` and `_v2_result` are two
   functions and not one with a flag
 
-The tests: `tests/bitcoin_core_rpc_test.py` judges the client,
-`tests/transport_test.py` the urllib layer under it,
-`tests/standalone_test.py` the one-file property. `tests/__init__.py`
-holds `Recorded`, the transport that answers from `tests/_data` and opens
-no socket — which is what keeps the suite hermetic, not the absence of a
-node.
+The tests: `tests/client_test.py` judges the client,
+`tests/chains_test.py` the chain and network vocabulary,
+`tests/transport_test.py` the urllib layer under it, `tests/census_test.py`
+the package's public surface, documentation and import graph.
+`tests/__init__.py` holds `Recorded`, the transport that answers from
+`tests/_data` and opens no socket — which is what keeps the suite
+hermetic, not the absence of a node.
 
 ## The primary checkout is the maintainer's
 

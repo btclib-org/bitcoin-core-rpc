@@ -42,15 +42,8 @@ a flaw is not a reason to keep it to yourself.
 ## Supported versions
 
 Only the latest release is supported. A fix is published as a new release,
-and nothing is backported.
-
-**A vendored copy receives nothing automatically.** Copying
-the one source file is a supported way to use this project, and this is
-its price: a fix published here reaches an installed package through an
-ordinary dependency bump and reaches a copy only when somebody replaces the
-file. Record the release tag beside the copy — that is what says whether it
-needs replacing — and watch the releases of this repository if you have
-taken one.
+and nothing is backported: an ordinary dependency bump is what carries it
+to an installed package.
 
 Wheels and sdist are published to PyPI with PEP 740 attestations, through
 a workflow that no long-lived token can authenticate for (PyPI Trusted

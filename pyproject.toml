@@ -34,10 +34,9 @@ build-backend = "uv_build"
 name = "bitcoin-core-rpc"
 # the one place the version is declared: docs/source/conf.py parses this
 # file rather than the installed metadata, which would need the package
-# installed to build the documentation. There is no `__version__` in the
-# module either, and that is the same decision the module's docstring
-# states for a vendored copy -- the release tag is the version, and a
-# number inside a file that gets copied is a second one that drifts
+# installed to build the documentation. There is no `__version__` in any
+# module of the package either: the release tag is the version, and a
+# constant inside the package is a second one that drifts against it
 #
 # calendar versioning, `YYYY.M.D`: what ages in a client of a node is which
 # Core versions its recorded replies were recorded against, and a date says
@@ -80,18 +79,18 @@ authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 # surface is annotations a caller type checks against. 3.9 is also
 # end-of-life since 2025-10
 requires-python = ">=3.10"
-# none, and that is the product rather than an omission: the module imports
-# `json`, `base64`, `decimal`, `pathlib`, `secrets` and `urllib.request`,
-# all of them standard library, which is what lets it be installed as a
-# package or copied as one file. A dependency added here is a dependency a
-# vendored copy silently does not have, so the empty list is a contract
+# none, and that is the product rather than an omission: `errors.py`,
+# `chains.py`, `transport.py` and `client.py` between them import `json`,
+# `base64`, `decimal`, `pathlib`, `secrets` and `urllib.request`, all of
+# them standard library and nothing else -- `tests/census_test.py` is what
+# checks each of the four against this, so the empty list is a contract
 dependencies = []
 # the GitHub repository topics, in the same order, and the order is by
 # relevance rather than alphabetical: PyPI shows keywords as the metadata
 # gives them, and GitHub sorts its own, so there the order decides only
-# which topic goes when the twenty it allows are full -- which nine is well
-# short of. Lowercase throughout, a GitHub topic being lowercase or not a
-# topic, so that one spelling serves both lists.
+# which topic goes when the twenty it allows are full -- this list is well
+# short of that. Lowercase throughout, a GitHub topic being lowercase or
+# not a topic, so that one spelling serves both lists.
 #
 # What is not here: `python`, which names no feature and is what the
 # `Programming Language ::` classifiers below already say; `type-hints`,
@@ -107,7 +106,6 @@ keywords = [
     "rpc-client",
     "rpc",
     "zero-dependency",
-    "vendorable",
 ]
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
@@ -181,9 +179,9 @@ test = [
     "pytest-randomly",
     "pytest-xdist",
     # `override` for the test doubles: typing has it from 3.12 and the
-    # interpreter floor is 3.10. The module itself cannot take it either
-    # way -- standalone_test.py reads its imports and refuses any outside
-    # the standard library
+    # interpreter floor is 3.10. The package itself cannot take it either
+    # way -- census_test.py reads the imports of every module and refuses
+    # any outside the standard library
     "typing-extensions",
 ]
 # a floor here and on nothing else in this group: the suppressions in this
@@ -222,13 +220,13 @@ required-version = ">=0.12.5"
 # normalized, which is this name already, and a second declaration is a
 # second thing to keep in agreement.
 #
-# What that name points at is a package directory holding one file, which
-# is a shape chosen for exactly one reason: `py.typed`. This distribution
-# is annotated throughout and type checked in strict mode, and PEP 561
-# gives it no way to say so as a top-level module -- the marker has to sit
-# inside a package directory, and a module has none. Measured against a
-# built wheel of each layout, with a consumer running `mypy --strict` and
-# no configuration of its own:
+# What that name points at is a package directory, which is a shape a
+# module has no way to take and `py.typed` needs regardless of how many
+# files sit under it. This distribution is annotated throughout and type
+# checked in strict mode, and PEP 561 gives it no way to say so as a
+# top-level module -- the marker has to sit inside a package directory.
+# Measured against a built wheel of each layout, with a consumer running
+# `mypy --strict` and no configuration of its own:
 #
 #   bitcoin_core_rpc.py                     every name is `Any`, plus
 #                                           "missing library stubs or
@@ -245,12 +243,6 @@ required-version = ">=0.12.5"
 # `follow_untyped_imports` for this one module -- which btclib measured at
 # 21 lines of override, and which the consumers who do not notice pay in
 # silence rather than in errors.
-#
-# What it costs is the file name: `__init__.py` in this tree, where the
-# vendoring instruction is now "copy it out *and rename it*". That is one
-# sentence in the module docstring, and `tests/standalone_test.py` already
-# copies to `bitcoin_core_rpc.py` rather than to the source's own name, so
-# the property that file exists to check is unchanged.
 #
 # There is no package-data entry beside this: the backend copies what is
 # under `module-name` whole, `py.typed` and any other non-`.py` file
@@ -762,14 +754,20 @@ ignore = [
     "boolean-default-value-positional-argument",
     "boolean-positional-value-in-call",
     # flake8-type-checking asks an import used only in an annotation to
-    # move behind `if TYPE_CHECKING:` so it costs nothing at runtime. What
-    # it would buy is an import this tree does not pay for -- every name
-    # it names is the standard library's, already imported by something
-    # else in the same process -- against the one property `CONTRIBUTING`
-    # calls the constraint: a file meant to be read and copied, where an
-    # import written twice, once guarded and once quoted, is a shape a
-    # reader has to decode. `runtime-cast-value` is the same trade at a
-    # `cast()`
+    # move behind `if TYPE_CHECKING:` so it costs nothing at runtime.
+    # Measured with the family selected: every finding it has today is in
+    # `tests/` or `.github/scripts` (`pytest`, `argparse.Namespace`,
+    # `collections.abc.Callable`, none of it read by anyone but this
+    # tree), where the import guarded is a name pytest or the smoke script
+    # already pays for elsewhere in the same process, and the guard would
+    # buy nothing a reader could see without opening the module twice.
+    # `src/bitcoin_core_rpc/` trips none of it: where the guard does buy
+    # something -- `__init__.py`'s `client.py` and `transport.py` names,
+    # kept out of `sys.modules` until `__getattr__` is asked for one of
+    # them -- it is already written that way by hand, which is a choice
+    # this rule has no way to tell from the ones above where the same
+    # shape would cost a reader for nothing. `runtime-cast-value` is the
+    # same trade at a `cast()`, and there is none in the tree to find
     "typing-only-first-party-import",
     "typing-only-third-party-import",
     "typing-only-standard-library-import",
@@ -890,12 +888,12 @@ convention = "pep257"
 # not it byte for byte, which is the check ruff cannot make -- CPY reads
 # the regex and never the file.
 # The pointer form and not the MIT permission notice in full, which the
-# headers here carried until btclib-org/.github#119 decided otherwise:
-# the module is meant to be copied out of the distribution, and a copy
-# has no LICENSE beside it, but it has the URL the third line names, and
-# it loses AUTHORS.md and pyproject.toml with the LICENSE -- one notice
-# everywhere is what the section admits, and a self-contained one in one
-# tree is a second notice.
+# headers here carried until btclib-org/.github#119 decided otherwise for
+# every repository of the organization, this one included: a header
+# naming the license in full duplicates what LICENSE and AUTHORS.md
+# already say, in every file that carries one, and a self-contained
+# notice in one tree is a second spelling of the same fact everywhere
+# else. One notice, the pointer form, is what the section settles on.
 # Anchored with ^: unanchored, a search over the first 4096 bytes is not
 # a check that the notice opens the file, so an import placed above it
 # would still pass. No source file here opens with a shebang, so nothing
