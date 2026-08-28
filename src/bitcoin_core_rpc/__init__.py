@@ -158,6 +158,7 @@ if TYPE_CHECKING:
         DEFAULT_TIMEOUT,
         MAX_ERROR_BODY_SIZE,
         HttpTransport,
+        SessionTransport,
         http_request,
         urlopen_transport,
     )
@@ -182,6 +183,7 @@ __all__ = [
     "Network",
     "RpcChannel",
     "RpcError",
+    "SessionTransport",
     "chain_from_network",
     "cookie_auth",
     "cookie_path_from_chain",
@@ -204,6 +206,7 @@ _ON_DEMAND_TRANSPORT = (
     "DEFAULT_TIMEOUT",
     "MAX_ERROR_BODY_SIZE",
     "HttpTransport",
+    "SessionTransport",
     "http_request",
     "urlopen_transport",
 )

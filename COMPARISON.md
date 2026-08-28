@@ -1,9 +1,9 @@
 # AuthServiceProxy and bitcoin-core-rpc
 
-What differs between the two clients, row by row, and why the two features
-`BitcoinCoreRpcClient` does not have are decisions rather than omissions --
-plus a third case, dynamic dispatch, decided the other way from
-`AuthServiceProxy`'s. The README's ["Migrating from
+What differs between the two clients, row by row, and why three cases —
+dynamic dispatch, batching, a kept connection — are each a decision
+`BitcoinCoreRpcClient` took rather than left to a caller's own code. The
+README's ["Migrating from
 `AuthServiceProxy`"](./README.md#migrating-from-authserviceproxy) is the
 line-by-line rewrite; this is the case for doing it.
 
@@ -59,12 +59,16 @@ one this client absorbs.
 
 ## Non-goals
 
-Two features are absent by decision, on a criterion common to both:
 `__all__` is the public surface this package publishes, and a name added
-to it is a name kept forever. What is cheap to add downstream belongs
-downstream — the session, the array. A third, dynamic dispatch, looks like
-the same case and is not: see below for why it is offered rather than left
-to a caller's own code.
+to it is a name kept forever — the cost weighed against each of the three
+cases below before it was offered rather than left to a caller's own
+code: dynamic dispatch as `RpcChannel`, batching as `call_batch`, a kept
+connection as `SessionTransport`. Each subsection argues what a caller's
+own version of it would have gotten wrong that this package gets right
+once. [README.md's *What it does not
+do*](./README.md#what-it-does-not-do) is where this project's actual
+non-goals are: notifications, retries, redirects, and a proxy read from
+the environment.
 
 ### Dynamic dispatch
 
@@ -132,19 +136,22 @@ reaching for.
 
 ### One connection per call
 
-`Connection: close` is not this module's choice. CPython's
-`urllib.request.AbstractHTTPHandler.do_open` sets it unconditionally, its
-comment recording that `addinfourl` cannot hold a persistent connection.
-The decision taken was urllib, and a pool with its thread-safety and its
-eviction is the cost of leaving urllib for `http.client`.
+`Connection: close` is not this module's choice for its default
+transport. CPython's `urllib.request.AbstractHTTPHandler.do_open` sets it
+unconditionally, its comment recording that `addinfourl` cannot hold a
+persistent connection.
 
-Alone among the three, the extension point closes this gap in full: a
-caller's transport receives the `Request` before urllib's handler chain
-runs, so a `requests` or `httpx` session keeps connections alive with
-nothing else changed.
+`SessionTransport` is what this module ships instead of leaving the gap
+to a caller: one connection kept per `(scheme, host, port)`, built on
+`http.client` rather than urllib, passed as `transport=` with nothing
+else about the client changing. A caller wanting a full session —
+cookies, a retry policy, HTTP/2 — still reaches for a `requests` or
+`httpx` session of their own; what `SessionTransport` buys over that is
+the one thing a caller polling a single node needs, with none of the
+zero-dependency promise spent on it.
 
 Per call a loopback connect is negligible. In aggregate it is socket
-churn, and the request asks the node to be the side that closes, so the
-sockets accumulate in TIME_WAIT there — which is why a caller polling at
-a high rate wants a transport of its own on loopback too, and not only
-over TLS.
+churn, and the default transport's request asks the node to be the side
+that closes, so the sockets accumulate in TIME_WAIT there — which is why
+a caller polling at a high rate wants `SessionTransport`, or a transport
+of their own, on loopback too, and not only over TLS.

@@ -212,6 +212,28 @@ other name starting with `_`, dunders included, is an `AttributeError`
 instead of a request, which is what keeps `copy.deepcopy` and an
 interactive shell's attribute probing from becoming one.
 
+## Keeping a connection alive
+
+The default transport opens one connection per call and lets the node
+close it — [COMPARISON.md](./COMPARISON.md#one-connection-per-call) has
+why. `SessionTransport` is this module's own alternative: one connection
+kept per node, reused across calls, passed the way any other `transport`
+is.
+
+```python
+from bitcoin_core_rpc import BitcoinCoreRpcClient, SessionTransport
+
+with SessionTransport() as session:
+    client = BitcoinCoreRpcClient.from_chain("main", transport=session)
+    client.call("getblockcount")
+    client.call("getblockchaininfo")  # the same connection, reused
+```
+
+One instance is safe to share between threads: the whole exchange —
+connect or reuse, send, read — is serialized under one lock, at the cost
+of never running two calls through it at once. A caller wanting
+concurrency across several nodes keeps one instance per node instead.
+
 ## When it goes wrong
 
 Each exception below is a different thing to do about a failure. Every

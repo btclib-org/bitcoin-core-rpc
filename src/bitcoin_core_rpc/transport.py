@@ -6,18 +6,26 @@
 
 Everything below an HTTP status is mapped onto `FetchError` here, and
 nothing above it is: what a status *means* is `client.py`'s question, not
-this module's. `urlopen_transport` is the only function in this package
-that opens a socket.
+this module's. `urlopen_transport` and `SessionTransport` are the two
+things here that open a socket; nothing else in this module does.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from contextlib import suppress
-from http.client import HTTPException, HTTPMessage
+from http.client import (
+    HTTPConnection,
+    HTTPException,
+    HTTPMessage,
+    HTTPSConnection,
+    RemoteDisconnected,
+)
 from math import isfinite
+from select import select
+from threading import Lock
 from time import monotonic
-from typing import IO, Any
+from typing import IO, Any, Protocol
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -517,3 +525,401 @@ def http_request(
         err_msg += f" more than the max_body_size of {max_body_size}"
         raise FetchError(err_msg)
     return status, body
+
+
+# What a *write* into a connection the peer already closed raises: nothing
+# reached the wire, unambiguously, because the local send is what failed.
+# This set is for `request()` alone -- a malformed but present response is
+# a `BadStatusLine` or a `LineTooLong` neither derives from, which is what
+# keeps a garbled reply from a live node out of it. `RemoteDisconnected`
+# is already a `ConnectionResetError`; it is named here anyway, since a
+# reused connection's `request()` can raise it too on some platforms, and
+# the set is meant to read as "nothing was sent" rather than as whatever
+# the MRO happens to be today.
+#
+# `getresponse()` is not read against this set: a bare `ConnectionResetError`
+# there is at least as likely to mean the reset landed after a status line
+# was already read as before one arrived, which is the line this transport
+# does not cross -- see the narrower check at that call site.
+_STALE_CONNECTION_ERRORS = (
+    BrokenPipeError,
+    ConnectionAbortedError,
+    ConnectionResetError,
+    RemoteDisconnected,
+)
+
+
+class _Connection(Protocol):
+    """The subset of `http.client.HTTPConnection` `SessionTransport` drives.
+
+    A `Protocol` and not that class itself, so a test's fake stands in
+    without inheriting a class whose constructor already reaches for a
+    default `socket.getaddrinfo` on some platforms -- `connect()` runs
+    lazily, on the first `request()`, which is what lets a fake answer for
+    this whole interface without ever opening a real socket.
+    """
+
+    sock: Any
+    # `float | None`, matching `HTTPConnection.timeout`'s own stub: it
+    # takes `_GLOBAL_DEFAULT_TIMEOUT`, typed as `None`, for "the socket
+    # module's default" -- a value this transport never assigns, always
+    # passing a checked `float`, but the attribute's declared type has to
+    # agree with the real class's for a fake to satisfy this Protocol
+    # *and* `_new_connection` below to satisfy it by returning one
+    timeout: float | None
+
+    def request(
+        self,
+        method: str,
+        url: str,
+        # `Any` on both: `HTTPConnection.request`'s own stub takes a wider
+        # union for a body this transport never constructs -- it only
+        # ever forwards `Request.data`, already `bytes | None` -- and a
+        # `headers` value type wider than the `str` this transport ever
+        # puts there, with no `None` default. Matching either narrower
+        # would make the real class fail to satisfy the Protocol it is
+        # the default implementation of
+        body: Any = None,
+        headers: Any = None,
+    ) -> None:
+        """Send a request over this connection, connecting first if idle."""
+
+    def getresponse(self) -> Any:
+        """Return the response to the request just sent."""
+
+    def close(self) -> None:
+        """Close the socket, discarding whatever this connection held."""
+
+
+def _new_connection(scheme: str, host: str, port: int, timeout: float) -> _Connection:
+    """Build the `http.client` connection `SessionTransport` defaults to.
+
+    `HTTPSConnection` for `https`, `HTTPConnection` otherwise -- the same
+    split urllib's own opener makes through its scheme-keyed handlers.
+    `timeout` is what `HTTPConnection.connect()` reads to set the new
+    socket's, the one number `SessionTransport` also measures its
+    `_read_bounded` deadline from.
+    """
+    connection_class = HTTPSConnection if scheme == "https" else HTTPConnection
+    return connection_class(host, port, timeout=timeout)
+
+
+def _is_reused_connection_dead(connection: _Connection) -> bool:
+    """Return whether a pooled connection's socket already saw the peer gone.
+
+    `select.select` with a zero timeout is `urllib3`'s own probe, asked
+    of the kept socket before anything is sent on it again: HTTP/1.1
+    answers one request at a time, so a kept connection with no request
+    in flight has nothing pending to make its socket readable except the
+    peer's own close or reset -- an idle timeout on the other end,
+    unrelated to anything this transport does. A live, still-open
+    connection reports not-readable, and this returns `False` for it
+    without reading anything from the socket or blocking on it.
+    """
+    readable, _, _ = select([connection.sock], [], [], 0)
+    return bool(readable)
+
+
+def _time_left(deadline: float, where: str) -> float:
+    """Return the seconds left before `deadline`, refusing none or fewer.
+
+    What a connect, a reconnect and a reused connection's refreshed socket
+    timeout are all given, in place of the `timeout` argument `__call__`
+    was handed: the deadline is over the whole exchange, so a reconnect
+    reached after a slow first attempt gets what is left of the budget and
+    not a second full one. Raising here rather than handing a socket a
+    zero or negative timeout is what keeps this transport out of the
+    `ValueError` a real socket answers that with, this being the one place
+    the deadline can already be spent before any connect is attempted.
+    """
+    remaining = deadline - monotonic()
+    if remaining <= 0:
+        raise FetchError(f"{where}: timeout expired before the exchange completed")
+    return remaining
+
+
+class SessionTransport:
+    """An `HttpTransport` that keeps one connection per `(scheme, host, port)`.
+
+    `urlopen_transport` opens a socket, sends `Connection: close` -- not
+    its own choice but urllib's `AbstractHTTPHandler.do_open`, which sets
+    the header unconditionally -- and lets the node close it. This one
+    does not: it keeps the connection `http.client` gives it and hands the
+    same one to the next call addressed to the same scheme, host and port,
+    so a caller making many calls against one node pays the connect cost,
+    and on `https` the TLS handshake, once rather than every time.
+
+    `max_body_size` and the timeout mean what they mean for
+    `urlopen_transport`: `max_body_size` bounds what one answer holds in
+    memory, and `timeout` is a deadline over the whole exchange -- connect
+    or reuse, send, and read -- taken as one `monotonic()` reading before
+    any of the three, and it is what `_read_bounded` reads the response
+    against, the same bounded, chunked read `urlopen_transport` uses. No
+    redirect is followed: `http.client` does not follow one on its own,
+    so a 30x already arrives as the status and body of any other
+    response, with nothing here needing to refuse it.
+
+    **Thread safety.** One instance is safe to share between threads, and
+    the contract is one lock guarding the whole exchange rather than one
+    per connection: a socket can carry one request at a time, so two
+    threads sharing a connection have to be serialized somewhere, and
+    guarding only the dict of connections would still let both drive the
+    same socket's `request()` and `getresponse()` at once, which is
+    corruption on the wire rather than a data race Python's own GIL
+    prevents. Serializing the whole call is what rules that out, at the
+    cost of one instance never running two calls concurrently even
+    across different hosts; a caller wanting that keeps one instance per
+    host, the same shape `BitcoinCoreRpcClient` already asks a caller's
+    own transport for.
+
+    **A kept connection is probed before it is reused.** A connection
+    this transport kept open is one the node may since have closed on its
+    own -- an idle timeout on the other end, unrelated to anything this
+    transport does -- and whether a `send()` into that socket fails
+    outright, succeeds and only the read afterwards fails, or fails as a
+    plain `ConnectionResetError` at either step, is a detail of what the
+    peer did (a graceful `close()` versus a `shutdown()`) and of timing
+    that this transport does not control and cannot tell apart from a
+    healthy connection's own silence by guessing. Before every reuse,
+    `select.select` asks the kept socket whether it is already readable
+    with no request in flight -- `_is_reused_connection_dead` above --
+    which is unambiguous under HTTP/1.1's one-request-at-a-time shape: a
+    live connection with nothing asked of it reports not-readable. A
+    readable probe evicts the kept connection and opens a fresh one
+    before anything at all is sent, which is not the reconnect below --
+    nothing has been written yet, so there is nothing to have sent twice
+    -- and the fresh connection's own first failure, if the node itself
+    is also unreachable, is the ordinary fresh-connection case: a node
+    not answering, which no reconnect fixes either.
+
+    **The one legitimate reconnect.** What the probe above does not catch
+    is the same drop landing between the probe and the write, or
+    partway through a response already begun -- narrower than "closed
+    since the last call" now that reuse itself is guarded, but not
+    closed by a probe run once before the write and never again. Where
+    the write itself is what notices -- a `BrokenPipeError`, a
+    `ConnectionResetError` or a `ConnectionAbortedError` out of
+    `request()` -- nothing reached the wire, unambiguously. Where the
+    read is what notices, only `http.client.RemoteDisconnected` counts:
+    it is `http.client`'s own signal for an empty line where a status
+    line belongs, which is the one shape of "nothing came back" a read
+    can report with certainty. A bare `ConnectionResetError` out of
+    `getresponse()` is not treated the same way, because it is at least
+    as likely to mean the reset landed after a status line was already
+    read as before one arrived -- and that is the line a reconnect must
+    not cross, so it is left to propagate rather than guessed at. Either
+    way the one legitimate reconnect is only offered where the
+    connection was already open before this call, and it is offered
+    once: a fresh connection failing the same way is a node not
+    answering, which no reconnect fixes, and a second failure of the
+    reconnect's own attempt is not caught again. A response whose status
+    line *did* arrive and then broke -- a truncated body, a malformed
+    header -- is not this case either: something came back, so the
+    request reached a node that read it, and it is not re-sent, for the
+    reason the module docstring already gives `call`'s own lack of a
+    retry: the node may still be executing it.
+
+    **Nothing failed is left pooled.** Any exception `request()` or
+    `getresponse()` raises that the paragraph above does not resolve into
+    a successful reconnect closes the connection and drops it from the
+    pool before propagating, whether the connection was fresh or reused:
+    a `(scheme, host, port)` a first attempt could not reach stays usable
+    for the next attempt once the node answers, rather than failing
+    forever on a dead connection object no later call has any way to
+    replace. Only a connection an exchange actually completed over is
+    kept.
+
+    Not a pool of several connections per key, and not eviction under
+    memory pressure: one caller talks to one node, sometimes a second for
+    a second wallet, which is one or two keys for the life of the
+    process -- the pool a caller polling many nodes would want is closer
+    to what `requests` or `httpx` already build.
+
+    No connection is opened by the constructor: one is asked for on the
+    first call addressed to a given `(scheme, host, port)`.
+    `connection_factory` is the seam a test replaces it with, taking the
+    scheme, the host, the port and the timeout and answering something
+    with `_Connection`'s interface -- a fake never opening a real socket,
+    `_new_connection` above doing exactly that for everything else.
+    """
+
+    def __init__(
+        self,
+        *,
+        max_body_size: int = DEFAULT_MAX_BODY_SIZE,
+        connection_factory: Callable[
+            [str, str, int, float], _Connection
+        ] = _new_connection,
+    ) -> None:
+        _assert_valid_max_body_size(max_body_size)
+        self._max_body_size = max_body_size
+        self._connection_factory = connection_factory
+        self._connections: dict[tuple[str, str, int], _Connection] = {}
+        self._lock = Lock()
+
+    def _send_and_receive(
+        self,
+        key: tuple[str, str, int],
+        *,
+        method: str,
+        path: str,
+        body: Any,
+        headers: Any,
+        deadline: float,
+        url: str,
+    ) -> Any:
+        """Send over the connection pooled for `key`, and read the status line.
+
+        Called with `self._lock` already held, so this is not a public
+        entry point of its own: the pool it reads and writes is not
+        otherwise guarded. On return, `self._connections[key]` holds
+        whichever connection the response came over -- reused, freshly
+        made, or the reconnect's own -- so a caller reads it back from
+        there rather than being handed it directly.
+
+        Where neither reconnect below applies, this closes and drops
+        whatever connection was in play before re-raising: the class
+        docstring's *Nothing failed is left pooled* is what that pays
+        for, and its two paragraphs above are the pre-write probe and
+        the write-side and read-side reconnect this catches instead.
+        """
+        connection = self._connections.get(key)
+        reused = connection is not None
+        if connection is not None and _is_reused_connection_dead(connection):
+            # Caught before anything is sent, so this is not the one
+            # reconnect below spending its budget: a connection that was
+            # never written to has nothing to have sent twice, and what
+            # replaces it is asked for exactly like a key never seen
+            # before -- `reused` becomes `False` for it too. Popping the
+            # key here, not only closing the connection, is what keeps a
+            # `_time_left` raise on the very next line -- outside the
+            # `try` below -- from leaving this closed connection pooled
+            # for a later call's probe to run `select` against a socket
+            # that is `None`: closing alone does not remove the entry,
+            # only a successful exchange overwrites it.
+            connection.close()
+            self._connections.pop(key, None)
+            connection = None
+            reused = False
+        if connection is None:
+            connection = self._connection_factory(*key, _time_left(deadline, url))
+        else:
+            remaining = _time_left(deadline, url)
+            connection.timeout = remaining
+            connection.sock.settimeout(remaining)
+
+        try:
+            try:
+                connection.request(method, path, body=body, headers=headers)
+            except _STALE_CONNECTION_ERRORS:
+                if not reused:
+                    raise
+                connection.close()
+                connection = self._connection_factory(*key, _time_left(deadline, url))
+                connection.request(method, path, body=body, headers=headers)
+                response = connection.getresponse()
+            else:
+                try:
+                    response = connection.getresponse()
+                except RemoteDisconnected:
+                    if not reused:
+                        raise
+                    connection.close()
+                    connection = self._connection_factory(
+                        *key, _time_left(deadline, url)
+                    )
+                    connection.request(method, path, body=body, headers=headers)
+                    response = connection.getresponse()
+        except BaseException:
+            connection.close()
+            self._connections.pop(key, None)
+            raise
+
+        self._connections[key] = connection
+        return response
+
+    def __call__(self, request: Request, timeout: float) -> tuple[int, bytes]:
+        """Send `request` over the connection kept for its host and port.
+
+        Opens one where none is kept yet, reconnects once where the kept
+        one turns out to have been closed at the other end, and answers
+        the status and the bounded body -- an `HttpTransport`, like
+        `urlopen_transport`.
+        """
+        _assert_valid_timeout(timeout, "http timeout")
+        parts = urlsplit(request.full_url)
+        if parts.scheme not in _SCHEMES:
+            err_msg = f"invalid url scheme: '{parts.scheme}' instead of http(s)"
+            raise BtcRpcValueError(err_msg)
+        if parts.hostname is None:
+            raise BtcRpcValueError(f"no host in url: {request.full_url!r}")
+        try:
+            # `.port` is a property, not a stored field: unlike the scheme
+            # and the host, an unparsable one -- "http://host:abc/" --
+            # raises a bare `ValueError` out of `urlsplit` itself only
+            # once asked for, which is here and not before
+            port = parts.port or (443 if parts.scheme == "https" else 80)
+        except ValueError as e:
+            err_msg = f"invalid port in url: {request.full_url!r}"
+            raise BtcRpcValueError(err_msg) from e
+        key = (parts.scheme, parts.hostname, port)
+        method = request.get_method()
+        path = request.selector
+        headers = dict(request.unredirected_hdrs)
+        headers.update(request.headers)
+        body = request.data
+        deadline = monotonic() + timeout
+
+        with self._lock:
+            response = self._send_and_receive(
+                key,
+                method=method,
+                path=path,
+                body=body,
+                headers=headers,
+                deadline=deadline,
+                url=request.full_url,
+            )
+
+            try:
+                body_bytes = _read_bounded(
+                    response, self._max_body_size, request.full_url, deadline
+                )
+            except BaseException:
+                # A status line did arrive -- the class docstring's line
+                # the reconnect must not cross -- so this is never
+                # re-sent; the connection is left mid-response, so it is
+                # not offered to a later call either.
+                self._connections.pop(key).close()
+                raise
+
+            if response.will_close:
+                # The node said so in this very response -- `Connection:
+                # close`, or no keep-alive at all under HTTP/1.0 -- so
+                # holding it for a next call would hold a socket the
+                # other end has already given up on.
+                self._connections.pop(key).close()
+
+            return response.status, body_bytes
+
+    def close(self) -> None:
+        """Close every connection this transport is holding open.
+
+        Nothing else in this module owns a socket across calls, so this
+        is the one thing here with anything to close between them.
+        """
+        with self._lock:
+            for connection in self._connections.values():
+                connection.close()
+            self._connections.clear()
+
+    # PYI034 asks for `Self`, which is typing's from 3.11 and this
+    # package's floor is 3.10 -- the same reason `tests/transport_test.py`
+    # gives for the same suppression on a test double's own `__enter__`
+    def __enter__(self) -> SessionTransport:  # noqa: PYI034
+        """Return self, so `with SessionTransport() as transport:` works."""
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        """Close every connection on the way out of the `with` block."""
+        self.close()

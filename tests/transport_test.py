@@ -12,14 +12,18 @@ asked.
 
 from __future__ import annotations
 
+import socket
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from http.client import (
     BadStatusLine,
+    HTTPConnection,
     HTTPException,
     HTTPMessage,
+    HTTPSConnection,
     IncompleteRead,
     LineTooLong,
+    RemoteDisconnected,
 )
 from io import BytesIO
 from types import SimpleNamespace, TracebackType
@@ -46,6 +50,7 @@ from bitcoin_core_rpc.transport import (
     DEFAULT_MAX_BODY_SIZE,
     DEFAULT_TIMEOUT,
     MAX_ERROR_BODY_SIZE,
+    SessionTransport,
     _read_bounded,
     http_request,
     urlopen_transport,
@@ -94,6 +99,7 @@ class FakeResponse:
         *,
         content_length: str | None = None,
         chunk_size: int | None = None,
+        will_close: bool = False,
     ) -> None:
         self.status = status
         self._body = body
@@ -105,6 +111,11 @@ class FakeResponse:
         self.headers: dict[str, str] = (
             {} if content_length is None else {"Content-Length": content_length}
         )
+        # what `http.client.HTTPResponse.will_close` answers from the
+        # `Connection` header and the HTTP version: `SessionTransport`
+        # reads this to decide whether the connection it just used is
+        # still one to keep, which is the only thing here that cares
+        self.will_close = will_close
 
     # PYI034 asks for `Self`, which is typing's from 3.11 and this suite's
     # floor is 3.10. Nothing subclasses this double, so the concrete return
@@ -1193,3 +1204,693 @@ def test_an_explicitly_empty_body_is_still_a_post() -> None:
     http_request(URL, data=b"{}", transport=spy)
     http_request(URL, transport=spy)
     assert methods == ["POST", "POST", "GET"]
+
+
+# --- SessionTransport: the connection this module keeps between calls ---
+#
+# `FakeConnection` below is the `_Connection` seam `connection_factory`
+# replaces -- no `http.client` object, no socket, so this suite stays as
+# hermetic over `SessionTransport` as it already is over `urlopen_transport`.
+
+
+class _RequestFails:
+    """A scripted turn where `request()` itself raises, nothing sent."""
+
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+
+class _ResponseFails:
+    """A scripted turn where `request()` succeeds and `getresponse()` raises.
+
+    What a write into a connection the peer already closed usually does,
+    per the class docstring: the local write succeeds and the failure
+    surfaces reading a response that never comes.
+    """
+
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+
+class _FakeSocket:
+    """The one attribute of a connection's socket `SessionTransport` reads.
+
+    `settimeout` is called on a reused connection to refresh its deadline
+    for this call, real `HTTPConnection` sockets answering to it the same
+    way; every call is remembered, which is what proves a reused
+    connection's budget was actually replaced and not left over from the
+    call that opened it.
+    """
+
+    def __init__(self) -> None:
+        self.timeouts: list[float] = []
+
+    def settimeout(self, timeout: float) -> None:
+        """Record the timeout `SessionTransport` just refreshed it to."""
+        self.timeouts.append(timeout)
+
+
+class FakeConnection:
+    """A `_Connection` double, answering one scripted turn per `request()`.
+
+    Each of `turns` is a `FakeResponse` for an ordinary exchange, or one
+    of the two markers above for a failure at one step or the other --
+    the distinction `SessionTransport`'s reconnect is written against.
+    """
+
+    def __init__(
+        self,
+        *turns: FakeResponse | _RequestFails | _ResponseFails,
+        on_request: Callable[[], None] | None = None,
+    ) -> None:
+        self._turns = list(turns)
+        self._current: FakeResponse | _ResponseFails | None = None
+        self._on_request = on_request
+        self.sock: _FakeSocket | None = None
+        self.timeout: float | None = None
+        self.closed = False
+        self.requests: list[tuple[str, str, Any, Any]] = []
+
+    def request(
+        self, method: str, url: str, body: Any = None, headers: Any = None
+    ) -> None:
+        """Record the call, then act out the next scripted turn."""
+        if self._on_request is not None:
+            self._on_request()
+        self.requests.append((method, url, body, headers))
+        turn = self._turns.pop(0)
+        if isinstance(turn, _RequestFails):
+            raise turn.error
+        self.sock = _FakeSocket()
+        self._current = turn
+
+    def getresponse(self) -> Any:
+        """Return this turn's response, or raise what it scripted instead."""
+        current = self._current
+        if isinstance(current, _ResponseFails):
+            raise current.error
+        assert current is not None
+        return current
+
+    def close(self) -> None:
+        """Drop the socket, the way a real connection's `close()` does."""
+        self.closed = True
+        self.sock = None
+
+
+def _connection_factory(
+    *connections: FakeConnection,
+) -> Callable[[str, str, int, float], FakeConnection]:
+    """Return a `connection_factory` answering each of `connections` once.
+
+    One call for a key never seen before asks for one; a stale-connection
+    reconnect asks for a second. Asking for a third is the test's own
+    mistake and not `SessionTransport`'s, so this raises `IndexError`
+    rather than repeating the last the way `tests.Recorded` does for a
+    client retry, which is not this file's question.
+    """
+    remaining = list(connections)
+
+    def factory(scheme: str, host: str, port: int, timeout: float) -> FakeConnection:
+        connection = remaining.pop(0)
+        connection.timeout = timeout
+        return connection
+
+    return factory
+
+
+def _patch_reuse_probe(monkeypatch: pytest.MonkeyPatch, *, dead: bool) -> None:
+    """Make every reused-connection probe answer `dead`, no real socket asked.
+
+    `select.select` needs a real file descriptor, which `FakeConnection`'s
+    socket does not have; this replaces `_is_reused_connection_dead`
+    itself instead, the same seam-by-monkeypatch `monotonic` already is
+    elsewhere in this file. `test_is_reused_connection_dead_reads_a_real_
+    socket` is where the probe's own `select` call is exercised instead
+    of assumed.
+    """
+    monkeypatch.setattr(
+        transport_module, "_is_reused_connection_dead", lambda connection: dead
+    )
+
+
+def test_two_calls_to_the_same_host_reuse_one_connection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The point of the transport: one connection answers both calls."""
+    _patch_reuse_probe(monkeypatch, dead=False)
+    connection = FakeConnection(FakeResponse(200, b"one"), FakeResponse(200, b"two"))
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
+    request = Request(URL, method="GET")
+
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"one")
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"two")
+
+    assert len(connection.requests) == 2
+    assert connection.closed is False
+
+
+def test_is_reused_connection_dead_reads_a_real_socket() -> None:
+    """The probe itself, against a real socket pair rather than a fake.
+
+    A live, idle socket reports not dead; the same socket after its peer
+    closes its own end reports dead -- `select.select` sees the read end
+    of a closed connection as read-ready with nothing sent to it, which
+    is the one thing this probe is asked to tell apart from a live
+    connection's own silence.
+    """
+    readable_end, peer = socket.socketpair()
+    try:
+        connection = SimpleNamespace(sock=readable_end)
+        assert transport_module._is_reused_connection_dead(connection) is False
+        peer.close()
+        assert transport_module._is_reused_connection_dead(connection) is True
+    finally:
+        readable_end.close()
+
+
+def test_a_dead_socket_found_at_reuse_is_evicted_before_any_send(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A probe that finds the kept socket already readable evicts it first.
+
+    Nothing is sent on the evicted connection at all -- unlike the
+    reconnect elsewhere in this file, which sends once knowing the first
+    attempt already reached the wire -- so the second connection
+    answering is the ordinary fresh-connection case, not a retried one.
+    """
+    monkeypatch.setattr(
+        transport_module, "_is_reused_connection_dead", lambda connection: True
+    )
+    stale = FakeConnection(FakeResponse(200, b"first"))
+    fresh = FakeConnection(FakeResponse(200, b"second"))
+    transport = SessionTransport(connection_factory=_connection_factory(stale, fresh))
+    request = Request(URL, method="GET")
+
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"first")
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"second")
+
+    assert stale.closed is True
+    assert len(stale.requests) == 1
+    assert len(fresh.requests) == 1
+
+
+def test_an_evicted_connection_is_popped_and_not_left_pooled_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Closing the connection the probe evicts is not enough on its own.
+
+    `_time_left` for whatever replaces it can itself raise -- a deadline
+    already spent -- from a line outside the `try` below that would
+    otherwise have popped the key on any other failure; a probed-dead
+    connection is popped right where it is closed instead, so this exit
+    does not leave `self._connections[key]` holding a connection whose
+    `sock` the close already set to `None`, for a later call's own probe
+    to run `select` against.
+    """
+    stale = FakeConnection(FakeResponse(200, b"first"))
+    transport = SessionTransport(connection_factory=_connection_factory(stale))
+    request = Request(URL, method="GET")
+
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"first")
+    assert transport._connections != {}
+
+    monkeypatch.setattr(
+        transport_module, "_is_reused_connection_dead", lambda connection: True
+    )
+    monkeypatch.setattr(transport_module, "monotonic", _increasing_clock(1000.0))
+
+    with pytest.raises(FetchError, match="timeout expired"):
+        transport(request, DEFAULT_TIMEOUT)
+
+    assert stale.closed is True
+    assert transport._connections == {}
+
+
+def test_a_different_host_gets_a_connection_of_its_own() -> None:
+    """The key is `(scheme, host, port)`, not one connection for everything."""
+    first = FakeConnection(FakeResponse(200, b"a"))
+    second = FakeConnection(FakeResponse(200, b"b"))
+    transport = SessionTransport(connection_factory=_connection_factory(first, second))
+
+    assert transport(Request(URL, method="GET"), DEFAULT_TIMEOUT) == (200, b"a")
+    other = Request("http://127.0.0.1:18443/", method="GET")
+    assert transport(other, DEFAULT_TIMEOUT) == (200, b"b")
+
+    assert len(first.requests) == 1
+    assert len(second.requests) == 1
+
+
+def _increasing_clock(step: float = 1.0) -> Callable[[], float]:
+    """Return a `monotonic` whose reading grows by `step` every call.
+
+    Unlike `_clock` above, a scenario using this does not need its own
+    `monotonic()` calls counted in advance -- only that a later one sees
+    a larger reading than an earlier one, which is what a real clock
+    gives too and what a deadline-over-several-calls test needs.
+    """
+    value = -step
+
+    def now() -> float:
+        nonlocal value
+        value += step
+        return value
+
+    return now
+
+
+def test_the_reconnect_is_given_what_is_left_of_the_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One deadline over the whole exchange, not a fresh one per attempt.
+
+    The reconnect's own connection is asked for with less time than the
+    call started with: some of the second call's own budget is already
+    spent finding the kept connection stale by the time the reconnect's
+    `connection_factory` call is reached.
+    """
+    _patch_reuse_probe(monkeypatch, dead=False)
+    stale = FakeConnection(
+        FakeResponse(200, b"first"),
+        _ResponseFails(RemoteDisconnected("gone")),
+    )
+    fresh = FakeConnection(FakeResponse(200, b"second"))
+    connections = iter((stale, fresh))
+    seen_timeouts: list[float] = []
+
+    def factory(scheme: str, host: str, port: int, timeout: float) -> FakeConnection:
+        seen_timeouts.append(timeout)
+        return next(connections)
+
+    transport = SessionTransport(connection_factory=factory)
+    monkeypatch.setattr(transport_module, "monotonic", _increasing_clock())
+    request = Request(URL, method="GET")
+
+    assert transport(request, 10.0) == (200, b"first")
+    assert transport(request, 10.0) == (200, b"second")
+
+    # one factory call for the first, fresh connect, and one for the
+    # reconnect -- the second call's own reused connection never asks the
+    # factory for anything
+    assert len(seen_timeouts) == 2
+    assert seen_timeouts[1] < seen_timeouts[0]
+
+
+def test_a_deadline_already_spent_refuses_the_connect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`_time_left` refuses to hand a socket a timeout of zero or less.
+
+    A real socket answers a non-positive timeout with its own
+    `ValueError`; this is the one place the whole exchange's deadline can
+    already be spent before any connect is attempted, and it is refused
+    here instead, as a `FetchError` like every other exchange failure.
+    """
+    clock = iter((0.0, 100.0))
+    monkeypatch.setattr(transport_module, "monotonic", lambda: next(clock))
+    connection = FakeConnection(FakeResponse(200, b"{}"))
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
+
+    with pytest.raises(FetchError, match="timeout expired"):
+        transport(Request(URL, method="GET"), 1.0)
+
+    assert connection.requests == []
+
+
+def test_the_stale_reconnect_sends_the_request_once_and_only_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The probe passes, and the drop still surfaces reading the response.
+
+    The probe is answered `False` here on purpose: this is the narrower
+    window it does not catch, the connection dying after the probe and
+    the write both go through, `getresponse()` rather than `request()`
+    being where it then surfaces, `RemoteDisconnected` being the class
+    docstring's own signal for that.
+    """
+    _patch_reuse_probe(monkeypatch, dead=False)
+    stale = FakeConnection(
+        FakeResponse(200, b"first"),
+        _ResponseFails(RemoteDisconnected("Remote end closed connection")),
+    )
+    fresh = FakeConnection(FakeResponse(200, b"second"))
+    transport = SessionTransport(connection_factory=_connection_factory(stale, fresh))
+    request = Request(URL, method="GET")
+
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"first")
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"second")
+
+    # the call that found the connection stale, sent once on it
+    assert len(stale.requests) == 2
+    assert stale.closed is True
+    # the reconnect's own connection, sent once
+    assert len(fresh.requests) == 1
+
+
+def test_a_stale_write_is_retried_once_on_a_reused_connection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The probe passes, and the drop surfaces at the write instead.
+
+    The probe is answered `False` here too: `request()` itself raising is
+    the other shape a drop the probe missed can still take, unambiguous
+    on its own since nothing reached the wire, which is why the full
+    `_STALE_CONNECTION_ERRORS` set, not only `RemoteDisconnected`, is
+    retried at this call site.
+    """
+    _patch_reuse_probe(monkeypatch, dead=False)
+    stale = FakeConnection(
+        FakeResponse(200, b"first"),
+        _RequestFails(BrokenPipeError("write failed")),
+    )
+    fresh = FakeConnection(FakeResponse(200, b"second"))
+    transport = SessionTransport(connection_factory=_connection_factory(stale, fresh))
+    request = Request(URL, method="GET")
+
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"first")
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"second")
+
+    assert len(stale.requests) == 2
+    assert stale.closed is True
+    assert len(fresh.requests) == 1
+
+
+def test_a_fresh_connections_getresponse_failure_is_not_retried() -> None:
+    """The read-side twin of the write-side test elsewhere in this file.
+
+    `RemoteDisconnected` out of a connection's very first `getresponse()`
+    is not a kept-alive connection found stale between calls -- there is
+    no earlier call for it to have outlived -- so this is not retried
+    either, the same as a fresh connection's `request()` failing outright.
+    """
+    connection = FakeConnection(_ResponseFails(RemoteDisconnected("gone")))
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
+    request = Request(URL, method="GET")
+
+    with pytest.raises(RemoteDisconnected):
+        transport(request, DEFAULT_TIMEOUT)
+
+    assert len(connection.requests) == 1
+    assert connection.closed is True
+    assert transport._connections == {}
+
+
+def test_a_reset_after_the_status_line_inside_getresponse_is_not_retried(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A reset `getresponse()` raises is not always `RemoteDisconnected`.
+
+    The probe is answered `False`, so this reaches `getresponse()` at
+    all: `RemoteDisconnected` is `http.client`'s own signal for an empty
+    line where a status line belongs -- nothing came back at all. A
+    plain `ConnectionResetError` at the same call site carries no such
+    guarantee: it is at least as likely to mean the reset landed after a
+    status line was already read, which is the line a reconnect must not
+    cross, so unlike the test above it is not retried here.
+    """
+    _patch_reuse_probe(monkeypatch, dead=False)
+    stale = FakeConnection(
+        FakeResponse(200, b"first"),
+        _ResponseFails(ConnectionResetError("reset after the status line")),
+    )
+    transport = SessionTransport(connection_factory=_connection_factory(stale))
+    request = Request(URL, method="GET")
+
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"first")
+    with pytest.raises(ConnectionResetError):
+        transport(request, DEFAULT_TIMEOUT)
+
+    # the call that failed, sent once -- `_connection_factory` above has
+    # only this one connection to give, so a reconnect attempt would be
+    # the test's own `IndexError` rather than the `ConnectionResetError`
+    # asserted above
+    assert len(stale.requests) == 2
+    assert stale.closed is True
+
+
+def test_a_fresh_connections_first_failure_is_not_retried() -> None:
+    """A node not answering is not a stale kept-alive connection.
+
+    The reconnect above is only offered where a connection was already
+    open before the call; the same failure on one just created here is a
+    node this transport has never reached, which no reconnect fixes. The
+    connection is still closed and never pooled -- `test_a_fresh_connect_
+    failure_does_not_poison_the_pool` is where that is what the next call
+    depends on.
+    """
+    connection = FakeConnection(_RequestFails(ConnectionResetError("refused")))
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
+    request = Request(URL, method="GET")
+
+    with pytest.raises(ConnectionResetError):
+        transport(request, DEFAULT_TIMEOUT)
+
+    assert len(connection.requests) == 1
+    assert connection.closed is True
+    assert transport._connections == {}
+
+
+def test_a_fresh_connect_failure_does_not_poison_the_pool() -> None:
+    """A dead connection left pooled would fail this key forever.
+
+    Two calls while the node is down, then one after it answers: the
+    third succeeds, which it could not if the first failure's connection
+    were still sitting in the pool for every later call to inherit --
+    `connection.sock.settimeout` on the `None` a failed connect leaves
+    behind, an `AttributeError` escaping the module's every-failure-is-
+    `FetchError` contract, forever, is the shape this refuses.
+    """
+    node_is_up = False
+
+    def factory(scheme: str, host: str, port: int, timeout: float) -> FakeConnection:
+        if not node_is_up:
+            return FakeConnection(_RequestFails(ConnectionRefusedError("refused")))
+        return FakeConnection(FakeResponse(200, b"{}"))
+
+    transport = SessionTransport(connection_factory=factory)
+
+    with pytest.raises(FetchError):
+        http_request(URL, transport=transport)
+    with pytest.raises(FetchError):
+        http_request(URL, transport=transport)
+
+    node_is_up = True
+    assert http_request(URL, transport=transport) == (200, b"{}")
+
+
+def test_a_failure_once_the_request_is_on_the_wire_is_not_re_sent() -> None:
+    """A status line did arrive, which is the line the reconnect must not cross.
+
+    An oversized body is what is used to make the read fail here, the
+    same bound `urlopen_transport` enforces -- what matters for this test
+    is that it happens after `getresponse()` already succeeded, and that
+    it is answered by closing the connection rather than by sending the
+    request again.
+    """
+    connection = FakeConnection(FakeResponse(200, b"z" * 10))
+    transport = SessionTransport(
+        max_body_size=5, connection_factory=_connection_factory(connection)
+    )
+    request = Request(URL, method="GET")
+
+    with pytest.raises(FetchError, match="larger than the max_body_size of 5"):
+        transport(request, DEFAULT_TIMEOUT)
+
+    assert len(connection.requests) == 1
+    assert connection.closed is True
+
+
+def test_the_max_body_size_bounds_what_the_session_transport_holds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One octet over the limit is refused; the limit itself is not."""
+    _patch_reuse_probe(monkeypatch, dead=False)
+    limit = 32
+    connection = FakeConnection(
+        FakeResponse(200, b"a" * limit), FakeResponse(200, b"a" * (limit + 1))
+    )
+    transport = SessionTransport(
+        max_body_size=limit, connection_factory=_connection_factory(connection)
+    )
+    request = Request(URL, method="GET")
+
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"a" * limit)
+    with pytest.raises(FetchError, match=f"larger than the max_body_size of {limit}"):
+        transport(request, DEFAULT_TIMEOUT)
+
+
+def test_the_session_transport_deadline_bounds_a_dripping_reply(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The same deadline `_read_bounded` reads for `urlopen_transport`.
+
+    A peer sending one octet just inside a per-read timeout would reset
+    it with every packet; the deadline taken once, before the connect or
+    reuse, is what ends the wait instead.
+    """
+    response = FakeResponse(200, b"z" * 100, chunk_size=1)
+    connection = FakeConnection(response)
+    transport = SessionTransport(
+        max_body_size=100, connection_factory=_connection_factory(connection)
+    )
+    # one extra reading over `_read_bounded`'s own three (0.0 for the
+    # deadline, 0.5 inside it, 9.0 past it): `_time_left` reads the clock
+    # once more, connecting the fresh connection before any of that
+    monkeypatch.setattr(transport_module, "monotonic", _clock(0.0, 0.1, 0.5, 9.0))
+    request = Request(URL, method="GET")
+
+    with pytest.raises(FetchError, match="still arriving when the timeout expired"):
+        transport(request, 1.0)
+
+    assert response.reads == [101]
+    assert connection.closed is True
+
+
+def test_no_redirect_is_followed() -> None:
+    """`http.client` follows none on its own: a 30x is just a status."""
+    connection = FakeConnection(FakeResponse(301, b"", content_length="0"))
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
+    request = Request(URL, method="GET")
+
+    assert transport(request, DEFAULT_TIMEOUT) == (301, b"")
+    assert len(connection.requests) == 1
+
+
+def test_a_connection_the_node_says_to_close_is_not_kept() -> None:
+    """`will_close` is read off the response, not assumed either way."""
+    first = FakeConnection(FakeResponse(200, b"a", will_close=True))
+    second = FakeConnection(FakeResponse(200, b"b"))
+    transport = SessionTransport(connection_factory=_connection_factory(first, second))
+    request = Request(URL, method="GET")
+
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"a")
+    assert first.closed is True
+
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"b")
+    assert len(first.requests) == 1
+    assert len(second.requests) == 1
+
+
+def test_the_method_path_body_and_headers_reach_the_connection() -> None:
+    """What `SessionTransport` hands `http.client` is what the request built."""
+    connection = FakeConnection(FakeResponse(200, b"{}"))
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
+    request = Request(
+        "http://127.0.0.1:8332/wallet/hot",
+        data=b'{"id": 1}',
+        headers={"Authorization": "Basic xx", "Content-Type": "application/json"},
+        method="POST",
+    )
+
+    transport(request, DEFAULT_TIMEOUT)
+
+    method, path, body, headers = connection.requests[0]
+    assert method == "POST"
+    assert path == "/wallet/hot"
+    assert body == b'{"id": 1}'
+    assert headers["Authorization"] == "Basic xx"
+
+
+def test_the_session_transport_refuses_a_non_http_scheme() -> None:
+    """Checked here too, and not only where a caller reaches `http_request`."""
+    transport = SessionTransport()
+    # the scheme this builds on purpose, to prove `SessionTransport` itself
+    # refuses it, is what S310 is written to flag -- the same waiver
+    # `http_request`'s own `Request(...)` carries, for the same reason
+    request = Request("file:///etc/passwd")  # ruff: ignore[S310]
+    with pytest.raises(BtcRpcValueError, match="invalid url scheme"):
+        transport(request, DEFAULT_TIMEOUT)
+
+
+def test_the_session_transport_refuses_a_url_with_no_host() -> None:
+    """`urlsplit("http:///path").hostname` is `None`, which is not a key."""
+    transport = SessionTransport()
+    with pytest.raises(BtcRpcValueError, match="no host in url"):
+        transport(Request("http:///path"), DEFAULT_TIMEOUT)
+
+
+def test_the_session_transport_refuses_an_unparsable_port() -> None:
+    """`urlsplit(...).port` raises a bare `ValueError` on its own, unasked.
+
+    Unlike the scheme and the host, the port is a property rather than a
+    stored field, so this is checked separately -- and reachable through
+    `http_request(url, transport=SessionTransport())` with a url built by
+    hand, where every other refusal here is checked directly against the
+    transport for the same reason.
+    """
+    transport = SessionTransport()
+    with pytest.raises(BtcRpcValueError, match="invalid port in url"):
+        transport(Request("http://127.0.0.1:abc/"), DEFAULT_TIMEOUT)
+
+
+def test_the_default_connection_factory_picks_the_class_by_scheme() -> None:
+    """`_new_connection`, never exercised by a test naming its own fake.
+
+    Constructing an `HTTPConnection` opens no socket -- `connect()` runs
+    lazily, on the first `request()`, which this never calls -- so this
+    stays as hermetic as the rest of the suite.
+    """
+    plain = transport_module._new_connection("http", "127.0.0.1", 8332, 5.0)
+    assert isinstance(plain, HTTPConnection)
+    assert not isinstance(plain, HTTPSConnection)
+
+    secure = transport_module._new_connection("https", "127.0.0.1", 443, 5.0)
+    assert isinstance(secure, HTTPSConnection)
+
+
+def test_the_session_transport_refuses_a_timeout_that_is_no_duration() -> None:
+    """Checked before a connection is even asked for."""
+    transport = SessionTransport(
+        connection_factory=_connection_factory(FakeConnection())
+    )
+    with pytest.raises(BtcRpcValueError, match="not a positive number of seconds"):
+        transport(Request(URL, method="GET"), 0)
+
+
+def test_close_closes_every_pooled_connection() -> None:
+    """`close()` is the one thing here with a socket to give up between calls.
+
+    Both keys of a transport that talked to two hosts, in one call.
+    """
+    first = FakeConnection(FakeResponse(200, b"a"))
+    second = FakeConnection(FakeResponse(200, b"b"))
+    transport = SessionTransport(connection_factory=_connection_factory(first, second))
+    transport(Request(URL, method="GET"), DEFAULT_TIMEOUT)
+    transport(Request("http://127.0.0.1:18443/", method="GET"), DEFAULT_TIMEOUT)
+
+    transport.close()
+
+    assert first.closed is True
+    assert second.closed is True
+
+
+def test_the_context_manager_closes_on_the_way_out() -> None:
+    """`with SessionTransport() as transport:` closes what it opened."""
+    connection = FakeConnection(FakeResponse(200, b"a"))
+    with SessionTransport(connection_factory=_connection_factory(connection)) as t:
+        t(Request(URL, method="GET"), DEFAULT_TIMEOUT)
+
+    assert connection.closed is True
+
+
+def test_the_whole_exchange_is_serialized_under_one_lock() -> None:
+    """One lock guards connect-or-reuse, send and read together.
+
+    The class docstring's reason: guarding only the pool would still let
+    two threads drive one connection's `request()` and `getresponse()` at
+    once. Checked without a second thread -- `Lock.locked()` answers the
+    same regardless of which thread asks -- by reading it from inside the
+    one call in flight.
+    """
+    seen: dict[str, bool] = {}
+
+    def check() -> None:
+        seen["locked"] = transport._lock.locked()
+
+    connection = FakeConnection(FakeResponse(200, b"a"), on_request=check)
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
+
+    transport(Request(URL, method="GET"), DEFAULT_TIMEOUT)
+
+    assert seen["locked"] is True
+    assert transport._lock.locked() is False
