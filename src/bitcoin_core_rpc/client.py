@@ -624,17 +624,17 @@ class BitcoinCoreRpcClient:
     authorise every wallet command that node has: an `https` url, or a
     tunnel, is what keeps them off it.
 
-    **One connection per call**, urllib holding none open: every `call`
-    sends `Connection: close` and opens a socket of its own. Beside the
-    node that is a loopback connect, which costs nothing for one call and
-    is socket churn for a great many -- RFC 9112 section 9.6 has the server
-    initiating the close on that option, so it is the node that holds the
-    sockets in TIME_WAIT -- and to a node reached over `https` it is a TLS
-    handshake each time. Either way a caller polling one in a loop wants a
-    `transport` of their own, a `requests` session or an `httpx` client.
-    Keeping a connection alive here would mean a pool, its own
-    thread-safety and its own eviction, none of which one bounded request
-    needs.
+    **One connection per call by default**, urllib holding none open:
+    every `call` sends `Connection: close` and opens a socket of its own.
+    Beside the node that is a loopback connect, which costs nothing for
+    one call and is socket churn for a great many -- RFC 9112 section 9.6
+    has the server initiating the close on that option, so it is the node
+    that holds the sockets in TIME_WAIT -- and to a node reached over
+    `https` it is a TLS handshake each time. `SessionTransport` is this
+    module's own alternative, one connection kept per `(scheme, host,
+    port)` and reused across calls; passing it as `transport=` is what a
+    caller polling one node in a loop wants, ahead of a `requests` session
+    or an `httpx` client.
 
     No call asks the node which chain it is on: the url and the cookie path
     say where to ask, and what the answers mean is the caller's to hold.

@@ -57,6 +57,27 @@ carry a union merge driver that would keep both sides' numbers.
   asking a node something, which is deliberately not this client's job
   for a request it would refuse to build in the first place.
 
+- **`SessionTransport`, a keep-alive `HttpTransport` built on
+  `http.client`** (closes #293). `urlopen_transport` opens a socket per
+  call and sends `Connection: close`, urllib's own handler setting the
+  header unconditionally; this one keeps one connection per `(scheme,
+  host, port)` and reuses it across calls, passed as `transport=` like
+  any other. The timeout is a deadline over the whole exchange, read the
+  same way `_read_bounded` reads it for the default transport, and
+  `max_body_size` bounds a reply the same way too. No redirect is
+  followed, `http.client` not following one on its own. A connection the
+  node closed while idle is caught before it is reused: `select.select`
+  probes the kept socket for the peer's close or reset, so a stale one
+  is replaced and nothing is ever written into it. A drop landing in the
+  narrower window between that probe and the write is still caught after
+  the fact, reconnecting and sending once more. A response that had
+  already started arriving and then broke is not: something came back,
+  so the request already reached a node that read it, and it is never
+  re-sent. One instance is safe to share between threads by serializing
+  the whole exchange under one lock, documented as the trade it is.
+  `README.md` and `COMPARISON.md`'s *One connection per call* say what is
+  now true.
+
 ### Changed
 
 - **The documentation is built with `furo` and with `-n` beside `-W`**
