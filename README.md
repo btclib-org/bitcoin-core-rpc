@@ -285,13 +285,7 @@ than a match on the text of a message.
 It is **not** python-bitcoinrpc's `AuthServiceProxy` and not a port of it.
 That class, and the copy of it Core's test framework maintains, carry the
 LGPL-2.1 of their python-jsonrpc ancestry, where this is MIT: this is an
-implementation of the protocol and shares no line with either. What a
-caller rewrites is below, an `AuthServiceProxy` line at a time with the
-same command under it.
-
-**Connecting.** The credential is an argument, and a url carrying
-`user:password@` is refused rather than accepted and stripped: that url is
-the string that ends up in a configuration file, a traceback and a log.
+implementation of the protocol and shares no line with either.
 
 ```python
 # AuthServiceProxy
@@ -303,57 +297,11 @@ client = BitcoinCoreRpcClient(
 )
 ```
 
-A node left on its defaults needs neither argument: `from_chain` has the
-port and the cookie file, per [Talking to a node](#talking-to-a-node).
-
-**Invoking a method.** The method is an argument and not an attribute: any
-name a node has works without this class knowing it, and none of them can
-collide with a name of the client's own. `params` is then one argument as
-well, a sequence for the positional form and a mapping for the named one.
-
-```python
-# AuthServiceProxy
-block = rpc.getblock(block_id, 2)
-
-# this client
-block = client.call("getblock", [block_id, 2])
-block = client.call("getblock", {"blockhash": block_id, "verbosity": 2})
-```
-
-**A wallet command.** `/wallet/<name>` is derived from the client rather
-than written into a second url, and the name is percent-encoded.
-
-```python
-# AuthServiceProxy
-hot = AuthServiceProxy(f"http://{user}:{password}@127.0.0.1:8332/wallet/hot")
-balance = hot.getbalance()
-
-# this client
-balance = client.for_wallet("hot").call("getbalance")
-```
-
-**A batch.** `call_batch` replaces `batch_`, with one difference a
-caller migrating has to know: an entry of the result answers with the
-node's own `result`, or with the `RpcError` itself rather than raising
-it, a batch's whole point being that one member failing does not
-discard the rest.
-
-```python
-# AuthServiceProxy
-hashes = rpc.batch_([["getblockhash", height] for height in heights])
-
-# this client
-hashes = client.call_batch([("getblockhash", [height]) for height in heights])
-```
-
-**An error.** `JSONRPCException` becomes the exceptions [When it goes
-wrong](#when-it-goes-wrong) above tables: `RpcError` for an error the node
-computed, `HttpError` for an exchange that failed and `FetchError` for no
-answer to read. Every one of them is a `FetchError`, so `except
-FetchError` is the translation that catches what the one exception caught.
-
-[COMPARISON.md](./COMPARISON.md) has the case for the switch beyond this
-rewrite guide, and why the features this client does not have — and the
+[docs/source/migrating.md](./docs/source/migrating.md) has the rest, an
+`AuthServiceProxy` line at a time with the line that replaces it, for a
+caller carrying either Core's copy or python-bitcoinrpc's own.
+[COMPARISON.md](./COMPARISON.md) has the case for the switch beyond any
+one rewrite, and why the features this client does not have — and the
 one, dynamic dispatch, offered differently instead — are decisions rather
 than omissions.
 

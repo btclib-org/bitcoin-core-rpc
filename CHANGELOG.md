@@ -78,6 +78,18 @@ carry a union merge driver that would keep both sides' numbers.
   `README.md` and `COMPARISON.md`'s *One connection per call* say what is
   now true.
 
+- **`docs/source/migrating.md`, a migration guide from `AuthServiceProxy`**
+  (closes #296). Every pattern a caller of Bitcoin Core's own copy or of
+  python-bitcoinrpc's uses now has a counterpart in this client --
+  `call_batch`, `call_raw` and `SessionTransport` are what made the last
+  three complete -- so the guide covers construction, invoking a method,
+  wallet endpoints, batching, errors, amounts, timeouts, connections, the
+  envelope and testing, each as the `AuthServiceProxy` line and the line
+  that replaces it, labelled by file where the two no longer agree with
+  each other. `COMPARISON.md` keeps the case for switching and is linked
+  rather than repeated. `README.md`'s own section now carries that case
+  and one example, pointing to the new page for the rest.
+
 ### Changed
 
 - **The documentation is built with `furo` and with `-n` beside `-W`**

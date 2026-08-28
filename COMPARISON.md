@@ -2,9 +2,8 @@
 
 What differs between the two clients, row by row, and why three cases —
 dynamic dispatch, batching, a kept connection — are each a decision
-`BitcoinCoreRpcClient` took rather than left to a caller's own code. The
-README's ["Migrating from
-`AuthServiceProxy`"](./README.md#migrating-from-authserviceproxy) is the
+`BitcoinCoreRpcClient` took rather than left to a caller's own code.
+[docs/source/migrating.md](./docs/source/migrating.md) is the
 line-by-line rewrite; this is the case for doing it.
 
 ## The two clients
