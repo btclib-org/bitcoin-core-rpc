@@ -289,15 +289,13 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: ${{ !inputs.disable-dist-cache }}
-      # what the sdist normalizer below reads. uv_build itself ignores it
-      # and stamps a fixed timestamp into both archives, so nothing in
-      # this job is unreproducible without it; what the export and the
-      # script together buy is that the answer is this repository's rather
-      # than the backend's, which is the argument the script's docstring
-      # carries and `attest` below is the reason for. The commit date, not
-      # the tag's: `git log -1` on a shallow clone reads the tip, which is
-      # the commit the tag points at, and a lightweight tag has no date of
-      # its own to prefer
+      # what the sdist normalizer below reads, and what it writes into
+      # every member of the archive: uv_build stamps `0` there and ignores
+      # this variable, so the export is what puts the commit's own second
+      # into the bytes `attest` below signs, and the script's docstring
+      # has that measurement. The commit date, not the tag's: `git log -1`
+      # on a shallow clone reads the tip, which is the commit the tag
+      # points at, and a lightweight tag has no date of its own to prefer
       - name: Pin the build timestamp to the commit
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
       # empty on every trigger but a release rehearsal: `inputs` is unset
@@ -327,13 +325,11 @@ jobs:
       # rewrites rather than checks: every member's mtime goes from the 0
       # uv_build wrote to that epoch, so this step is what decides the
       # digest `attest` signs and dropping it would publish other bytes.
-      # The measurement in its docstring is a different claim -- that the
-      # archive is already deterministic without it. --no-project, so this
-      # runs on the interpreter uv already fetched and installs nothing
-      # into the tree it is about to publish. RELEASING.md has the command
-      # that rebuilds a released tag and compares it against what PyPI
-      # serves
-      - name: Make the sdist's determinism this tree's
+      # --no-project, so this runs on the interpreter uv already fetched
+      # and installs nothing into the tree it is about to publish.
+      # RELEASING.md has the command that rebuilds a released tag and
+      # compares it against what PyPI serves
+      - name: Rewrite the sdist's member metadata
         run: |
           uv run --no-project --python 3.14 \
             .github/scripts/normalize_sdist.py dist/
