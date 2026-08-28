@@ -2120,6 +2120,15 @@ carry a union merge driver that would keep both sides' numbers.
   command in `RELEASING.md`, beside the step in `test.yml` and beside the
   block in `CONTRIBUTING.md`.
 
+- **`[project.urls] homepage` names this tree's own documentation site**
+  (issue btclib-org/.github#533). A releasing tree provides
+  documentation, and its home is that documentation rather than a
+  sibling's project page: the field read `https://btclib.org`, which
+  `documentation` already pointed past, and now carries the identical
+  `https://bitcoin-core-rpc.readthedocs.io/`. `documentation` stays, an
+  index showing the two fields as one link being cheaper than the field
+  tools read for that purpose specifically.
+
 ## v2026.8.20
 
 ### Repository
