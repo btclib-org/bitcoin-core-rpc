@@ -51,6 +51,11 @@ carry a union merge driver that would keep both sides' numbers.
   non-empty before its empty output was believed -- a sibling's copy of
   the same shape matches nothing on the right and so reports an
   agreement it never measured.
+- **`REPOSITORY.md`'s *Tag protection* readback queried `rules` and
+  `bypass_actors` on the ruleset list endpoint** (closes #317), which
+  answers neither: the command now reads the ruleset's id off the list
+  first and reads those two fields from the single-ruleset endpoint,
+  the same endpoint the *Merge methods* readback already uses.
 
 ## v2026.8.29
 
