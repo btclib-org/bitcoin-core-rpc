@@ -32,6 +32,20 @@ from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_ope
 
 from bitcoin_core_rpc.errors import BtcRpcTypeError, BtcRpcValueError, FetchError
 
+# Every name this module defines, none of it imported: `__init__.py`'s own
+# `__all__` is their union across the four modules of the package, and
+# section 7 of the organization standard asks each of them for its own
+# besides.
+__all__ = [
+    "DEFAULT_MAX_BODY_SIZE",
+    "DEFAULT_TIMEOUT",
+    "MAX_ERROR_BODY_SIZE",
+    "HttpTransport",
+    "SessionTransport",
+    "http_request",
+    "urlopen_transport",
+]
+
 
 def _is_integer(value: Any) -> bool:
     """Return whether value is an integer, with a bool not being one.

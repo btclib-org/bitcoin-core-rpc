@@ -343,3 +343,127 @@ def test_importing_chains_or_errors_adds_no_socket_layer() -> None:
         added = set(ast.literal_eval(after_line)) - set(ast.literal_eval(baseline_line))
         newly_watched = added & set(watched)
         assert not newly_watched, (module, newly_watched)
+
+
+_NETWORK_ROOTS = ("socket", "ssl", "urllib")
+
+
+def _imported_roots(tree: ast.Module) -> set[str]:
+    """Return the root of every module a tree imports, by name.
+
+    Root rather than full dotted path -- `urllib.request` and a bare
+    `urllib` reach the same layer -- which is what lets the check below
+    compare against a fixed, short list rather than every spelling of
+    every submodule underneath it.
+    """
+    roots: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module is not None:
+            roots.add(node.module.split(".", 1)[0])
+        elif isinstance(node, ast.Import):
+            roots.update(alias.name.split(".", 1)[0] for alias in node.names)
+    return roots
+
+
+def test_chains_or_errors_imports_no_network_module_directly() -> None:
+    """A static backstop the baseline above cannot be, on every interpreter.
+
+    That test's baseline is taken after `hashlib`, which already holds
+    `socket` on PyPy -- so a future `chains.py` or `errors.py` importing
+    `socket` (or `ssl`, or `urllib`) *directly* would still pass it
+    there, `socket` no longer being something the import adds. This
+    reads the source instead of a subprocess's `sys.modules`: the two
+    modules either name one of the three or they do not, which is true
+    the same way on every interpreter and needs none run.
+    """
+    by_name = dict(zip(_MODULE_ORDER, _source_paths(), strict=True))
+    for name in ("chains", "errors"):
+        path = by_name[name]
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        found = _imported_roots(tree) & set(_NETWORK_ROOTS)
+        assert not found, (name, found)
+
+
+def test_the_network_import_check_is_not_vacuous() -> None:
+    """The scan above reports nothing on this tree, so it is read here.
+
+    Same reason as the docstring and census scans further up: a check
+    that never trips is indistinguishable from one that cannot. A
+    scratch copy of `errors.py`'s own source with `import socket`
+    spliced in is what a regression of the shape the test above guards
+    against looks like, and it is what that scan is asked to catch.
+    """
+    source = _source_paths()[0].read_text(encoding="utf-8") + "\nimport socket\n"
+    assert _imported_roots(ast.parse(source)) & set(_NETWORK_ROOTS) == {"socket"}
+
+
+def _declared_all(source: str) -> list[str] | None:
+    """Return the module's own `__all__`, in the order it is written.
+
+    None where the module declares none. `__init__.py`'s is read off
+    `bitcoin_core_rpc.__all__` directly instead, so this is only ever
+    asked of the four modules beneath the facade.
+    """
+    for statement in ast.parse(source).body:
+        if not isinstance(statement, ast.Assign):
+            continue
+        if not any(
+            isinstance(target, ast.Name) and target.id == "__all__"
+            for target in statement.targets
+        ):
+            continue
+        value = ast.literal_eval(statement.value)
+        assert isinstance(value, list)
+        return [str(item) for item in value]
+    return None
+
+
+def test_declared_all_reads_none_off_a_module_that_declares_none() -> None:
+    """The scan above reports nothing on this tree, so it is read here.
+
+    Same reason as the docstring and census scans further up: `None` is
+    what a module with no `__all__` answers, and no module of this
+    package is one, so a source built for the purpose is what exercises
+    that return rather than a real module the next refactor might touch.
+    """
+    assert _declared_all("CONSTANT = 1\n") is None
+
+
+def test_every_module_declares_its_own_public_surface() -> None:
+    """Section 7 asks each module for its own surface, not only the facade.
+
+    `chains.py`, `client.py`, `errors.py` and `transport.py` are public
+    modules of a published package -- `btclib-org/.github`'s own census,
+    `test_every_published_module_declares_its_public_surface`, reads
+    them that way -- and each names its own `__all__` here, exactly the
+    names it defines: `_public_names` already excludes an import, so a
+    name a module merely re-exports from a sibling does not sneak into
+    its own declared list the way it would into `dir()`. The order is
+    ruff's `RUF022` to keep, not this test's to check -- a constant
+    before a class before a function, each group alphabetical -- so the
+    comparison is of sets, and of the count against the set to catch a
+    name declared twice.
+    """
+    for path in _source_paths():
+        source = path.read_text(encoding="utf-8")
+        declared = _declared_all(source)
+        assert declared is not None, f"{path.name} declares no __all__"
+        assert len(declared) == len(set(declared)), (path.name, declared)
+        assert set(declared) == _public_names(source), (path.name, declared)
+
+
+def test_the_facades_surface_is_the_union_of_the_modules_own() -> None:
+    """`__init__.py`'s `__all__` is the four modules' own, put together.
+
+    `test_every_public_name_is_exported` already answers section 7 for
+    the facade, against every name the four modules define, and the test
+    above answers it once more per module; this is what ties the two
+    answers to each other rather than leaving them merely both true by
+    coincidence.
+    """
+    union: set[str] = set()
+    for path in _source_paths():
+        declared = _declared_all(path.read_text(encoding="utf-8"))
+        assert declared is not None
+        union |= set(declared)
+    assert union == set(bitcoin_core_rpc.__all__)

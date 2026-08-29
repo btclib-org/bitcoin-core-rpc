@@ -26,6 +26,27 @@ from bitcoin_core_rpc.errors import (
     FetchError,
 )
 
+# Every name this module defines, none of it imported: `__init__.py`'s own
+# `__all__` is their union across the four modules of the package, and
+# section 7 of the organization standard asks each of them for its own
+# besides.
+__all__ = [
+    "COOKIE_USER",
+    "DEFAULT_DATADIR",
+    "DEFAULT_SIGNET_CHALLENGE",
+    "Chain",
+    "Network",
+    "chain_from_network",
+    "cookie_auth",
+    "cookie_path_from_chain",
+    "datadir_subdir_from_chain",
+    "default_datadir",
+    "magic_from_chain",
+    "magic_from_signet_challenge",
+    "network_from_chain",
+    "rpc_port_from_chain",
+]
+
 # the rpc port and the datadir subdirectory of each chain, from Core's
 # `CreateBaseChainParams` in src/chainparamsbase.cpp. Main's cookie is in
 # the datadir itself, which is the empty subdirectory below. Keyed by

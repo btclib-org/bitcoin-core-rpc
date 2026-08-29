@@ -13,6 +13,20 @@ from __future__ import annotations
 
 from typing import Any
 
+# Every name this module defines, none of it imported: `__init__.py`'s own
+# `__all__` is their union across the four modules of the package, and
+# section 7 of the organization standard asks each of them for its own
+# besides.
+__all__ = [
+    "BtcRpcRuntimeError",
+    "BtcRpcTypeError",
+    "BtcRpcValueError",
+    "CookieNotFoundError",
+    "FetchError",
+    "HttpError",
+    "RpcError",
+]
+
 # The three bases below the standard exceptions keep the TypeError,
 # ValueError and RuntimeError hierarchies exact: a caller who wants none of
 # the names here catches those three and still separates a caller error from

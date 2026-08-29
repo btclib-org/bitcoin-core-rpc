@@ -54,6 +54,16 @@ from bitcoin_core_rpc.transport import (
     urlopen_transport,
 )
 
+# Every name this module defines, none of it imported: `__init__.py`'s own
+# `__all__` is their union across the four modules of the package, and
+# section 7 of the organization standard asks each of them for its own
+# besides.
+__all__ = [
+    "USER_AGENT",
+    "BitcoinCoreRpcClient",
+    "RpcChannel",
+]
+
 # how many random bytes make the `id` of a request this call's. Distinct
 # per call: the echo check exists to catch a reply that answers another
 # request -- a caching proxy in the way -- and a value reused across calls

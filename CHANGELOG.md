@@ -61,6 +61,28 @@ carry a union merge driver that would keep both sides' numbers.
   the id from the ruleset's name the same way *Tag protection* does,
   rather than leaving that one lookup unresolved beside it.
 
+### Tests
+
+- **`chains.py`, `client.py`, `errors.py` and `transport.py` each
+  declare their own `__all__`** (closes #309). Section 7 of the
+  organization standard asks it of every public module of a published
+  package, not only of the facade `__init__.py` already named one for;
+  `btclib-org/.github ISS 79` settled the question for this package
+  before the split of #292 gave it four more modules the old answer did
+  not reach. Each list is exactly the names the module defines, none of
+  it imported from a sibling, and `__init__.py`'s own `__all__` is their
+  union -- `census_test.py` now states both as tests rather than as two
+  facts that merely happen to agree.
+- **A static, per-module check pins what `chains.py` and `errors.py`
+  import, closing #313's fix on every interpreter** (closes #315). The
+  baseline `test_importing_chains_or_errors_adds_no_socket_layer` reads
+  is taken after `hashlib`, which already holds `socket` on PyPy, so a
+  future direct `import socket` in either module would pass that test
+  there without ever being added to anything. The AST-level check reads
+  the source instead of a subprocess's `sys.modules`: the two modules
+  either name `socket`, `ssl` or `urllib` or they do not, on every
+  interpreter and without opening one.
+
 ## v2026.8.29
 
 ### Added
