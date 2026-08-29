@@ -52,8 +52,8 @@ does not run in this suite; **the import graph** is not "every module
 imports first" but the four
 importing nothing outside the standard library and each other, in the
 order `errors < chains < transport < client`, and `chains.py` and
-`errors.py` each leaving `urllib.request`, `ssl` and `socket` out of a
-fresh interpreter's `sys.modules`.
+`errors.py` each adding none of `urllib.request`, `ssl` or `socket` to a
+fresh interpreter's own baseline `sys.modules`.
 
 The public surface is not one this repository could have declined.
 Section 7's escape clause — a repository needs the conventions its own

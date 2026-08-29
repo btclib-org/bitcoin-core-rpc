@@ -183,6 +183,17 @@ carry a union merge driver that would keep both sides' numbers.
   `test_truncate_is_keyword_only` call each positionally instead, joining
   the two `tests/README.md`'s near-miss note already named.
 
+- **The import-weight census measures against the interpreter's own
+  baseline, taken in the same subprocess** (closes #313). The former
+  test read a fresh interpreter's whole `sys.modules` after importing
+  `chains.py` or `errors.py` and failed all seven pypy3.11 jobs of the
+  release rehearsal: `hashlib`, `chains.py`'s own dependency for
+  `sha256`, loads `socket` on PyPy as an implementation detail of its
+  cffi OpenSSL hash backend, unconnected to any networking. The baseline
+  is now taken after `hashlib` and before either import, so the
+  assertion is about a networking module the package's own code adds,
+  which is what the test polices.
+
 ### Repository
 
 - **`claude-review.yml`'s header points at the ceiling's home** (closes
