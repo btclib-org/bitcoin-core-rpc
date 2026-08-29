@@ -407,10 +407,13 @@ solo-maintainer repository cannot produce and excuses nothing else — a
 direct push to `main` is refused for everyone, the holder included — and
 the ruleset names `squash` as the only merge method it will accept,
 stating the constraint where the rule is rather than only in the setting
-above.
+above. *Tag protection* above already gives the reason the id has to be
+read off the list rather than named directly:
 
 ```shell
-gh api repos/btclib-org/bitcoin-core-rpc/rulesets/<id> \
+id=$(gh api repos/btclib-org/bitcoin-core-rpc/rulesets \
+  --jq '.[] | select(.name=="main-self-merge") | .id')
+gh api repos/btclib-org/bitcoin-core-rpc/rulesets/"$id" \
   --jq '{bypass: [.bypass_actors[].bypass_mode],
          methods: [.rules[] | select(.type=="pull_request")
                             | .parameters.allowed_merge_methods]}'

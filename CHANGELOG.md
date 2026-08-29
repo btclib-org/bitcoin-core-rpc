@@ -56,6 +56,10 @@ carry a union merge driver that would keep both sides' numbers.
   answers neither: the command now reads the ruleset's id off the list
   first and reads those two fields from the single-ruleset endpoint,
   the same endpoint the *Merge methods* readback already uses.
+- **The *Merge methods* section's `main-self-merge` readback asked the
+  reader to fill in a ruleset id by hand** (closes #320). It now derives
+  the id from the ruleset's name the same way *Tag protection* does,
+  rather than leaving that one lookup unresolved beside it.
 
 ## v2026.8.29
 
