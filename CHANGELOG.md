@@ -82,6 +82,20 @@ carry a union merge driver that would keep both sides' numbers.
   the source instead of a subprocess's `sys.modules`: the two modules
   either name `socket`, `ssl` or `urllib` or they do not, on every
   interpreter and without opening one.
+- **A bare `uv run -p pypy3.11 pytest` fails the coverage floor, at an
+  unstable number** (closes #314). Two tests that raise a genuine
+  `RecursionError` on purpose -- `client_test.py`'s `too deep` case and
+  `test_a_reply_nested_too_deeply_to_parse` -- trip coverage's pure
+  Python tracer under PyPy, either alone: `CoverageWarning: Trace
+  function changed, data is likely wrong`. `pytest-cov` stops coverage
+  from a `pytest_runtestloop` wrapper, before the `atexit`-registered
+  callback that coverage's own PyPy suppression for this warning waits
+  for ever runs; that one check fires once, at the end of whatever run
+  included either test, judging whatever fraction had already run by
+  then -- unstable with pytest-randomly's seed for that reason.
+  `CONTRIBUTING.md`'s *Reproducing what CI runs* now says why `pypy3.11`
+  needs `--no-cov` beyond matching the platform sentinel, which already
+  runs that way and measures nothing of this.
 
 ## v2026.8.29
 

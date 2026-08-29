@@ -123,9 +123,9 @@ jobs:
       # asks is whether an (image, interpreter) pair passes, and the
       # coverage job of test.yml is where coverage is measured and gated
       # -- instrumenting these cells too would measure the same lines
-      # again for nothing. On pypy it is worse than redundant: coverage.py
-      # has no C tracer there and its pure-Python one does not survive a
-      # test that exercises sys.exit() in-process, so it stops recording
-      # partway and reports a number that measured nothing wrong
+      # again for nothing. On pypy it is not merely redundant:
+      # CONTRIBUTING.md's "Reproducing what CI runs" has the measured
+      # reason a bare `pytest` there fails a run this step does not even
+      # attempt
       - name: Run pytest
         run: uv run --locked --no-default-groups --group test pytest --no-cov
