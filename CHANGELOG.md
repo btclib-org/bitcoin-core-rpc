@@ -97,6 +97,28 @@ carry a union merge driver that would keep both sides' numbers.
   needs `--no-cov` beyond matching the platform sentinel, which already
   runs that way and measures nothing of this.
 
+- **The index wait `pypi-install.yml` runs is
+  `.github/scripts/wait_for_pypi_release.py`, with
+  `tests/wait_for_pypi_release_test.py` behind it** (issue
+  btclib-org/.github#509). What decides that wait is unreachable from
+  every trigger the workflow has -- the thing waited on is somebody
+  else's upload, and only a release call passes a version at all -- so
+  the test is where the retry, the deadline and the `::error::` are
+  driven at all, by substituting the transport and the clock and moving
+  the clock past the deadline. Which of them the tests actually pin was
+  settled by mutating the script rather than by reading it: what that
+  found unpinned was `served`'s status comparison, the clamp that keeps
+  a request outlasting the deadline from handing `time.sleep` a negative
+  number, and `DEFAULT_TIMEOUT` itself, no other case's outcome turning
+  on the shipped deadline. The wait counts against that deadline rather
+  than against attempts, which leaves one number to compare with the
+  job's own `timeout-minutes` where attempts times an interval is a
+  product to multiply out first. It runs as `wait-for-index`, a job the
+  matrix needs rather than a step every cell repeats, and it is the only
+  job here that checks anything out: what lands is `.github/scripts` and
+  the repository root that cone mode always adds with it, so the job
+  that installs still resolves to what PyPI serves.
+
 ## v2026.8.29
 
 ### Added

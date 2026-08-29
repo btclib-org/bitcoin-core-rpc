@@ -54,8 +54,9 @@ on:
     # this is reachable through the dispatch below alone
     - cron: "12 5 * * 3"
   workflow_dispatch:
-  # so a change to this file is checked by the thing it configures, the
-  # trigger links.yml already carries for itself. Unlike release.yml,
+  # so a change to this workflow, or to the wait it runs, is checked by
+  # the thing it configures -- the trigger links.yml already carries for
+  # itself. Unlike release.yml,
   # nothing here calls another workflow, so a pull request run shares no
   # concurrency group with test.yml's and cannot be cancelled by it
   pull_request:
@@ -69,7 +70,7 @@ on:
     # concurrency block below cancels nothing at all, for the reason
     # stated there, so a closed event here would supersede no run
     # whichever group it landed in. What it would do instead is add one:
-    # the condition on the job below declines a draft and says nothing
+    # the conditions on the jobs below decline a draft and say nothing
     # about a close, so the run a merge or an abandonment started would
     # install from the index on every cell of the matrix, for a pull
     # request nobody is on any more. links.yml is the other workflow here
@@ -80,6 +81,10 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - .github/workflows/pypi-install.yml
+      # and the wait it runs, for the same reason: the script is part of
+      # what this workflow does, and a pull request that changes it is
+      # the only run that reaches it before a release does
+      - .github/scripts/wait_for_pypi_release.py
 
 # least privilege for the GITHUB_TOKEN: everything running in a job
 # (actions, pip) can read the token, so it must not be able to write to
@@ -96,6 +101,60 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # one question about the index, asked once, ahead of every cell that
+  # would otherwise ask it. What the wait decides when it runs out is a
+  # verdict no trigger can produce -- what is waited on is somebody
+  # else's upload, so neither a release nor a rehearsal can arrange for
+  # it to be late -- so it is a script with a test rather than a loop in
+  # a run: block, which is what section 10 of btclib-org/.github's
+  # README.md asks of a wait (btclib-org/.github#509). The budget is the
+  # script's own default deadline; timeout-minutes here is well above it,
+  # and bounds the job rather than the wait.
+  #
+  # It runs on every trigger and waits on almost none of them: the input
+  # is empty wherever no release is calling, and an empty tag is nothing
+  # to wait for. An `if:` on the version here would make a tag the only
+  # thing that ever runs it, and a job a release is the first to run is a
+  # job whose defect ships with that release -- which has already
+  # happened to this wait, in more than one of these repositories. The
+  # `if:` it does carry is the draft one below, which is about a runner
+  # rather than about a version
+  wait-for-index:
+    name: Wait for the index to serve the released version
+    runs-on: ubuntu-latest
+    # the same condition the job below carries, and it has to be the
+    # same one: a job whose needs are skipped is skipped too, so a
+    # condition here that let this run where that one does not would
+    # spend a runner on a draft for an answer nothing goes on to use
+    if: ${{ !github.event.pull_request.draft }}
+    timeout-minutes: 15
+    steps:
+      # sparse, and this is the whole reason the checkout is admissible
+      # in a workflow whose point is that nothing of this repository is
+      # on the runner: what lands is .github/scripts plus the repository
+      # root, cone mode being the default and root files always being in
+      # the cone, so there is no src/bitcoin_core_rpc for an import to
+      # resolve to. This job imports nothing of the package in any case,
+      # and the job that installs checks out nothing at all
+      - name: Check out the wait script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Setup uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      # --no-project, so it runs on the interpreter uv fetches and
+      # installs nothing: the script takes the standard library alone,
+      # which is what lets it run before anything of this package exists
+      # on the runner
+      - name: Wait for the index to serve the released version
+        shell: bash
+        env:
+          TAG: ${{ inputs.version }}
+        run: |
+          uv run --no-project --python 3.14 \
+            .github/scripts/wait_for_pypi_release.py bitcoin-core-rpc "$TAG"
+
   install-published:
     name: >-
       ${{ matrix.no-binary && 'Build' || 'Install' }}
@@ -105,6 +164,12 @@ jobs:
     # ready_for_review is a trigger type above for the same reason
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ${{ matrix.os }}
+    # nothing here installs until the index serves what a release just
+    # published: a cell that starts too early resolves to the version the
+    # tag is replacing and reports a pass for it, which is worse than
+    # reporting nothing. On every other trigger the wait job returns at
+    # once, having had no version to wait for
+    needs: wait-for-index
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -146,48 +211,11 @@ jobs:
             python-version: "3.13"
             no-binary: true
     steps:
-      # the index does not serve a new file the instant the upload
-      # returns, and this workflow installs whatever "latest" resolves to:
-      # a run that starts too early tests the *previous* version and
-      # reports a pass for it, which is worse than reporting nothing. So
-      # the release path waits for the version its tag names, and fails if
-      # it never arrives rather than measuring the wrong thing.
-      #
-      # The step itself runs on every trigger and does nothing on most of
-      # them, the input being empty wherever no release is calling. An
-      # `if:` here would make a tag the only thing that ever runs it, and
-      # a step a release is the first to run is a step whose defect ships
-      # with that release -- which has already happened to this script, in
-      # more than one of these repositories. Unguarded, every weekly run
-      # parses it on every cell of the matrix. The empty case is a
-      # condition around the loop rather than an early `exit 0` for that
-      # same reason: bash parses a script as it runs, so an exit at the
-      # top leaves what follows unparsed, where an `if` is parsed whole
-      # before its condition is tested
-      - name: Wait for the index to serve the released version
-        shell: bash
-        env:
-          TAG: ${{ inputs.version }}
-        run: |
-          version="${TAG#v}"
-          if [ -z "$version" ]; then
-            echo "no release behind this run: nothing to wait for"
-          else
-            for attempt in $(seq 20); do
-              if curl -sf --max-time 10 -o /dev/null \
-                  "https://pypi.org/pypi/bitcoin-core-rpc/${version}/json"; then
-                echo "the index serves ${version}"
-                exit 0
-              fi
-              echo "attempt ${attempt}: ${version} is not served yet"
-              sleep 15
-            done
-            echo "::error::${version} never appeared on the index"
-            exit 1
-          fi
-      # no checkout on purpose: nothing from this repository takes part,
-      # which is also what guarantees that the import below resolves to
-      # what pip installed and not to a source tree
+      # no checkout in this job, on purpose: nothing from this repository
+      # takes part in it, which is also what guarantees that the import
+      # below resolves to what pip installed and not to a source tree.
+      # wait-for-index above is the one job here that checks anything
+      # out, and it installs nothing
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:

@@ -294,11 +294,12 @@ source-exclude = [
     # and *.pyo are the backend's own default excludes and are not
     # repeated
     "/docs/build",
-    # the four test modules whose subject is not in the archive. `.github`
-    # is not shipped -- it is on check-sdist's own default ignore list --
-    # and each of these reads it: the first three load a script out of
+    # the test modules whose subject is not in the archive. `.github` is
+    # not shipped -- it is on check-sdist's own default ignore list --
+    # and each of these reads it: all but the last load a script out of
     # `.github/scripts` by path, `.github/scripts` being no package, and
-    # the fourth reads the interpreter matrices out of `.github/workflows`.
+    # `interpreters_test.py` reads the interpreter matrices out of
+    # `.github/workflows`.
     # Shipped, they are a `FileNotFoundError` and a failed assertion rather
     # than a test, so a downstream packager building from the sdist and
     # running the suite -- which is what a distribution build does -- reads
@@ -307,6 +308,7 @@ source-exclude = [
     "/tests/rpc_smoke_test.py",
     "/tests/normalize_sdist_test.py",
     "/tests/check_api_page_test.py",
+    "/tests/wait_for_pypi_release_test.py",
     "/tests/interpreters_test.py",
     # a cache a linter or a type checker writes beside the file it has
     # just read, and not something anyone puts there on purpose: the VS
@@ -833,6 +835,11 @@ ignore = [
 # missing name, and a name missing from the built page is the one thing
 # a red run needs to say
 ".github/scripts/check_api_page.py" = ["T201"]
+# and the release wait, whose output is the log of a job with nothing
+# else in it: one line per question the index has not answered yet, the
+# answer when it comes, or the `::error::` annotation naming the version
+# that never arrived
+".github/scripts/wait_for_pypi_release.py" = ["T201"]
 # flake8-no-pep420: each is a standalone entry point a workflow step
 # invokes with `python .github/scripts/<name>.py`, never an import -- the
 # directory holds no __init__.py because it is not a package, and adding
