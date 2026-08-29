@@ -29,6 +29,29 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.9 (work in progress, not released yet)
 
+### Repository
+
+- **`REPOSITORY.md`'s *Security settings* stated six values and read
+  none of them back** (issue btclib-org/.github#468). The block now
+  carries the three commands that answer them -- `.security_and_analysis`
+  for the five keys of that object, `/vulnerability-alerts` for the one
+  whose endpoint has no body and says so with its status, and
+  `/private-vulnerability-reporting` -- and every row is traceable to
+  one of the three or to the *Required checks on main* readback the
+  CodeQL row already points at.
+- **The same table named three of the five keys its own command
+  answers with** (issue btclib-org/.github#468).
+  `secret_scanning_non_provider_patterns` and
+  `secret_scanning_validity_checks` now have rows of their own, both
+  reading `disabled`, with the reason they are off left where it is
+  rather than repeated: a table shorter than its own command is the
+  defect that issue names, not a tidier one.
+- **The topics are read back and compared with the keywords** (issue
+  btclib-org/.github#468), the comparison run with both sides confirmed
+  non-empty before its empty output was believed -- a sibling's copy of
+  the same shape matches nothing on the right and so reports an
+  agreement it never measured.
+
 ## v2026.8.29
 
 ### Added

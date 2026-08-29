@@ -606,6 +606,15 @@ the same one either way.
 All of these are repository settings and none of them is in the tree, so
 this list is the whole of them:
 
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc --jq '.security_and_analysis'
+# the alerts themselves are not in that object: the endpoint that
+# answers for them has no body, and says so with its status -- 204 for
+# enabled, 404 for not
+gh api -i repos/btclib-org/bitcoin-core-rpc/vulnerability-alerts | head -1
+gh api repos/btclib-org/bitcoin-core-rpc/private-vulnerability-reporting
+```
+
 | Setting | State |
 | --- | --- |
 | Dependabot alerts | enabled |
@@ -613,7 +622,14 @@ this list is the whole of them:
 | Private vulnerability reporting | enabled |
 | Secret scanning | enabled |
 | Secret scanning push protection | enabled |
+| Secret scanning non-provider patterns | disabled |
+| Secret scanning validity checks | disabled |
 | Code scanning default setup (CodeQL) | not configured |
+
+The two secret-scanning rows reading `disabled` are not settings this
+repository declined: *Plan-gated settings* below is where that belongs,
+and reading their state as something to go and fix is the mistake that
+section exists to prevent.
 
 Code scanning itself is enabled, and the row above says the opposite of
 that: what performs it is `codeql.yml`, and configuring the setting would
@@ -625,6 +641,20 @@ Private vulnerability reporting is what `SECURITY.md` sends a reporter to,
 and the link in `.github/ISSUE_TEMPLATE/config.yml` is the same door: with
 it disabled that link is a 404, so the setting and the two files go
 together.
+
+## Topics
+
+```shell
+diff <(gh api repos/btclib-org/bitcoin-core-rpc --jq '.topics[]' | sort) \
+     <(sed -n '/^keywords = \[/,/^]/s/^ *"\(.*\)",$/\1/p' pyproject.toml \
+       | sort)
+```
+
+Section 3 makes a package's `keywords` its topics, entry for entry, and
+this `pyproject.toml` declares a `[build-system]`, so `topics_test.py`
+holds this repository to that comparison. The diff above is empty: the
+two lists already agree, sorted because GitHub returns topics in an
+order of its own rather than `pyproject.toml`'s declared order.
 
 ## Plan-gated settings
 
