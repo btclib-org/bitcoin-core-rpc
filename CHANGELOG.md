@@ -60,6 +60,16 @@ carry a union merge driver that would keep both sides' numbers.
   reader to fill in a ruleset id by hand** (closes #320). It now derives
   the id from the ruleset's name the same way *Tag protection* does,
   rather than leaving that one lookup unresolved beside it.
+- **`REPOSITORY.md` opened by claiming to be the whole of what is set
+  outside the tree** (issue btclib-org/.github#551) -- a promise the file
+  did not keep, the default branch among the settings it does not record.
+  Section 11 of the organization standard rejects that claim and bounds
+  the file at the settings the standard asks about, which is what the
+  opening paragraph now says. A *What this file passes over* section at
+  the foot carries the other half: the repository document's URLs and
+  counts, the switches no section of the standard states a rule for, the
+  facilities that answer empty, and the default branch as a gap rather
+  than an exclusion.
 
 ### Tests
 

@@ -5,9 +5,14 @@ setting; writing code does not need it. `CLAUDE.md` points here rather than
 carrying it, so that a session fixing a bug in the client does not hold it
 in context.
 
-The branch rules and the repository settings live *outside* the repository,
-so this file is the whole of them: nothing here can be recovered by reading
-the tree.
+The branch rules and the repository settings live *outside* the
+repository: nothing here can be recovered by reading the tree. What is
+recorded is the settings the organization standard asks about — the
+ones section 16's checklist puts on a new repository, and the ones a
+section of that standard states a rule for — together with whatever a
+call quoted for one of those answers alongside it. That is this file's
+scope, and *What this file passes over* at the foot says what falls
+outside it and what falls inside it without being here yet.
 
 **The repository is public, and that is a prerequisite rather than a
 preference.** Branch protection is a paid feature for a private repository
@@ -689,3 +694,51 @@ that 200 as success. The `detect-secrets` hook is the compensating control,
 and it earns its place here more than in most repositories: the subject of
 this project is rpc credentials, so a cookie line and a `Basic` header are
 what its tests are full of.
+
+## What this file passes over
+
+The endpoints above answer for more than this repository decides, and the
+scope at the top is what leaves the rest out.
+
+**Most of the repository document is not a setting.** `gh api
+repos/btclib-org/bitcoin-core-rpc --jq 'keys[]'` answers with URLs,
+counts, timestamps and derived state beside the switches, and the
+switches among them this file records are the ones a section above reads
+back with a call of its own.
+
+**A switch no section of the standard states a rule for stays out.**
+`allow_forking`, `allow_update_branch`, `has_discussions`,
+`has_downloads` and `web_commit_signoff_required` are in that document
+and no section above reads any of them back. Against the standard's own
+`README.md`, `grep -c allow_forking` answers `0` where
+`grep -c 'default branch'` does not, which is what makes the first an
+absence rather than a file that was not read. Recording them would grow
+this file with GitHub's API rather than with the standard, and what that
+costs is a change to one of
+them showing up nowhere here. The wiki and the projects board are the
+pair this reasoning does not reach: what a copy owes a reader about them
+is the open question of issue btclib-org/.github#550, and nothing here
+answers it. `allow_auto_merge` is the same shape and a different
+question: the sections above name auto-merge twice in prose and read it
+back nowhere, so the silence would assert a decision that issue
+btclib-org/.github#566 holds open.
+
+**A facility this repository has never reached for answers empty.**
+
+```shell
+for e in actions/secrets actions/variables dependabot/secrets \
+         actions/runners keys autolinks properties/values; do
+  gh api "repos/btclib-org/bitcoin-core-rpc/$e"
+done
+```
+
+An empty answer records no decision, so whichever of them is used one
+day arrives with the section that uses it. The webhook list answers
+empty as well and is recorded anyway: *Read the Docs* above is about
+what that particular zero means.
+
+**The default branch is inside this scope and is not here** (issue
+btclib-org/.github#549). Section 16's checklist sets it and the step
+after asks for it read back; no command above reads `.default_branch`,
+and *Branch protection* states `main` in prose instead. That is a gap in
+the coverage this file claims rather than one of the exclusions above.
