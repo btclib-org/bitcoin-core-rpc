@@ -300,8 +300,8 @@ def test_dir_answers_every_published_name() -> None:
         assert name in named
 
 
-def test_importing_chains_or_errors_leaves_the_socket_layer_unimported() -> None:
-    """`chains.py` and `errors.py` cost nothing beyond the standard library.
+def test_importing_chains_or_errors_adds_no_socket_layer() -> None:
+    """`chains.py` and `errors.py` reach for no networking module of their own.
 
     `transport.py` is where `urllib.request` comes from, `ssl` and
     `socket` under it, and `__init__.py`'s facade answers `chains.py`'s
@@ -309,15 +309,37 @@ def test_importing_chains_or_errors_leaves_the_socket_layer_unimported() -> None
     proves a caller reaching for `magic_from_chain` or `cookie_auth` pays
     for none of that is a fresh interpreter, `sys.modules` being the read
     nothing already imported in this process can spoof.
+
+    The measurement is relative to a baseline taken in that same
+    subprocess, after `hashlib` -- `chains.py`'s own dependency, for
+    `sha256` -- and before either module import, rather than an absolute
+    read of `sys.modules` afterwards. `hashlib` is where `socket` actually
+    enters on PyPy: its cffi hash backend loads an OpenSSL binding that
+    pulls `_socket` in as an implementation detail of hashing, on an
+    interpreter never asked to open a connection. An absolute read, or one
+    baselined before `hashlib`, attributes that to the package; what the
+    guarantee is actually about is a networking module the package's own
+    code reaches for, which is what the import adds over that baseline.
+    The pull request gate checks one interpreter; a sweep or a release run
+    is what reaches PyPy.
     """
-    reached_only_by_asking = ("'urllib.request'", "'ssl'", "'socket'")
+    watched = ("urllib.request", "ssl", "socket")
     for module in ("bitcoin_core_rpc.chains", "bitcoin_core_rpc.errors"):
-        probe = f"import {module}, sys; print(sorted(sys.modules))"
-        loaded = subprocess.run(  # ruff: ignore[S603]
+        probe = (
+            "import sys\n"
+            "import hashlib\n"
+            "baseline = sorted(sys.modules)\n"
+            f"import {module}\n"
+            "print(baseline)\n"
+            "print(sorted(sys.modules))\n"
+        )
+        output = subprocess.run(  # ruff: ignore[S603]
             [sys.executable, "-c", probe],
             check=True,
             capture_output=True,
             encoding="utf-8",
         ).stdout
-        for name in reached_only_by_asking:
-            assert name not in loaded, (module, name)
+        baseline_line, after_line = output.splitlines()
+        added = set(ast.literal_eval(after_line)) - set(ast.literal_eval(baseline_line))
+        newly_watched = added & set(watched)
+        assert not newly_watched, (module, newly_watched)
