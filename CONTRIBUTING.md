@@ -449,6 +449,36 @@ UV_PROJECT_ENVIRONMENT=.venv-3.10 uv run --locked --no-default-groups \
     --group test --python 3.10 pytest --no-cov
 ```
 
+On `pypy3.11` `--no-cov` guards against a measured defect rather than
+only matching the matrix. In `tests/client_test.py`,
+`test_a_status_survives_a_body_that_is_no_reply`'s `too deep` case and
+`test_a_reply_nested_too_deeply_to_parse` each build a body nested past
+`sys.getrecursionlimit()` so that `client.py`'s own
+`except RecursionError` is what answers it; either alone, run under
+`pypy3.11` with coverage on, is enough to reproduce the warning named
+below, and a body kept under the limit is not — the size of the rest of the
+suite is not the trigger. Raising that `RecursionError` while coverage's
+pure Python tracer is installed — PyPy carries no C one — leaves
+`sys.gettrace()` returning `None` afterward. Coverage's own suppression
+for exactly this shape (`pytracer.py`'s `PyTracer.stop`,
+`env.PYPY and self.in_atexit and tf is None`) only applies once the
+`atexit`-registered `setattr` that flips `in_atexit` has actually run;
+`pytest-cov` stops coverage earlier, from a `pytest_runtestloop` wrapper
+that calls `finish()` once the whole test loop is done, so the
+suppression never fires under pytest and the mismatch prints instead as
+`CoverageWarning: Trace function changed, data is likely wrong`. That
+check runs once, at the end of whichever run included either test, which
+is why the warning always reads as coming from the end of a run rather
+than from the test that caused it, and `fail_under` then judges whatever
+fraction of the run had already been recorded by that point — unstable
+with pytest-randomly's seed for that reason. A narrowed run does not
+avoid it either: `tests/conftest.py`'s own relaxation of `fail_under` on
+a narrowed session silences the floor, not the warning. Marking either
+test `pytest.mark.no_cover`, pytest-cov's own marker, trades the warning
+for an honest miss instead: nothing else reaches `client.py`'s
+`RecursionError` branch, so the floor fails on `pypy3.11` and on CPython
+alike, exit 1 either way — not a fix.
+
 ### What gates a merge, and what only reports
 
 `lint.yml`, `test.yml`, `docs.yml` and `integration-bitcoind.yml` produce the
