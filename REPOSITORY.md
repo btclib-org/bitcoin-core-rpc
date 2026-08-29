@@ -324,12 +324,16 @@ branch, and it is the only branch there is.
 ## Tag protection
 
 `tag-integrity`, `target: tag`, `refs/tags/v*`: required signatures, and
-nothing else. No bypass actor, for anyone, ever:
+nothing else. No bypass actor, for anyone, ever. `GET /rulesets` answers a
+summary per ruleset, with neither `rules` nor `bypass_actors` among its
+keys, so those two come from the single-ruleset endpoint, keyed by the id
+the list step above it derives:
 
 ```shell
-gh api repos/btclib-org/bitcoin-core-rpc/rulesets \
-  --jq '.[] | select(.name=="tag-integrity") |
-        {rules: [.rules[].type], bypass: [.bypass_actors[].bypass_mode]}'
+id=$(gh api repos/btclib-org/bitcoin-core-rpc/rulesets \
+  --jq '.[] | select(.name=="tag-integrity") | .id')
+gh api repos/btclib-org/bitcoin-core-rpc/rulesets/"$id" \
+  --jq '{rules: [.rules[].type], bypass: [.bypass_actors[].bypass_mode]}'
 ```
 
 `release.yml` triggers on `push: tags: ["v*"]`, and the `pypi` environment
