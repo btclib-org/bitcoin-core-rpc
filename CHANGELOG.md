@@ -183,6 +183,19 @@ carry a union merge driver that would keep both sides' numbers.
   to another branch's run when `main` has none. The pre-commit.ci, Read
   the Docs and Scorecard badges are outside the rule.
 
+### The free-threading classifier is a claim about the merge gate
+
+- **`tests/interpreters_test.py` gates the `Free Threading` classifier
+  on the merge gate running a free-threaded build** (closes #332, issue
+  btclib-org/.github#577). Section 3 of the organization standard
+  declares the classifier where the gate exercises that build and names
+  the enforcement: the biconditional that gates the PyPy classifier,
+  with the gate's own interpreters as its second side. That side is
+  `test.yml` and not the platform sweeps, whose `3.14t` cell runs beside
+  a landing and blocks nothing — a sweep passing is the ground the
+  standard declines. Neither side holds in this tree, so the test lands
+  green, and it goes red on whichever side moves alone.
+
 ## v2026.8.29
 
 ### Added
