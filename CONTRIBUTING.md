@@ -53,18 +53,23 @@ neither of them shows, is [the standard's *What a pull request says it
 is*][s-title]. Read it before opening one; it is the rule most often
 found broken after the fact.
 
+**Before it is opened, the branch's own commit subjects and bodies are
+read against that same rule.** The description does not exist yet to
+disagree with them, and [the standard][s-title] has the command that
+scans the branch's own commit text for a verb in front of a reference.
+
 **The two spellings are named here as well as there, against [section 9's
 *One fact in one place*][s9]**, the paragraph above naming the section
 and not the forms, which are the half a citation is got wrong in:
 `(closes #N)` cites an issue the change closes, wherever the citation
 sits — the title, the commit subject where [*Merge method*][s11] makes
 that the thing that lands, and a `CHANGELOG.md` entry — and `(issue #N)`
-is reserved for a `CHANGELOG.md` entry naming an issue the change does
-*not* close. One token holds one meaning whichever file it sits in, so
-the pair is chosen by what is true of the change rather than by which
-file is being written, and a tree's own landed subjects are not what to
-copy it from: nothing already landed is rewritten, so what a repository
-wrote before the rule stays where it is.
+cites, in those same places, an issue the change advances and does *not*
+close. One token holds one meaning whichever file it sits in, so the
+pair is chosen by what is true of the change rather than by which file
+is being written, and a tree's own landed subjects are not what to copy
+it from: nothing already landed is rewritten, so what a repository wrote
+before the rule stays where it is.
 
 `REVIEWING.md` is the standard a review is written against, and is this
 file's other half. Read before opening a pull request, it is what the
@@ -117,7 +122,8 @@ on concurrent jobs, so rebasing every waiting pull request after each
 landing spends that capacity on runs the next landing invalidates
 anyway, and delays the one pull request that is actually next: work
 spent on a pull request that is not next is work that delays the one
-that is.
+that is. The ceiling's figure is `REPOSITORY.md`'s, under *Plan-gated
+settings*, beside the command that re-derives it.
 
 Order is cheapest and least contended first, most invasive last, so that
 a large change does not sit at the head blocking everything behind it.
@@ -198,6 +204,11 @@ particular signer's:
 gh api repos/{owner}/{repo}/commits/main \
   --jq '.commit.verification | {verified, reason}'
 ```
+
+**What it closed is read again here too, from the landed sha rather
+than from the pull request**: [the standard's *What a pull request says
+it is*][s-title] has the second read, and why the first alone does not
+reach a squash subject composed after it runs.
 
 The forge deletes the head branch itself, per the setting section 11
 names. What is still yours is bringing every checkout sitting on `main`
