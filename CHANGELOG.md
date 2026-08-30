@@ -175,6 +175,14 @@ carry a union merge driver that would keep both sides' numbers.
   `visibility=all`, so the two stores leave the facility bullet and get
   the organization store read back beside them.
 
+### The badge row carries the qualifier section 2 asks of it
+
+- **Every workflow-status badge at the head of `README.md` carries
+  `?branch=main`** (issue btclib-org/.github#579): each answers for
+  `main` or answers `no status`, where the unqualified badge falls back
+  to another branch's run when `main` has none. The pre-commit.ci, Read
+  the Docs and Scorecard badges are outside the rule.
+
 ## v2026.8.29
 
 ### Added
