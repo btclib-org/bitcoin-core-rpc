@@ -683,29 +683,24 @@ jobs:
   # and the fix for a red run here is a build on their side, not a moved
   # tag
   #
-  # The loop's own budget stays below the job's timeout-minutes, and the
-  # gap is the whole point: an attempt costs its curl --max-time plus
-  # the sleep, so the loop's worst case is the attempt count times that
-  # sum, and where that reaches timeout-minutes the runner kills the job
-  # before the `::error::` line -- the one line the job exists to print
-  # -- ever runs. A red run then says only that it exceeded its maximum
-  # execution time, which is a fact about this workflow and not about
-  # the documentation. Re-derive the margin from the values the script
-  # sets rather than from this sentence. An ordinary failure never comes
-  # near it, read the docs answering a 404 in well under a second
-  # while a build has not started; what the margin buys is the slow or
-  # unreachable case, which is the case a reader most needs the pointer
-  # for. The last attempt no longer sleeps before giving up, which
-  # bought nothing. This is issue btclib-org/.github#18.
+  # The wait itself is `.github/scripts/wait_for_readthedocs_build.py`
+  # rather than a shell loop written out here, which is what gives it a
+  # test: a tag is the only trigger that reaches it, so a loop kept in
+  # this file is first executed on the day a release depends on it. The
+  # script's budget is a deadline and not a count of attempts, and that
+  # deadline is set below this job's timeout-minutes, so the script's
+  # `::error::` runs rather than being killed inside the wait it exists
+  # to report on (btclib-org/btclib#1165).
+  # `tests/wait_for_readthedocs_build_test.py` is what drives the retry,
+  # the deadline and the annotation.
   #
-  # What the loop still cannot do is tell "still building" from "will
+  # What the wait still cannot do is tell "still building" from "will
   # never build": /en/<tag>/ answers 404 for both, and the v3 API that
-  # separates them is ruled out above for a reason that still holds.
-  # What it does instead is stop discarding the signal the curl call
-  # already carries for free -- the last HTTP status, or the transport
-  # failure if nothing answered at all -- so the verdict names what the
-  # URL last said and where the reason for it is written, rather than
-  # only that the job waited
+  # separates them is ruled out above for a reason that still holds. What
+  # it does instead is carry the last answer read the docs gave rather
+  # than discard it, so the verdict names what the URL last said and
+  # where the reason for it is written, rather than only that the job
+  # waited
   documented:
     name: Check read the docs built the tag
     needs: version-check
@@ -713,51 +708,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # sparse, for the reason pypi-install.yml's wait job gives: what
+      # lands is .github/scripts plus the repository root, cone mode
+      # being the default and root files always being in the cone. This
+      # job builds nothing and installs nothing, and the root's
+      # pyproject.toml is inert besides, --no-project ignoring it
+      - name: Check out the wait script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      # caching off, as in version-check above: a cache entry is written
+      # by whichever run populated it, and this job runs on the tag push
+      # that job's own comment gives for downloading fresh rather than
+      # trusting one a pull request's jobs wrote and this run cannot
+      # vouch for. There is little to cache here in any case, the step
+      # below installing nothing
+      - name: Setup uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: false
+      # --no-project, so it runs on the interpreter uv fetches and
+      # installs nothing: the script takes the standard library alone
       - name: Wait for the tag's documentation to be served
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          url="https://bitcoin-core-rpc.readthedocs.io/en/${TAG}/"
-          builds_page="https://app.readthedocs.org/projects/bitcoin-core-rpc/builds/"
-          attempts=20
-          interval=30
-          last_seen="no attempt has run yet"
-          for attempt in $(seq "$attempts"); do
-            # no -f: a non-2xx response is read, not discarded, so the
-            # failure below can name it. curl_rc is 0 whenever a
-            # response arrived at all, including a 404 -- $status is
-            # what tells the two apart, and stays empty on a
-            # transport-level failure (timeout, DNS, connection
-            # refused), which curl_rc alone then names.
-            # The assignment is the condition of the if rather than a
-            # statement of its own: this script runs under the shell's
-            # default `set -e`, which a bare `status=$(curl ...)` is not
-            # exempt from -- a hung or unreachable server makes curl
-            # exit 28, and that would end the step right there, on the
-            # first slow response, before curl_rc is even read, in
-            # exactly the case the margin above exists for. Measured by
-            # driving this step's own extracted script against a mocked
-            # curl and sleep
-            if status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$url"); then
-              curl_rc=0
-            else
-              curl_rc=$?
-            fi
-            if [ "$curl_rc" -eq 0 ] && [ "$status" = "200" ]; then
-              echo "${url} is served"
-              exit 0
-            fi
-            if [ "$curl_rc" -eq 0 ]; then
-              last_seen="HTTP ${status}"
-            else
-              last_seen="curl exit ${curl_rc} (no response within 10s)"
-            fi
-            echo "attempt ${attempt}/${attempts}: ${url} answered ${last_seen}"
-            if [ "$attempt" -lt "$attempts" ]; then
-              sleep "$interval"
-            fi
-          done
-          msg="tag ${TAG}: ${url} was never served while this job waited;"
-          echo "::error::${msg} last seen: ${last_seen}. Read the builds page" \
-            "on ${builds_page} -- it says why, this job only says that"
-          exit 1
+          uv run --no-project --python 3.14 \
+            .github/scripts/wait_for_readthedocs_build.py bitcoin-core-rpc "$TAG"
