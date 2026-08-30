@@ -196,6 +196,29 @@ carry a union merge driver that would keep both sides' numbers.
   standard declines. Neither side holds in this tree, so the test lands
   green, and it goes red on whichever side moves alone.
 
+### The release's publish jobs opt back in past a red `public-api`
+
+- **`publish-testpypi`, `publish-pypi` and `published` open their `if:`
+  with `always()` and name the results they do require** (closes
+  btclib-org/.github#484). `public-api` exits non-zero on any break in
+  the public surface since the last tag, which is what a cycle with
+  breaking changes produces by design, and a bare `needs:` refuses to
+  start a job whose listed dependency failed: the publish jobs list it,
+  so under a guard of the event and the repository alone a red
+  `public-api` leaves the upload unstarted and, behind the upload,
+  everything guarded on its success. `published` lists `publish-pypi`
+  alone and still needs an `always()` of its own, a bare `needs:`
+  reading back through the listed job's `needs:` chain, so the widening
+  on `publish-pypi` does not reach it. Section 12 of the organization
+  standard is the rule, with the rejected alternatives beside it.
+- **`RELEASING.md` reads the release run job by job for `skipped`, as a
+  step of its own, and its griffe step names the `public-api` job**
+  (closes btclib-org/.github#484). A skipped job carries no step and
+  turns nothing red, so a run that lost its post-publish check to the
+  wiring above reads as a run that finished; the step names the command,
+  which jobs a tag and a rehearsal each skip by design, and how a skip
+  is recovered, `gh run rerun` reaching none.
+
 ## v2026.8.29
 
 ### Added

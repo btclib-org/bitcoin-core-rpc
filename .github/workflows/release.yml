@@ -410,9 +410,23 @@ jobs:
   publish-testpypi:
     name: Publish to TestPyPI
     needs: [public-api, test, lint, docs, ubuntu, macos, windows, integration]
+    # public-api stays a need for the ordering -- its reading arrives
+    # before the upload rather than beside it -- and not for its result:
+    # it exits 1 on any break in the public surface since the last tag,
+    # which is what a cycle with breaking changes produces by design, and
+    # a bare `needs` refuses to start this job when any listed job failed
+    # or was skipped. `always()` is what opts back in, and the `.result`
+    # checks beside it are what keep every other listed job the gate it
+    # is. Section 12 of the organization standard has the rule;
+    # github-release's comment below is this tree's account of the same
+    # refusal, behind a skipped job rather than a failed one
     if: >-
-      github.event_name == 'workflow_dispatch' &&
-      github.repository == 'btclib-org/bitcoin-core-rpc'
+      always() && github.event_name == 'workflow_dispatch' &&
+      github.repository == 'btclib-org/bitcoin-core-rpc' &&
+      needs.test.result == 'success' && needs.lint.result == 'success' &&
+      needs.docs.result == 'success' && needs.ubuntu.result == 'success' &&
+      needs.macos.result == 'success' && needs.windows.result == 'success' &&
+      needs.integration.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -436,9 +450,15 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     needs: [public-api, test, lint, docs, ubuntu, macos, windows, integration]
+    # see publish-testpypi: public-api is a need for the ordering and not
+    # for its result, on a tag exactly as on a rehearsal
     if: >-
-      github.event_name == 'push' &&
-      github.repository == 'btclib-org/bitcoin-core-rpc'
+      always() && github.event_name == 'push' &&
+      github.repository == 'btclib-org/bitcoin-core-rpc' &&
+      needs.test.result == 'success' && needs.lint.result == 'success' &&
+      needs.docs.result == 'success' && needs.ubuntu.result == 'success' &&
+      needs.macos.result == 'success' && needs.windows.result == 'success' &&
+      needs.integration.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # deployment gate: configure required reviewers on the "pypi"
@@ -458,6 +478,27 @@ jobs:
       # generates PEP 740 attestations by default
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+
+  # what RELEASING.md used to ask for by hand, right here: the sentinel on
+  # what the index serves, against the version this run just published. It
+  # waits for the file to be served before installing, so it cannot pass by
+  # testing the previous release, and it runs beside github-release rather
+  # than before it -- a release announcing files that do not install is
+  # worse than a release announced a minute later, but the announcement is
+  # not what makes them installable
+  published:
+    name: Install the published version from PyPI
+    needs: publish-pypi
+    # publish-pypi's own `always()` opts it back in past public-api's
+    # designed failure and does not carry this job with it: a bare
+    # `needs` here still reads back through publish-pypi's own `needs`,
+    # and public-api two hops away skips this job although the one
+    # dependency it lists succeeded. github-release's comment below has
+    # the mechanism
+    if: always() && needs.publish-pypi.result == 'success'
+    uses: ./.github/workflows/pypi-install.yml
+    with:
+      version: ${{ github.ref_name }}
 
   # the same files reach users by two routes and only one of them carried
   # provenance: the publish action above generates PEP 740 attestations
@@ -479,20 +520,6 @@ jobs:
   # permission and an API that would otherwise be exercised for the first
   # time on release day, where a failure lands after PyPI has the files
   # and the tag can no longer be moved
-  # what RELEASING.md used to ask for by hand, right here: the sentinel on
-  # what the index serves, against the version this run just published. It
-  # waits for the file to be served before installing, so it cannot pass by
-  # testing the previous release, and it runs beside github-release rather
-  # than before it -- a release announcing files that do not install is
-  # worse than a release announced a minute later, but the announcement is
-  # not what makes them installable
-  published:
-    name: Install the published version from PyPI
-    needs: publish-pypi
-    uses: ./.github/workflows/pypi-install.yml
-    with:
-      version: ${{ github.ref_name }}
-
   attest:
     name: Attest the distribution files
     needs: [publish-pypi, publish-testpypi]
