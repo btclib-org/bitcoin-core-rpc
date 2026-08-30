@@ -135,6 +135,46 @@ carry a union merge driver that would keep both sides' numbers.
   *Plan-gated settings* for the ceiling's figure (issue
   btclib-org/.github#412).
 
+### `REPOSITORY.md`'s perimeter is section 11's
+
+- **The scope statement carries section 11's three limbs in the
+  standard's own words** (issue btclib-org/.github#582), the third --
+  the settings a behaviour the standard describes rests on -- being what
+  admits `allow_auto_merge`, `has_issues` and `.visibility` below.
+- **The opening no longer claims that nothing in the file is recoverable
+  by reading the tree** (issue btclib-org/.github#571): the topics and
+  `.homepage` have a copy in `pyproject.toml`, which *Topics* and
+  *Publishing* already said, so the clause names those two and holds of
+  the rest.
+- **`.visibility` and `has_issues` are read back** (issue
+  btclib-org/.github#584, issue btclib-org/.github#550): section 10's
+  `scorecard` sentinel reads a public repository and nothing else, and
+  `CONTRIBUTING.md`'s tracker rule rests on the issues switch.
+- **`has_wiki` and `has_projects` are outside the perimeter** (issue
+  btclib-org/.github#550), by section 11's sentence rather than as a
+  question this copy held open.
+- **`allow_auto_merge` is read back with the other merge settings**
+  (issue btclib-org/.github#566), the landing *Merge methods* describes
+  resting on it.
+- **The file no longer counts how many times it names auto-merge**
+  (closes btclib-org/.github#578): the sentence at the foot that carried
+  the count is replaced by the read-back above, and section 9 refuses a
+  count nothing checks in any case.
+- **`.default_branch` is read back** (issue btclib-org/.github#549),
+  under *Branch protection*, and the foot stops naming it as a gap; the
+  Pages read-back was already in place.
+- **The Read the Docs project is read back from its own API** (issue
+  btclib-org/.github#564): `latest` a branch following `main`, `stable`
+  the tag `git tag` sorts highest, the active tags the automation rule's
+  result. A hook found on the repository is stale and deleted, which is
+  now section 11's rule; the sentence saying the deletion implied
+  nothing for a sibling is gone.
+- **The Actions and Dependabot secret stores answer empty by the
+  standard's decision, not for want of use** (issue
+  btclib-org/.github#572): the token is the organization's, at
+  `visibility=all`, so the two stores leave the facility bullet and get
+  the organization store read back beside them.
+
 ## v2026.8.29
 
 ### Added
