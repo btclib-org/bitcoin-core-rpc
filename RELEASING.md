@@ -277,6 +277,15 @@ result.
    1 on a finding, so the day that reasoning stops holding — a cycle that
    means to break nothing — making it a gate is one line.
 
+   `release.yml` asks the same question again as its `public-api` job,
+   and a red one there is the expected shape of a cycle with breaking
+   changes in it: the job gates nothing, its own comment saying why, and
+   every job behind it opens its `if:` with `always()` and names the
+   results it does require, so a red `public-api` costs the release
+   nothing. What it costs is the run's own badge, red while every job
+   that matters is green, which is why the step after the approval below
+   reads the run job by job rather than as a whole.
+
 1. Retitle the work-in-progress sections of
    [RELEASE_NOTES.md](./RELEASE_NOTES.md) and [CHANGELOG.md](./CHANGELOG.md) to
    `## v<version>` — the heading must be the version alone, and the section
@@ -477,6 +486,38 @@ result.
    repository's own blocking it — then wait; cancelling or re-dispatching
    a job that is merely queued, not failed, risks a second attempt racing
    the first one into `publish-pypi`.
+
+1. Read the run job by job once it has ended, for `skipped` rather than
+   for red. A failed job is loud; a skipped one carries no step, starts
+   and completes in the same second, and leaves the run looking finished
+   with a job missing from it, which is what a bare `needs:` behind a
+   red `public-api` produces — section 12 of the organization standard
+   has the rule, and the `github-release` case under "If something goes
+   wrong" below is the same mechanism behind a skipped job rather than a
+   failed one:
+
+   ```shell
+   run=<run id>
+   gh api --paginate \
+     "repos/btclib-org/bitcoin-core-rpc/actions/runs/$run/jobs?per_page=100" \
+     --jq '.jobs[] | [.conclusion, (.steps|length), .name] | @tsv'
+   ```
+
+   On a tag `Publish to TestPyPI` is `skipped`, its trigger being the
+   dispatch, and `public-api` is red on any cycle with breaking changes
+   in it, being the griffe step above run again. Every other job reads
+   `success`, the ones behind `public-api` included: each of them opens
+   its `if:` with `always()` and names the results it does require, so a
+   red `public-api` costs the release nothing, and a `skipped` among them
+   is a defect in `release.yml` rather than a red to look past. A
+   rehearsal is the mirror image, `Publish to PyPI` skipped and with it
+   whatever is guarded on its success, and `documented` skipped on its
+   own account, its guard being the push. `gh run rerun` does not reach a
+   skipped job, `--failed` rerunning `failure` and `--job` refusing a skip
+   outright, so what recovers one is doing by hand what it would have
+   done: for `github-release` the script "If something goes wrong" gives,
+   for `published` a dispatch of `pypi-install.yml`, which installs what
+   the index serves at the time.
 
 1. Install what was just published, in an environment of its own rather
    than one that may already hold it, and run something with it:
