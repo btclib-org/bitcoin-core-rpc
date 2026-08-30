@@ -219,6 +219,22 @@ carry a union merge driver that would keep both sides' numbers.
   which jobs a tag and a rehearsal each skip by design, and how a skip
   is recovered, `gh run rerun` reaching none.
 
+### `links.yml` asks lychee for the fragment too
+
+- **`.github/workflows/links.yml` passes `--include-fragments`** (issue
+  btclib-org/.github#583). A link into a heading is checked as an anchor
+  and not only as a page, so a heading renamed in the tree a link here
+  points into is red in this run rather than nowhere. Run over the tree
+  with the workflow's flags and the token, the flag adds no request and
+  is red on the anchors `docs/source/migrating.md` makes into the
+  `_link.md` stubs: the heading each names belongs to the file the stub
+  includes, so the anchor resolves in the built site and not on the
+  forge, whose page for the stub carries no heading — that is #330's,
+  and the run stays red on those four until it is settled. With the
+  token the `github.com/btclib-org/.github#<heading>` anchors
+  `CONTRIBUTING.md` carries are not caught by it; btclib-org/.github#630
+  is where that is weighed.
+
 ## v2026.8.29
 
 ### Added
