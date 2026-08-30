@@ -6,13 +6,18 @@ carrying it, so that a session fixing a bug in the client does not hold it
 in context.
 
 The branch rules and the repository settings live *outside* the
-repository: nothing here can be recovered by reading the tree. What is
-recorded is the settings the organization standard asks about — the
-ones section 16's checklist puts on a new repository, and the ones a
-section of that standard states a rule for — together with whatever a
-call quoted for one of those answers alongside it. That is this file's
-scope, and *What this file passes over* at the foot says what falls
-outside it and what falls inside it without being here yet.
+repository. What is recorded is the settings the organization standard
+asks about — the ones section 16's checklist sets on a new repository,
+the ones a section of the standard states a rule for, and the ones a
+behaviour it describes rests on — together with whatever a call quoted
+for one of those answers alongside it. That is this file's scope, and
+*What this file passes over* at the foot says what falls outside it.
+
+The topics and `.homepage` have a second form in the tree —
+`pyproject.toml`'s `keywords` and its `[project.urls]` field of that
+name — so each is read back here for comparison rather than as the only
+place the answer lives, which is what *Topics* and *Publishing* say of
+them. Nothing else here is recoverable by reading the tree.
 
 **The repository is public, and that is a prerequisite rather than a
 preference.** Branch protection is a paid feature for a private repository
@@ -20,6 +25,21 @@ on the free plan, and the API says so rather than failing quietly —
 `Upgrade to GitHub Pro or make this repository public to enable this
 feature (HTTP 403)`. Everything below depends on it, and so does Actions
 being unmetered.
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc --jq '{visibility, has_issues}'
+# {"has_issues":true,"visibility":"public"}
+```
+
+Section 10's `scorecard` sentinel is the other thing resting on the
+first answer: public is what it reads at all, so a flip to private
+leaves `scorecard.yml`'s row and `README.md`'s badge standing while the
+run stops producing a score, and `.visibility` above is what puts that
+flip one command from being seen.
+
+`has_issues` is what `CONTRIBUTING.md`'s *The issue tracker* rests on —
+an issue about this tree alone stays here — and so does the
+`.github/ISSUE_TEMPLATE/` section 16's checklist gives every repository.
 
 ## Required checks on main
 
@@ -294,8 +314,15 @@ would change the answer.
 
 ## Branch protection
 
-`main` is the only branch, and everything reaches it through a pull
-request: the checks above with `strict`, an approving review,
+`main` is the repository's default branch and its only one:
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc --jq '.default_branch'
+# main
+```
+
+Everything reaches it through a pull request: the checks above with
+`strict`, an approving review,
 `dismiss_stale_reviews`, **required signatures**, linear history, no force
 pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
@@ -370,10 +397,17 @@ and not only the convention CONTRIBUTING.md states:
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc \
-  --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge}'
+  --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge,
+         allow_auto_merge}'
+# {"allow_auto_merge":true,"allow_merge_commit":false,
+#  "allow_rebase_merge":false,"allow_squash_merge":true}
 ```
 
-answers `true` for the first and `false` for the other two.
+`allow_auto_merge` is in that object because the landing described
+below rests on it rather than being a convenience beside it: off,
+auto-merge is not offered, every landing waits on somebody pressing
+*Squash and merge* at the moment the last check goes green, and nothing
+turns red.
 
 The merge commit was refused by the required linear history above already,
 so turning it off takes away a button that could not have worked. The
@@ -577,6 +611,33 @@ This tree serves no GitHub Pages site of its own.
 
 ## Read the Docs, which is bitcoin-core-rpc.readthedocs.io
 
+The project's slug is `bitcoin-core-rpc`, and its public API answers
+without a token for what section 11 asks of the project — `latest`
+follows the default branch, `stable` is the highest release tag, and an
+automation rule activates each new tag:
+
+```shell
+p=https://app.readthedocs.org/api/v3/projects/bitcoin-core-rpc
+curl -s "$p/" | jq -c '{default_branch, repository: .repository.url}'
+# {"default_branch":"main",
+#  "repository":"https://github.com/btclib-org/bitcoin-core-rpc.git"}
+curl -s "$p/versions/?active=true" \
+  | jq -c '.results[] | select(.slug == "latest" or .slug == "stable")
+           | [.slug, .type, .ref]'
+# ["stable","tag","v2026.8.29"]
+# ["latest","branch",null]
+git tag --list 'v*' --sort=version:refname | tail -1
+# v2026.8.29
+```
+
+`repository.url` says which repository the slug serves. `latest` is a
+branch, and the branch it follows is the project's `default_branch`;
+`stable` is a tag, and its `ref` is the one `git tag` sorts highest. The
+tags beside those two in the same answer are the automation rule's
+result rather than the rule, which that API does not expose —
+`automation-rules/` answers 404 where an endpoint needing a token, such
+as `redirects/`, answers 401.
+
 **What connects this repository to Read the Docs is the organization-wide
 `read-the-docs-community` GitHub App, not a per-repository webhook.**
 
@@ -609,9 +670,11 @@ removed it would be trusted to still be serving a connection it had
 already stopped serving. It was deleted rather than repaired, since the
 App already does the whole of what the hook was for (issue #291).
 
-Deleting the sibling's own webhook is not implied by this: each
-repository's connection is its own to read back, and the command above is
-the same one either way.
+A hook that command finds is stale and is deleted rather than repaired:
+that is section 11's rule and not a decision of this tree's alone, and
+the secret is its reason — Read the Docs issues it on the project's own
+integration page and GitHub returns it masked, so nothing read back from
+the repository says whether a hook still carries the right one.
 
 ## Security settings
 
@@ -715,30 +778,42 @@ and no section above reads any of them back. Against the standard's own
 absence rather than a file that was not read. Recording them would grow
 this file with GitHub's API rather than with the standard, and what that
 costs is a change to one of
-them showing up nowhere here. The wiki and the projects board are the
-pair this reasoning does not reach: what a copy owes a reader about them
-is the open question of issue btclib-org/.github#550, and nothing here
-answers it. `allow_auto_merge` is the same shape and a different
-question: the sections above name auto-merge twice in prose and read it
-back nowhere, so the silence would assert a decision that issue
-btclib-org/.github#566 holds open.
+them showing up nowhere here. `has_wiki` and `has_projects` are outside
+the perimeter by section 11's own sentence, which states no rule about
+either, so this file neither reads them back nor explains an answer to
+them.
+
+**A credential this repository spends and does not hold.**
+`claude-review.yml` reads `secrets.CLAUDE_CODE_OAUTH_TOKEN`, and both
+secret stores here answer empty for it:
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc/actions/secrets --jq .total_count
+gh api repos/btclib-org/bitcoin-core-rpc/dependabot/secrets \
+  --jq .total_count
+# 0, both
+gh api orgs/btclib-org/actions/secrets \
+  --jq '.secrets[] | [.name, .visibility]'
+gh api orgs/btclib-org/dependabot/secrets \
+  --jq '.secrets[] | [.name, .visibility]'
+# ["CLAUDE_CODE_OAUTH_TOKEN","all"], both
+```
+
+Those two zeros record a decision, and it is section 11's: the token is
+an organization secret at `visibility=all`, in both stores, so a
+repository adopting the workflow configures nothing for it, and a copy
+of it in a store here would be that decision undone.
 
 **A facility this repository has never reached for answers empty.**
 
 ```shell
-for e in actions/secrets actions/variables dependabot/secrets \
-         actions/runners keys autolinks properties/values; do
+for e in actions/variables actions/runners keys autolinks \
+         properties/values; do
   gh api "repos/btclib-org/bitcoin-core-rpc/$e"
 done
 ```
 
-An empty answer records no decision, so whichever of them is used one
-day arrives with the section that uses it. The webhook list answers
+An empty answer there records no decision, so whichever of them is used
+one day arrives with the section that uses it. The webhook list answers
 empty as well and is recorded anyway: *Read the Docs* above is about
 what that particular zero means.
-
-**The default branch is inside this scope and is not here** (issue
-btclib-org/.github#549). Section 16's checklist sets it and the step
-after asks for it read back; no command above reads `.default_branch`,
-and *Branch protection* states `main` in prose instead. That is a gap in
-the coverage this file claims rather than one of the exclusions above.
