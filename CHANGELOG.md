@@ -70,6 +70,16 @@ carry a union merge driver that would keep both sides' numbers.
   counts, the switches no section of the standard states a rule for, the
   facilities that answer empty, and the default branch as a gap rather
   than an exclusion.
+- **`RELEASING.md`'s release pull request opens the next cycle's "work
+  in progress" sections of `CHANGELOG.md` and `RELEASE_NOTES.md`, above
+  the two it retitles** (issue btclib-org/.github#528). Opened in a pull
+  request of their own after the release's, the sections were missing
+  from `main` for as long as that pull request took to land, and a
+  branch landing in between filed its entry under a release it is not
+  in, with nothing to say so. The version bump stays in the pull request
+  that opens the cycle, `version-check` comparing the tag against what
+  `pyproject.toml` declares. Section 12 of the organization standard is
+  the decision; this is its port.
 
 ### Tests
 
