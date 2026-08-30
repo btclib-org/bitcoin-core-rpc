@@ -197,9 +197,10 @@ Run workflow. CONTRIBUTING.md has the same command for a node of your own.
 
 **A release is a tag on `main`, and everything below that edits a file
 does so on a branch of its own.** Nothing is pushed to `main` directly,
-this release included: the steps that retitle the notes and set the
-version are one pull request, the one that opens the next cycle is
-another, and the tag names the commit the first of them left behind.
+this release included: the steps that retitle the notes, open the next
+cycle's sections and set the version are one pull request, the one that
+sets the next cycle's version is another, and the tag names the commit
+the first of them left behind.
 
 `deps-latest` is worth dispatching before the tag rather than waiting for
 its cron, because what it answers is cheaper to know before a version is
@@ -282,6 +283,22 @@ result.
    must not be empty. `release.yml` checks both before anything is built,
    because a version cannot be unpublished once an index has accepted it.
 
+   In the same pull request, open the next cycle's section in both files,
+   above the one just retitled — `## v<next YYYY.M> (work in progress, not
+   released yet)`, with nothing under it yet. That section is what the
+   next release's notes are written into, one landed change at a time,
+   and opening it here is what keeps the topmost heading of either file
+   on `main` a work-in-progress heading at every commit. Opening the
+   next cycle in a pull request of its own after this one, ahead of
+   anything else landing, is the rejected alternative: until that pull
+   request lands the topmost section of each file is the release's, so
+   a branch landing in between files its entry under a release it is
+   not in, and nothing reports it, the release commit having touched
+   only the heading. `release.yml`'s check reads the `## v<version>`
+   section alone, so a heading above it is nothing it sees, and it is
+   not what the release publishes: the notes are lifted from the section
+   whose heading is the tag's own.
+
 1. Set the version in `pyproject.toml`, which is the one place it is
    declared, and re-lock so `uv.lock` agrees:
 
@@ -302,9 +319,10 @@ result.
                                       # uv lock, and gate again
    ```
 
-   The retitle and the version are three lines; what is expensive to
-   reconstruct is the entries, and those are already on `main` in the
-   pull requests that landed them. `git diff --cached` at the landing step
+   The retitle, the headings it opens and the version are a few lines;
+   what is expensive to reconstruct is the entries, and those are
+   already on `main` in the pull requests that landed them. `git diff
+   --cached` at the landing step
    below is the second reading of the same hazard, not a substitute for
    this one: by then the fused headings are what is being committed.
 
@@ -318,9 +336,10 @@ result.
    cannot say has to be written, and what a reader should not have to
    discover at the button belongs there too.
 
-   The work-in-progress section of RELEASE_NOTES.md is what that body is written
-   from, and the reason it is filled in one landed change at a time rather
-   than reconstructed from the diff on release day. Check it against
+   The section of RELEASE_NOTES.md the retitle step renamed is what that
+   body is written from, and the reason it is filled in one landed change
+   at a time rather than reconstructed from the diff on release day.
+   Check it against
    `git log v<previous version>..main --oneline` regardless of how current
    it looks, rather than trust that every line landed when it should have.
    Griffe's result and the integration run belong in the body too, each a
@@ -549,23 +568,25 @@ result.
    `gh attestation trusted-root > trusted_root.jsonl` fetched it earlier
    and `--custom-trusted-root` points at it.
 
-1. Open the next cycle, in a pull request of its own and before anything
-   else lands: set a generic next version without the day (e.g. after
-   2026.8.6, use 2026.9) in `pyproject.toml`, and start a new "work in
-   progress" section in RELEASE_NOTES.md and CHANGELOG.md. That shape is
-   the one nothing tagged can have, so a checkout of `main` between releases
-   reports itself as work in progress rather than as a release it is not,
-   and `version-check` refuses it should it ever reach a tag — which is a
-   second guard behind the heading check, not a replacement for it.
-   Re-lock so `uv.lock` agrees:
+1. Open the next cycle: set a generic next version without the day (e.g.
+   after 2026.8.6, use 2026.9) in `pyproject.toml`, through a pull
+   request like any other. That shape is the one nothing tagged can have,
+   so a checkout of `main` between releases reports itself as work in
+   progress rather than as a release it is not, and `version-check`
+   refuses it should it ever reach a tag — which is a second guard behind
+   the heading check, not a replacement for it. Re-lock so `uv.lock`
+   agrees:
 
    ```shell
    uv lock
    ```
 
-   That empty section is what the next release's notes are written into,
-   one landed change at a time, and opening it now is what keeps the next
-   cycle's body from being reconstructed from the diff on release day.
+   The two "work in progress" sections are already there, the retitle
+   step above having opened them in the release's own pull request. What
+   stays here is the version, which cannot move earlier with them:
+   `version-check` compares the tag against what `pyproject.toml`
+   declares, so a tree already bumped would offer it the next cycle's
+   month instead of the version being released.
 
 ## Rebuild a release from its tag
 
