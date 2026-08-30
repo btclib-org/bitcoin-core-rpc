@@ -143,6 +143,16 @@ Do not use Fable unless explicitly instructed.
 - **The version is declared once**, in `pyproject.toml`.
   `docs/source/conf.py` parses that file (not the metadata, which would
   need the package installed), and the module carries no version at all.
+- **A `###` in `CHANGELOG.md`'s open section names one entry, never a
+  theme several entries share** (issue btclib-org/.github#586). Section
+  9's `CHANGELOG.md and RELEASE_NOTES.md` makes grouping by theme the
+  rejected alternative and settles the transitional case for a tree,
+  like this one, whose open section already carries a heading of that
+  shape: it is landed text and stays, and the next entry takes its own
+  `###` at the end of the section rather than joining it. Which of this
+  tree's own headings are themes is a reading of what sits under them,
+  not a list to keep here — several citations under one heading are no
+  evidence either way, section 9's own bullets citing separately.
 
 ## Conventions to match
 
