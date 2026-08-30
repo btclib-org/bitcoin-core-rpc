@@ -140,13 +140,28 @@ jobs:
           # than adding to it, so the "200,206,429" this file used to pass
           # narrowed it -- a 201 or a 204 became a dead link -- to add a
           # 206 the default already covered. 429 is the one code worth
-          # adding, a rate limit being an answer from a host that is alive
+          # adding, a rate limit being an answer from a host that is alive.
+          # --include-fragments, so a link into a heading is checked as an
+          # anchor and not only as a page: the forge serves the page and
+          # drops a fragment it cannot resolve, so a heading renamed in the
+          # tree a link here points into is red here and nowhere else. The
+          # check reads the page already fetched for the link, so it adds
+          # no request. A missing fragment on a github.com/<owner>/<repo>
+          # link is overridden by the token below, lychee falling back to
+          # the repositories API on the failed link -- btclib-org/.github#630
+          # is where that is weighed. An anchor into a docs/source/*_link.md
+          # stub resolves in the built site, where the include has run,
+          # and not on the forge, whose page for the stub carries no
+          # heading to anchor to: this run is red on the four such links
+          # in migrating.md until #330 settles which reader they are
+          # written for.
           args: >-
             --no-progress
             --max-retries 3
             --retry-wait-time 10
             --timeout 45
             --accept 100..=103,200..=299,429
+            --include-fragments
             "*.md" "docs/**/*.rst" "docs/**/*.md" "tests/**/*.md"
           # fail the job, rather than only summarizing: a green run that
           # found dead links is the state this workflow exists to end
