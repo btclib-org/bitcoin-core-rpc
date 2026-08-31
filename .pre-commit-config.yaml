@@ -507,7 +507,7 @@ repos:
   # with write access. The default persona is the gate; --persona=auditor
   # adds advice and is worth running by hand rather than on every commit
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.29.0
+    rev: v1.30.0
     hooks:
       - id: zizmor
         # offline is what it does by default, said out loud: it warns about
@@ -524,7 +524,7 @@ repos:
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.3
+    rev: v0.16.5
     hooks:
       - id: ruff-check
         name: ruff check (in place fixes)
@@ -614,7 +614,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.5
+    rev: 0.12.7
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
@@ -658,7 +658,7 @@ repos:
   # the fallback -- a virtual environment pre-commit.ci cannot create -- is
   # never asked for
   - repo: https://github.com/regebro/pyroma
-    rev: "5.0.1"
+    rev: "5.1b1"
     hooks:
       - id: pyroma
         additional_dependencies: ["uv_build>=0.12.5,<0.13"]
