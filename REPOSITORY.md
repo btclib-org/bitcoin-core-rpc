@@ -771,9 +771,9 @@ back with a call of its own.
 
 **A switch no section of the standard states a rule for stays out.**
 `allow_forking`, `allow_update_branch`, `has_discussions`,
-`has_downloads` and `web_commit_signoff_required` are in that document
-and no section above reads any of them back. Against the standard's own
-`README.md`, `grep -c allow_forking` answers `0` where
+`has_downloads`, `is_template` and `web_commit_signoff_required` are in
+that document and no section above reads any of them back. Against the
+standard's own `README.md`, `grep -c allow_forking` answers `0` where
 `grep -c 'default branch'` does not, which is what makes the first an
 absence rather than a file that was not read. Recording them would grow
 this file with GitHub's API rather than with the standard, and what that
