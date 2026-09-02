@@ -307,6 +307,59 @@ carry a union merge driver that would keep both sides' numbers.
   from outside a runner, and Cloudflare can weigh address reputation
   alongside the user agent on a request the runner actually sends.
 
+### The sweep comparison passed without reading every sweep
+
+- **A platform sweep whose `python:` block stopped matching `_PYTHONS`
+  left `_declared()`'s dict instead of disagreeing with it, so the
+  comparison narrowed to the survivors and the dropped sweep went
+  unchecked** (closes #333). `_SWEEPS` now names the three platform sweep
+  workflows -- `os-macos.yml`, `os-ubuntu.yml`, `os-windows.yml` -- and
+  the test asserts `_declared()` read all three before comparing what
+  they name: agreement among however many sweeps were found is a claim
+  that gets weaker the fewer there are, and vacuous at one. btclib closed
+  the identical defect in its own copy of this module first
+  (btclib-org/btclib#1251).
+
+### The `undocumented-public-init` comment gave the class as the place
+
+- **`pyproject.toml`'s `ignore` comment said `__init__` is documented by
+  its class** (issue btclib-org/.github#588), where section 5 of the
+  organization standard puts the constructor's documentation in
+  `__init__`'s own docstring, after PEP 257. The comment now gives that
+  section's reason for the entry: the rule checks that a docstring exists
+  and never that it says anything, so declining it declines the presence
+  check and never the documentation -- an argument's meaning, a raised
+  exception, an invariant the constructor establishes still has nowhere
+  else to go. It names the section, as the comments beside it carrying an
+  organization-wide decision already do. It also says the convention sits
+  below the `ignore` table, where it said above.
+
+### The *Topics* reason names the `[project]` table
+
+- **`REPOSITORY.md`'s *Topics* gave this `pyproject.toml`'s
+  `[build-system]` as why `topics_test.py` holds this repository to the
+  topics/`keywords` comparison** (issue btclib-org/.github#665). The
+  clause names the `[project]` table instead: that is what `keyworded`
+  selects on, and section 3 of the organization standard states it under
+  its own heading -- the rule turns on that table and not on the index.
+  Both keys are declared here, so it was the reason and not the
+  conclusion that was wrong, and a reader carrying it to a tree with a
+  `[project]` table and no build backend exempts a repository the suite
+  asks the same question of.
+
+### A convention name wrapped in its middle is read as it is written
+
+- **`tests/conventions_test.py` collapses the whitespace of the *Not
+  tested here* list and then of each name in it** (issue
+  btclib-org/.github#651). `strip()` takes whitespace off a name's ends
+  and leaves what an eighty-column wrap puts in its middle, so a name the
+  break splits matched none of section 7's and was reported as a
+  convention the declaration invented -- a red test on a declaration that
+  reads correctly in the file. `tests/README.md`'s line here breaks at a
+  semicolon, so nothing was red; what goes is the dependence on where the
+  column falls, which nothing enforces. `btclib-benchmarks` reads its own
+  line this way, its wrap falling inside a name.
+
 ## v2026.8.29
 
 ### Added
