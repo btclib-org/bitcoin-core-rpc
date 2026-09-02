@@ -307,6 +307,19 @@ carry a union merge driver that would keep both sides' numbers.
   from outside a runner, and Cloudflare can weigh address reputation
   alongside the user agent on a request the runner actually sends.
 
+### The sweep comparison passed without reading every sweep
+
+- **A platform sweep whose `python:` block stopped matching `_PYTHONS`
+  left `_declared()`'s dict instead of disagreeing with it, so the
+  comparison narrowed to the survivors and the dropped sweep went
+  unchecked** (closes #333). `_SWEEPS` now names the three platform sweep
+  workflows -- `os-macos.yml`, `os-ubuntu.yml`, `os-windows.yml` -- and
+  the test asserts `_declared()` read all three before comparing what
+  they name: agreement among however many sweeps were found is a claim
+  that gets weaker the fewer there are, and vacuous at one. btclib closed
+  the identical defect in its own copy of this module first
+  (btclib-org/btclib#1251).
+
 ## v2026.8.29
 
 ### Added

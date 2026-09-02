@@ -34,6 +34,11 @@ from pathlib import Path
 _ROOT = Path(__file__).parents[1]
 _PYPROJECT = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
 _WORKFLOWS = sorted((_ROOT / ".github/workflows").glob("*.yml"))
+# the three platform sweeps between which the interpreters below are
+# supposed to agree, named explicitly so that a sweep whose `python:`
+# block stops matching `_PYTHONS` is a workflow the check below can miss,
+# rather than one that quietly stops being compared
+_SWEEPS = ("os-macos.yml", "os-ubuntu.yml", "os-windows.yml")
 
 # "3.10" out of `requires-python = ">=3.10"`, the floor and nothing else:
 # an upper bound is not declared here and would be a different claim
@@ -195,8 +200,18 @@ def test_every_sweep_runs_the_same_interpreters() -> None:
     and nowhere else. Three copies of a list is three chances for one of
     them to be left behind, and a platform quietly running a narrower set
     than another reads, from the outside, as that platform passing.
+
+    Agreement among the lists found only means something once every sweep
+    was actually found: `_declared()` keeps a workflow only where its
+    `python:` block matched, so a sweep that stopped matching drops out of
+    the comparison instead of disagreeing with it, and the fewer sweeps
+    survive the weaker -- and, at one, vacuous -- the claim below becomes.
     """
     declared = _declared()
+    assert tuple(sorted(declared)) == _SWEEPS, (
+        f"the platform sweeps are {', '.join(_SWEEPS)} and the interpreter"
+        f" block was read from {', '.join(sorted(declared)) or 'none of them'}"
+    )
     lists = set(declared.values())
     assert len(lists) <= 1, (
         f"the workflows do not name the same interpreters: {declared}"
