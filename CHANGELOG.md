@@ -420,6 +420,16 @@ carry a union merge driver that would keep both sides' numbers.
   empty answer records no decision, that zero now being half of what
   records this one.
 
+### `REPOSITORY.md` names `is_template` among the switches it passes over
+
+- **`is_template` is named among the fields of the repository document
+  `REPOSITORY.md` passes over** (closes btclib-org/.github#691): it is
+  in that document, no section above reads it back, and no section of
+  the standard states a rule for it, which is the class that block
+  enumerates; a field of that class the block does not name is silent
+  in both places at once, and reads as one nobody looked at rather than
+  as one weighed and left out.
+
 ## v2026.8.29
 
 ### Added
