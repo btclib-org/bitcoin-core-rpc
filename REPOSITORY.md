@@ -726,7 +726,7 @@ diff <(gh api repos/btclib-org/bitcoin-core-rpc --jq '.topics[]' | sort) \
 ```
 
 Section 3 makes a package's `keywords` its topics, entry for entry, and
-this `pyproject.toml` declares a `[build-system]`, so `topics_test.py`
+this `pyproject.toml` declares a `[project]` table, so `topics_test.py`
 holds this repository to that comparison. The diff above is empty: the
 two lists already agree, sorted because GitHub returns topics in an
 order of its own rather than `pyproject.toml`'s declared order.

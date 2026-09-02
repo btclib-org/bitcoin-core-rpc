@@ -334,6 +334,19 @@ carry a union merge driver that would keep both sides' numbers.
   organization-wide decision already do. It also says the convention sits
   below the `ignore` table, where it said above.
 
+### The *Topics* reason names the `[project]` table
+
+- **`REPOSITORY.md`'s *Topics* gave this `pyproject.toml`'s
+  `[build-system]` as why `topics_test.py` holds this repository to the
+  topics/`keywords` comparison** (issue btclib-org/.github#665). The
+  clause names the `[project]` table instead: that is what `keyworded`
+  selects on, and section 3 of the organization standard states it under
+  its own heading -- the rule turns on that table and not on the index.
+  Both keys are declared here, so it was the reason and not the
+  conclusion that was wrong, and a reader carrying it to a tree with a
+  `[project]` table and no build backend exempts a repository the suite
+  asks the same question of.
+
 ## v2026.8.29
 
 ### Added
