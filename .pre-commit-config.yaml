@@ -658,7 +658,7 @@ repos:
   # the fallback -- a virtual environment pre-commit.ci cannot create -- is
   # never asked for
   - repo: https://github.com/regebro/pyroma
-    rev: "5.1b1"
+    rev: "5.0.1"
     hooks:
       - id: pyroma
         additional_dependencies: ["uv_build>=0.12.5,<0.13"]
