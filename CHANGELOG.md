@@ -369,6 +369,31 @@ carry a union merge driver that would keep both sides' numbers.
   two branches writing an entry at one anchor rather than a bullet
   appended to one of a few changelog groups.
 
+### `migrating.md`'s links into README.md and COMPARISON.md name the root file directly
+
+- **The anchors `docs/source/migrating.md` makes into `readme_link.md`'s
+  and `comparison_link.md`'s own headings are now written
+  `../../README.md#...` and `../../COMPARISON.md#comparison`, the shape
+  a reader on the forge resolves directly** (closes #330): the stub
+  those anchors used to name carries no heading of its own until
+  Sphinx's `{include}` has run, so a forge reader following the old link
+  landed on a page with nothing to anchor to -- measured against
+  `README.md`'s own rendered page, which does carry it.
+  `docs/source/conf.py`'s `RootFileLinks` transform now also resolves a
+  link written this way outside a shim, against the document that wrote
+  it rather than against the repository root, so the same text still
+  reaches the shim page that carries the heading once this build's own
+  `{include}` has run; `sphinx-build -n -W --keep-going` and
+  `lychee --include-fragments` both read it clean, with no
+  `.lycheeignore` entry for either stub.
+- **`local-link-prefix` accepts a `../` destination alongside a `./`
+  one.** The hook refused `../` on the premise that a broken link
+  written that way reaches myst's silent, ungreppable fallback
+  (`href="#../page.md"`), which the transform above now falsifies: a
+  broken `../` link is left unresolved for myst's own resolver instead,
+  which `sphinx-build -n -W` reports directly, with neither lychee nor
+  the grep in docs.yml in the loop.
+
 ## v2026.8.29
 
 ### Added
