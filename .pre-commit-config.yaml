@@ -520,6 +520,14 @@ repos:
         # the hook declares, and that flag is the whole of what it declares,
         # so passing --offline alone would drop it
         args: [--offline, --no-progress]
+        # v1.30.0 added self-repository, which wants every in-repo
+        # `uses: ./...` rewritten to GitHub's `$/...` syntax (offered as a
+        # safe auto-fix). actionlint -- pinned below, and the latest release
+        # there is -- does not parse `$/...` and fails every line that
+        # syntax would touch
+        # (`grep -rn 'uses: \./\.github/' .github/workflows/`), so each
+        # carries its own `# zizmor: ignore[self-repository]` until
+        # actionlint catches up (issue #345)
   # ruff replaces autoflake, bandit, black, copyright_notice_precommit,
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa

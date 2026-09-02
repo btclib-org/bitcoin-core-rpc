@@ -345,7 +345,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    uses: ./.github/workflows/test.yml
+    uses: ./.github/workflows/test.yml # zizmor: ignore[self-repository]
     with:
       # what keeps this run out of the branch concurrency groups: see the
       # group in test.yml
@@ -365,7 +365,7 @@ jobs:
   # version-check: this is the cheap one, and it runs in parallel with it
   lint:
     name: Run the lint workflow
-    uses: ./.github/workflows/lint.yml
+    uses: ./.github/workflows/lint.yml # zizmor: ignore[self-repository]
     with:
       # see the test job above
       concurrency-suffix: "-release"
@@ -376,7 +376,7 @@ jobs:
   # own now, so calling lint.yml no longer covers it
   docs:
     name: Run the docs workflow
-    uses: ./.github/workflows/docs.yml
+    uses: ./.github/workflows/docs.yml # zizmor: ignore[self-repository]
 
   # and the two images the merge gate does not wait for: each runs weekly,
   # so a regression there could otherwise sit on main until the morning
@@ -386,15 +386,15 @@ jobs:
   # for
   macos:
     name: Run the macos workflow
-    uses: ./.github/workflows/os-macos.yml
+    uses: ./.github/workflows/os-macos.yml # zizmor: ignore[self-repository]
 
   ubuntu:
     name: Run the ubuntu workflow
-    uses: ./.github/workflows/os-ubuntu.yml
+    uses: ./.github/workflows/os-ubuntu.yml # zizmor: ignore[self-repository]
 
   windows:
     name: Run the windows workflow
-    uses: ./.github/workflows/os-windows.yml
+    uses: ./.github/workflows/os-windows.yml # zizmor: ignore[self-repository]
 
   # and the one claim a recorded reply cannot make: that a live bitcoind
   # still answers the way tests/_data says it does. It gates every pull
@@ -405,7 +405,7 @@ jobs:
   # it, which made that trigger a promise the file kept and this one did not
   integration:
     name: Run the integration workflow
-    uses: ./.github/workflows/integration-bitcoind.yml
+    uses: ./.github/workflows/integration-bitcoind.yml # zizmor: ignore[self-repository]
 
   publish-testpypi:
     name: Publish to TestPyPI
@@ -496,7 +496,7 @@ jobs:
     # dependency it lists succeeded. github-release's comment below has
     # the mechanism
     if: always() && needs.publish-pypi.result == 'success'
-    uses: ./.github/workflows/pypi-install.yml
+    uses: ./.github/workflows/pypi-install.yml # zizmor: ignore[self-repository]
     with:
       version: ${{ github.ref_name }}
 
