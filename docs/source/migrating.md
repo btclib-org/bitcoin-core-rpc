@@ -53,7 +53,7 @@ constructor takes: a caller builds it into the url, and into whatever
 reads the cookie, by hand. `from_chain` carries the chain's own default
 port; a node moved off it is an explicit url, and a node started with
 `-datadir=` elsewhere is `cookie_path`, per
-[Talking to a node](./readme_link.md#talking-to-a-node).
+[Talking to a node](../../README.md#talking-to-a-node).
 
 ```python
 client = BitcoinCoreRpcClient.from_chain(
@@ -184,7 +184,7 @@ except RpcError as e:
         ...
 ```
 
-[COMPARISON.md](./comparison_link.md#comparison) has the `except OSError`
+[COMPARISON.md](../../COMPARISON.md#comparison) has the `except OSError`
 trap beside this: a refused connection is a plain `OSError` on both
 `AuthServiceProxy` variants and a `FetchError`, derived from
 `RuntimeError`, here.
@@ -220,7 +220,7 @@ Both `AuthServiceProxy` variants keep one `http.client` connection open
 for the object's life, and `__getattr__` hands it on to every proxy
 derived from the first one. This client opens a fresh connection per
 `call` by default, per
-[Keeping a connection alive](./readme_link.md#keeping-a-connection-alive);
+[Keeping a connection alive](../../README.md#keeping-a-connection-alive);
 `SessionTransport` is the equivalent, one connection kept per node and
 passed as `transport=`.
 
@@ -255,7 +255,7 @@ seam here, a callable in place of the constructor's default, taking the
 request and the timeout and answering the status and the body — the
 suite of this project opens no socket, and neither has yours to, per
 [Testing code that calls a
-node](./readme_link.md#testing-code-that-calls-a-node).
+node](../../README.md#testing-code-that-calls-a-node).
 
 ## What has no equivalent
 

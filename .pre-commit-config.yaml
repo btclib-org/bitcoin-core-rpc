@@ -277,10 +277,11 @@ repos:
   #
   # The rule is the prefix and not the extension, and the table in
   # btclib-org/btclib#1175 is what decides that: "DOES_NOT_EXIST.txt",
-  # "sub/DOES_NOT_EXIST.md", "DOES_NOT_EXIST" and "../DOES_NOT_EXIST.md"
-  # each reach myst's fallback, and each is missed by the union of both
-  # greps a repository ran. An ".md"-scoped rule leaves all four
-  # writable.
+  # "sub/DOES_NOT_EXIST.md" and "DOES_NOT_EXIST" each reach myst's
+  # fallback, and each is missed by the union of both greps a
+  # repository ran. An ".md"-scoped rule leaves all three writable. The
+  # table's fourth row, "../DOES_NOT_EXIST.md", is answered separately
+  # below rather than by this rule.
   #
   # README.md's licence badge was cited here as the live case for that,
   # and the citation was wrong in a way worth leaving on the record
@@ -295,13 +296,12 @@ repos:
   # reaches the destination behind it -- and, by backtracking, still
   # checks the image src on the way. Measured: a badge href renders
   # exactly what a plain href renders, "#./NOPE.md" written with the
-  # prefix and "#NOPE.md", "#NOPE.txt", "#sub/NOPE.md", "#NOPE",
-  # "#../NOPE.md" without it, so every row of the table above can be
-  # written as a badge destination and only the first is caught
-  # downstream. README.md and CONTRIBUTING.md carry badge links of that
-  # shape, none of them violating the rule; `pre-commit run
-  # local-link-prefix --all-files` is what re-derives that, here and in
-  # the siblings.
+  # prefix and "#NOPE.md", "#NOPE.txt", "#sub/NOPE.md", "#NOPE" without
+  # it, so every refused row above can be written as a badge destination
+  # and only the first is caught downstream. README.md and
+  # CONTRIBUTING.md carry badge links of that shape, none of them
+  # violating the rule; `pre-commit run local-link-prefix --all-files`
+  # is what re-derives that, here and in the siblings.
   #
   # Measured here as well, by building this repository's documentation
   # with an unresolvable link written each way: "./page.md",
@@ -312,15 +312,20 @@ repos:
   # without also matching the autodoc anchors these pages carry, such as
   # href="#bitcoin_core_rpc.client.BitcoinCoreRpcClient.call".
   #
-  # "../" is the row with nothing downstream behind it at all, which is
-  # why it is refused here rather than allowed as an ordinary relative
-  # path: conf.py's transform declines a target that normalizes above
-  # the repository root -- nothing above the root is a document this
-  # build can answer for -- so that shape reaches myst's fallback by
-  # design rather than by a gap in the transform, and renders
-  # href="#../page.md", which the grep in docs.yml does not match and
-  # should not be widened to. This hook is the only place it can be
-  # caught.
+  # "../" is accepted, unlike the three rows above: conf.py's
+  # RootFileLinks transform resolves a target written this way against
+  # the document that wrote it, through `doc2path`, rather than
+  # declining anything that normalizes above the repository root --
+  # migrating.md's own links into README.md's and COMPARISON.md's
+  # headings are written "../../README.md#..." for exactly this (issue
+  # #330). A working "../" link now resolves for real; a broken one is
+  # left unresolved for myst's own resolver, which -W reports directly,
+  # rather than reaching the silent href="#../page.md" fallback that the
+  # old transform's decline used to hand it. Measured: `sphinx-build -n
+  # -W` alone, with neither lychee nor the grep in docs.yml running,
+  # already fails on an intentionally broken "../" link, so refusing the
+  # shape here no longer buys anything the build does not already catch
+  # on its own.
   #
   # pygrep, and the same hook in every repository of this organization
   # (btclib-org/.github#20): there is no shared hook repository to put
@@ -349,7 +354,7 @@ repos:
   - repo: local
     hooks:
       - id: local-link-prefix
-        name: a local markdown link destination begins with ./
+        name: a local markdown link destination begins with ./ or ../
         language: pygrep
         # one line, and no literal space in it -- "\x20" is the space the
         # reference branch allows -- so yamllint reads the value as a
@@ -358,7 +363,7 @@ repos:
         # folded scalar was rejected: folding joins lines with a space,
         # which would land inside the regex
         entry: |-
-          (?<![`!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!\./|#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
+          (?<![`!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!\.\.?/|#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
         types: [markdown]
       # a line that ends inside a word, at that word's own hyphen.
       # Section 4 of the organization standard is the rule: what such a

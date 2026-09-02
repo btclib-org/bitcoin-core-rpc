@@ -149,12 +149,14 @@ jobs:
           # no request. A missing fragment on a github.com/<owner>/<repo>
           # link is overridden by the token below, lychee falling back to
           # the repositories API on the failed link -- btclib-org/.github#630
-          # is where that is weighed. An anchor into a docs/source/*_link.md
-          # stub resolves in the built site, where the include has run,
-          # and not on the forge, whose page for the stub carries no
-          # heading to anchor to: this run is red on the four such links
-          # in migrating.md until #330 settles which reader they are
-          # written for.
+          # is where that is weighed. migrating.md's own links into
+          # README.md's and COMPARISON.md's headings name the root file
+          # directly (`../../README.md#...`, `../../COMPARISON.md#comparison`)
+          # rather than the docs/source/*_link.md stub that includes it, so
+          # this run reads the same anchor the forge resolves; conf.py's
+          # `RootFileLinks` transform resolves that same text to the shim
+          # page carrying the heading once Sphinx's `{include}` has run
+          # (issue #330).
           args: >-
             --no-progress
             --max-retries 3
