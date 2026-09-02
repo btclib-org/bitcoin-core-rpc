@@ -360,6 +360,15 @@ carry a union merge driver that would keep both sides' numbers.
   column falls, which nothing enforces. `btclib-benchmarks` reads its own
   line this way, its wrap falling inside a name.
 
+### The `.gitattributes` comment names the driver's sides and one anchor
+
+- **The comment above the two `merge=union` lines is `btclib-org/.github`'s
+  wording** (issue btclib-org/.github#646): `union` keeps `ours` first
+  and then `theirs`, each of merging and rebasing is named for which
+  side it calls `ours`, and the comment reads the driver as resolving
+  two branches writing an entry at one anchor rather than a bullet
+  appended to one of a few changelog groups.
+
 ## v2026.8.29
 
 ### Added
