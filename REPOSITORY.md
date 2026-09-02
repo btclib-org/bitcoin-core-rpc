@@ -804,11 +804,35 @@ an organization secret at `visibility=all`, in both stores, so a
 repository adopting the workflow configures nothing for it, and a copy
 of it in a store here would be that decision undone.
 
+**A switch this repository does not set.** `claude-review.yml` guards
+its jobs with `vars.CLAUDE_REVIEW_ENABLED`, and neither variable store
+holds it:
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc/actions/variables \
+  --jq .total_count
+# 0
+gh api orgs/btclib-org/actions/variables --jq '.variables[].name'
+# (nothing)
+gh api orgs/btclib-org/actions/variables --jq .total_count
+# 0
+```
+
+The organization secret above answering with a name is what makes these
+zeros absences rather than an endpoint that answers empty for everyone.
+The variable store prints nothing at all when it answers, so its own
+`total_count` of `0` is what shows the call reached it: one that does
+not reach it prints an error and exits non-zero. Section 11 reads that
+empty name list as `vars.CLAUDE_REVIEW_ENABLED`'s off state, an
+undefined `vars.X` being the empty string. Both stores are read because
+a variable set here would take precedence over one of the same name set
+on the organization, so the organization's answer alone would not show
+the switch off for this tree.
+
 **A facility this repository has never reached for answers empty.**
 
 ```shell
-for e in actions/variables actions/runners keys autolinks \
-         properties/values; do
+for e in actions/runners keys autolinks properties/values; do
   gh api "repos/btclib-org/bitcoin-core-rpc/$e"
 done
 ```
@@ -816,4 +840,5 @@ done
 An empty answer there records no decision, so whichever of them is used
 one day arrives with the section that uses it. The webhook list answers
 empty as well and is recorded anyway: *Read the Docs* above is about
-what that particular zero means.
+what that particular zero means, and *A switch this repository does not
+set* about the variable store's.
