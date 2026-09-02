@@ -26,9 +26,7 @@ refused here; the credential is an argument instead.
 rpc = AuthServiceProxy(f"http://{user}:{password}@127.0.0.1:8332")
 
 # this client
-client = BitcoinCoreRpcClient(
-    "http://127.0.0.1:8332", user=user, password=password
-)
+client = BitcoinCoreRpcClient("http://127.0.0.1:8332", user=user, password=password)
 ```
 
 **The cookie file.** Neither variant's constructor reads one: a caller

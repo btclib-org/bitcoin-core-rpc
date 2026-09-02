@@ -507,7 +507,7 @@ repos:
   # with write access. The default persona is the gate; --persona=auditor
   # adds advice and is worth running by hand rather than on every commit
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.29.0
+    rev: v1.30.0
     hooks:
       - id: zizmor
         # offline is what it does by default, said out loud: it warns about
@@ -520,11 +520,19 @@ repos:
         # the hook declares, and that flag is the whole of what it declares,
         # so passing --offline alone would drop it
         args: [--offline, --no-progress]
+        # v1.30.0 added self-repository, which wants every in-repo
+        # `uses: ./...` rewritten to GitHub's `$/...` syntax (offered as a
+        # safe auto-fix). actionlint -- pinned below, and the latest release
+        # there is -- does not parse `$/...` and fails every line that
+        # syntax would touch
+        # (`grep -rn 'uses: \./\.github/' .github/workflows/`), so each
+        # carries its own `# zizmor: ignore[self-repository]` until
+        # actionlint catches up (issue #345)
   # ruff replaces autoflake, bandit, black, copyright_notice_precommit,
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.3
+    rev: v0.16.5
     hooks:
       - id: ruff-check
         name: ruff check (in place fixes)
@@ -614,7 +622,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.5
+    rev: 0.12.7
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock

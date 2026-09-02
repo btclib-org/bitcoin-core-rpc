@@ -147,7 +147,7 @@ number in the reply decodes as a `Decimal`, and a `Decimal` parameter is
 refused rather than rounded through `float`.
 
 ```python
-balance = client.for_wallet("hot").call("getbalance")   # Decimal, exact
+balance = client.for_wallet("hot").call("getbalance")  # Decimal, exact
 ```
 
 `for_wallet` is the `/wallet/<name>` endpoint of a node with several
@@ -179,9 +179,7 @@ its own. The result is a list aligned with the input: a member's
 every answer beside it.
 
 ```python
-results = client.call_batch(
-    [("getblockhash", [700_000]), ("getblockcount", None)]
-)
+results = client.call_batch([("getblockhash", [700_000]), ("getblockcount", None)])
 ```
 
 Only a failure of the whole exchange raises — a non-2xx status, a reply
@@ -251,13 +249,13 @@ from bitcoin_core_rpc import FetchError, HttpError, RpcError
 try:
     raw = client.call("getrawtransaction", [tx_id])
 except RpcError as e:
-    if e.code == -5:        # no such transaction; a node without -txindex
-        ...                 # answers this for anything outside its wallet
+    if e.code == -5:  # no such transaction; a node without -txindex
+        ...  # answers this for anything outside its wallet
 except HttpError as e:
-    if e.status == 503:     # the rpc work queue is full: try again later
-        ...                 # a 401 never works again, so tell the two apart
+    if e.status == 503:  # the rpc work queue is full: try again later
+        ...  # a 401 never works again, so tell the two apart
 except FetchError:
-    ...                     # refused connection, expired timeout, no answer
+    ...  # refused connection, expired timeout, no answer
 ```
 
 There is no retry, and it is deliberate: `call` carries any method, so this
@@ -292,9 +290,7 @@ implementation of the protocol and shares no line with either.
 rpc = AuthServiceProxy(f"http://{user}:{password}@127.0.0.1:8332")
 
 # this client
-client = BitcoinCoreRpcClient(
-    "http://127.0.0.1:8332", user=user, password=password
-)
+client = BitcoinCoreRpcClient("http://127.0.0.1:8332", user=user, password=password)
 ```
 
 [docs/source/migrating.md](./docs/source/migrating.md) has the rest, an
@@ -314,10 +310,12 @@ suite of this project opens no socket, and neither has yours to.
 ```python
 import json
 
+
 def transport(request, timeout):
     request_id = json.loads(request.data)["id"]
     body = {"jsonrpc": "2.0", "id": request_id, "result": 481824}
     return 200, json.dumps(body).encode()
+
 
 client = BitcoinCoreRpcClient(
     "http://127.0.0.1:8332", user="u", password="p", transport=transport
