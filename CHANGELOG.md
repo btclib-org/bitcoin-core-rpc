@@ -320,6 +320,20 @@ carry a union merge driver that would keep both sides' numbers.
   the identical defect in its own copy of this module first
   (btclib-org/btclib#1251).
 
+### The `undocumented-public-init` comment gave the class as the place
+
+- **`pyproject.toml`'s `ignore` comment said `__init__` is documented by
+  its class** (issue btclib-org/.github#588), where section 5 of the
+  organization standard puts the constructor's documentation in
+  `__init__`'s own docstring, after PEP 257. The comment now gives that
+  section's reason for the entry: the rule checks that a docstring exists
+  and never that it says anything, so declining it declines the presence
+  check and never the documentation -- an argument's meaning, a raised
+  exception, an invariant the constructor establishes still has nowhere
+  else to go. It names the section, as the comments beside it carrying an
+  organization-wide decision already do. It also says the convention sits
+  below the `ignore` table, where it said above.
+
 ## v2026.8.29
 
 ### Added
