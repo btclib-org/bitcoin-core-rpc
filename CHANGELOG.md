@@ -29,6 +29,38 @@ carry a union merge driver that would keep both sides' numbers.
 
 ## v2026.10 (work in progress, not released yet)
 
+### Section 9's comment and placeholder rules land in this tree's own docs
+
+- **A trailing `#` comment inside a `shell` fence of `CLAUDE.md`,
+  `CONTRIBUTING.md`, `RELEASING.md` or `REPOSITORY.md` no longer sits on
+  the command line it followed** (issue btclib-org/.github#771): an
+  interactive `zsh` leaves `INTERACTIVE_COMMENTS` unset, so it hands the
+  comment's own words to the command as arguments rather than treating
+  them as a comment. What the comment said either became a sentence
+  above the fence or moved to a line of its own that opens with `#`,
+  which section 9 at `btclib-org/.github`'s `5712e05` reads as harmless
+  while it keeps to plain words, carrying neither an apostrophe nor a
+  backtick. `CHANGELOG.md`'s two instances, inside a landed entry, stay:
+  this file is append-only under `merge=union`, and a landed entry is
+  the record of what was said when it landed.
+- **`CLAUDE.md`'s `WT=` line loses its trailing worktree-name example**
+  (issue btclib-org/.github#786): the comment's own words followed the
+  line's final `>`, so an interactive `zsh` took them as that
+  redirection's target instead of finding nothing there and failing at
+  the parse before it was ever a command. The example moves into a
+  sentence above the fence.
+- **`REVIEWING.md`'s two placeholders — the `gh issue list --search` and
+  `gh issue create --title`/`--body` lines — go bare** (issue
+  btclib-org/.github#772): quoted, `gh issue create` takes both flags as
+  literal values and files an issue whose title is the placeholder
+  itself, rather than failing at the shell.
+- **`RELEASING.md`'s `--subject <title>` loses its quoting and moves
+  ahead of `--body-file <path>`, so a bare placeholder ends the
+  command** (issue btclib-org/.github#775): section 9's unquoting bullet
+  asks a placeholder standing as a whole argument to be bare, and its
+  position bullet asks the bare one to end the command, which
+  `--body-file <path>` already did and `--subject "<title>"` did not.
+
 ## v2026.9.3
 
 ### Repository

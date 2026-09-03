@@ -277,11 +277,13 @@ so, not because it happens to lack a leading underscore.
 ### The environment and the gates
 
 uv is the only tool that must be installed; it fetches interpreters,
-linters and packaging tools itself.
+linters and packaging tools itself. `uv sync` creates the environment,
+and `uv run pre-commit install` installs the hook so a commit runs the
+lint gate.
 
 ```shell
-uv sync                       # create the environment
-uv run pre-commit install     # so a commit runs the lint gate
+uv sync
+uv run pre-commit install
 ```
 
 No test here reaches the network and none needs a node: every client in it is

@@ -320,12 +320,12 @@ result.
    it.** CHANGELOG.md and RELEASE_NOTES.md are `merge=union`, so a change that
    opened a `### Repository` group where this release opens its own is
    fused into one section carrying that heading twice, and the union driver
-   reports no conflict for a reader to catch:
+   reports no conflict for a reader to catch. Reset onto the new tip, then
+   redo the retitle, the version and `uv lock`, and gate again:
 
    ```shell
    git fetch origin
-   git reset --hard origin/main       # then retitle, set the version,
-                                      # uv lock, and gate again
+   git reset --hard origin/main
    ```
 
    The retitle, the headings it opens and the version are a few lines;
@@ -388,7 +388,7 @@ result.
    across four pull requests, each landing from `BLOCKED` and
    `REVIEW_REQUIRED` with a verified signature. Name the release
    commit's title and body explicitly when using it — `gh pr merge <n>
-   --squash --admin --subject "<title>" --body-file <path>` — rather
+   --squash --admin --body-file <path> --subject <title>` — rather
    than leave them to `squash_merge_commit_message`'s repository
    default, `COMMIT_MESSAGES` here: this repository's own release pull
    requests have so far landed as a single commit each (#143, #108), so
