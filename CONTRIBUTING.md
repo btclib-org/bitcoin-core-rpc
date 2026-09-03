@@ -296,7 +296,7 @@ The gate is the suite, the hooks and the documentation build:
 uv run pytest
 uv run pre-commit run --all-files
 uv run --locked --no-default-groups --group docs \
-    sphinx-build -n -W --keep-going -b html docs/source docs/build/html
+    sphinx-build -n -W -b html docs/source docs/build/html
 ```
 
 `--cov` is in `addopts`, so the bare `pytest` above is the coverage gate
@@ -441,7 +441,7 @@ cannot parse fails the workflow while pre-commit is green.
 
 ```shell
 uv run --locked --no-default-groups --group docs \
-    sphinx-build -n -W --keep-going -b html docs/source docs/build/html
+    sphinx-build -n -W -b html docs/source docs/build/html
 ```
 
 `codeql.yml` has no line here, and it is the one gate that cannot: its jobs
