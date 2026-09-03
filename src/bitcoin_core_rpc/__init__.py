@@ -11,6 +11,13 @@ method, because a caller with a node has every reason to ask it anything,
 and a client that knew a list of methods would only mean they write this
 class again.
 
+`BitcoinCoreRestClient` is Core's other interface, `-rest`: read-only,
+off by default, and authenticating nobody who reaches it. `get_bin` and
+`get_json` GET one path and answer with the bytes or the parsed json,
+sharing the transport and the chain vocabulary with the JSON-RPC client
+above and nothing else -- no credentials, `-rest` taking none, and no
+method per resource, a path being the caller's own to build.
+
 **Not python-bitcoinrpc's `AuthServiceProxy`, and not a port of it.**
 That class, and the copy of it Core's test framework maintains, carry the
 LGPL-2.1 of their python-jsonrpc ancestry, where this is MIT: this is
@@ -153,7 +160,12 @@ if TYPE_CHECKING:
     # reads a module's own `__getattr__` return type only for a name
     # neither this import nor anything else in this module has already
     # bound, which is why this block covers every one of them
-    from bitcoin_core_rpc.client import USER_AGENT, BitcoinCoreRpcClient, RpcChannel
+    from bitcoin_core_rpc.client import (
+        USER_AGENT,
+        BitcoinCoreRestClient,
+        BitcoinCoreRpcClient,
+        RpcChannel,
+    )
     from bitcoin_core_rpc.transport import (
         DEFAULT_MAX_BODY_SIZE,
         DEFAULT_TIMEOUT,
@@ -172,6 +184,7 @@ __all__ = [
     "DEFAULT_TIMEOUT",
     "MAX_ERROR_BODY_SIZE",
     "USER_AGENT",
+    "BitcoinCoreRestClient",
     "BitcoinCoreRpcClient",
     "BtcRpcRuntimeError",
     "BtcRpcTypeError",
@@ -213,6 +226,7 @@ _ON_DEMAND_TRANSPORT = (
     "urlopen_transport",
 )
 _ON_DEMAND_CLIENT = (
+    "BitcoinCoreRestClient",
     "BitcoinCoreRpcClient",
     "RpcChannel",
     "USER_AGENT",

@@ -2,12 +2,13 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Tests for the rpc client, against recorded replies.
+"""Tests for the rpc and rest clients, against recorded replies.
 
-The client is what this file judges: the request it builds, the reply it
-reads, the credentials it presents and the bounds it holds a call to.
-`chains_test.py` judges the chain and network vocabulary `from_chain`
-and `assert_chain` call into; `transport_test.py` judges the urllib
+The two clients `client.py` builds are what this file judges: the request
+each builds, the reply each reads, the credentials `BitcoinCoreRpcClient`
+presents and the bounds either holds a call to. `chains_test.py` judges
+the chain and network vocabulary `from_chain` and `assert_chain` call
+into; `transport_test.py` judges the urllib
 implementation underneath both; `census_test.py` is the property none of
 them can state -- the public surface, the documentation, and that this
 package imports nothing outside the standard library.
@@ -49,6 +50,7 @@ from bitcoin_core_rpc import (
     DEFAULT_SIGNET_CHALLENGE,
     DEFAULT_TIMEOUT,
     USER_AGENT,
+    BitcoinCoreRestClient,
     BitcoinCoreRpcClient,
     BtcRpcTypeError,
     BtcRpcValueError,
@@ -2576,3 +2578,235 @@ def test_call_raw_a_number_too_long_for_this_interpreter_to_write() -> None:
     with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
         endpoint.call_raw("send", [10**5000])
     assert recording(endpoint).requests == []
+
+
+# `BitcoinCoreRestClient`: Core's `-rest` interface, no credentials, no
+# envelope. The two clients share `_checked_url`, `http_request` and the
+# chain and network tables, and the tests below are what is this client's
+# own -- a `get_bin` and a `get_json` each build a `GET`, and neither
+# client-building test above (the url, the timeout, the transport) is
+# repeated past what `kind="rest"` changes about `_checked_url`'s own
+# messages.
+
+
+def rest_client(
+    *answers: tuple[int, bytes] | Exception, **kwargs: object
+) -> BitcoinCoreRestClient:
+    """Return a rest client over a recording, crediting nothing to it."""
+    return BitcoinCoreRestClient(
+        URL,
+        transport=Recorded(*answers),
+        **kwargs,  # type: ignore[arg-type]
+    )
+
+
+def rest_recording(endpoint: BitcoinCoreRestClient) -> Recorded:
+    """Return the recording a rest client was built with, as one."""
+    transport = endpoint.transport
+    assert isinstance(transport, Recorded)
+    return transport
+
+
+def test_rest_from_chain_is_the_local_node_of_that_chain() -> None:
+    """`-rest` answers on the same loopback port `from_chain` derives.
+
+    There being no separate port table for it: `rpc_port_from_chain` is
+    the one this reads, exactly as `BitcoinCoreRpcClient.from_chain` does.
+    """
+    endpoint = BitcoinCoreRestClient.from_chain("regtest")
+    assert endpoint.url == "http://127.0.0.1:18443"
+
+
+def test_rest_from_chain_asks_the_node_nothing() -> None:
+    """Building the client opens no connection: the first `get_*` does."""
+
+    def refuses(  # pragma: no cover -- never called is the point of the test
+        _request: Request, _timeout: float
+    ) -> tuple[int, bytes]:
+        err_msg = "from_chain reached the node without being asked to"
+        raise AssertionError(err_msg)
+
+    endpoint = BitcoinCoreRestClient.from_chain("regtest", transport=refuses)
+    assert endpoint.url == "http://127.0.0.1:18443"
+
+
+def test_rest_from_chain_refuses_a_chain_core_has_no_port_for() -> None:
+    """The same refusal `rpc_port_from_chain` gives the rpc client's own."""
+    with pytest.raises(BtcRpcValueError, match="unknown Core chain"):
+        BitcoinCoreRestClient.from_chain("not-a-chain")
+
+
+def test_rest_connection_controls_are_keyword_only() -> None:
+    """`url` alone is positional; `timeout` and `transport` are named."""
+    constructor: Any = BitcoinCoreRestClient
+    with pytest.raises(TypeError):
+        constructor(URL, 5.0)
+
+
+def test_rest_the_default_timeout_is_the_one_the_module_documents() -> None:
+    """No `timeout` given is `DEFAULT_TIMEOUT`, exactly as the rpc client's."""
+    endpoint = BitcoinCoreRestClient(URL)
+    assert endpoint.timeout == DEFAULT_TIMEOUT
+
+
+@pytest.mark.parametrize("timeout", [0, -1.0, float("inf"), float("nan")])
+def test_rest_a_timeout_that_is_no_duration_is_refused(timeout: float) -> None:
+    """The same `_assert_valid_timeout` the rpc client's constructor uses."""
+    with pytest.raises(BtcRpcValueError, match="rest timeout"):
+        BitcoinCoreRestClient(URL, timeout=timeout)
+
+
+def test_rest_a_non_numeric_timeout_is_refused() -> None:
+    """A bool is not a duration, `_assert_valid_timeout`'s own refusal."""
+    with pytest.raises(BtcRpcTypeError, match="rest timeout"):
+        BitcoinCoreRestClient(URL, timeout=True)
+
+
+def test_rest_a_transport_that_is_not_callable_is_refused() -> None:
+    """Checked at construction, the same reason `_checked_url` is."""
+    with pytest.raises(BtcRpcTypeError, match="rest transport that is not callable"):
+        BitcoinCoreRestClient(URL, transport="not callable")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("url", "match"),
+    [
+        ("ftp://127.0.0.1:8332", "invalid rest url scheme"),
+        ("127.0.0.1:8332", "invalid rest url scheme"),
+        ("http://", "no host in the rest url"),
+        ("http://127.0.0.1:8332?wallet=hot", "query or fragment in the rest url"),
+        ("http://127.0.0.1:8332#wallet", "query or fragment in the rest url"),
+        ("http://127.0.0.1:https", "invalid port in the rest url"),
+    ],
+)
+def test_a_rest_endpoint_that_is_not_one_is_refused_at_construction(
+    url: str, match: str
+) -> None:
+    """The same checks the rpc client's url gets, `kind="rest"`'s messages."""
+    with pytest.raises(BtcRpcValueError, match=match):
+        BitcoinCoreRestClient(url)
+
+
+def test_credentials_in_a_rest_url_are_refused_and_told_it_takes_none() -> None:
+    """`-rest` takes no credentials, so the message offers no way to fix any."""
+    with pytest.raises(BtcRpcValueError, match="rest url, which takes none"):
+        BitcoinCoreRestClient(f"http://{RPC_USER}:{RPC_PASSWORD}@127.0.0.1:8332")
+
+
+def test_get_bin_returns_the_body_exactly_as_it_arrived() -> None:
+    """No parsing, no shape assumed: the octets, whatever they are."""
+    raw = bytes(range(16)) + b"\x00\x00"
+    endpoint = rest_client((200, raw))
+    assert endpoint.get_bin("/tx/deadbeef.bin") == raw
+
+
+def test_get_bin_requests_a_get_under_rest_with_no_credentials() -> None:
+    """`/rest` is prepended, the method is GET, with no Authorization header."""
+    endpoint = rest_client((200, b"\x01"))
+    endpoint.get_bin("/tx/deadbeef.bin")
+    request = rest_recording(endpoint).request
+    assert request.full_url == f"{URL}/rest/tx/deadbeef.bin"
+    assert request.get_method() == "GET"
+    assert request.data is None
+    assert "Authorization" not in request.headers
+    assert request.headers["User-agent"] == USER_AGENT
+
+
+def test_get_bin_a_non_200_status_is_an_http_error() -> None:
+    """`-rest` has no error object: the status is what is left to report."""
+    with pytest.raises(HttpError, match="HTTP 404") as exc:
+        rest_client((404, b"Transaction not found")).get_bin("/tx/deadbeef.bin")
+    assert exc.value.status == 404
+
+
+def test_get_json_parses_the_body_with_no_shape_assumed() -> None:
+    """The same safe parser `call_raw` reads its own envelope with."""
+    endpoint = rest_client((200, b'{"chain": "regtest", "blocks": 0}'))
+    assert endpoint.get_json("/chaininfo.json") == {"chain": "regtest", "blocks": 0}
+
+
+def test_get_json_a_number_is_a_decimal_not_a_float() -> None:
+    """Amounts do not transit binary floating point here either."""
+    endpoint = rest_client((200, b'{"difficulty": 4.656542373906925}'))
+    result = endpoint.get_json("/chaininfo.json")
+    assert isinstance(result["difficulty"], Decimal)
+    assert result["difficulty"] == Decimal("4.656542373906925")
+
+
+def test_get_json_requests_a_get_under_rest_with_no_credentials() -> None:
+    """The same request shape `get_bin` sends, for the `.json` path."""
+    endpoint = rest_client((200, b'{"chain": "regtest"}'))
+    endpoint.get_json("/chaininfo.json")
+    request = rest_recording(endpoint).request
+    assert request.full_url == f"{URL}/rest/chaininfo.json"
+    assert request.get_method() == "GET"
+    assert "Authorization" not in request.headers
+
+
+def test_get_json_a_non_200_status_with_an_unreadable_body_is_an_http_error() -> None:
+    """The ordinary `-rest` failure: prose, not a json error object."""
+    with pytest.raises(HttpError, match="HTTP 404") as exc:
+        rest_client((404, b"Transaction not found")).get_json("/tx/deadbeef.json")
+    assert exc.value.status == 404
+
+
+def test_get_json_a_non_json_body_under_200_is_a_fetch_error() -> None:
+    """Below the status, everything stays a `FetchError`, per `http_request`."""
+    with pytest.raises(FetchError, match="not json"):
+        rest_client((200, b"not json")).get_json("/chaininfo.json")
+
+
+def test_get_json_a_non_200_status_with_a_json_shaped_body_is_still_an_http_error() -> (
+    None
+):
+    """A proxy answering non-200 with a json body is not `-rest` succeeding."""
+    body = b'{"error": "forbidden by proxy"}'
+    with pytest.raises(HttpError, match="HTTP 403") as exc:
+        rest_client((403, body)).get_json("/chaininfo.json")
+    assert exc.value.status == 403
+
+
+@pytest.mark.parametrize("path", ["tx/deadbeef.bin", "", 7])
+def test_a_path_that_is_not_absolute_is_refused(path: object) -> None:
+    """`path` is appended after `/rest` unread, so it has to start with `/`."""
+    endpoint = rest_client((200, b"\x00"))
+    if isinstance(path, str):
+        with pytest.raises(BtcRpcValueError, match="does not start with '/'"):
+            endpoint.get_bin(path)
+    else:
+        with pytest.raises(BtcRpcTypeError, match="rest path that is not a string"):
+            endpoint.get_bin(path)  # type: ignore[arg-type]
+
+
+def test_rest_the_clients_timeout_reaches_the_transport() -> None:
+    """The client's own timeout, exactly as `call`'s reaches its own."""
+    endpoint = rest_client((200, b'{"chain": "regtest"}'), timeout=2.5)
+    endpoint.get_json("/chaininfo.json")
+    assert rest_recording(endpoint).timeouts == [2.5]
+
+
+def test_get_bin_can_widen_the_timeout_for_itself() -> None:
+    """`request_timeout`, `get_bin`'s own control."""
+    endpoint = rest_client((200, b"\x00"), timeout=2.5)
+    endpoint.get_bin("/tx/deadbeef.bin", request_timeout=3600.0)
+    assert rest_recording(endpoint).timeouts == [3600.0]
+
+
+def test_get_json_can_widen_the_timeout_for_itself() -> None:
+    """`request_timeout`, `get_json`'s own control."""
+    endpoint = rest_client((200, b'{"chain": "regtest"}'), timeout=2.5)
+    endpoint.get_json("/chaininfo.json", request_timeout=3600.0)
+    assert rest_recording(endpoint).timeouts == [3600.0]
+
+
+def test_get_bin_bounds_the_reply() -> None:
+    """`max_body_size` bounds a `.bin` reply the way it bounds `call`'s own."""
+    with pytest.raises(FetchError, match="more than the max_body_size of 4"):
+        rest_client((200, b"12345")).get_bin("/tx/deadbeef.bin", max_body_size=4)
+
+
+def test_get_json_bounds_the_reply() -> None:
+    """`max_body_size` bounds a `.json` reply the way it bounds `call_raw`'s."""
+    oversized = b'{"chain":"' + b"x" * 1100 + b'"}'
+    with pytest.raises(FetchError, match="more than the max_body_size of 1024"):
+        rest_client((200, oversized)).get_json("/chaininfo.json", max_body_size=1024)
