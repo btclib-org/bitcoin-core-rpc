@@ -462,6 +462,23 @@ carry a union merge driver that would keep both sides' numbers.
   `ValueError` here instead of a value the caller reads.
   `RPCErrorCode(exc.code)` is the caller's own line for the name.
 
+### `RELEASING.md` guards a pasteable block with a fence and `${name:?}`
+
+- **A block whose unfilled paste would otherwise run something stands in
+  two fences: one holding the placeholders, with nothing under them to
+  reach, and one that writes each value `${name:?}` and chains its lines
+  with `&&`** (issue btclib-org/.github#745). The tagging block spelled
+  its tag as a literal example version, so the lines under its
+  placeholder parsed cleanly and reached `git push origin v2026.8.6`.
+- **Both guards are needed.** A `${name:?}` failure is a run-time
+  failure, which the chain propagates; a parse error takes its own
+  trailing `&&` with it, so a chain under a discarded placeholder line
+  guards nothing. That is why the placeholders sit in a fence of their
+  own rather than above a chain.
+- **A placeholder inside quotes, or inside a path, is no parse error at
+  all**, so the fence around it is the whole of its guard. Section 9 of
+  the organization standard is the rule the split answers to.
+
 ## v2026.8.29
 
 ### Added

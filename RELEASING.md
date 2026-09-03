@@ -414,7 +414,13 @@ result.
    no branch deletion, for administrators too.
 
    ```shell
-   gh pr view <pull request number> --json state,mergeCommit \
+   pr=<the release pull request's number>
+   ```
+
+   Split for the reason the tagging step gives.
+
+   ```shell
+   gh pr view "${pr:?}" --json state,mergeCommit \
      --jq '{state, merged_as: .mergeCommit.oid}'
    ```
 
@@ -440,12 +446,22 @@ result.
    left to be inferred.
 
 1. Tag the release commit on `main` and push the tag. **Name the
-   commit**, and read the tag back before pushing it:
+   commit**, and read the tag back before pushing it. The values stand
+   in a fence of their own with nothing under them to reach, and the
+   fence below writes each as `${name:?}` and chains. Both are needed:
+   `:?` fails at run time, which the chain propagates, where a parse
+   error takes its own `&&` with it. Section 9 of the organization
+   standard is the rule.
 
    ```shell
-   git tag -s v2026.8.6 -m "release v2026.8.6" <sha of the release commit>
-   git show v2026.8.6:pyproject.toml | grep '^version'
-   git push origin v2026.8.6
+   version=<the version being released>
+   sha=<the sha of the release commit>
+   ```
+
+   ```shell
+   git tag -s "v${version:?}" -m "release v${version:?}" "${sha:?}" &&
+   git show "v${version:?}:pyproject.toml" | grep '^version' &&
+   git push origin "v${version:?}"
    ```
 
    `git tag` with no commit tags whatever HEAD the shell is in, and every
@@ -454,7 +470,8 @@ result.
    commit before the version bump. `version-check` would refuse it,
    comparing the declared version against the tag's and failing the run
    with nothing uploaded, which is the guard doing its job; the `git show`
-   above is the same check one step earlier, where it costs nothing.
+   above is the same check one step earlier, where it costs nothing, and
+   the chain is what makes the push wait on it.
 
 1. Approve the `pypi` environment when the workflow asks. Up to here
    nothing is public and the tag can still be deleted; the upload that
@@ -498,9 +515,16 @@ result.
 
    ```shell
    run=<run id>
+   ```
+
+   The assignment stands in a fence of its own, and the fence below
+   takes the pair the tagging step explains: inside quotes a placeholder
+   is no parse error, so the fence is not its own guard.
+
+   ```shell
    gh api --paginate \
-     "repos/btclib-org/bitcoin-core-rpc/actions/runs/$run/jobs?per_page=100" \
-     --jq '.jobs[] | [.conclusion, (.steps|length), .name] | @tsv'
+     --jq '.jobs[] | [.conclusion, (.steps|length), .name] | @tsv' \
+     "repos/btclib-org/bitcoin-core-rpc/actions/runs/${run:?}/jobs?per_page=100"
    ```
 
    On a tag `Publish to TestPyPI` is `skipped`, its trigger being the
@@ -556,7 +580,13 @@ result.
    skipped job being what a green run looks like from the Actions page:
 
    ```shell
-   gh release view v<version> --json name,assets,author
+   version=<the released version>
+   ```
+
+   Split for the reason the tagging step gives.
+
+   ```shell
+   gh release view "v${version:?}" --json name,assets,author
    ```
 
    `release not found` is the failure "If something goes wrong" ends with.
@@ -704,7 +734,13 @@ reading a mismatch as tampering:
   what is already built:
 
   ```shell
-  gh run rerun <run id> --failed
+  run=<the release.yml run>
+  ```
+
+  Split for the reason the tagging step gives.
+
+  ```shell
+  gh run rerun "${run:?}" --failed
   ```
 
   a fresh approval of the `pypi` environment is still required, the
@@ -751,21 +787,29 @@ reading a mismatch as tampering:
   does, from the artifacts already sitting on the run:
 
   ```shell
-  gh run download <run id> -n dist -D dist
-  gh run download <run id> -n attestation -D attestation
-  shasum -a 256 dist/*                     # compare against PyPI's own
-  curl -s https://pypi.org/pypi/bitcoin-core-rpc/<version>/json \
-    | python3 -c 'import json,sys; d=json.load(sys.stdin)
-  [print(u["filename"], u["digests"]["sha256"]) for u in d["urls"]]'
+  run=<run id>
+  version=<the released version>
+  ```
 
-  git show v<version>:RELEASE_NOTES.md | awk -v tag="v<version>" '
+  The assignments stand in a fence of their own, and the fence below
+  takes the same pair as the tagging step.
+
+  ```shell
+  gh run download "${run:?}" -n dist -D dist &&
+  gh run download "${run:?}" -n attestation -D attestation &&
+  shasum -a 256 dist/* &&
+  curl -s "https://pypi.org/pypi/bitcoin-core-rpc/${version:?}/json" \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin)
+  [print(u["filename"], u["digests"]["sha256"]) for u in d["urls"]]' &&
+
+  git show "v${version:?}:RELEASE_NOTES.md" | awk -v tag="v${version:?}" '
     $0 ~ "^## " tag "( |$)" {found=1; next}
     /^## / && found {exit}
     found {print}
-  ' > notes.md
-  cp attestation/attestation.jsonl v<version>.attestation.jsonl
-  gh release create v<version> dist/* v<version>.attestation.jsonl \
-    --title v<version> --notes-file notes.md
+  ' > notes.md &&
+  cp attestation/attestation.jsonl "v${version:?}.attestation.jsonl" &&
+  gh release create "v${version:?}" dist/* "v${version:?}.attestation.jsonl" \
+    --title "v${version:?}" --notes-file notes.md
   ```
 
   The digest comparison is not optional: it is what stands in for the
