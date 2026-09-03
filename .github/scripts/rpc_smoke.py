@@ -28,7 +28,12 @@ What it proves, and why each item is here rather than in the suite:
   node refuses a wallet method that names neither;
 - the chain answers against a chain generated here, so the expected
   height is arithmetic rather than a recording, and the serializations
-  fetched are checked against the node's own decoding of them.
+  fetched are checked against the node's own decoding of them;
+- `-rest`, against the same chain: `.bin` compared byte for byte with
+  the rpc client's own serialization, `.json` read for the field that
+  names what was asked for, and `/getutxos` asked about an outpoint this
+  chain has already spent and one it has not, `tests/` having no live
+  node to ask either question of.
 
 The expected protocol version is an argument and not something derived
 from the version number: what the matrix pins is the claim that v27
@@ -49,8 +54,9 @@ carries the command, and `.github/workflows/integration-bitcoind.yml`
 the download that verifies which binary it is.
 
 `tests/rpc_smoke_test.py` covers every function with no client behind it
--- `check`, `port_is_free`, `check_legacy_reply`, `check_v2_reply`,
-`check_cookie` and `print_log_tail`, plus `main`'s own argument parsing.
+-- `check`, `port_is_free`, `rest_outpoint`, `check_legacy_reply`,
+`check_v2_reply`, `check_cookie` and `print_log_tail`, plus `main`'s own
+argument parsing.
 Everything else here is `# pragma: no cover`: it takes a real
 `BitcoinCoreRpcClient` talking to a real node, and mocking that node
 would be the recording this script exists to not trust. That half is
@@ -74,6 +80,7 @@ from typing import Any
 
 from bitcoin_core_rpc import (
     COOKIE_USER,
+    BitcoinCoreRestClient,
     BitcoinCoreRpcClient,
     FetchError,
     HttpError,
@@ -186,6 +193,11 @@ def port_is_free(port: int) -> bool:
         return probe.connect_ex(("127.0.0.1", port)) != 0
 
 
+def rest_outpoint(tx_id: str, vout: int) -> str:
+    """Return the `<txid>-<vout>` `/rest/getutxos` names one outpoint with."""
+    return f"{tx_id}-{vout}"
+
+
 @contextmanager
 def node(
     bitcoind: Path, datadir: Path
@@ -195,7 +207,8 @@ def node(
     No `-rpcport` and no `-rpcuser`: the port, the datadir layout and the
     cookie are the node's defaults, which is what makes `from_chain` and
     `cookie_auth` checkable at all. `-txindex` so `getrawtransaction`
-    answers for a transaction no wallet of this node knows, and `-listen=0`
+    answers for a transaction no wallet of this node knows, `-rest=1` so
+    the interface `check_rest` asks is there to ask, and `-listen=0`
     because a smoke test has no peers.
     """
     if not port_is_free(RPC_PORT):
@@ -207,6 +220,7 @@ def node(
         f"-{CHAIN}",
         f"-datadir={datadir}",
         "-txindex",
+        "-rest=1",
         "-listen=0",
         f"-fallbackfee={FALLBACK_FEE}",
         # the node's own log stays in its datadir, where `print_log_tail`
@@ -624,6 +638,79 @@ def check_chain_answers(
     )
 
 
+def check_rest(
+    client: BitcoinCoreRpcClient, height: int, tx_id: str, foreign_coinbase: str
+) -> None:  # pragma: no cover
+    """Check `-rest` against the chain generated here, no node in `tests/`.
+
+    `BitcoinCoreRestClient.from_chain` reaches the same node `client` is
+    already talking to -- `-rest` answers on the rpc port -- and every
+    claim below is checked against what `client` already knows to be true
+    of this chain, rather than interpreted on its own: `.bin` is compared
+    byte for byte with the rpc client's own serialization, `.json` is
+    read for the one field that names what was asked for, and
+    `/getutxos` is asked about an outpoint the chain generated here has
+    already spent, and one it has not -- the same silence for a spent
+    output `BitcoinCoreRestClient`'s own docstring is about.
+    """
+    rest = BitcoinCoreRestClient.from_chain(CHAIN)
+    tip = client.call("getbestblockhash")
+
+    info = rest.get_json("/chaininfo.json")
+    check(info["chain"] == CHAIN, f"rest chaininfo.json reports the chain: {CHAIN}")
+    check(info["blocks"] == height, f"rest chaininfo.json reports the tip: {height}")
+
+    raw_tx = client.call("getrawtransaction", [tx_id])
+    check(
+        rest.get_bin(f"/tx/{tx_id}.bin") == bytes.fromhex(raw_tx),
+        f"rest tx.bin is the serialization getrawtransaction returns: {tx_id}",
+    )
+    check(
+        rest.get_json(f"/tx/{tx_id}.json")["txid"] == tx_id,
+        f"rest tx.json decodes the same transaction: {tx_id}",
+    )
+
+    raw_block = client.call("getblock", [tip, 0])
+    check(
+        rest.get_bin(f"/block/{tip}.bin") == bytes.fromhex(raw_block),
+        f"rest block.bin is the serialization getblock returns: {tip}",
+    )
+    check(
+        rest.get_json(f"/block/{tip}.json")["hash"] == tip,
+        f"rest block.json decodes the tip: {tip}",
+    )
+
+    headers = rest.get_bin(f"/headers/1/{tip}.bin")
+    check(len(headers) == 80, "rest headers.bin returns one 80-byte header")
+
+    # the input the wallet transaction spent, which is therefore an
+    # outpoint already gone from the utxo set -- and one `/getutxos`
+    # cannot tell apart from an outpoint that never existed at all,
+    # which is why `BitcoinCoreRestClient` offers no `get_utxo`
+    spent = client.call("getrawtransaction", [tx_id, 1])["vin"][0]
+    spent_outpoint = rest_outpoint(spent["txid"], spent["vout"])
+    spent_reply = rest.get_json(f"/getutxos/checkmempool/{spent_outpoint}.json")
+    check(
+        spent_reply["bitmap"] == "0",
+        f"rest getutxos answers nothing for a spent output: {spent_outpoint}",
+    )
+    # the foreign coinbase generated here is unspent -- nothing in this
+    # script's own wallet can spend an output it holds no key for
+    unspent_outpoint = rest_outpoint(foreign_coinbase, 0)
+    unspent_reply = rest.get_json(f"/getutxos/checkmempool/{unspent_outpoint}.json")
+    check(
+        unspent_reply["bitmap"] == "1",
+        f"rest getutxos answers for an unspent output: {unspent_outpoint}",
+    )
+
+    try:
+        rest.get_json(f"/tx/{tip}.json")
+    except HttpError as e:
+        check(e.status == 404, "rest tx.json 404s for an id naming no transaction")
+    else:
+        raise SmokeError("rest tx.json answered for an id that names no transaction")
+
+
 def check_version(
     client: BitcoinCoreRpcClient, core_version: str
 ) -> None:  # pragma: no cover
@@ -655,6 +742,7 @@ def smoke(
         check_protocol(client, protocol, unknown_tx_id)
         check_wallet_endpoint(client)
         check_chain_answers(client, height, tx_id, foreign_coinbase)
+        check_rest(client, height, tx_id, foreign_coinbase)
 
 
 def smoke_chain(

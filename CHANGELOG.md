@@ -493,6 +493,35 @@ carry a union merge driver that would keep both sides' numbers.
   no other test in it takes, the rest calling `script.main([...])` or
   the script's own serving check directly instead.
 
+### `client.py` gains `BitcoinCoreRestClient`, Core's `-rest` interface
+
+- **A second client, beside `BitcoinCoreRpcClient` and sharing nothing
+  with it but the transport and the chain vocabulary** (closes #351),
+  decided by btclib-org/btclib#1193: `-rest` is off by default, on the
+  same port as JSON-RPC, and authenticates nobody who reaches it, so a
+  method on the rpc client would have made "authenticated" a property of
+  the call rather than of the object.
+- **`get_bin` for a `.bin` path, `get_json` for a `.json` one.** `.hex` is
+  the same octets as `.bin`, one more decode away, and is not offered.
+  `get_json` reads its reply through the same `_parsed_json_body` `call_raw`
+  reads its own envelope with -- a `Decimal` for every number, `NaN` and
+  the two infinities refused -- and a non-200 status is `HttpError`, `-rest`
+  carrying no error object of its own for either method to read.
+- **A path is a path, and this client passes any.** There is no `get_tx`,
+  no `get_block`, no `get_utxos`: `path` is built by the caller from
+  Core's own documentation of `-rest` and appended after `/rest` unread.
+  `/getutxos` is the reason a per-resource method is refused rather than
+  merely undone -- it reads the UTXO set, so an output already spent and
+  one never created answer the same way, and a wrapper turning that
+  answer into `None` would read as telling more than `/getutxos` does.
+- **`.github/scripts/rpc_smoke.py` starts the regtest node with
+  `-rest=1`** and checks `-rest` against the same chain it already
+  generates for the rpc client: `.bin` compared byte for byte with the
+  rpc client's own serialization, `.json` read for the field that names
+  what was asked for, and `/getutxos` asked about an outpoint that chain
+  has already spent and one it has not -- `tests/` having no live node to
+  ask either question of.
+
 ## v2026.8.29
 
 ### Added

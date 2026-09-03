@@ -9,9 +9,10 @@ name: integration-bitcoind
 # majors as the trigger calls for, and
 # .github/scripts/rpc_smoke.py is the whole of what it asks: the reply
 # shapes read off the wire before the client reads them, the cookie the
-# node wrote, the /wallet/<name> endpoint of a node with two wallets, and
-# the chain answers against a regtest chain the script generates, so the
-# expected height is arithmetic rather than a recording.
+# node wrote, the /wallet/<name> endpoint of a node with two wallets, the
+# chain answers against a regtest chain the script generates, so the
+# expected height is arithmetic rather than a recording, and -rest against
+# that same chain, which tests/ has no live node to ask about either.
 #
 # Five more cells ask a narrower question about the five chains Core
 # names: with only regtest a chain this workflow can grow, `--chain`

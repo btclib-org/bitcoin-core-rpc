@@ -16,6 +16,7 @@ before a release; it is not duplicated here.
 
 What is covered is the half with no node behind it: `check`, the plain
 predicate every other function calls; `port_is_free`, a socket check;
+`rest_outpoint`, the string `check_rest` builds a `/getutxos` path from;
 `check_legacy_reply` and `check_v2_reply`, which read a status and a
 plain `dict` -- exactly the shape `probe` hands them, but built here by
 hand rather than read off a wire; `check_cookie`, which is file
@@ -155,6 +156,13 @@ def test_port_is_free_is_false_once_something_listens(smoke: ModuleType) -> None
         listener.bind(("127.0.0.1", 0))
         listener.listen(1)
         assert not smoke.port_is_free(listener.getsockname()[1])
+
+
+def test_rest_outpoint_is_the_txid_and_the_vout_joined_by_a_hyphen(
+    smoke: ModuleType,
+) -> None:
+    """The `<txid>-<vout>` shape `/rest/getutxos` names one outpoint with."""
+    assert smoke.rest_outpoint("f4184fc5", 0) == "f4184fc5-0"
 
 
 @pytest.mark.parametrize("rpc_error", [False, True])

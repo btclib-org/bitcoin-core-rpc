@@ -232,6 +232,30 @@ connect or reuse, send, read — is serialized under one lock, at the cost
 of never running two calls through it at once. A caller wanting
 concurrency across several nodes keeps one instance per node instead.
 
+## Reading Core's `-rest` interface
+
+`-rest` is Core's other interface, read-only, off by default, and — unlike
+JSON-RPC — authenticating nobody who reaches it. `BitcoinCoreRestClient`
+speaks it: `get_bin` for a `.bin` path, returning the body unread, and
+`get_json` for a `.json` one, returning what it parses to. It shares the
+transport and the chain vocabulary with `BitcoinCoreRpcClient` and nothing
+else — no credentials, `-rest` taking none.
+
+```python
+from bitcoin_core_rpc import BitcoinCoreRestClient
+
+rest = BitcoinCoreRestClient.from_chain("main")
+info = rest.get_json("/chaininfo.json")
+raw_tx = rest.get_bin(f"/tx/{tx_id}.bin")
+```
+
+There is no `get_tx`, no `get_block`, no `get_utxos`: `path` is built from
+Core's own documentation of `-rest` and appended after `/rest` unread.
+`/getutxos` is why a per-resource method is refused rather than merely
+undone here — it reads the UTXO set, so an output already spent and one
+never created answer the same way, and a wrapper turning that answer into
+`None` would read as telling more than `/getutxos` does.
+
 ## When it goes wrong
 
 Each exception below is a different thing to do about a failure. Every

@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""`BitcoinCoreRpcClient` and `RpcChannel`: request building, reply reading.
+"""`BitcoinCoreRpcClient`, `BitcoinCoreRestClient` and `RpcChannel`.
 
 The layer that decides what a status and a body *mean*: `_reply_object`,
 `_legacy_result` and `_v2_result` are the JSON-RPC 1.1 and 2.0 reply
@@ -13,6 +13,17 @@ each member's reply with the same `_discriminate`, by way of
 `_batch_reply_array`'s array-shaped counterpart to `_reply_object`;
 `call_raw` builds one request the same way `call` does and hands back
 whatever `_parsed_json_body` parses, unread and unshaped past that.
+
+`BitcoinCoreRestClient` is the other client this module builds, over
+Core's `-rest` interface rather than its JSON-RPC one: no envelope to
+read at all, so `get_bin` and `get_json` alike check the status before
+trusting the body -- `get_json` then reads it through `call_raw`'s own
+`_parsed_json_body`, unshaped, over a GET rather than a POST, and
+`get_bin` returns it with nothing parsed out of it at all. `_checked_url`,
+`http_request` and the chain and network tables are the whole of what
+the two clients share -- one speaks JSON-RPC with the credentials Core
+requires for it, the other a plain GET Core requires none for, so
+nothing here folds the two into one class.
 """
 
 from __future__ import annotations
@@ -60,6 +71,7 @@ from bitcoin_core_rpc.transport import (
 # besides.
 __all__ = [
     "USER_AGENT",
+    "BitcoinCoreRestClient",
     "BitcoinCoreRpcClient",
     "RpcChannel",
 ]
@@ -98,34 +110,48 @@ def _rpc_id() -> str:
     return f"btcrpc-{token_hex(_RPC_ID_BYTES)}"
 
 
-def _checked_url(url: str) -> str:
+def _checked_url(url: str, *, kind: str = "rpc") -> str:
     """Return the endpoint url, having refused what is not one.
 
     Checked when the client is built and not at the first call, which is
     where `urlopen` would refuse most of it: a url is configuration, and
     configuration that cannot work is worth refusing while the caller who
     supplied it is still looking at the line.
+
+    `kind` names the caller in every message: `"rpc"`, the default, for
+    `BitcoinCoreRpcClient`, and `"rest"` for `BitcoinCoreRestClient`,
+    whose constructor takes no credentials at all -- the default is what
+    keeps every message this function raised before `kind` existed
+    reading exactly as it did.
     """
     split = urlsplit(url)
     if split.scheme not in _SCHEMES:
-        err_msg = f"invalid rpc url scheme: '{split.scheme}' instead of http(s)"
+        err_msg = f"invalid {kind} url scheme: '{split.scheme}' instead of http(s)"
         raise BtcRpcValueError(err_msg)
     if split.username is not None or split.password is not None:
-        err_msg = "credentials in the rpc url:"
-        err_msg += " pass user and password, or use the cookie file"
+        if kind == "rpc":
+            err_msg = "credentials in the rpc url:"
+            err_msg += " pass user and password, or use the cookie file"
+        else:
+            err_msg = f"credentials in the {kind} url, which takes none:"
+            err_msg += " -rest authenticates nobody who reaches it"
         raise BtcRpcValueError(err_msg)
     if not split.hostname:
-        raise BtcRpcValueError(f"no host in the rpc url: {url}")
+        raise BtcRpcValueError(f"no host in the {kind} url: {url}")
     if split.query or split.fragment:
-        err_msg = f"query or fragment in the rpc url: {url}"
-        err_msg += " -- an rpc endpoint is a path, and the call is the body"
+        err_msg = f"query or fragment in the {kind} url: {url} -- "
+        err_msg += (
+            "an rpc endpoint is a path, and the call is the body"
+            if kind == "rpc"
+            else "a rest endpoint is a path, and nothing here reads a query"
+        )
         raise BtcRpcValueError(err_msg)
     try:
         # the port is parsed on access and not before, so this is what
         # refuses `http://node:https` here rather than at the first call
         _ = split.port
     except ValueError as e:
-        raise BtcRpcValueError(f"invalid port in the rpc url: {url}") from e
+        raise BtcRpcValueError(f"invalid port in the {kind} url: {url}") from e
     return url
 
 
@@ -1288,6 +1314,203 @@ class BitcoinCoreRpcClient:
         )
         where = f"{method} at {self.url}"
         return status, _parsed_json_body(where, status, payload)
+
+
+def _rest_url(base_url: str, path: str) -> str:
+    """Return the url of one `-rest` resource, `path` appended after `/rest`.
+
+    Refused rather than composed into something else: `path` is what a
+    caller of `BitcoinCoreRestClient` builds from Core's own
+    documentation of `-rest` -- `/tx/<txid>.bin`, `/getutxos/<outpoint>.json`
+    -- so a value that is not a string or does not start with `/` is a
+    mistake to report while the caller is still looking at the line that
+    made it, the same reason `_checked_url` checks the node's own url at
+    construction rather than at the first call.
+    """
+    if not isinstance(path, str):
+        raise BtcRpcTypeError(f"rest path that is not a string: {path!r}")
+    if not path.startswith("/"):
+        raise BtcRpcValueError(f"rest path that does not start with '/': {path!r}")
+    return f"{base_url.rstrip('/')}/rest{path}"
+
+
+class BitcoinCoreRestClient:
+    """Core's `-rest` interface: one node, no credentials, no envelope.
+
+    `-rest` is off by default (`-rest=1`) and, unlike the JSON-RPC server
+    beside it, authenticates nobody who reaches it -- an operator who
+    turns it on knows that, so this class is what a caller who did speaks
+    with, and not this package recommending it. It answers on the same
+    port `BitcoinCoreRpcClient` reaches, which is what `rpc_port_from_chain`
+    and `from_chain` below are for.
+
+    Two methods, because Core's `-rest` answers two shapes and this client
+    reads exactly them: `get_bin` for a `.bin` path, returning the body
+    unread, and `get_json` for a `.json` one, returning what it parses to
+    -- the same `Decimal`-preserving parser `call_raw` reads its own
+    envelope with, refusing `NaN` and the two infinities exactly as it
+    does. `.hex` is the same octets as `.bin`, one more decode away from a
+    caller who wants them that way, so it is not offered a method of its
+    own.
+
+    **A path is a path, and this client passes any.** There is no
+    `get_tx`, no `get_block`, no `get_utxos`: `path` is built by the
+    caller from Core's own documentation of `-rest` and appended after
+    `/rest` unread. `/getutxos` is the reason a per-resource method is
+    refused rather than merely undone here -- it reads the UTXO set, so
+    an output that has been spent and one that was never created answer
+    the same way: neither is in the set, and `-rest` itself cannot tell
+    the two apart. A wrapper turning that answer into `None` would read
+    as telling a caller more than `/getutxos` does, when it tells them
+    exactly as little. A caller who wants the output either way fetches
+    the whole transaction through `get_json` and reads its own outputs,
+    which is the one place the two cases are still told apart.
+
+    **No credentials, because `-rest` takes none.** The constructor takes
+    no `user`, no `password`, no `cookie_path`: passing one would claim an
+    authentication this interface does not perform, and a node behind a
+    proxy that does add one is reached through `transport=`, the same seam
+    `BitcoinCoreRpcClient` offers for the case it cannot cover either.
+
+    **One request, no retry**, for the reason `BitcoinCoreRpcClient`'s
+    module docstring gives its own `call`: a caller who knows a `GET` is
+    safe to repeat is free to loop, and this client does not decide that
+    for it.
+
+    A non-200 status is `HttpError`, `-rest` having no error object of
+    its own to read the way a JSON-RPC reply's `error` member is read --
+    a `404` for a transaction or a block Core does not have is the
+    ordinary case, and its body is prose rather than anything to parse.
+    Everything below the status is `FetchError`, exactly as
+    `http_request` promises.
+    """
+
+    def __init__(
+        self,
+        url: str,
+        *,
+        timeout: float = DEFAULT_TIMEOUT,
+        transport: HttpTransport = urlopen_transport,
+    ) -> None:
+        self.url = _checked_url(url, kind="rest")
+        _assert_valid_timeout(timeout, "rest timeout")
+        if not callable(transport):
+            # `_checked_url` above is why configuration is checked here and
+            # not at the first `get_bin` or `get_json`
+            #
+            # Unreachable under `transport: HttpTransport` above, which is
+            # not a promise a caller that skips type checking keeps
+            err_msg = f"rest transport that is not callable: {type(transport).__name__}"  # type: ignore[unreachable]
+            raise BtcRpcTypeError(err_msg)
+        self.timeout = timeout
+        self.transport = transport
+
+    @classmethod
+    def from_chain(
+        cls,
+        chain: str = "main",
+        *,
+        timeout: float = DEFAULT_TIMEOUT,
+        transport: HttpTransport = urlopen_transport,
+    ) -> BitcoinCoreRestClient:
+        """Return a `-rest` client for the local node of one of Core's chains.
+
+        The loopback url and the port, `rpc_port_from_chain`'s -- `-rest`
+        answers on the same port the JSON-RPC server does, there being no
+        separate one to derive. It asks the node nothing, so it is no
+        claim that one is listening on that port, still less that it was
+        started with `-rest`: the first `get_bin` or `get_json` is what
+        finds out, exactly as `BitcoinCoreRpcClient.from_chain` promises
+        for its own first `call`.
+        """
+        port = rpc_port_from_chain(chain)
+        return cls(f"http://127.0.0.1:{port}", timeout=timeout, transport=transport)
+
+    def _get(
+        self,
+        path: str,
+        *,
+        request_timeout: float | None,
+        max_body_size: int,
+    ) -> tuple[str, int, bytes]:
+        """Send one `GET` and return where it went, its status and its body.
+
+        Shared by `get_bin` and `get_json`, which differ only in what they
+        do with the three once this has them: `get_bin` reads the status
+        and hands back the body, `get_json` parses it, and neither repeats
+        the request-building this does once.
+        """
+        url = _rest_url(self.url, path)
+        where = f"GET {path} at {self.url}"
+        timeout = self.timeout if request_timeout is None else request_timeout
+        _assert_valid_timeout(timeout, "rest request_timeout")
+        status, payload = http_request(
+            url,
+            headers={"User-Agent": USER_AGENT},
+            timeout=timeout,
+            max_body_size=max_body_size,
+            transport=self.transport,
+        )
+        return where, status, payload
+
+    def get_bin(
+        self,
+        path: str,
+        *,
+        request_timeout: float | None = None,
+        max_body_size: int = DEFAULT_MAX_BODY_SIZE,
+    ) -> bytes:
+        """Return the raw body of a `GET` to `<url>/rest<path>`.
+
+        `path` is appended after `/rest` unread -- `/tx/<txid>.bin`,
+        `/block/<hash>.bin`, `/headers/<count>/<hash>.bin` are Core's own
+        shapes for it. `max_body_size` is what `DEFAULT_MAX_BODY_SIZE`
+        documents for `call`'s own reply: twice Core's buffer bound on a
+        serialized block, so a block as raw octets fits by default, and
+        wider still for `/headers`, which answers several of them at
+        once.
+
+        `HttpError` for a status that is not 200, `-rest` reporting a
+        transaction or a block Core does not have with a `404` rather
+        than with a reply this client could read a diagnosis out of.
+        """
+        where, status, payload = self._get(
+            path, request_timeout=request_timeout, max_body_size=max_body_size
+        )
+        if status != 200:
+            raise _http_error(where, status)
+        return payload
+
+    def get_json(
+        self,
+        path: str,
+        *,
+        request_timeout: float | None = None,
+        max_body_size: int = DEFAULT_MAX_BODY_SIZE,
+    ) -> Any:
+        """Return the parsed json body of a `GET` to `<url>/rest<path>`.
+
+        `path` is appended after `/rest` unread -- `/chaininfo.json`,
+        `/tx/<txid>.json`, `/getutxos/<outpoint>.json` are Core's own
+        shapes for it. The body is read exactly as `call_raw` reads its
+        own envelope, through the same `_parsed_json_body`: a `Decimal`
+        for every number, the three constants json has no number for
+        refused, and nothing about the parsed value's own shape asked --
+        an object, an array, or a bare scalar all come back as parsed.
+
+        `HttpError` for a status that is not 200, checked before the body
+        is parsed rather than left to `_parsed_json_body`'s own parse
+        failure: a non-200 reply is not trusted as the node's answer
+        merely because its body happens to parse as json, `-rest`'s
+        ordinary failure body being prose rather than an error object,
+        but a proxy in front of the node under no such constraint.
+        """
+        where, status, payload = self._get(
+            path, request_timeout=request_timeout, max_body_size=max_body_size
+        )
+        if status != 200:
+            raise _http_error(where, status)
+        return _parsed_json_body(where, status, payload)
 
 
 class RpcChannel:
