@@ -444,13 +444,14 @@ def test_a_site_that_does_not_answer_is_named_by_the_failure(
 def test_the_main_guard_runs_the_script_as___main__(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Cover `if __name__ == "__main__":` without a subprocess.
+    """Run the script through its own entry point, not a subprocess.
 
-    This project collects no coverage from a child interpreter, so a real
-    subprocess would leave the guard uncovered. `runpy.run_path` executes
-    the file fresh with `__name__` set to `"__main__"` in this one, on a
-    deadline of zero, which is the one argument that asks the site
-    nothing and returns at once.
+    No other test here reaches `sys.argv` or `if __name__ ==
+    "__main__":`: the rest call `script.main([...])` with an explicit
+    argument list or `script.unserved(...)` directly. `runpy.run_path`
+    executes the file fresh with `__name__` set to `"__main__"`, which
+    is what reaches that line, on a deadline of zero -- the one
+    argument that asks the site nothing and returns at once.
     """
     monkeypatch.setattr(
         sys,

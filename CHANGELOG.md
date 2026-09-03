@@ -479,6 +479,20 @@ carry a union merge driver that would keep both sides' numbers.
   all**, so the fence around it is the whole of its guard. Section 9 of
   the organization standard is the rule the split answers to.
 
+### The `__main__` guard test's docstring gave a reason coverage does not act on
+
+- **Two docstrings said a subprocess would leave `if __name__ ==
+  "__main__":` uncovered, and this project measures neither of the
+  scripts they describe** (closes #355). `[tool.coverage.run]`'s
+  `source` is `bitcoin_core_rpc` and `tests`; a script under
+  `.github/scripts` is in neither, so nothing under its guard changes
+  `fail_under` whichever way the test runs it.
+- `tests/wait_for_readthedocs_build_test.py` and
+  `tests/wait_for_pypi_release_test.py` now say what the test does
+  reach: `sys.argv` and the guard itself, the one path through the file
+  no other test in it takes, the rest calling `script.main([...])` or
+  the script's own serving check directly instead.
+
 ## v2026.8.29
 
 ### Added
