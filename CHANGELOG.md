@@ -450,6 +450,18 @@ carry a union merge driver that would keep both sides' numbers.
   command credited it with reporting every problem in one run, which is
   what `-W` does on its own.
 
+### `RpcError.code` gets a name through `RPCErrorCode`
+
+- **`errors.py` gains `RPCErrorCode`, an `IntEnum` transcribed from
+  Core's `RPCErrorCode` in `src/rpc/protocol.h`** (closes #352) -- every
+  member of Core's enum, values included, its reserved and deprecated
+  codes carried rather than trimmed. `RpcError.code` stays a plain
+  `int`: a code the enumeration does not name is still an answer the
+  node gave, not a defect of this package, and typing the field to the
+  enumeration would turn a code Core has not yet defined into a
+  `ValueError` here instead of a value the caller reads.
+  `RPCErrorCode(exc.code)` is the caller's own line for the name.
+
 ## v2026.8.29
 
 ### Added
