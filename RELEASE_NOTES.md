@@ -10,7 +10,18 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
-## v2026.9 (work in progress, not released yet)
+## v2026.10 (work in progress, not released yet)
+
+## v2026.9.3
+
+Nothing to act on: both additions to the public surface are opt-in.
+
+`BitcoinCoreRestClient` reads Core's `-rest` interface — `get_bin` for a
+`.bin` path, `get_json` for a `.json` one, no credentials, sharing only
+the transport and the chain vocabulary with `BitcoinCoreRpcClient`.
+`errors.py` gains `RPCErrorCode`, an `IntEnum` naming Core's own error
+codes; `RpcError.code` stays a plain `int`, so nothing that already
+reads it changes.
 
 ## v2026.8.29
 
