@@ -11,6 +11,7 @@ caller wanting the whole hierarchy imports from.
 
 from __future__ import annotations
 
+import enum
 from typing import Any
 
 # Every name this module defines, none of it imported: `__init__.py`'s own
@@ -24,6 +25,7 @@ __all__ = [
     "CookieNotFoundError",
     "FetchError",
     "HttpError",
+    "RPCErrorCode",
     "RpcError",
 ]
 
@@ -113,6 +115,94 @@ class HttpError(FetchError):
         return str(self.args[0])
 
 
+class RPCErrorCode(enum.IntEnum):
+    """Core's own `RPCErrorCode`, `src/rpc/protocol.h`, transcribed whole.
+
+    Every member of Core's enum at `bitcoin/bitcoin@9be056a8a7`, `RPC_`
+    dropped from each name, values included -- a code Core reserved or
+    deprecated stays a member here rather than being trimmed, because
+    `RpcError.code` can still carry it. `FORBIDDEN_BY_SAFE_MODE` (-2) is
+    that case: Core's own comment marks the block it is in "unused
+    reserved codes, kept around for backwards compatibility. Do not
+    reuse," and it is transcribed rather than dropped for the same
+    reason the rest are. -21 names no member because Core's own enum
+    does not either -- the gap is Core's, not a value cut here.
+    `TRANSACTION_ERROR`, `TRANSACTION_REJECTED` and
+    `WALLET_INVALID_ACCOUNT_NAME` alias another member rather than naming
+    a new value, through `enum`'s own mechanism for it -- a repeated
+    value binds to the member that already claims it -- which reproduces
+    Core's own `RPC_X = RPC_Y` aliases rather than approximating them.
+
+    This is a lookup, not a constraint: `RpcError.code` stays a plain
+    `int`, because a code absent here is an answer a node gave and not a
+    defect of this type -- a future Core release, or a JSON-RPC server
+    that is not Core, is free to send a code this class does not name.
+    `RPCErrorCode(exc.code)` is the caller's own one line when it wants
+    the name, and it raises `ValueError` -- Core's own answer, not a
+    silent guess -- only for a code truly absent from Core's table.
+    """
+
+    # standard JSON-RPC 2.0 errors
+    PARSE_ERROR = -32700
+    INVALID_REQUEST = -32600
+    METHOD_NOT_FOUND = -32601
+    INVALID_PARAMS = -32602
+    INTERNAL_ERROR = -32603
+
+    # general application defined errors
+    MISC_ERROR = -1
+    TYPE_ERROR = -3
+    INVALID_ADDRESS_OR_KEY = -5
+    OUT_OF_MEMORY = -7
+    INVALID_PARAMETER = -8
+    DATABASE_ERROR = -20
+    DESERIALIZATION_ERROR = -22
+    VERIFY_ERROR = -25
+    VERIFY_REJECTED = -26
+    VERIFY_ALREADY_IN_UTXO_SET = -27
+    IN_WARMUP = -28
+    METHOD_DEPRECATED = -32
+
+    # aliases for backward compatibility
+    TRANSACTION_ERROR = VERIFY_ERROR
+    TRANSACTION_REJECTED = VERIFY_REJECTED
+
+    # P2P client errors
+    CLIENT_NOT_CONNECTED = -9
+    CLIENT_IN_INITIAL_DOWNLOAD = -10
+    CLIENT_NODE_ALREADY_ADDED = -23
+    CLIENT_NODE_NOT_ADDED = -24
+    CLIENT_NODE_NOT_CONNECTED = -29
+    CLIENT_INVALID_IP_OR_SUBNET = -30
+    CLIENT_P2P_DISABLED = -31
+    CLIENT_NODE_CAPACITY_REACHED = -34
+
+    # chain errors
+    CLIENT_MEMPOOL_DISABLED = -33
+
+    # wallet errors
+    WALLET_ERROR = -4
+    WALLET_INSUFFICIENT_FUNDS = -6
+    WALLET_INVALID_LABEL_NAME = -11
+    WALLET_KEYPOOL_RAN_OUT = -12
+    WALLET_UNLOCK_NEEDED = -13
+    WALLET_PASSPHRASE_INCORRECT = -14
+    WALLET_WRONG_ENC_STATE = -15
+    WALLET_ENCRYPTION_FAILED = -16
+    WALLET_ALREADY_UNLOCKED = -17
+    WALLET_NOT_FOUND = -18
+    WALLET_NOT_SPECIFIED = -19
+    WALLET_ALREADY_LOADED = -35
+    WALLET_ALREADY_EXISTS = -36
+
+    # backwards compatible aliases
+    WALLET_INVALID_ACCOUNT_NAME = WALLET_INVALID_LABEL_NAME
+
+    # unused reserved codes, kept around for backwards compatibility, do
+    # not reuse
+    FORBIDDEN_BY_SAFE_MODE = -2
+
+
 class RpcError(FetchError):
     """bitcoind answered with a JSON-RPC error object, and this is it.
 
@@ -120,7 +210,12 @@ class RpcError(FetchError):
     RPC_INVALID_ADDRESS_OR_KEY, which is what `getrawtransaction` returns
     for a transaction it cannot find -- including every non-wallet
     transaction on a node running without `-txindex`. A caller telling "no
-    such transaction" from "the node is unreachable" needs the number.
+    such transaction" from "the node is unreachable" needs the number, and
+    it stays a plain `int` here rather than `RPCErrorCode` -- a code
+    Core's own header does not (yet) name is still a code Core sent, and
+    typing this field to the enumeration would make that answer a
+    `ValueError` instead. `RPCErrorCode(exc.code)` is the caller's own
+    line when it wants the name.
 
     `data` is JSON-RPC's optional third member of an error object, kept
     as it arrived. Core leaves it out today, so it is None for every

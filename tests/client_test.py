@@ -57,6 +57,7 @@ from bitcoin_core_rpc import (
     HttpError,
     RpcChannel,
     RpcError,
+    RPCErrorCode,
     default_datadir,
 )
 from tests import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
@@ -1299,6 +1300,33 @@ def test_an_rpc_error_object_is_an_rpc_error_with_the_code() -> None:
     assert exc.value.code == -5
     assert exc.value.data is None
     assert "-txindex" in str(exc.value)
+
+
+def test_rpc_error_code_names_the_refusal() -> None:
+    """`RPCErrorCode(exc.code)` is the caller's own line for the name."""
+    body = recorded_body("getrawtransaction_error.json")
+    with pytest.raises(RpcError) as exc:
+        client((200, body)).call("getrawtransaction", [TX_ID])
+    assert RPCErrorCode(exc.value.code) is RPCErrorCode.INVALID_ADDRESS_OR_KEY
+
+
+def test_a_code_outside_the_enumeration_still_reaches_the_caller() -> None:
+    """A code Core's own header does not name is still a code, not a defect.
+
+    `RpcError.code` stays a plain `int` for exactly this: a future Core
+    release, or a JSON-RPC server that is not Core, sending a code this
+    package does not enumerate must still reach the caller rather than
+    fail here -- naming it is then the caller's own choice, through
+    `RPCErrorCode`, and refused there rather than at the boundary that
+    read the reply.
+    """
+    error = {"code": -999, "message": "a code Core has never defined"}
+    body = json.dumps({"jsonrpc": "2.0", "error": error, "id": "x"}).encode()
+    with pytest.raises(RpcError) as exc:
+        client((200, body)).call("getrawtransaction", [TX_ID])
+    assert exc.value.code == -999
+    with pytest.raises(ValueError, match="-999"):
+        RPCErrorCode(exc.value.code)
 
 
 def test_the_data_member_of_an_error_object_is_kept() -> None:

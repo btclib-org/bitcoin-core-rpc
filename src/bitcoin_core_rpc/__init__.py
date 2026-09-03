@@ -142,6 +142,7 @@ from bitcoin_core_rpc.errors import (
     FetchError,
     HttpError,
     RpcError,
+    RPCErrorCode,
 )
 
 if TYPE_CHECKING:
@@ -181,6 +182,7 @@ __all__ = [
     "HttpError",
     "HttpTransport",
     "Network",
+    "RPCErrorCode",
     "RpcChannel",
     "RpcError",
     "SessionTransport",
