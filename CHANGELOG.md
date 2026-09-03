@@ -430,6 +430,17 @@ carry a union merge driver that would keep both sides' numbers.
   in both places at once, and reads as one nobody looked at rather than
   as one weighed and left out.
 
+### `CLAUDE.md`'s `git worktree add` ends in the branch placeholder
+
+- **`-b <branch>` sits after the path and the commit-ish** (issue
+  btclib-org/.github#687), so the `>` closing the placeholder has no
+  target and the line is a parse error before it is a command. With the
+  flag first that `>` takes `"$WT"` instead, and the removal that
+  finishes a session leaves no directory at that path to fail on, so a
+  paste made with `WT` still set writes a file where the next
+  `git worktree add` wants none. Section 9 of `btclib-org/.github` is
+  the rule, and the reason now sits under the fence.
+
 ## v2026.8.29
 
 ### Added
