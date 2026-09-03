@@ -441,6 +441,15 @@ carry a union merge driver that would keep both sides' numbers.
   `git worktree add` wants none. Section 9 of `btclib-org/.github` is
   the rule, and the reason now sits under the fence.
 
+### The documentation build passes `-W` without `--keep-going`
+
+- **`sphinx-build` runs with `-n -W` and no `--keep-going`** (issue
+  btclib-org/.github#347) in `docs.yml`, in `.readthedocs.yaml` and in
+  `CONTRIBUTING.md`'s gate commands, section 2 of the organization
+  standard being where the flag is ruled out. The comments beside the
+  command credited it with reporting every problem in one run, which is
+  what `-W` does on its own.
+
 ## v2026.8.29
 
 ### Added
