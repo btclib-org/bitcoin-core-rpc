@@ -54,11 +54,12 @@ workflows with a job named the same thing produce one ambiguous check.
 
 `main` requires these checks and nothing else. The rule is what says so and
 this table is a copy of it, in the order the rule holds them so that the two
-can be read side by side:
+can be read side by side, and changed with a `PATCH` to the same
+sub-endpoint:
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
-  --jq '.required_status_checks'   # PATCH that sub-endpoint to change
+  --jq '.required_status_checks'
 ```
 
 | Check | Produced by |
@@ -604,7 +605,8 @@ tree's home is its own documentation, not `btclib.org`, the sibling's
 project page the field named before.
 
 ```shell
-gh api repos/btclib-org/bitcoin-core-rpc/pages   # 404
+gh api repos/btclib-org/bitcoin-core-rpc/pages
+# 404
 ```
 
 This tree serves no GitHub Pages site of its own.
@@ -741,7 +743,8 @@ beside the figure would say when it was true and not that it still is,
 where the command answers for the day it is run:
 
 ```shell
-gh api orgs/btclib-org --jq .plan.name    # free
+gh api orgs/btclib-org --jq .plan.name
+# free
 ```
 
 [GitHub's own table](https://docs.github.com/en/actions/reference/limits)
