@@ -82,6 +82,18 @@ carry a union merge driver that would keep both sides' numbers.
   deletes it. The sentences saying so are `btclib-org/.github`'s own,
   verbatim.
 
+### `claude-review.yml`'s fork comment no longer illustrates itself with `bbt`
+
+- **The paragraph above the fork condition in
+  `.github/workflows/claude-review.yml` no longer names `btclib-org/bbt`
+  as an example of a repository that is itself a fork** (issue
+  btclib-org/.github#456): no repository of the organization is one, so
+  the example did not instance the case it argued. The replacement
+  reads `.fork` against the head repository having a parent rather than
+  against this one, and points its own readback at this tree —
+  `gh api repos/btclib-org/bitcoin-core-rpc --jq .fork` answers `false`.
+  The wording is `btclib-org/bbt`'s own, landed there first.
+
 ## v2026.9.3
 
 ### Repository
