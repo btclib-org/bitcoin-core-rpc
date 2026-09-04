@@ -70,6 +70,18 @@ carry a union merge driver that would keep both sides' numbers.
   the push, and section 9's *One fact in one place* argues against
   stating that fact a second time inside the fence.
 
+### `CLAUDE.md`'s worktree-removal fence guards its `$WT` expansion
+
+- **The fence closes with `git worktree remove --force "${WT:?}"`, and
+  the paragraph above it says what the `:?` is for** (issue
+  btclib-org/.github#790): section 9 of the organization standard reads
+  a fence with nothing in it that fails at the parse as live — a paste
+  of it alone is a command, and it runs with every value the reader was
+  to set empty — so such a fence writes each of those values
+  `${name:?}`, with prose beside it because a reader who is not told
+  deletes it. The sentences saying so are `btclib-org/.github`'s own,
+  verbatim.
+
 ## v2026.9.3
 
 ### Repository
