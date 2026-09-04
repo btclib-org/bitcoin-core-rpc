@@ -61,6 +61,15 @@ carry a union merge driver that would keep both sides' numbers.
   position bullet asks the bare one to end the command, which
   `--body-file <path>` already did and `--subject "<title>"` did not.
 
+### `CLAUDE.md`'s worktree fence states the editing and the gates once
+
+- **The whole-line comment `# edit, gate and commit here, then` no
+  longer sits between the fence's `cd` line and its `git push`** (issue
+  btclib-org/.github#793): the paragraph above the fence says that the
+  editing, the gates and the commits all happen in the worktree before
+  the push, and section 9's *One fact in one place* argues against
+  stating that fact a second time inside the fence.
+
 ## v2026.9.3
 
 ### Repository
