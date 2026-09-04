@@ -104,7 +104,6 @@ the gates and the commits all happen in the worktree before the push.
 WT=<scratchpad>/wt-<tracker>-<issue>-<repo>-<role>
 git worktree add "$WT" origin/main -b <branch>
 cd "$WT" && uv sync --locked
-# edit, gate and commit here, then
 git push origin HEAD:refs/heads/<branch>
 ```
 
