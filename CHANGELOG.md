@@ -94,6 +94,16 @@ carry a union merge driver that would keep both sides' numbers.
   `gh api repos/btclib-org/bitcoin-core-rpc --jq .fork` answers `false`.
   The wording is `btclib-org/bbt`'s own, landed there first.
 
+### `[tool.uv] required-version` is raised to the current Dependabot ceiling
+
+- **`pyproject.toml`'s `[tool.uv] required-version` moves from
+  `>=0.12.5` to `>=0.12.7`** (issue btclib-org/.github#448): section 1 of
+  the organization standard sets the floor at the ceiling rather than
+  below it, and the ceiling — the newest uv Dependabot's own bundled
+  updater still reads — is `0.12.7` today, ahead of the `0.12.5` this
+  tree carried. `uv.lock` is untouched: it carries no `required-version`
+  of its own.
+
 ## v2026.9.3
 
 ### Repository
