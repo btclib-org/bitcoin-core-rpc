@@ -104,6 +104,17 @@ carry a union merge driver that would keep both sides' numbers.
   tree carried. `uv.lock` is untouched: it carries no `required-version`
   of its own.
 
+### `conftest_test.py` covers the resolution `asks_for_everything` does
+
+**A case names one directory two ways — through a symlink and not — and
+fails with either `.resolve()` removed from `tests/conftest.py`** (issue
+btclib-org/.github#806): resolved on one side only, the two spellings
+compare unequal, so `pytest tests` reads as a subset of itself and the
+run that measures the whole suite is gated at nothing. The link is made
+under `tmp_path` rather than taken from the machine, so the case is
+about the comparison and not about which directories an operating system
+links, and a platform that will not create one skips.
+
 ## v2026.9.3
 
 ### Repository
