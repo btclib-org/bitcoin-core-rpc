@@ -146,6 +146,19 @@ links, and a platform that will not create one skips.
   Read the Docs and Scorecard badges are outside the rule, and their
   links reach no runs page.
 
+### `.gitignore` names its environment paths once
+
+- **`.env`, `.venv` and `ENV/` no longer appear in two blocks that
+  disagreed on the rest of the list** (closes #371): one named `venv/`
+  and `envtest/`, the other `venv*/`, and git already took the union of
+  both, so nothing was wrongly ignored — a reader looking for the rule on
+  virtual environments found two answers instead of one. The surviving
+  list keeps the literal `venv/`, `envtest/` and `venv.bak/`: nothing in
+  this tree creates a virtualenv under a name `venv*/` would catch and
+  `venv/` would not, and the one alternate-interpreter environment
+  `CONTRIBUTING.md` documents is dot-prefixed (`.venv-3.10`), which
+  neither pattern matches.
+
 ## v2026.9.3
 
 ### Repository
