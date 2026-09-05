@@ -41,6 +41,14 @@ def asks_for_everything(
     `tests/` shows: pytest reads a positional argument against the
     directory it was invoked from, and `testpaths` against the rootdir.
 
+    Both sides are resolved, so that one directory reaches the
+    comparison under one spelling. Either can arrive carrying a symlink:
+    pytest builds the rootdir with `os.path.abspath`, which leaves one
+    in the path alone, and a positional argument is whatever was typed.
+    `/tmp` is such a link on macOS, and unresolved the two spellings
+    contain each other nowhere, so the whole suite reads as a subset of
+    itself.
+
     `file_or_dir` is `None` rather than `[]` on the `--help` path, the
     positional never having been parsed, and that names no path either
     -- folding it in is what keeps `--help` from ending in a traceback

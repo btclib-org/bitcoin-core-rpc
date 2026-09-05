@@ -115,6 +115,18 @@ under `tmp_path` rather than taken from the machine, so the case is
 about the comparison and not about which directories an operating system
 links, and a platform that will not create one skips.
 
+### `asks_for_everything` says why it resolves both sides
+
+**The docstring gains a paragraph on the two `.resolve()` calls**
+(closes btclib-org/.github#810): either side can arrive carrying a
+symlink — pytest builds the rootdir with `os.path.abspath`, which leaves
+one in the path alone, and a positional argument is whatever was typed —
+so one directory reaches the comparison under two spellings unless both
+sides are resolved. The reason goes in the docstring rather than in a
+comment beside the calls, which stand either side of an early return:
+one comment would sit at one of them, and the docstring is where every
+other fact about this function's contract already is.
+
 ## v2026.9.3
 
 ### Repository
