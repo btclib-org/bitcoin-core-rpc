@@ -69,10 +69,10 @@ on:
     # concurrency block below cancels nothing at all, for the reason
     # stated there, so a closed event here would supersede no run
     # whichever group it landed in. What it would do instead is add one:
-    # the condition on the job below declines a draft and says nothing
-    # about a close, so the run a merge or an abandonment started would
-    # install from the index on every cell of the matrix, for a pull
-    # request nobody is on any more. links.yml is the other workflow here
+    # every job below declines a draft and says nothing about a close,
+    # so the run a merge or an abandonment started would install from
+    # the index on every cell of the matrix, for a pull request nobody
+    # is on any more. links.yml is the other workflow here
     # whose pull_request trigger is filtered to its own configuration,
     # and it carries the type with what the type needs: a group keyed on
     # the pull request's number, cancel-in-progress: true, and
@@ -110,14 +110,21 @@ jobs:
   # script's own deadline, stated there as one number; timeout-minutes
   # here is set well above it and bounds the job rather than the wait.
   #
-  # The job runs on every trigger and waits on almost none of them: the
-  # input is empty wherever no release is calling, and an empty tag is
-  # nothing to wait for. An `if:` here would make a tag the only thing
-  # that ever runs it, and a job a release is the first to run is a job
-  # whose defect ships with that release -- which has already happened to
-  # this wait, in more than one of these repositories
+  # The job waits on almost none of the triggers that run it: the input
+  # is empty wherever no release is calling, and an empty tag is nothing
+  # to wait for. An `if:` keyed on that input would make a tag the only
+  # thing that ever runs it, and a job a release is the first to run is
+  # a job whose defect ships with that release -- which has already
+  # happened to this wait, in more than one of these repositories
   wait-for-index:
     name: Wait for the index to serve the released version
+    # a draft pull request is work in progress and spends no runner
+    # here either: the same condition install-published carries below,
+    # and a draft skips that job, so the wait holds nothing back. The
+    # `if:` refused above is a different one, keyed on the input: the
+    # schedule, a dispatch and a release call run the wait under this
+    # condition, so a release is not the first thing to reach it
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
