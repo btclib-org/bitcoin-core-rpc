@@ -169,6 +169,37 @@ links, and a platform that will not create one skips.
   thing that ever runs the wait; the schedule, a dispatch and a release
   call run it under the draft condition whatever a pull request is.
 
+### The `uv_build` floor is bounded rather than copied from a rev
+
+- **`[build-system] requires` moves from `uv_build>=0.12.5,<0.13` to
+  `uv_build>=0.12.7,<0.13`** (closes #368): section 3 of the organization
+  standard has a floor above the `0.12.0` boundary be alignment, and what
+  the comment states is the range that alignment means -- above the
+  boundary, and no higher than the rev `.pre-commit-config.yaml` pins for
+  `uv-pre-commit`
+  (`grep -A1 'astral-sh/uv-pre-commit' .pre-commit-config.yaml`). Not an
+  equality: pre-commit.ci moves that rev upward on this repository's own
+  weekly schedule with nothing moving this number, so a floor written
+  equal to it stops being equal at the next bump where a floor under it
+  stays right.
+- **The comment re-derives the `0.12.0` boundary by calling the backend's
+  own hook at each version** (closes #378), where it asked for `uv build`
+  under a pinned `requires`. That is the way the standard names as the
+  way not to measure it: a backend older than the one running is always
+  the ceiling-below case, so `uv build` falls back to the copy it bundles
+  and only warns, answering for that copy rather than for the pin. The
+  hook prints the archive's name rather than its contents, so the block
+  names what to read inside it, and `btclib-org/.github#143` is where the
+  per-version run sits.
+- **A sibling's floor is no second reason for the same number.**
+  pre-commit.ci moves this rev on this repository's own weekly schedule
+  and a sibling's on the sibling's, so two trees taking their floor from
+  their own rev sit at different numbers between the bumps.
+- **`check-sdist` and `pyroma` take the specifier `[build-system]`
+  declares**, their hook environments being where `build` finds the
+  backend when it does not isolate, and `RELEASING.md` names the range
+  rather than repeating it.
+
 ## v2026.9.3
 
 ### Repository

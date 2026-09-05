@@ -2,32 +2,59 @@
 # glob patterns in the [tool.uv.build-backend] table below, beside the
 # rest of the configuration, in place of the separate include and exclude
 # language of a MANIFEST.in. That a pure-Python project uses this backend
-# is btclib-org/.github#118, and btclib is where it was done first, this
-# pin included.
+# is btclib-org/.github#118, and btclib is where it was done first.
 #
 # What the floor has to clear is 0.12.0, where the sdist's own
 # pyproject.toml became a normalized copy of this file with the verbatim
 # one kept beside it as pyproject.toml.orig. Below that the sdist holds
 # one answer where it now holds two, which is a different archive rather
-# than an older one. To re-derive, with the specifier below replaced by
-# ==0.11.31 and then by ==0.12.0:
+# than an older one. The boundary is measured by calling the backend's
+# own hook at each version, the version standing on a line of its own so
+# that an unfilled paste of the line below it fails on ${version:?}
+# rather than measuring whatever is installed:
 #
-#     uv build --sdist -o d && tar tzf d/*.tar.gz | grep orig
+#     version=<the version to measure>
 #
-# answers with nothing and then with pyproject.toml.orig.
+#     uv run --no-project --with uv_build=="${version:?}" python -c \
+#       "import uv_build; print(uv_build.build_sdist('<outdir>'))"
 #
-# It sits at 0.12.5 and not at 0.12.0 for two reasons that are neither of
-# them a constraint, so this is the number to lower first if a resolver
-# ever wants it lower: 0.12.5 is the rev .pre-commit-config.yaml pins for
-# uv-pre-commit, which keeps the backend that builds the archive no older
-# than the uv whose lock format that hook writes; and it is btclib's
-# floor, which is what has the two repositories answering this question
-# with one number.
+#     tar tzf <outdir>/<the name the hook prints> | grep orig
+#
+# which answers with nothing below the boundary and with
+# pyproject.toml.orig at it, the hook itself printing the archive's name
+# rather than its contents; and not with uv build under a pinned
+# requires: asking for a backend older than the one running is the
+# ceiling-below case, where uv build falls back to the copy it bundles
+# and only warns, so it answers for that copy and not for the pin. The
+# per-version run is btclib-org/.github#143's, and uv's own release notes
+# for 0.12.0 are where the normalized copy and the .orig kept beside it
+# are announced.
+#
+# It sits above that boundary and no higher than the rev
+# .pre-commit-config.yaml pins for uv-pre-commit -- alignment and not a
+# constraint, and a range rather than an equality on purpose:
+# pre-commit.ci moves that rev upward on this repository's own weekly
+# schedule with nothing moving this number, so a floor written equal to
+# it stops being equal at the next bump where a floor under it stays
+# right. The upper bound, and the number to lower first if a resolver
+# ever wants this one lower:
+#
+#     grep -A1 'astral-sh/uv-pre-commit' .pre-commit-config.yaml
+#
+# A sibling's floor is no second reason for it either, and that is the
+# standard's second alignment target declined rather than overlooked:
+# two trees taking their floor from their own rev sit at different
+# numbers between the bumps.
+#
+# [tool.uv] required-version below asks a different question -- the uv
+# that reads uv.lock, not the backend that builds the archive -- and
+# moves with the ceiling section 1 of the organization standard sets it
+# at rather than with this rev.
 #
 # The ceiling is the next minor, which is where uv's versioning policy
 # puts a breaking change, this backend releasing with uv and versioned by
 # it
-requires = ["uv_build>=0.12.5,<0.13"]
+requires = ["uv_build>=0.12.7,<0.13"]
 build-backend = "uv_build"
 
 [project]

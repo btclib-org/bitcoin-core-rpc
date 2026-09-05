@@ -698,10 +698,10 @@ reading a mismatch as tampering:
   ```
 
 - **the build backend is bounded, not pinned.** `[build-system] requires`
-  asks for `uv_build>=0.12.5,<0.13` and an isolated build takes whatever
-  in that range is current, so a rebuild months later runs a backend the
-  release never saw. What the ceiling bounds is the *content* of the
-  archive; its member metadata is `normalize_sdist.py`'s answer and not
+  names a range rather than a version, and an isolated build takes
+  whatever in that range is current, so a rebuild months later runs a
+  backend the release never saw. What the ceiling bounds is the *content*
+  of the archive; its member metadata is `normalize_sdist.py`'s answer and not
   the backend's, which is why the command above runs that script and why
   a rebuild that skips it disagrees with the published archive on every
   member's `mtime`.
