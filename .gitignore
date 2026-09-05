@@ -24,7 +24,11 @@ wheels/
 .installed.cfg
 *.egg
 
-# Environments
+# Environments: one list, not the literal venv/ and the wildcard venv*/
+# each naming it. Nothing here creates a virtualenv under a name venv*/
+# would catch and venv/ would not -- the alternate-interpreter one
+# CONTRIBUTING.md's other-interpreter run gives is dot-prefixed
+# (.venv-3.10), which neither pattern matches.
 .env
 .venv
 env/
@@ -80,14 +84,6 @@ celerybeat-schedule
 
 # SageMath parsed files
 *.sage.py
-
-# dotenv
-.env
-
-# virtualenv
-.venv
-venv*/
-ENV/
 
 # Spyder project settings
 .spyderproject
