@@ -23,9 +23,19 @@ where a claim in those notes can be checked.
 
 [std]: https://github.com/btclib-org/.github
 
-Neither file counts its entries: `grep -c '^- '` does that, whereas a
-stated number is a line every open branch has to edit, and the two files
-carry a union merge driver that would keep both sides' numbers.
+Neither file states how many entries it holds: a stated number is a line
+every open branch has to edit, and the two files carry a union merge
+driver that would keep both sides' numbers. Naming a command that counts
+them is the rejected alternative, and what rejects it is the shape of
+this file: a `###` heading names one entry, and a theme several entries
+share wherever the file already carried such a heading — section 9 of
+[the organization standard][std] rules against writing them and
+*Nothing already written is rewritten* keeps the ones that are there. A
+`-` bullet at the margin is then one of an entry's claims where the
+heading above it names an entry and a whole entry where it names a
+theme. Section 9 also lets an entry making a single claim have a
+paragraph for a body, which no bullet pattern reaches. Counting the
+entries is a reading of the file rather than a command.
 
 ## v2026.10 (work in progress, not released yet)
 
@@ -199,6 +209,20 @@ links, and a platform that will not create one skips.
   declares**, their hook environments being where `build` finds the
   backend when it does not isolate, and `RELEASING.md` names the range
   rather than repeating it.
+
+### The preamble names no command for counting entries
+
+**`CHANGELOG.md`'s preamble no longer names `grep -c '^- '` as what
+counts this file's entries** (issue btclib-org/.github#829): that
+pattern answers about bullets at the margin -- an entry's separate
+claims where a `###` heading names an entry, whole entries where one
+names a theme -- and section 9 of the organization standard lets an
+entry making a single claim have a paragraph for a body, which no bullet
+pattern reaches. Counting the headings does not answer either, the two
+kinds of heading sitting in one file. What the sentence keeps is its
+point: neither file states a number, because a stated one is a line
+every open branch has to edit under a driver that would keep both
+sides'.
 
 ## v2026.9.3
 
