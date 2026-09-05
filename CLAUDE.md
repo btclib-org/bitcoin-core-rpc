@@ -103,7 +103,7 @@ the gates and the commits all happen in the worktree before the push.
 ```shell
 WT=<scratchpad>/wt-<tracker>-<issue>-<repo>-<role>
 git worktree add "$WT" origin/main -b <branch>
-cd "$WT" && uv sync --locked
+cd "$WT"
 git push origin HEAD:refs/heads/<branch>
 ```
 
@@ -112,6 +112,26 @@ placeholder ends the command, which is section 9 of `btclib-org/.github`'s rule.
 With the placeholder ahead of `"$WT"` the `>` closing it takes that path
 as its target, and a path with no directory at it is a file the paste
 creates.
+
+No line of the block writes where a paste of it lands. Creating the
+environment is `CONTRIBUTING.md`'s *The environment and the gates*, run
+in the worktree, and that step is two commands — `uv sync`, and the
+`uv run pre-commit install` that puts the lint gate on a commit — where
+a line chained to the `cd` carries only the first. Section 9's *A line
+that writes goes in a fence of its own* is why the sync is not such a
+line: a sync writes in the directory the shell is standing in, and with
+`WT` unset `cd "$WT"` is `cd ""`, which `/bin/zsh` 5.9 and the `bash`
+3.2.57 macOS ships as `/bin/bash` and `/bin/sh` answer 0 where `bash`
+5.3.15 refuses it — so for a reader of this file that directory is the
+primary checkout above, and `.gitignore` covers the `.venv` a sync
+leaves there. The block's own parse is no substitute for the rule:
+unfilled, it is a syntax error to each of those shells reading it as a
+script, and the same lines with values filled in parse cleanly, so what
+stops such a paste is the placeholders' shape rather than anything put
+there to stop it -- their shape together, not any one of theirs:
+`<scratchpad>` filled alone, or `<tracker>`, or `<branch>`, leaves the
+same error at the same line. What an interactive shell makes of the same
+bytes is unmeasured here.
 
 Removing the worktree is part of finishing, and it stands in a block of
 its own: the block above ends in a placeholder, and a shell that

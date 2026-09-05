@@ -115,6 +115,27 @@ under `tmp_path` rather than taken from the machine, so the case is
 about the comparison and not about which directories an operating system
 links, and a platform that will not create one skips.
 
+### `CLAUDE.md`'s worktree fence carries no `uv sync`
+
+- **The fence's `cd "$WT"` line stands alone, with nothing chained to it
+  by `&&`** (issue btclib-org/.github#739): section 9 of the repository
+  standard gives a line that writes a fence of its own, and a sync
+  chained to that `cd` writes in the directory the shell is standing in
+  — with `WT` unset, `cd ""` leaves `/bin/zsh` 5.9 and the `bash` 3.2.57
+  macOS ships where they were, `bash` 5.3.15 refusing it, so for a
+  reader of `CLAUDE.md` that directory is the primary checkout.
+- **The block's own parse is not the guard either.** Read as a script
+  with `-n`, the fence unfilled is a syntax error to each of those
+  shells, while the same lines with values filled in parse cleanly: what
+  stops such a paste is the shape of `<scratchpad>`, `<tracker>` and
+  `<branch>` rather than anything written to stop it, and an interactive
+  paste is unmeasured.
+- **The environment is `CONTRIBUTING.md`'s *The environment and the
+  gates*, and the paragraph below the fence says so**: that step is two
+  commands, `uv sync` and the `uv run pre-commit install` that puts the
+  lint gate on a commit, where a line chained to the `cd` carries only
+  the first.
+
 ## v2026.9.3
 
 ### Repository
