@@ -136,6 +136,16 @@ links, and a platform that will not create one skips.
   lint gate on a commit, where a line chained to the `cd` carries only
   the first.
 
+### The badge row's links open the runs page filtered to `main`
+
+- **Every workflow-status badge link at the head of `README.md` carries
+  `?query=branch%3Amain`** (issue btclib-org/.github#762): section 2 of
+  the organization standard gives the link that filter in the spelling
+  the runs page takes, the image's `?branch=main` being ignored there, so
+  a click on a badge reaches the runs it answers for. The pre-commit.ci,
+  Read the Docs and Scorecard badges are outside the rule, and their
+  links reach no runs page.
+
 ## v2026.9.3
 
 ### Repository
