@@ -159,6 +159,16 @@ links, and a platform that will not create one skips.
   `CONTRIBUTING.md` documents is dot-prefixed (`.venv-3.10`), which
   neither pattern matches.
 
+### The index wait declines a draft pull request too
+
+- **`pypi-install.yml`'s `wait-for-index` job takes the draft condition
+  `install-published` carries** (closes btclib-org/.github#811): the wait
+  holds back the install job alone, which a draft skips, so a draft pull
+  request runs neither. What the comment above the job refuses is an
+  `if:` keyed on the release tag, which would leave a release the only
+  thing that ever runs the wait; the schedule, a dispatch and a release
+  call run it under the draft condition whatever a pull request is.
+
 ## v2026.9.3
 
 ### Repository
