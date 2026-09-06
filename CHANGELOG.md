@@ -364,6 +364,30 @@ sides'.
   the issue, in the file this branch had already opened -- which is why
   it is here and not filed.
 
+### The `line-too-long` ignore reason names what E501 reports here
+
+- **The reason no longer offers a `# type: ignore` or a `# ruff: ignore`
+  pushing an otherwise-short line past the limit as what E501 is left to
+  find** (closes btclib-org/.github#870): the rule measures a line up to
+  the start of a pragma it recognises, and both of those are among them,
+  so it passes over every line of that shape in this tree. The other
+  shape the reason named, a url in the module's own docstring, goes the
+  same way: a line ending in a url that begins before the limit is
+  passed over, in a docstring and in a trailing comment alike. No Python
+  line here that holds a url runs past 88 columns anyway.
+- **What the reason names instead is what the rule reports**:
+  `DEFAULT_SIGNET_CHALLENGE`'s recorded script, whose
+  `# pragma: allowlist secret` -- the secret scanner's, and no pragma
+  E501 recognises -- carries each of its lines past the limit. The
+  comment gives the command that lists them, as the entries below it
+  do.
+- **Measured against `btclib-org/.github`, which does not ignore the
+  rule**, with the pinned ruff: an ordinary trailing comment at the same
+  width is the control, and it is reported. What decides is where the
+  pragma begins and not that it ends the line -- the same pragma with
+  words after it is passed over just as well, and it is reported once
+  the code ahead of it is itself past the limit.
+
 ## v2026.9.3
 
 ### Repository
