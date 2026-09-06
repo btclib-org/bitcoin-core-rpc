@@ -415,12 +415,12 @@ repos:
         name: taplo (toml, in place fixes)
         exclude: ^uv\.lock$
   # the shape of a yaml file, which nothing else here reads: the hook
-  # above holds markdown to 80 columns and ruff holds Python comments and
-  # docstrings to the same, and the workflows were the one place prose
-  # could grow without a limit. Width is the half of this a sibling gate
-  # could in principle have covered; a key written twice, a block
-  # indented under nothing, a value that is octal by accident are read by
-  # nothing else at all.
+  # above holds markdown to 80 columns and ruff holds a Python docstring
+  # and a whole-line comment to the same, and the workflows were the one
+  # place prose could grow without a limit. Width is the half of this a
+  # sibling gate could in principle have covered; a key written twice, a
+  # block indented under nothing, a value that is octal by accident are
+  # read by nothing else at all.
   # Configured in .yamllint.yaml rather than in args here, as codespell
   # and typos are configured in pyproject.toml: every place that file
   # departs from the default set carries the reason it does, and a hook
@@ -432,13 +432,13 @@ repos:
       - id: yamllint
         name: yamllint (the default rule set, less two)
   # the width of a toml comment, which was the last prose here held to
-  # nothing: markdown has MD013, a Python comment has W505, a yaml line
-  # has yamllint above, and [tool.ruff.lint.pycodestyle] in pyproject.toml
-  # names 80 columns as the width of every comment in this tree while
-  # nothing read toml for it. A local pygrep rule because nothing off the
-  # shelf does it: taplo above formats values and leaves comments alone,
-  # by design, a formatter that reflowed prose being a formatter that
-  # rewrites it.
+  # nothing: markdown has MD013, a Python docstring and a whole-line
+  # comment have W505, a yaml line has yamllint above, and
+  # [tool.ruff.lint.pycodestyle] in pyproject.toml names the 80 those two
+  # meet while nothing read toml for it. A local pygrep rule because
+  # nothing off the shelf does it: taplo above formats values and leaves
+  # comments alone, by design, a formatter that reflowed prose being a
+  # formatter that rewrites it.
   # `.{80}\S*[ \t]` reports a line only when whitespace is left past
   # column 80, which is MD013's amnesty and ruff's: a comment ending in a
   # link that cannot be broken is not a defect. Without the amnesty this

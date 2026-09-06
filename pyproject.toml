@@ -731,8 +731,9 @@ ignore = [
     # module's own docstring, a `# type: ignore` or `# ruff: ignore` pragma
     # that pushes an otherwise-short line past the limit, and whatever a
     # future recorded exchange or raw transaction adds in the same shape.
-    # The prose the formatter never touches is measured instead by
-    # max-doc-length below
+    # max-doc-length below reaches a docstring and a whole-line comment,
+    # not a comment following code on its line -- with this ignored,
+    # nothing here measures one at all
     "line-too-long", # E501
     # every site is a public entry point -- the client's constructor, its
     # `from_chain` alternative, `http_request` itself -- where each
@@ -920,9 +921,11 @@ max-complexity = 10
 [tool.ruff.lint.pycodestyle]
 # 80 columns on the prose, where the code keeps the formatter's 88. Not a
 # compromise between two numbers: ruff-format reflows code and never a
-# comment or a docstring, so 88 is what it can enforce and this is the rest
-# -- the half of a file that carries the reasoning, held to the width every
-# markdown file here is already held to by MD013.
+# comment or a docstring, so 88 is what it can enforce: max-doc-length
+# reaches a docstring and a whole-line comment and stops there, held to
+# the width every markdown file here is already held to by MD013. A
+# comment following code on its line is outside the key, and since this
+# tree ignores line-too-long, nothing measures it here at any width.
 # W505 is in the "W" set selected above and is inert without this line,
 # ruff having no default doc length; setting it is the whole of the switch.
 # A comment that ends in a URL is exempt, which is the amnesty MD013 gives
