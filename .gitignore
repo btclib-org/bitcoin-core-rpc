@@ -26,11 +26,12 @@ wheels/
 
 # Environments: one list, not the literal venv/ and the wildcard venv*/
 # each naming it. Nothing here creates a virtualenv under a name venv*/
-# would catch and venv/ would not -- the alternate-interpreter one
-# CONTRIBUTING.md's other-interpreter run gives is dot-prefixed
-# (.venv-3.10), which neither pattern matches.
+# would catch and venv/ would not. The dotted side is where a wildcard
+# earns its place: CONTRIBUTING.md's other-interpreter run gives
+# UV_PROJECT_ENVIRONMENT=.venv-3.10, and a suffix makes a name .venv
+# alone does not match.
 .env
-.venv
+.venv*
 env/
 envtest/
 venv/
