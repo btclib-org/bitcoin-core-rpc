@@ -330,6 +330,40 @@ sides'.
   [the organization standard][std] already set it at the current
   ceiling.
 
+### Four comments say what `max-doc-length` reaches
+
+- **The `[tool.ruff.lint.pycodestyle]` comment no longer calls the key
+  "the rest -- the half of a file that carries the reasoning"** (issue
+  btclib-org/.github#841): a comment following code on its line is part
+  of that half too, and the key does not hold it to any width -- section
+  9's own ruling, landed there first. The comment keeps the MD013 anchor
+  for the 80, and the W505-is-inert-without-the-key sentence; the URL
+  exemption sentence beside it is left untouched -- it is section 5's
+  own wording, transcribed, and itself wrong for a different reason
+  (btclib-org/.github#866) that belongs to the standard to settle.
+- **The `"line-too-long"` ignore reason drops the same claim stated the
+  other way round**: it no longer says `max-doc-length` measures "the
+  prose the formatter never touches" instead of E501. This tree ignores
+  `line-too-long`, so with a trailing comment outside `max-doc-length`'s
+  reach, nothing here measures one at any width.
+- **`.pre-commit-config.yaml`'s yamllint comment carried the same claim
+  in a second file**: "the hook above holds markdown to 80 columns and
+  ruff holds Python comments and docstrings to the same" now names what
+  ruff holds -- a docstring and a whole-line comment. That sentence is
+  there to say why yaml needed a width of its own, and it says it with
+  the same force once the claim about Python is true; the issue's own
+  census names this site in four trees, none of them counted when it was
+  filed.
+- **The `toml-comment-width` comment six lines below it carried it a
+  fourth time**, and no census names that one: it said "a Python comment
+  has W505" and that `[tool.ruff.lint.pycodestyle]` "names 80 columns as
+  the width of every comment in this tree". W505 reaches a docstring and
+  a whole-line comment, so it now names those two. The sentence is there
+  to say that toml prose was the last kind held to nothing, and that is
+  what it still says. Found by the review of this branch rather than by
+  the issue, in the file this branch had already opened -- which is why
+  it is here and not filed.
+
 ## v2026.9.3
 
 ### Repository
