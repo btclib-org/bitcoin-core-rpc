@@ -933,8 +933,8 @@ max-complexity = 10
 # tree ignores line-too-long, nothing measures it here at any width.
 # W505 is in the "W" set selected above and is inert without this line,
 # ruff having no default doc length; setting it is the whole of the switch.
-# A comment that ends in a URL is exempt, which is the amnesty MD013 gives
-# an unbreakable link
+# Section 9 of btclib-org/.github says which lines past this width go
+# unreported
 max-doc-length = 80
 
 [tool.ruff.lint.pydocstyle]
