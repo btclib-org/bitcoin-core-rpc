@@ -582,8 +582,17 @@ precision = 2
 # The price is that a line no ordinary run reaches no longer disappears
 # into a rounding step. It is covered by patching what stands in the way --
 # which is what the transport tests already do to `_OPENER` -- or it
-# carries a `pragma: no cover` with the reason beside it. Neither of those
-# is a build left red.
+# carries a `pragma: no cover` with its reason on that same line, after
+# ` -- `. Neither of those is a build left red.
+# The position is what makes that reason a gate rather than a census:
+# `git grep -nE 'pragma: no cover$' -- '*.py'` names every site giving
+# none, and a reason written above the line is out of its reach, so a
+# site with no reason anywhere would read like one carrying a paragraph.
+# A reason too long for the line goes above it as well, or is the
+# docstring the file already opens with where one reason covers every
+# pragma under it -- `.github/scripts/rpc_smoke.py` is this tree's --
+# while the inline half goes on naming the case. Section 8 of
+# btclib-org/.github is where that is decided for every repository
 # Measured on one interpreter, 3.14, and on one operating system, and that
 # is enough at 100: there is no sys.version_info branch in this tree, and
 # the one sys.platform branch -- the datadir table in `default_datadir` --
