@@ -246,6 +246,49 @@ sides'.
   position, the grep that position buys, and the comment or docstring a
   reason too long for the line goes to as well.
 
+### `CLAUDE.md`'s worktree fence takes the standard's converged form
+
+- **The fence's push is `git -C "$WT" push origin
+  HEAD:refs/heads/<branch>`, and the `cd "$WT"` line above it is gone**
+  (issue btclib-org/.github#824): a `cd` binds the shell that runs it,
+  so a session that runs each line as its own command starts the next
+  one in the directory it began in — the primary checkout — and a push
+  there offers that checkout's `HEAD` instead of the worktree's. The
+  paragraph the standard carries below its own fence comes with the
+  change, giving the binding and its limit: `git -C ""` is documented to
+  leave the working directory unchanged, so a `-C` written against a
+  `WT` the session has already lost lands in the same wrong tree, exit 0
+  and no diagnostic.
+- **The create's condition is stated rather than left implicit.** The
+  `>` closing `<branch>` is reached only where the reader's own
+  directory already holds that name, the `<` before it having to succeed
+  first, where the sentence it replaces promised a file the paste
+  creates with no condition on it at all.
+- **The removal guard's sentence names the empty value too.** `${WT:?}`
+  fails on an unset **or empty** `WT`, and the sentence said *with no
+  `$WT` set*, which is narrower than the guard; the standard's next
+  sentence comes with it, that those are the only cases it catches and a
+  `$WT` an earlier session left holding a path expands like any other.
+- **A paragraph below the removal fence names the sha the three
+  converged at**, `btclib-org/.github`'s `20ad654`, so a later reader
+  compares this fence against a tree rather than against an issue's
+  quotation of one. Those three paragraphs are that tree's bytes; the
+  paragraph about the environment, which sits between the push and the
+  removal, is this tree's own.
+- **The landed entry *`CLAUDE.md`'s worktree fence carries no `uv sync`*
+  above describes a fence this one changes.** Its first and third
+  bullets speak of a `cd "$WT"` line standing alone and of a sync
+  chained to that `cd`, and the fence has no `cd` now. What they rest
+  on survives — a line that writes goes in a fence of its own — and the
+  reason below the fence is now unconditional rather than turning on a
+  lost `WT`: no line of the block moves the shell, `git -C` binding the
+  one command it is given. Its second bullet stands, re-measured on the
+  three-line block: read as a script with `-n`, unfilled it is a syntax
+  error to `/bin/zsh` 5.9, to the `bash` 3.2.57 macOS ships as
+  `/bin/bash` and `/bin/sh`, and to `bash` 5.3.15, and `<scratchpad>`
+  filled alone, or `<tracker>`, or `<branch>`, leaves the same error at
+  the same line.
+
 ## v2026.9.3
 
 ### Repository
