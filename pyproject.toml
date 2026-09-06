@@ -726,11 +726,16 @@ ignore = [
     "undocumented-magic-method", # D105
     "undocumented-public-init",  # D107
     # code length is enforced by the formatter, which reflows to its 88
-    # columns everything it is allowed to rewrite. What is left for E501 to
-    # find is what no width the formatter controls can break: a url in the
-    # module's own docstring, a `# type: ignore` or `# ruff: ignore` pragma
-    # that pushes an otherwise-short line past the limit, and whatever a
-    # future recorded exchange or raw transaction adds in the same shape.
+    # columns everything it is allowed to rewrite. E501 measures a line
+    # up to the start of a pragma it recognises, `# type: ignore` and
+    # `# ruff: ignore` among them, and passes over one ending in a url
+    # that begins before the limit. What is left for it to find is what
+    # no width the formatter controls can break and the rule does not
+    # pass over: `DEFAULT_SIGNET_CHALLENGE`'s recorded script, which the
+    # secret scanner's `# pragma: allowlist secret` -- no pragma of
+    # E501's -- carries past the limit, and whatever a future recorded
+    # exchange or raw transaction adds in the same shape.
+    # `uv run ruff check --select E501 --no-cache .` lists them
     # max-doc-length below reaches a docstring and a whole-line comment,
     # not a comment following code on its line -- with this ignored,
     # nothing here measures one at all
