@@ -388,6 +388,28 @@ sides'.
   words after it is passed over just as well, and it is reported once
   the code ahead of it is itself past the limit.
 
+### The `max-doc-length` comment leaves the exemptions to section 9
+
+- **The comment no longer states the URL amnesty unconditionally**
+  (issue btclib-org/.github#866): W505 passes a line over where its last
+  word holds `://` and everything ahead of that word fits the width, and
+  reports one whose prose is already past the width before the link
+  begins. The comment points at section 9 of `btclib-org/.github`, which
+  states that condition and the pragma one beside it, rather than
+  wording either a second time here.
+- **This supersedes *Four comments say what `max-doc-length` reaches*
+  where it leaves that sentence standing as section 5's own wording**:
+  section 5 now calls the exemption conditional and points at section 9
+  for the condition, so what that entry left to the standard is settled.
+- **Measured with this tree's own configuration**: a whole-line comment
+  ending in a link that begins past the width is reported, the same
+  comment with the link beginning before it is not, and one carrying
+  words after the link is reported again. The controls are an
+  over-width comment holding no link and one whose link is spelt
+  without the `://`, both reported. `ruff --isolated` drops the
+  `preview` this tree sets and measures a line whole rather than
+  stopping at a pragma, which is the wrong instrument for that half.
+
 ## v2026.9.3
 
 ### Repository
