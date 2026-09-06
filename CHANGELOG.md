@@ -224,6 +224,28 @@ point: neither file states a number, because a stated one is a line
 every open branch has to edit under a driver that would keep both
 sides'.
 
+### The smoke script's pragmas name the case each one is
+
+- **A `# pragma: no cover` in `.github/scripts/rpc_smoke.py` carries its
+  own case after ` -- `, on the line it sits on** (issue
+  btclib-org/.github#838). Section 8 of the organization standard puts a
+  pragma's reason there, which is what makes
+  `git grep -nE 'pragma: no cover$' -- '*.py'` a gate rather than a
+  census: it names every site giving no reason at all, where a reason
+  written above the line is out of its reach. The reason all of them
+  share stays where it is, in the module docstring -- what is excluded
+  takes a real `BitcoinCoreRpcClient` talking to a real node, and
+  mocking that node would be the recording this script exists to not
+  trust -- and what a line adds to it is what that function does with
+  the node: the bitcoind it starts, the wallets it needs loaded, the
+  reply it reads off the wire before the client classifies it.
+- **`pyproject.toml`'s `[tool.coverage.report]` comment says where a
+  pragma's reason goes** (issue btclib-org/.github#838). A reason
+  "beside" the pragma reads as either half, and the sentence this tree
+  writes about the rule is what a reader here goes by, so it names the
+  position, the grep that position buys, and the comment or docstring a
+  reason too long for the line goes to as well.
+
 ## v2026.9.3
 
 ### Repository
