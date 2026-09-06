@@ -663,7 +663,7 @@ repos:
     hooks:
       - id: check-sdist
         args: [--inject-junk, --installer=pip]
-        additional_dependencies: ["uv_build>=0.12.7,<0.13"]
+        additional_dependencies: ["uv_build>=0.12.0,<0.13"]
   # pyroma reads the metadata through `build` too, which takes its
   # non-isolated path where the environment satisfies requires and falls
   # back to an isolated build otherwise. The specifier is [build-system]'s
@@ -674,4 +674,4 @@ repos:
     rev: "5.0.1"
     hooks:
       - id: pyroma
-        additional_dependencies: ["uv_build>=0.12.7,<0.13"]
+        additional_dependencies: ["uv_build>=0.12.0,<0.13"]

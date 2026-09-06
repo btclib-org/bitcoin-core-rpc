@@ -301,6 +301,35 @@ sides'.
   a `.gitignore` holding `*` inside the environment it creates, so
   `git check-ignore` is what answers whether this file covers a name.
 
+### The `uv_build` floor moves to the boundary it keeps, not above it
+
+- **`pyproject.toml`'s `[build-system] requires` floor moves from
+  `uv_build>=0.12.7,<0.13` to `uv_build>=0.12.0,<0.13`** (issue
+  btclib-org/.github#858): the comment beside it already measured
+  `0.12.0` as where the sdist's own `pyproject.toml` becomes a
+  normalized copy with `pyproject.toml.orig` kept beside it, and the
+  floor sat above that boundary anyway, aligned with the rev
+  `.pre-commit-config.yaml` pins for `uv-pre-commit` — one of the two
+  alignments section 3 of [the organization standard][std] now names as
+  rejected. The comment is rewritten to say the floor sits at the
+  boundary, and to record, without presupposing a floor above it, that
+  both that rev and a sibling's own number were weighed and declined.
+  This supersedes the entry above for #368: the floor it sets and the
+  reason it gives for sitting above the boundary are what move here.
+- **`.pre-commit-config.yaml`'s `check-sdist` and `pyroma` hooks follow
+  the same floor in their `additional_dependencies`**: both are a copy
+  of `[build-system] requires`, each carrying a comment saying so, and
+  both move from `uv_build>=0.12.7,<0.13` to the same
+  `uv_build>=0.12.0,<0.13`. Widening the range this way is a no-op for
+  what either hook resolves — `<0.13` still caps both, and pip takes the
+  newest version in range either way — so nothing `check-sdist` builds
+  changes.
+- **`[tool.uv] required-version` does not move**: it answers what uv
+  reads `uv.lock` with rather than what range an isolated build may
+  resolve for the backend, and section 1 of
+  [the organization standard][std] already set it at the current
+  ceiling.
+
 ## v2026.9.3
 
 ### Repository
