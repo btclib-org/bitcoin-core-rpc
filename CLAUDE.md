@@ -103,29 +103,43 @@ the gates and the commits all happen in the worktree before the push.
 ```shell
 WT=<scratchpad>/wt-<tracker>-<issue>-<repo>-<role>
 git worktree add "$WT" origin/main -b <branch>
-cd "$WT"
-git push origin HEAD:refs/heads/<branch>
+git -C "$WT" push origin HEAD:refs/heads/<branch>
 ```
 
 `-b <branch>` sits after the path and the commit-ish so that the
 placeholder ends the command, which is section 9 of `btclib-org/.github`'s rule.
-With the placeholder ahead of `"$WT"` the `>` closing it takes that path
-as its target, and a path with no directory at it is a file the paste
-creates.
+With the placeholder ahead of `"$WT"`, its `<` and its `>` are
+redirections performed left to right, so the `>` is reached only where
+the reader's own directory already holds the name `branch`: there the
+`<` succeeds, the line runs, and the `>` takes `"$WT"` as its target —
+a path with no directory at it is the file it creates. Ordinarily
+nothing holds that name, so the `<` fails first (`no such file or
+directory: branch`) and the line ends before the `>` opens anything.
+
+The push names the worktree with `git -C "$WT"` because a `cd` binds the
+shell that runs it: a session that runs each line as its own command
+starts the next one in the directory it began in, the primary checkout,
+so a push after a `cd` offers that checkout's `HEAD` instead of the
+worktree's. `env -C <dir>` is the same binding for a command that takes
+no `-C` of its own. Neither binding rescues the assignment above it: a
+session that loses the `cd` loses `WT` with it, and `git -C ""` is
+documented to leave the working directory unchanged, so that push lands
+the same way, exit 0 and no diagnostic. What the `-C` buys is a path
+that can be written out in full; write it out.
 
 No line of the block writes where a paste of it lands. Creating the
 environment is `CONTRIBUTING.md`'s *The environment and the gates*, run
 in the worktree, and that step is two commands — `uv sync`, and the
 `uv run pre-commit install` that puts the lint gate on a commit — where
-a line chained to the `cd` carries only the first. Section 9's *A line
-that writes goes in a fence of its own* is why the sync is not such a
-line: a sync writes in the directory the shell is standing in, and with
-`WT` unset `cd "$WT"` is `cd ""`, which `/bin/zsh` 5.9 and the `bash`
-3.2.57 macOS ships as `/bin/bash` and `/bin/sh` answer 0 where `bash`
-5.3.15 refuses it — so for a reader of this file that directory is the
-primary checkout above, and `.gitignore` covers the `.venv` a sync
-leaves there. The block's own parse is no substitute for the rule:
-unfilled, it is a syntax error to each of those shells reading it as a
+a line chained onto the block carries only the first. Section 9's *A
+line that writes goes in a fence of its own* is why the sync is not such
+a line: a sync writes in the directory the shell is standing in, and no
+line of the block moves the shell, `git -C` binding the one command it
+is given — so for a reader of this file that directory is the primary
+checkout above, and `.gitignore` covers the `.venv` a sync leaves there.
+The block's own parse is no substitute for the rule: unfilled, it is a
+syntax error to `/bin/zsh` 5.9, to the `bash` 3.2.57 macOS ships as
+`/bin/bash` and `/bin/sh`, and to `bash` 5.3.15, each reading it as a
 script, and the same lines with values filled in parse cleanly, so what
 stops such a paste is the placeholders' shape rather than anything put
 there to stop it -- their shape together, not any one of theirs:
@@ -138,11 +152,19 @@ its own: the block above ends in a placeholder, and a shell that
 discards that line as a parse error reads the next as a fresh command —
 which, in one block, is this line against whatever `$WT` already held.
 Standing alone it is a second fence, so `${WT:?}` is what it writes:
-with no `$WT` set the expansion fails and the removal does not run.
+with `$WT` unset or empty the expansion fails and the removal does not
+run. Those are the only cases it catches — a `$WT` an earlier session or
+command left holding a path expands, and the removal runs against
+whatever worktree that path names.
 
 ```shell
 git worktree remove --force "${WT:?}"
 ```
+
+What the fence says about the create, the push and the removal converged
+in `btclib-org/.github`'s `CLAUDE.md` at `20ad654`, which is what a
+later reader compares it against rather than an issue's quotation of it.
+The environment paragraph above is this tree's own.
 
 **Never `git stash` in a worktree either: `refs/stash` is shared.** A
 worktree isolates files, not refs, so `git stash push` pushes onto the same
