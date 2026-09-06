@@ -289,6 +289,18 @@ sides'.
   filled alone, or `<tracker>`, or `<branch>`, leaves the same error at
   the same line.
 
+### `.gitignore` covers the environment the other-interpreter run creates
+
+- **`.venv*` replaces the literal `.venv`** (closes #375):
+  `CONTRIBUTING.md`'s other-interpreter run gives
+  `UV_PROJECT_ENVIRONMENT=.venv-3.10`, and a suffix makes a name the
+  literal does not match, so `git check-ignore -v .venv-3.10` found no
+  line to name. `venv/` stays literal beside it, on the reason the
+  comment above the list gives for it.
+- **`git status` is silent about such a directory either way**: uv writes
+  a `.gitignore` holding `*` inside the environment it creates, so
+  `git check-ignore` is what answers whether this file covers a name.
+
 ## v2026.9.3
 
 ### Repository
