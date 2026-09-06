@@ -30,21 +30,15 @@
 # for 0.12.0 are where the normalized copy and the .orig kept beside it
 # are announced.
 #
-# It sits above that boundary and no higher than the rev
-# .pre-commit-config.yaml pins for uv-pre-commit -- alignment and not a
-# constraint, and a range rather than an equality on purpose:
-# pre-commit.ci moves that rev upward on this repository's own weekly
-# schedule with nothing moving this number, so a floor written equal to
-# it stops being equal at the next bump where a floor under it stays
-# right. The upper bound, and the number to lower first if a resolver
-# ever wants this one lower:
-#
-#     grep -A1 'astral-sh/uv-pre-commit' .pre-commit-config.yaml
-#
-# A sibling's floor is no second reason for it either, and that is the
-# standard's second alignment target declined rather than overlooked:
-# two trees taking their floor from their own rev sit at different
-# numbers between the bumps.
+# The floor sits at that boundary rather than above it. Two alignments
+# were weighed and declined instead, both now the standard's own named
+# rejected alternatives: the rev .pre-commit-config.yaml pins for
+# uv-pre-commit, and a sibling's own number. Struck as an equality or as
+# a bound the floor stays under, either one excludes backends that keep
+# the property measured above, and nothing checks the number it lands
+# on. Neither is a fixed target either: pre-commit.ci moves this rev on
+# this repository's own weekly schedule and a sibling's on the
+# sibling's, with nothing moving this number.
 #
 # [tool.uv] required-version below asks a different question -- the uv
 # that reads uv.lock, not the backend that builds the archive -- and
@@ -54,7 +48,7 @@
 # The ceiling is the next minor, which is where uv's versioning policy
 # puts a breaking change, this backend releasing with uv and versioned by
 # it
-requires = ["uv_build>=0.12.7,<0.13"]
+requires = ["uv_build>=0.12.0,<0.13"]
 build-backend = "uv_build"
 
 [project]
