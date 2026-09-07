@@ -444,6 +444,24 @@ sides'.
   rest of that issue, one decision for every tree carrying the hook
   rather than this tree's to take alone.
 
+### `scorecard.yml`'s `actions: read` carries its own reason
+
+- **The job's `actions: read` sits under a comment naming what asks for
+  it, and `contents: read` moves up to sit under the comment that
+  already explained it** (issue btclib-org/.github#871):
+  `ossf/scorecard`'s `checks/raw/github/packaging.go` calls
+  `Client.Actions.ListWorkflowRunsByFileName` for a workflow file its
+  Packaging check recognizes as publishing a package, which
+  `release.yml` is by its `pypa/gh-action-pypi-publish` step. The
+  wording is `btclib-secp256k1`'s own, landed there first.
+- **`contents: read` is granted here rather than inherited**: a job's
+  own `permissions:` block replaces the workflow-level one, so a scope
+  the block omits is `none` for that job, which one run of `test.yml`
+  shows — the `changes` job, whose block names `pull-requests: read`
+  alone, logs no `Contents` in its `GITHUB_TOKEN Permissions` group,
+  while a job of the same run declaring no block logs `Contents: read`
+  under the same workflow-level grant.
+
 ## v2026.9.3
 
 ### Repository
