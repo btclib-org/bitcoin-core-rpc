@@ -497,12 +497,16 @@ at now and then.
 
 **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
 needing more must declare it, and the declarations are the record of
-which jobs do — anchored, so that a comment naming a permission stays
-out of the answer:
+which jobs do — keyed on where the key sits, first on its line after
+the indentation, so that a comment naming a permission stays out of the
+answer while a grant carrying a trailing comment stays in:
 
 ```shell
-git grep -n ': write$' -- .github/workflows
+git grep -nE '^ +[a-z-]+: write([[:blank:]]+#|$)' -- .github/workflows
 ```
+
+A grant written some other way — `permissions: write-all`, a flow
+mapping, or a quoted key or value — is outside that answer.
 
 `release.yml` takes `contents: write` on `github-release`, and
 `id-token: write` on `publish-pypi` and `publish-testpypi`, the OIDC
@@ -530,11 +534,16 @@ other job in `test.yml` without even `contents: read`, refusing their
 checkout steps. Both are named here for that reason (issue #145,
 mirroring btclib-org/btclib-secp256k1#281's fix for the same mechanism).
 
-One elevation per job, and none of them holding another's: the job that
-signs the distribution files writes no release, the job that writes the
-release holds no OIDC token, and neither builds anything. `attest` is
-where that costs a job rather than two lines, and it is the shape to
-keep.
+One elevation per job is the shape most jobs keep: the job that signs
+the distribution files writes no release, the job that writes the
+release holds no OIDC token, and neither builds anything.
+
+Four jobs are the exception, each declaring two elevations rather than
+one, and the reason for every pair already sits where it is declared:
+`claude-review.yml`'s `review` and `mention`, and `scorecard.yml`'s
+`analysis`, are named above. `release.yml`'s `attest` holds `id-token:
+write` with `attestations: write` besides — the pair its own block
+already explains, rather than repeated here.
 
 Artifact attestations are free on public repositories on every current
 plan, and unavailable on a private one outside Enterprise Cloud — so
