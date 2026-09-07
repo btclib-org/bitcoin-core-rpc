@@ -647,6 +647,23 @@ sides'.
   matched section 7's list, and any number there expires the next time
   that list grows. `btclib`'s copy of the module writes "the rest".
 
+### `conventions_test.py`'s module docstring names the ways and counts nothing
+
+- **The last paragraph of `tests/conventions_test.py`'s module docstring
+  states no number of the assertions below it** (issue
+  btclib-org/.github#906): it said the four assertions below are the ones
+  that fail on the ways a declaration actually rots, and the ways it
+  listed left out `test_the_table_is_not_empty`, which is what fails
+  where a column added to the table or the backticks dropped stops the
+  row pattern matching. An unmatched table is the first of the ways now,
+  the ways standing in the order the assertions are defined in rather
+  than one to an assertion — that table fails the two-halves assertion as
+  well. The number is gone rather than corrected, section 9 of the
+  organization standard refusing a stated total, a line every open branch
+  has to edit. The wording is `btclib-node`'s, landed there as
+  btclib-org/btclib-node#903; btclib-org/.github#906 is filed against the
+  copies of this module across the organization and stays open.
+
 ## v2026.9.3
 
 ### Repository
