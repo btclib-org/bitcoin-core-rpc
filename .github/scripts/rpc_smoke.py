@@ -57,7 +57,7 @@ the download that verifies which binary it is.
 -- `check`, `port_is_free`, `rest_outpoint`, `check_legacy_reply`,
 `check_v2_reply`, `check_cookie` and `print_log_tail`, plus `main`'s own
 argument parsing.
-Everything else here is `# pragma: no cover`: it takes a real
+Everything else here carries `pragma: no cover`: it takes a real
 `BitcoinCoreRpcClient` talking to a real node, and mocking that node
 would be the recording this script exists to not trust. That half is
 `integration-bitcoind.yml`'s to monitor, against Core itself.

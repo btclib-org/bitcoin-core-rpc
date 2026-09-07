@@ -462,6 +462,22 @@ sides'.
   while a job of the same run declaring no block logs `Contents: read`
   under the same workflow-level grant.
 
+### The smoke script's docstring names the pragma rule rather than quoting it
+
+- **`.github/scripts/rpc_smoke.py`'s module docstring writes
+  `pragma: no cover` in backticks and without its `#`** (closes
+  btclib-org/.github#890): section 8 of the organization standard asks
+  prose quoting the rule to write it that way, the `#` form being what
+  coverage's own exclusion pattern matches, which reads the raw source a
+  line at a time rather than tokenizing it first. What it costs is not
+  the percentage — what such a match excludes is the statement the
+  matched line belongs to, and a module docstring is no statement
+  coverage measures — it is a pattern naming a line where nothing is
+  excluded and nothing is wrong. The sentence's verb is `carries`:
+  without the `#` its backticked text names the rule rather than quoting
+  the comment those lines hold, and a function carries a rule rather
+  than being one.
+
 ## v2026.9.3
 
 ### Repository
