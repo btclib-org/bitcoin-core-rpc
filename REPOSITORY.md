@@ -496,12 +496,26 @@ at now and then.
 ## Token permissions
 
 **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
-needing more must declare it. Only `release.yml`'s `github-release` does
-(`contents: write`), plus `id-token: write` on `publish-pypi` and
-`publish-testpypi`, and `id-token: write` with `attestations: write`
-on `attest`. The
-workflow-level `permissions: contents: read` is belt and braces; keep it,
-it is what makes the intent readable in the file.
+needing more must declare it, and the declarations are the record of
+which jobs do — anchored, so that a comment naming a permission stays
+out of the answer:
+
+```shell
+git grep -n ': write$' -- .github/workflows
+```
+
+`release.yml` takes `contents: write` on `github-release`, and
+`id-token: write` on `publish-pypi` and `publish-testpypi`, the OIDC
+token that lets each index trust the workflow itself, with
+`attestations: write` beside it on `attest`. `claude-review.yml` takes
+`pull-requests: write` to post its review and `id-token: write` for the
+token its action mints at startup, on `review` and on `mention` alike.
+`codeql.yml`'s `analyze` and `scorecard.yml`'s `analysis` take
+`security-events: write` to file a SARIF as code-scanning alerts, and
+`analysis` takes `id-token: write` besides, for the transparency-log
+entry its published score rests on. The workflow-level
+`permissions: contents: read` is belt and braces; keep it, it is what
+makes the intent readable in the file.
 
 `release.yml`'s `test` job declares a `permissions:` block too, and for a
 different reason: not because it needs more itself, but because
