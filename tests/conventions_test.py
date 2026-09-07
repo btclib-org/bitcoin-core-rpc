@@ -73,10 +73,9 @@ _HEADING = "## Convention tests"
 # MULTILINE because eighty columns wrap the list of names across lines
 # and the non-greedy match then stops at the first full stop that ends
 # one -- which is why no name in that list may carry a full stop of its
-# own. "none" is a legal answer and the one this repository gives, and it
-# fits a line; the six btclib-secp256k1 names do not, which is where the
-# single-line form was found wanting. The two halves are checked against
-# each other below rather than each against nothing
+# own. "none" is a legal answer this repository does not give today; the
+# two halves are checked against each other below rather than each
+# against nothing.
 _NOT_TESTED = re.compile(r"^Not tested here: (.+?)\.$", re.MULTILINE | re.DOTALL)
 # a table row, and the separator row is what the second group's leading
 # backtick excludes: `| --- | --- |` has no backtick to match
@@ -104,11 +103,15 @@ _ROWS = tuple((m["convention"], m["module"]) for m in _ROW.finditer(_SECTION))
 
 
 def test_the_table_is_not_empty() -> None:
-    """A declaration that parsed to nothing is the failure that hides.
+    """No other assertion here reports an unmatched table as one.
 
-    Every assertion below quantifies over the rows, so a table this
-    module's regex stopped matching -- a column added, the backticks
-    dropped, the heading retitled -- would satisfy all of them silently.
+    The assertions parametrized on the rows are skipped on an empty
+    parameter set, so a table this module's regex stopped matching -- a
+    column added, the backticks dropped -- leaves the two-halves
+    assertion below, which is not parametrized, to fail naming every
+    convention the table declared as accounted for by neither half. A
+    retitled heading reaches neither: _section asserts while the module
+    is imported, so collection errors.
     """
     assert _ROWS, f"{_README.name}'s {_HEADING} section parsed to no rows"
 
@@ -162,9 +165,9 @@ def test_the_two_halves_account_for_every_convention() -> None:
 
     This is the assertion the declaration exists for. Either half alone
     is satisfiable by saying less: a table naming three conventions is
-    true about those three and silent about the other five, and silence
-    is exactly what section 7's escape clause makes unreadable. Together
-    they have to name each of them once.
+    true about those three and silent about the rest, and silence is
+    exactly what section 7's escape clause makes unreadable. Together
+    they have to name each convention once.
     """
     match = _NOT_TESTED.search(_SECTION)
     assert match, (

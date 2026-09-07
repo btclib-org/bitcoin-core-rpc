@@ -623,6 +623,30 @@ sides'.
   declaration rather than a directory — stays; only its premise now
   points at `tests/README.md` instead of restating it.
 
+### `conventions_test.py`'s comment and docstrings say what is true here
+
+- **The comment above `_NOT_TESTED` no longer says `none` is the answer
+  this repository gives** (issue btclib-org/.github#903): the
+  `Not tested here` line of `tests/README.md` names conventions, so the
+  clause was false here, and the sibling list it cited as the reason for
+  `re.DOTALL` sent a reader to another repository for what this tree's
+  own answer shows, wrapping across lines as it does. The wording is
+  `btclib-node`'s, which keeps `none` explained as the literal the code
+  below special-cases without claiming it.
+- **`test_the_table_is_not_empty`'s docstring no longer says every
+  assertion below it goes quiet on a table the row pattern stopped
+  matching** (issue btclib-org/.github#904): the assertions parametrized
+  on the rows are skipped for an empty parameter set, and the two-halves
+  assertion, which is not parametrized, fails on that same table naming
+  every convention the table declared as accounted for by neither half.
+  A retitled heading reaches neither, the section slice asserting while
+  the module is imported. What this assertion adds is naming the table
+  rather than the conventions, and the docstring now says so.
+- **The two-halves docstring states no count of what the table leaves
+  silent** (issue btclib-org/.github#905): the number it gave no longer
+  matched section 7's list, and any number there expires the next time
+  that list grows. `btclib`'s copy of the module writes "the rest".
+
 ## v2026.9.3
 
 ### Repository
