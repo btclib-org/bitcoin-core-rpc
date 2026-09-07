@@ -599,6 +599,30 @@ sides'.
   tree. The comment giving the reason there is no `html_static_path` is
   this tree's own and stays where it is.
 
+### `conventions_test.py` says what it reads and where it departs
+
+- **The docstring of `tests/conventions_test.py` says what this copy
+  reads and which of its departures are decided** (closes
+  btclib-org/.github#690): section 14 of the organization standard asks
+  that header of every copy of the module, and the failure mode is why it
+  asks — a defect in the parsing the shared job needs sits in every copy
+  carrying it and turns nothing red anywhere, so a fix that is not about
+  one tree's rows or its root has to be carried to every copy in the same
+  campaign.
+- **What it reads is `tests/README.md` beside it**, and a module a row
+  names resolves against that same directory.
+- **The departure it records is `_CONVENTIONS`**, which transcribes
+  section 7's list rather than reading it off the standard: the standard
+  is another repository's file, so a copy is the only form the list takes
+  here.
+- **The paragraph naming how the organization's suites each call their
+  convention tests is gone from that docstring**: `tests/README.md`
+  already says it, so the docstring was the second statement section 9
+  refuses, and section 14 names that naming point as the thing the header
+  is *not* about. The conclusion it reached — the audit reads a
+  declaration rather than a directory — stays; only its premise now
+  points at `tests/README.md` instead of restating it.
+
 ## v2026.9.3
 
 ### Repository
