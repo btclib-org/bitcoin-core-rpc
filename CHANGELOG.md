@@ -478,6 +478,28 @@ sides'.
   the comment those lines hold, and a function carries a rule rather
   than being one.
 
+### The token grants are read from the workflows rather than bounded in prose
+
+- **`REPOSITORY.md`'s *Token permissions* gives the command that answers
+  which jobs elevate** (issue btclib-org/.github#891):
+  `git grep -n ': write$' -- .github/workflows` is anchored so that a
+  comment naming a permission stays out of the answer, which here is no
+  hypothetical — workflows declaring no write grant carry comment lines
+  that name one. The sentence it replaces called `release.yml`'s the
+  only grants in the tree, where `claude-review.yml`, `codeql.yml` and
+  `scorecard.yml` each hold their own.
+- **`scorecard.yml`'s workflow-level comment sends a reader to the job
+  block instead of naming what the job does with its grants** (issue
+  btclib-org/.github#891). The comment it replaces named part of a block
+  that the same file, below it, says is read as a whole: a scope the
+  block omits is `none` for that job. The wording is
+  `btclib-secp256k1`'s, so a port of it into the remaining trees copies
+  rather than decides.
+- **The job's own `permissions:` block is untouched.** It is
+  byte-identical to `btclib-secp256k1`'s and `btclib-node`'s, and
+  btclib-org/.github#893 is where the clause quantifying over every
+  scope is corrected for the three together.
+
 ## v2026.9.3
 
 ### Repository
