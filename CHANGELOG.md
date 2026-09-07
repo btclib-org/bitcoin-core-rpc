@@ -533,6 +533,45 @@ sides'.
 - **Neither paragraph is rewrapped**: the qualifier leaves both lines
   inside the width their paragraphs already keep, so no word moves.
 
+### Token permissions names its own exceptions and reads a grant's position
+
+- **Two elevations on one job is stated as the exception to the
+  one-elevation shape, with the reason for each pair** (closes
+  btclib-org/.github#891). `release.yml`'s `attest`, `scorecard.yml`'s
+  `analysis`, and `claude-review.yml`'s `review` and `mention`, each
+  hold two write grants, which the shape sentence alone read as
+  excluding. The wording is `btclib`'s; every clause was re-derived
+  against this tree's own workflows before being taken, and the one
+  clause not taken — the replace semantics of a job's own
+  `permissions:` block — stays at the key in `scorecard.yml` rather
+  than being repeated here.
+- **`REPOSITORY.md`'s *Token permissions* hands the reader `git grep
+  -nE '^ +[a-z-]+: write([[:blank:]]+#|$)' -- .github/workflows`**
+  (issue btclib-org/.github#897): the `: write$` form it replaces drops
+  a declaration carrying a trailing comment along with the comment
+  lines it was there to exclude. *The token grants are read from the
+  workflows rather than bounded in prose* above names the `$` as what
+  keeps a comment naming a permission out of the answer, and that
+  sentence describes a command this file no longer carries: what keeps
+  one out now is the key's own position, a comment line opening with a
+  `#` where `[a-z-]` cannot match. This tree carries no declaration
+  with a trailing comment today, so both forms answer the same twelve
+  grants and the agreement proves nothing.
+- **The comment branch takes `[[:blank:]]` rather than a space**:
+  `actionlint`, which the lint gate runs, accepts a tab between a grant
+  and its comment, and the census reads that line rather than resting
+  on the hooks that rewrite the tab.
+- **The shapes named beside the command as outside its answer are ones
+  this tree's gate leaves standing**: `actionlint` takes `permissions:
+  write-all`, a flow mapping and a quoted key or value each as a grant,
+  and `prettier` keeps each rather than rewriting it into what the
+  pattern reads, as it does a double space or a trailing space.
+- **Folding a shape into the pattern would leave the next one out**:
+  `contents: >-` with `write` on the line below is a grant `actionlint`
+  accepts and `prettier` hands back unchanged, and a line-oriented
+  pattern reads a spelling where a permission is a value in a parsed
+  document.
+
 ## v2026.9.3
 
 ### Repository
