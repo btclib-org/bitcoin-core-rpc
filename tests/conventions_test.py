@@ -11,14 +11,13 @@ of them. That clause is right, and its price is that an *absent*
 convention test is indistinguishable from a convention this repository
 does not have. Nothing anywhere recorded which of the two it was.
 
-A filename cannot answer it either. The suites of the organization name
-the same idea three ways -- a module per bullet in btclib, a `test_`
-prefix in btclib-secp256k1, and here several of these checks folded into
-census_test.py, the one file that is about this package's public surface
-rather than about any one of its modules. So the audit reads a
-declaration rather than a directory, and this module is what keeps the
-declaration from being prose: section 7's own rule, that a convention
-worth stating is worth a test, applied to section 7 itself.
+A filename cannot answer it either, for the reason tests/README.md gives
+where it says the suites of the organization name the same idea
+differently; restating that answer here would be the second statement
+section 9 refuses. So the audit reads a declaration rather than a
+directory, and this module is what keeps the declaration from being
+prose: section 7's own rule, that a convention worth stating is worth a
+test, applied to section 7 itself.
 
 Some of them are tested here and some are not, which the declaration
 says out loud rather than leaving to be inferred from an absence.
@@ -26,6 +25,13 @@ tests/README.md is where it says which, and why for each. No count is
 written anywhere -- not of either half and not of the list itself:
 _CONVENTIONS below is the list, and this module asserts the two halves
 cover it rather than how many fall on each side.
+
+Section 14 asks a copy of this module for what it reads and which of its
+departures are decided. What it reads is tests/README.md beside it, and
+a module a row names is resolved against that same directory. Section
+7's list is transcribed into _CONVENTIONS below rather than read off the
+standard: the standard is another repository's file, so a copy is the
+only form the list takes here.
 
 What it does not check is whether a named module tests the convention it
 is named against. Nothing short of reading it can, and the four
