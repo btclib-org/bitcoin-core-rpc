@@ -517,6 +517,22 @@ sides'.
   `btclib-node`'s, an identity each tree's port of the issue moves as it
   lands.
 
+### A cross-repository reference in this tree's prose names its owner
+
+- **`RELEASING.md`'s merge step and `REPOSITORY.md`'s *Token
+  permissions* cite `btclib-org/btclib-secp256k1#288` and
+  `btclib-org/btclib-secp256k1#281`** (issue btclib-org/.github#642):
+  section 9's *A reference to another repository is qualified* is a
+  general bullet of that section rather than one of its `CHANGELOG.md`
+  subsection's, so it reaches a markdown paragraph the way it reaches an
+  entry. Its one exemption is a pull request's closing keyword, which the
+  forge reads.
+- **`CHANGELOG.md`'s own unqualified references stay as they are**:
+  *Nothing already written is rewritten* binds what is written next, and
+  `.gitattributes` puts the file under `merge=union`.
+- **Neither paragraph is rewrapped**: the qualifier leaves both lines
+  inside the width their paragraphs already keep, so no word moves.
+
 ## v2026.9.3
 
 ### Repository

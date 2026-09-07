@@ -528,7 +528,7 @@ one that needed more. `test.yml`'s `changes` job needs
 `contents: read` does not carry; naming only that would leave every
 other job in `test.yml` without even `contents: read`, refusing their
 checkout steps. Both are named here for that reason (issue #145,
-mirroring btclib-secp256k1#281's fix for the same mechanism).
+mirroring btclib-org/btclib-secp256k1#281's fix for the same mechanism).
 
 One elevation per job, and none of them holding another's: the job that
 signs the distribution files writes no release, the job that writes the
