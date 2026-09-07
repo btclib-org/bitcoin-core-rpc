@@ -572,6 +572,33 @@ sides'.
   pattern reads a spelling where a permission is a value in a parsed
   document.
 
+### `exclude_patterns` names what this tree writes under `docs/source/`
+
+- **`docs/source/conf.py` carries `exclude_patterns: list[str] = []`**
+  (closes btclib-org/.github#418): section 2 of the organization
+  standard, under *The documentation*, is where that rule and its reason
+  are. Nothing here writes under `docs/source` — every `sphinx-build`
+  this tree runs or documents, `docs.yml`'s and `.readthedocs.yaml`'s and
+  the two `CONTRIBUTING.md` spells, is given `docs/build/html` or
+  `$READTHEDOCS_OUTPUT/html` to write into — so the list has no path of
+  this tree's to name.
+- **`_build` is dead here by where this tree builds, not by anything
+  sphinx does**: section 2 is where that distinction is drawn, and it is
+  the one an entry calling the whole list inert would lose.
+  `Thumbs.db` and `.DS_Store` are dead for a different reason again,
+  `source_suffix` here declaring `.rst` and `.md`.
+- **The line keeps the `list[str]` annotation**: what the issue asks for
+  is one line across the documentation trees, and this is that line. It
+  is not there for a type check — mypy runs here over
+  `src/bitcoin_core_rpc`, `tests` and `.github/scripts`, which leaves
+  `docs/` outside the only one this gate has.
+- **The three comment lines above the key went with it**: they are
+  `sphinx-quickstart`'s own template text, describing the key — what it
+  matches, and that it reaches `html_static_path` and `html_extra_path`,
+  neither of which this tree assigns — and saying nothing about this
+  tree. The comment giving the reason there is no `html_static_path` is
+  this tree's own and stays where it is.
+
 ## v2026.9.3
 
 ### Repository
