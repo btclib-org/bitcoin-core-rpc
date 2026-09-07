@@ -500,6 +500,23 @@ sides'.
   btclib-org/.github#893 is where the clause quantifying over every
   scope is corrected for the three together.
 
+### `scorecard.yml`'s `contents: read` comment names the scope it is about
+
+- **The comment says what omitting `contents` from the analysis job's
+  block would do rather than what omitting any scope would do** (issue
+  btclib-org/.github#893). `metadata` is where the wider reading fails:
+  `actionlint`, which the lint gate runs, refuses it as a scope a
+  `permissions:` block may name, and the analysis job's
+  `GITHUB_TOKEN Permissions` group logs `Metadata: read` all the same.
+  *`scorecard.yml`'s `actions: read` carries its own reason* and *The
+  token grants are read from the workflows rather than bounded in prose*
+  above both state that consequence for every scope, and this entry
+  supersedes each of those sentences; both hold of `contents`, which is
+  the scope the run the first of them cites measured. That second entry
+  also records the job's block as matching `btclib-secp256k1`'s and
+  `btclib-node`'s, an identity each tree's port of the issue moves as it
+  lands.
+
 ## v2026.9.3
 
 ### Repository
