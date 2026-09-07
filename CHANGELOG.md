@@ -410,6 +410,40 @@ sides'.
   `preview` this tree sets and measures a line whole rather than
   stopping at a pragma, which is the wrong instrument for that half.
 
+### `toml-comment-width`'s comment claims no other tool's amnesty
+
+- **The comment no longer gives the pattern's exemption to MD013 and to
+  ruff, as what those two give "a comment ending in a link that cannot
+  be broken"** (issue btclib-org/.github#843): `.{80}\S*[ \t]` reports a
+  line only where whitespace is left past column 80, so a comment whose
+  overflow is one unbroken token is exempt whether or not that token is
+  a link. What replaces the clause states the pattern's own predicate
+  and names no other tool, which is the wording
+  btclib-org/.github#843 settled for the trees carrying this hook.
+- **The exemption is not W505's, and neither rule's exemption contains
+  the other's**: at this tree's `max-doc-length = 80`, ruff reports a
+  94-column whole-line comment whose overflow is one unbroken non-link
+  token and this pattern passes it over, and this pattern reports a
+  97-column comment opening with `# type:` that ruff passes over. A
+  `# abcd:` of the same width and shape is reported by ruff, which is
+  the control saying the pragma's spelling is what does it, and an
+  ordinary line of words at that width is reported by both. Measured at
+  ruff 0.16.5, the rev `.pre-commit-config.yaml` pins and the version
+  `uv.lock` resolves.
+- **The sentence under the replaced clause stays**: with no amnesty this
+  hook would report a whole-line toml comment that MD013 passes over in
+  a `.md` and that, where the unbroken token is a link, W505 passes over
+  in a `.py`. Its "the rules it mirrors" reads back to the paragraph
+  above, which names MD013, W505 and yamllint as the rules this hook was
+  added beside. Measured at the markdownlint rev this tree pins: a
+  92-column paragraph line whose overflow is one unbroken token is
+  passed over, and the same line with a space inserted at column 80 is
+  reported, which is the control saying that silence is an absence.
+- **The hook's `name:` and `entry:` are untouched**: the lexical amnesty
+  the one states against the positional rule the other implements is the
+  rest of that issue, one decision for every tree carrying the hook
+  rather than this tree's to take alone.
+
 ## v2026.9.3
 
 ### Repository
