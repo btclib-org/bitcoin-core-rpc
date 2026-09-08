@@ -737,6 +737,34 @@ sides'.
   line it already had, so it still reads as that key's absence comment
   rather than as a comment on `exclude_patterns`.
 
+### The declaration says what it is and leaves its assertions to the module
+
+- **`tests/README.md`'s *Convention tests* sentence names no assertion of
+  `conventions_test.py`** (issue btclib-org/.github#910): the list it
+  carried left out `test_the_table_is_not_empty`, which is what fails
+  where a column added to the table or the backticks dropped from its
+  second column stops a row parsing — either mutation failing
+  `test_the_two_halves_account_for_every_convention` as well, the
+  assertions parametrized on the rows being skipped on the empty
+  parameter set. That module reads the heading, the row pattern and the
+  *Not tested here* line rather than the sentence, so a list of its
+  assertions there is a second statement of what it checks with nothing
+  holding the two together, and completing the list would leave the next
+  assertion free to go out of step the same way. What replaces it says
+  what the declaration is — the table and the "Not tested here" line
+  under it, accounting between them for the whole list — and sends a
+  reader wanting what those assertions catch to that module's docstring,
+  section 9 of the organization standard asking that the second statement
+  point at the first.
+- **The halves are named rather than dropped with the list**: nothing
+  else in the section says what the line under the table is, the
+  paragraphs under it giving the reason each convention it names is
+  absent rather than that line's own place in the declaration. The tail
+  clause is the one this copy already carried. The shape is the
+  organization's decision, taken on btclib-org/.github#910 and landed in
+  `btclib` as btclib-org/btclib#1869; btclib-org/.github#910 stays open
+  for the copies in the other trees.
+
 ## v2026.9.3
 
 ### Repository
