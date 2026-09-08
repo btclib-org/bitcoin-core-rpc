@@ -664,6 +664,33 @@ sides'.
   btclib-org/btclib-node#903; btclib-org/.github#906 is filed against the
   copies of this module across the organization and stays open.
 
+### Token permissions states what caps a called workflow
+
+- **`REPOSITORY.md`'s *Token permissions* says the caller's grant is the
+  cap on every job of the called workflow** (closes
+  btclib-org/.github#914): it said that grant *replaces* the callee's
+  default outright, a substitution refuted by a run of the very call it
+  describes. This tree's `v2026.9.3` release run 33753542084, at
+  `614a8720`, where `release.yml`'s `test` job grants `contents: read`
+  and `pull-requests: read` and `test.yml` declares `contents: read` at
+  its own top level with a block on `changes` alone: each job of
+  `test.yml` declaring no block of its own logs `Contents: read` and
+  `Metadata: read` in its `GITHUB_TOKEN Permissions` group, and not the
+  `pull-requests` the caller grants. Under substitution each would hold
+  the caller's list. The control that could have failed is `changes`
+  itself, in the same run and through the same `uses:`, which logs
+  `PullRequests: read`, so the group does report that scope where a
+  block asks for it.
+- **What naming `pull-requests: read` alone would do to the other jobs
+  of `test.yml` is no longer drawn** (issue btclib-org/.github#912): the
+  paragraph said it would leave them without even `contents: read`,
+  refusing their checkout steps, where what a run does with a called
+  workflow's top-level declaration outside the caller's list is
+  unmeasured. The refusal a job's own declaration draws — the whole run
+  refused before any job of it starts, btclib-org/btclib-secp256k1#281 —
+  is not evidence for it, and the paragraph names the case as unmeasured
+  instead.
+
 ## v2026.9.3
 
 ### Repository
