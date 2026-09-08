@@ -717,6 +717,26 @@ sides'.
   as `bd9e3e87`, the issue asking one decision of every copy of this
   module rather than one per tree.
 
+### `templates_path` goes, this tree keeping no templates
+
+- **`docs/source/conf.py` no longer assigns `templates_path`** (issue
+  btclib-org/.github#901): nothing is tracked under
+  `docs/source/_templates`, `docs/` holds no template of its own, and no
+  `html`, `jinja`, `j2` or `tmpl` file is tracked anywhere, so the key
+  named a directory this repository does not have. Section 2 of the
+  organization standard is where the rule this converges on lives —
+  "`templates_path` names the directory under `docs/source/` where the
+  tree keeps its own templates, and a tree keeping none does not carry
+  the key" — and it names writing the key empty, the way
+  `exclude_patterns` beside it is written, as the rejected alternative.
+- **No `# no templates_path` comment goes in its place**, though this
+  file explains the absence of `sphinx.ext.todo`, `suppress_warnings`
+  and `html_static_path` that way: section 2 carries the whole reason
+  for this key, and section 9's *One fact in one place* is then what
+  decides it. The `# no suppress_warnings` block above keeps the blank
+  line it already had, so it still reads as that key's absence comment
+  rather than as a comment on `exclude_patterns`.
+
 ## v2026.9.3
 
 ### Repository
