@@ -691,6 +691,32 @@ sides'.
   is not evidence for it, and the paragraph names the case as unmeasured
   instead.
 
+### `conventions_test.py` splits the *Not tested here* list at its separator
+
+- **`tests/conventions_test.py` splits the collapsed list at a semicolon
+  and a space, and collapses no name after that** (issue
+  btclib-org/.github#911): the line above the split has already replaced
+  every run of whitespace, newlines included, with one space, so
+  collapsing a piece of it again is `strip()` with nothing left to strip.
+  The comment giving an eighty-column wrap that falls inside a name as
+  the reason for that second collapse goes with it: the *Not tested here*
+  list of `tests/README.md` wraps at a semicolon, so no name in it is
+  broken across lines here.
+- **The separator keeps its space rather than becoming the semicolon
+  alone**, and what the comment says now is why: the split is lossless —
+  `sep.join(s.split(sep))` is `s` for any non-empty `sep` — so a
+  separator the declaration wrote some other way leaves the name whatever
+  the split did not take, and the assertion that every name listed is one
+  of section 7's reports it. The semicolon alone would take a separator
+  written without its space too, and nothing would report it.
+- **That assertion's message quotes the names it read out of the
+  declaration**: a semicolon written with a space on each side is
+  consumed by the split and leaves the name a trailing one, which
+  unquoted reads as a name the same message goes on to list as known. The
+  comments and this message are word-identical to `btclib`'s, landed there
+  as `bd9e3e87`, the issue asking one decision of every copy of this
+  module rather than one per tree.
+
 ## v2026.9.3
 
 ### Repository
