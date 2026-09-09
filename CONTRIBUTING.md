@@ -231,10 +231,11 @@ Everything above is the same file in every repository of the
 organization; everything below is this one's, and the comparison stops at
 this heading.
 
-<!-- The toolchain badges are here rather than in the README because they report
-no state: each names a choice, and this is the file that says how the choice is
-enforced and what the command for it is. The README keeps the badges that can
-turn red. btclib and btclib-secp256k1 do the same. --> [![calendar versioning:
+<!-- The toolchain badges are here rather than in the README because they
+report no state: each names a choice, and this is the file that says how
+the choice is enforced and what the command for it is. The README keeps
+the badges that can turn red, the same split some sibling repositories
+of the organization use. --> [![calendar versioning:
 yyyy.m.d](<https://img.shields.io/badge/cal_ver-yyyy.m.d-1674b1.svg?logo=calver>)](<https://calver.org/>)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![format:

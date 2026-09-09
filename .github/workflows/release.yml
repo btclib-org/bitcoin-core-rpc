@@ -666,11 +666,11 @@ jobs:
   # read the docs activates and builds a new release tag from an
   # automation rule of its own, and a build that never starts fails
   # nothing -- a site answering 200 serves the last build that succeeded,
-  # for as long as that takes somebody to notice. btclib's RELEASING.md
-  # records the aggravated form of exactly this: a webhook refusing every
-  # delivery with a 400 for three years while the site kept answering 200
-  # from 2023, undocumenting two releases before anybody noticed. This is
-  # issue #154.
+  # for as long as that takes somebody to notice. The aggravated form of
+  # exactly this is on record elsewhere in the organization: a webhook
+  # refusing every delivery with a 400 for three years while the site kept
+  # answering 200 from 2023, undocumenting two releases before anybody
+  # noticed. This is issue #154.
   # The rendered URL and not the v3 API, which is the reverse of what
   # `published` above does with PyPI's: read the docs throttles an
   # unauthenticated caller and blocks requests from a cloud provider

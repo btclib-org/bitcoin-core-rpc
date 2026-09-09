@@ -3,10 +3,10 @@
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 #
 # The dotted name is the canonical one; readthedocs.yml is honored too,
-# but documented as deprecated. btclib's copy of this line goes on to say
-# that a `*.yml` include pattern would drag the file into the sdist beside
-# the Jekyll configuration; that clause is about a repository that serves
-# a site from its own root, and this one serves none.
+# but documented as deprecated. A `*.yml` include pattern dragging the
+# file into the sdist beside a Jekyll configuration is not a concern
+# here: that risk is about a repository that serves a site from its own
+# root, and this one serves none.
 # [tool.uv.build-backend] source-include here names `*.yaml`, and records
 # beside it why the glob is written that way.
 #
