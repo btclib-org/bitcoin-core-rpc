@@ -56,10 +56,13 @@ the download that verifies which binary it is.
 `tests/rpc_smoke_test.py` covers every function with no client behind it
 -- `check`, `port_is_free`, `rest_outpoint`, `check_legacy_reply`,
 `check_v2_reply`, `check_cookie` and `print_log_tail`, plus `main`'s own
-argument parsing.
-Everything else here carries `pragma: no cover`: it takes a real
-`BitcoinCoreRpcClient` talking to a real node, and mocking that node
-would be the recording this script exists to not trust. That half is
+argument parsing -- and, with a stub in place of the client,
+`wait_for_rpc`'s retry policy: which failures end the wait and which it
+retries.
+Everything else here -- `wait_for_rpc`'s own success path included --
+carries `pragma: no cover`: it takes a real `BitcoinCoreRpcClient`
+talking to a real node, and mocking that node would be the recording
+this script exists to not trust. That half is
 `integration-bitcoind.yml`'s to monitor, against Core itself.
 """
 
