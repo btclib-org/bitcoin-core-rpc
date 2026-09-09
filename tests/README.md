@@ -34,10 +34,10 @@ the calling convention; input validation; the suite opens no socket.
 
 One module answers several bullets, which is the shape section 7 has in
 mind where it says what must not be aligned is *where* these live. This
-package is `errors.py`, `chains.py`, `transport.py` and `client.py` behind
-an `__init__.py` facade, and the three properties below read the four,
-`__init__.py` re-exporting rather than defining: **the public surface**
-walks every one of the four for a name it defines and does not
+package is `errors.py`, `chains.py`, `transport.py` and `client.py`
+behind an `__init__.py` facade, and the three properties below read the
+four, `__init__.py` re-exporting rather than defining: **the public
+surface** walks every one of the four for a name it defines and does not
 underscore, and every such name has to be in `__all__` and every name in
 `__all__` has to be defined by one of the four; **the documentation** is
 not "every module appears in the sphinx pages" but every name of
@@ -51,11 +51,11 @@ step is the other half, reading the page a real build wrote against
 `bitcoin_core_rpc.__all__` with `.github/scripts/check_api_page.py`,
 which is why this half is table-declared here and that one is not: it
 does not run in this suite; **the import graph** is not "every module
-imports first" but the four
-importing nothing outside the standard library and each other, in the
-order `errors < chains < transport < client`, and `chains.py` and
-`errors.py` each adding none of `urllib.request`, `ssl` or `socket` to a
-fresh interpreter's own baseline `sys.modules`.
+importable first" but the four importing nothing outside the standard
+library and each other, in the order `errors < chains < transport <
+client`, and `chains.py` and `errors.py` each adding none of
+`urllib.request`, `ssl` or `socket` to a fresh interpreter's own
+baseline `sys.modules`.
 
 The public surface is not one this repository could have declined.
 Section 7's escape clause — a repository needs the conventions its own
