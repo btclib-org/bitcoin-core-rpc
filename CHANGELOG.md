@@ -817,6 +817,14 @@ sides'.
   matrix command in *Reproducing what CI runs* gave the reason as a
   `git commit` dying inside the hook this change declines to install.
 
+### `.gitignore`'s `envtest/` is dropped
+
+- **The `# Environments` list no longer carries `envtest/`** (closes
+  #392): `git log -S 'envtest' main` finds only the commit that
+  introduced the whole list and the one that later merged it with a
+  second one, so nothing in this tree's history has ever written a
+  directory of that name.
+
 ## v2026.9.3
 
 ### Repository

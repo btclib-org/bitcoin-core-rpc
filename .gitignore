@@ -33,7 +33,6 @@ wheels/
 .env
 .venv*
 env/
-envtest/
 venv/
 ENV/
 env.bak/
