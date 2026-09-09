@@ -840,6 +840,21 @@ sides'.
   that actually ends the wait, which keeps both the sentence and the
   pragma naming it.
 
+### The `UV_PROJECT_ENVIRONMENT` prefix names the interpreter, not `3.10`
+
+- **The prefix in *The environment and the gates* named a fixed
+  `.venv-3.10` regardless of the interpreter a `--python <version>`
+  command selected** (closes #386): a command run with `--python
+  pypy3.11` and the same fixed prefix would build the pypy3.11
+  environment under a directory named for 3.10, so `.venv-3.10` on disk
+  would not hold what its name says. The prefix now names the
+  interpreter the command it precedes selects — `.venv-<version>`,
+  `.venv-pypy3.11` for `--python pypy3.11`.
+- **The rule carried no exemption for `--no-project`**: that flag
+  builds an ephemeral environment rather than rebuilding `.venv`, so a
+  command carrying it needs no `UV_PROJECT_ENVIRONMENT` prefix, and the
+  paragraph now says so.
+
 ## v2026.9.3
 
 ### Repository

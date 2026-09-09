@@ -323,11 +323,15 @@ session installing it installs it for every other. Run the gate by hand
 before committing — the `uv run pre-commit run --all-files` above.
 
 **Prefix any `--python <version>` command with
-`UV_PROJECT_ENVIRONMENT=.venv-3.10`.** Without it, `uv run --python
-<version>` removes `.venv`, builds it again on that interpreter and with
-that command's own group set, and leaves it there: a run given
-`--no-default-groups --group test` leaves pre-commit out of what is then
-the project's environment. `uv sync` restores it.
+`UV_PROJECT_ENVIRONMENT=.venv-<version>`, naming the interpreter that
+command selects — `.venv-3.10` for `--python 3.10`, `.venv-pypy3.11` for
+`--python pypy3.11`.** Without it, `uv run --python <version>` removes
+`.venv`, builds it again on that interpreter and with that command's own
+group set, and leaves it there: a run given `--no-default-groups --group
+test` leaves pre-commit out of what is then the project's environment.
+`uv sync` restores it. A `--no-project` command builds an ephemeral
+environment rather than `.venv` and needs none of this: nothing rebuilds
+the project's own environment for the prefix to protect.
 
 ### The editor
 
