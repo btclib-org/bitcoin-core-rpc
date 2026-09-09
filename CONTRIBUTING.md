@@ -277,13 +277,10 @@ so, not because it happens to lack a leading underscore.
 ### The environment and the gates
 
 uv is the only tool that must be installed; it fetches interpreters,
-linters and packaging tools itself. `uv sync` creates the environment,
-and `uv run pre-commit install` installs the hook so a commit runs the
-lint gate.
+linters and packaging tools itself. `uv sync` creates the environment.
 
 ```shell
 uv sync
-uv run pre-commit install
 ```
 
 No test here reaches the network and none needs a node: every client in it is
@@ -318,13 +315,19 @@ target (``mult_``, and the fix is those very backticks).
 Passed` hides a failure, and `grep` finding nothing exits 1, which is not
 the gate's answer to anything.
 
+**The lint gate is not installed as a git hook.** `pre-commit install`
+writes into the common git directory, which every worktree of this
+repository shares: `git -C <worktree> rev-parse --git-path hooks` answers
+with the primary checkout's `.git/hooks` from every one of them. So one
+session installing it installs it for every other. Run the gate by hand
+before committing — the `uv run pre-commit run --all-files` above.
+
 **Prefix any `--python <version>` command with
 `UV_PROJECT_ENVIRONMENT=.venv-3.10`.** Without it, `uv run --python
-<version>` rebuilds `.venv`, and a group-restricted command then leaves
-pre-commit out of it — and pre-commit's git hook `exec`s
-`.venv/bin/python -mpre_commit` by absolute path, which exists and lacks
-the module, so the next `git commit` dies with `No module named
-pre_commit`. `uv sync` restores it.
+<version>` removes `.venv`, builds it again on that interpreter and with
+that command's own group set, and leaves it there: a run given
+`--no-default-groups --group test` leaves pre-commit out of what is then
+the project's environment. `uv sync` restores it.
 
 ### The editor
 
@@ -453,9 +456,9 @@ open pull request gets the analysis from the trigger; a branch without one
 asks for it with `gh workflow run codeql.yml --ref <branch>`.
 
 Another interpreter, which is what the matrix varies. Prefix it with
-`UV_PROJECT_ENVIRONMENT`, or `uv run --python <version>` rebuilds `.venv`
-with the restricted group set and leaves pre-commit out of the environment
-its own git hook execs by absolute path:
+`UV_PROJECT_ENVIRONMENT`, or `uv run --python <version>` replaces `.venv`
+with one built on that interpreter and the restricted group set and leaves
+it there, which *The environment and the gates* above has:
 
 ```shell
 UV_PROJECT_ENVIRONMENT=.venv-3.10 uv run --locked --no-default-groups \

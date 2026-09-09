@@ -11,14 +11,13 @@ of them. That clause is right, and its price is that an *absent*
 convention test is indistinguishable from a convention this repository
 does not have. Nothing anywhere recorded which of the two it was.
 
-A filename cannot answer it either. The suites of the organization name
-the same idea three ways -- a module per bullet in btclib, a `test_`
-prefix in btclib-secp256k1, and here several of these checks folded into
-census_test.py, the one file that is about this package's public surface
-rather than about any one of its modules. So the audit reads a
-declaration rather than a directory, and this module is what keeps the
-declaration from being prose: section 7's own rule, that a convention
-worth stating is worth a test, applied to section 7 itself.
+A filename cannot answer it either, for the reason tests/README.md gives
+where it says the suites of the organization name the same idea
+differently; restating that answer here would be the second statement
+section 9 refuses. So the audit reads a declaration rather than a
+directory, and this module is what keeps the declaration from being
+prose: section 7's own rule, that a convention worth stating is worth a
+test, applied to section 7 itself.
 
 Some of them are tested here and some are not, which the declaration
 says out loud rather than leaving to be inferred from an absence.
@@ -27,13 +26,20 @@ written anywhere -- not of either half and not of the list itself:
 _CONVENTIONS below is the list, and this module asserts the two halves
 cover it rather than how many fall on each side.
 
+Section 14 asks a copy of this module for what it reads and which of its
+departures are decided. What it reads is tests/README.md beside it, and
+a module a row names is resolved against that same directory. Section
+7's list is transcribed into _CONVENTIONS below rather than read off the
+standard: the standard is another repository's file, so a copy is the
+only form the list takes here.
+
 What it does not check is whether a named module tests the convention it
-is named against. Nothing short of reading it can, and the four
-assertions below are the ones that fail on the ways a declaration
-actually rots: a convention invented here rather than taken from section
-7, a module renamed or deleted with the row left behind, a module emptied
-of its tests, and a bullet that quietly stops being accounted for by
-either half.
+is named against. Nothing short of reading it can, and the assertions
+below are the ones that fail on the ways a declaration actually rots: a
+table the row pattern no longer matches, a convention invented here
+rather than taken from section 7, a module renamed or deleted with the
+row left behind, a module emptied of its tests, and a bullet that
+quietly stops being accounted for by either half.
 """
 
 import ast
@@ -67,10 +73,9 @@ _HEADING = "## Convention tests"
 # MULTILINE because eighty columns wrap the list of names across lines
 # and the non-greedy match then stops at the first full stop that ends
 # one -- which is why no name in that list may carry a full stop of its
-# own. "none" is a legal answer and the one this repository gives, and it
-# fits a line; the six btclib-secp256k1 names do not, which is where the
-# single-line form was found wanting. The two halves are checked against
-# each other below rather than each against nothing
+# own. "none" is a legal answer this repository does not give today; the
+# two halves are checked against each other below rather than each
+# against nothing.
 _NOT_TESTED = re.compile(r"^Not tested here: (.+?)\.$", re.MULTILINE | re.DOTALL)
 # a table row, and the separator row is what the second group's leading
 # backtick excludes: `| --- | --- |` has no backtick to match
@@ -98,11 +103,15 @@ _ROWS = tuple((m["convention"], m["module"]) for m in _ROW.finditer(_SECTION))
 
 
 def test_the_table_is_not_empty() -> None:
-    """A declaration that parsed to nothing is the failure that hides.
+    """No other assertion here reports an unmatched table as one.
 
-    Every assertion below quantifies over the rows, so a table this
-    module's regex stopped matching -- a column added, the backticks
-    dropped, the heading retitled -- would satisfy all of them silently.
+    The assertions parametrized on the rows are skipped on an empty
+    parameter set, so a table this module's regex stopped matching -- a
+    column added, the backticks dropped -- leaves the two-halves
+    assertion below, which is not parametrized, to fail naming every
+    convention the table declared as accounted for by neither half. A
+    retitled heading reaches neither: _section asserts while the module
+    is imported, so collection errors.
     """
     assert _ROWS, f"{_README.name}'s {_HEADING} section parsed to no rows"
 
@@ -156,9 +165,9 @@ def test_the_two_halves_account_for_every_convention() -> None:
 
     This is the assertion the declaration exists for. Either half alone
     is satisfiable by saying less: a table naming three conventions is
-    true about those three and silent about the other five, and silence
-    is exactly what section 7's escape clause makes unreadable. Together
-    they have to name each of them once.
+    true about those three and silent about the rest, and silence is
+    exactly what section 7's escape clause makes unreadable. Together
+    they have to name each convention once.
     """
     match = _NOT_TESTED.search(_SECTION)
     assert match, (
@@ -166,14 +175,12 @@ def test_the_two_halves_account_for_every_convention() -> None:
         " the declaration is half of one"
     )
     listed = " ".join(match[1].split())
-    # whitespace collapsed inside each name and not only around it: the
-    # list wraps at eighty columns wherever the column falls, which for a
-    # long one is in the middle of a name rather than at a semicolon
-    absent = (
-        ()
-        if listed == "none"
-        else tuple(" ".join(s.split()) for s in listed.split(";"))
-    )
+    # the separator is a semicolon and a space, which is what the
+    # collapse above leaves of one written with a space or a line break
+    # after it. The semicolon alone would take any other spelling for a
+    # separator too; here the name keeps whatever the split did not
+    # take, and the assertions below report it
+    absent = () if listed == "none" else tuple(listed.split("; "))
     tested = {convention for convention, _ in _ROWS}
 
     overlap = tested.intersection(absent)
@@ -182,9 +189,12 @@ def test_the_two_halves_account_for_every_convention() -> None:
     )
 
     unknown = [name for name in absent if name not in _CONVENTIONS]
+    # the names come from the file, so repr: one differing from a
+    # convention in whitespace alone is invisible unquoted, and reads as
+    # a name this same message goes on to list as known
     assert not unknown, (
-        f"{', '.join(unknown)} is listed as not tested and is not one of"
-        f" section 7's: {', '.join(_CONVENTIONS)}"
+        f"{', '.join(map(repr, unknown))} is listed as not tested and is not"
+        f" one of section 7's: {', '.join(_CONVENTIONS)}"
     )
 
     unaccounted = [

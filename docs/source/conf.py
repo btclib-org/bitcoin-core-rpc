@@ -87,12 +87,7 @@ myst_heading_anchors = 3
 # the noise, because what myst emits for a target it cannot resolve is not
 # a visibly broken link, it is an anchor to an id the page does not have
 
-templates_path = ["_templates"]
-
-# List of patterns, relative to source directory, that match files and
-# directories to ignore when looking for source files.
-# This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns: list[str] = []
 
 
 # -- Options for HTML output -------------------------------------------------

@@ -497,12 +497,16 @@ at now and then.
 
 **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
 needing more must declare it, and the declarations are the record of
-which jobs do — anchored, so that a comment naming a permission stays
-out of the answer:
+which jobs do — keyed on where the key sits, first on its line after
+the indentation, so that a comment naming a permission stays out of the
+answer while a grant carrying a trailing comment stays in:
 
 ```shell
-git grep -n ': write$' -- .github/workflows
+git grep -nE '^ +[a-z-]+: write([[:blank:]]+#|$)' -- .github/workflows
 ```
+
+A grant written some other way — `permissions: write-all`, a flow
+mapping, or a quoted key or value — is outside that answer.
 
 `release.yml` takes `contents: write` on `github-release`, and
 `id-token: write` on `publish-pypi` and `publish-testpypi`, the OIDC
@@ -517,24 +521,36 @@ entry its published score rests on. The workflow-level
 `permissions: contents: read` is belt and braces; keep it, it is what
 makes the intent readable in the file.
 
-`release.yml`'s `test` job declares a `permissions:` block too, and for a
-different reason: not because it needs more itself, but because
-`uses: ./.github/workflows/test.yml` caps every job of the called
-workflow at what the caller grants here rather than at what `test.yml`'s
-own top-level declaration gives them — a caller's grant *replaces* the
-callee's default outright, for every job over there and not only for the
-one that needed more. `test.yml`'s `changes` job needs
-`pull-requests: read` for the file list of a pull request, which
-`contents: read` does not carry; naming only that would leave every
-other job in `test.yml` without even `contents: read`, refusing their
-checkout steps. Both are named here for that reason (issue #145,
-mirroring btclib-secp256k1#281's fix for the same mechanism).
+`release.yml`'s `test` job names a `permissions:` block for a different
+reason: not that the job needs more itself, but that
+`uses: ./.github/workflows/test.yml` makes the caller's grant the cap on
+every job of the called workflow. A scope a job over there declares and
+the caller leaves off is not quietly dropped: the run is refused before
+any job of it starts, the caller's own jobs included
+(btclib-org/btclib-secp256k1#281). `pull-requests: read` is granted here
+for that reason: `test.yml`'s `changes` job declares it, for the file
+list of a pull request, which `contents: read` does not carry
+(issue #145).
 
-One elevation per job, and none of them holding another's: the job that
-signs the distribution files writes no release, the job that writes the
-release holds no OIDC token, and neither builds anything. `attest` is
-where that costs a job rather than two lines, and it is the shape to
-keep.
+The cap bounds what the called workflow declares rather than standing in
+for it: a job over there with no block of its own is granted `test.yml`'s
+own top-level `contents: read` and not the caller's
+`pull-requests: read`. `contents: read` is repeated in the caller's list
+to keep that top-level declaration inside the cap. What a run does where
+a called workflow's *top-level* declaration falls outside the cap is not
+measured; the refusal above is what a job's own declaration draws, and
+the two need not behave alike (btclib-org/.github#912).
+
+One elevation per job is the shape most jobs keep: the job that signs
+the distribution files writes no release, the job that writes the
+release holds no OIDC token, and neither builds anything.
+
+Four jobs are the exception, each declaring two elevations rather than
+one, and the reason for every pair already sits where it is declared:
+`claude-review.yml`'s `review` and `mention`, and `scorecard.yml`'s
+`analysis`, are named above. `release.yml`'s `attest` holds `id-token:
+write` with `attestations: write` besides — the pair its own block
+already explains, rather than repeated here.
 
 Artifact attestations are free on public repositories on every current
 plan, and unavailable on a private one outside Enterprise Cloud — so

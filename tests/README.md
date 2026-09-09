@@ -16,10 +16,12 @@ cannot tell the two apart — the suites of the organization name the same
 idea three different ways, and this one folds several checks into the
 file that is about the package's own census.
 
-So which of them this repository tests is **declared here**, and
-`conventions_test.py` asserts the declaration is true: every convention
-named below is one of section 7's, every module named exists and holds at
-least one test, and the two halves together account for the whole list.
+So which of them this repository tests is **declared here**, in two
+halves that together account for the whole list: the table below and
+the "Not tested here" line under it. `conventions_test.py` asserts the
+declaration is true, and what its assertions catch is written in that
+module's docstring, a second list here being the statement section 9
+refuses.
 
 | convention | tested in |
 | --- | --- |
