@@ -896,6 +896,24 @@ sides'.
   pre-releases of an unreleased `5.1` and `5.0.1` as the latest actual
   release.
 
+### `CLAUDE.md`'s worktree name and advance clause take the standard's wording
+
+- **The worktree paragraph gives the argument for the order of
+  `wt-<tracker>-<issue>-<repo>-<role>`** (issue btclib-org/.github#854):
+  most general part first, an issue filed in `btclib-org/.github`'s
+  tracker being the key and the repository a detail of it. The sentence
+  saying the name sorts every worktree of one issue together sits with
+  that argument instead of inside the `repo` clause, sorting following
+  from the order rather than from `repo` being present. The two example
+  issues are qualified, a bare `#255` and a bare `#177` each naming an
+  unrelated closed item of this tracker.
+- **The clause on `refs/heads/main` names the ref it may be moved onto**
+  (issue btclib-org/.github#919), `origin/main`, byte for byte as
+  `btclib-org/.github`'s `CLAUDE.md` carries it. What it replaces forbade
+  advancing `refs/heads/main` with work that is not yours, which is what
+  the fast-forward the same section prescribes for bringing the primary
+  checkout forward does.
+
 ## v2026.9.3
 
 ### Repository
