@@ -129,14 +129,15 @@ that can be written out in full; write it out.
 
 No line of the block writes where a paste of it lands. Creating the
 environment is `CONTRIBUTING.md`'s *The environment and the gates*, run
-in the worktree, and that step is two commands — `uv sync`, and the
-`uv run pre-commit install` that puts the lint gate on a commit — where
-a line chained onto the block carries only the first. Section 9's *A
-line that writes goes in a fence of its own* is why the sync is not such
-a line: a sync writes in the directory the shell is standing in, and no
-line of the block moves the shell, `git -C` binding the one command it
-is given — so for a reader of this file that directory is the primary
-checkout above, and `.gitignore` covers the `.venv` a sync leaves there.
+in the worktree, and that step is one command, `uv sync`: that section
+declines to install the lint gate as a git hook, `pre-commit install`
+writing into the git directory every worktree of this repository shares.
+Section 9's *A line that writes goes in a fence of its own* is why the
+sync is not such a line: a sync writes in the directory the shell is
+standing in, and no line of the block moves the shell, `git -C` binding
+the one command it is given — so for a reader of this file that
+directory is the primary checkout above, and `.gitignore` covers the
+`.venv` a sync leaves there.
 The block's own parse is no substitute for the rule: unfilled, it is a
 syntax error to `/bin/zsh` 5.9, to the `bash` 3.2.57 macOS ships as
 `/bin/bash` and `/bin/sh`, and to `bash` 5.3.15, each reading it as a

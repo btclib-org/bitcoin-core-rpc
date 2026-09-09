@@ -788,6 +788,35 @@ sides'.
   stays true as the other trees move, which is why the bullets above
   give those rather than a state.
 
+### The lint gate is not installed as a git hook
+
+- **`CONTRIBUTING.md`'s *The environment and the gates* no longer asks
+  for `uv run pre-commit install`** (issue btclib-org/.github#949):
+  `pre-commit install` writes into the common git directory, which every
+  worktree of this repository shares, so a worktree's own
+  `rev-parse --git-path hooks` answers with the primary checkout's
+  `.git/hooks` and one session installing the hook installs it for every
+  other. The environment step is `uv sync` alone, and the
+  paragraph saying why sits under *Check exit codes, not filtered
+  output*, where `.github`, `btclib-node` and `btclib-secp256k1` each
+  put theirs.
+- **`CLAUDE.md`'s paragraph below the worktree fence calls that step one
+  command.** Its clause about a line chained onto the block carrying
+  only the first of two goes with the second command, and what the
+  paragraph rests on is untouched: a line that writes goes in a fence of
+  its own, and no line of the block moves the shell.
+- **The landed entry *`CLAUDE.md`'s worktree fence carries no `uv sync`*
+  above says that step is two commands, `uv sync` and the
+  `uv run pre-commit install` that puts the lint gate on a commit.** It
+  is one command now, and the fence that entry is about is unchanged.
+- **`UV_PROJECT_ENVIRONMENT`'s reason is what uv does to the
+  environment, not what a hook does with it**: `uv run --python
+  <version>` removes `.venv`, builds it again on that interpreter and
+  with the command's own group set, and leaves it there. Both the
+  paragraph in *The environment and the gates* and the line beside the
+  matrix command in *Reproducing what CI runs* gave the reason as a
+  `git commit` dying inside the hook this change declines to install.
+
 ## v2026.9.3
 
 ### Repository
