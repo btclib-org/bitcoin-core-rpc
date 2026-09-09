@@ -855,6 +855,37 @@ sides'.
   command carrying it needs no `UV_PROJECT_ENVIRONMENT` prefix, and the
   paragraph now says so.
 
+### `.github/`'s bare `#1166` and `#189`, which `#221` did not reach
+
+- **`test.yml:67`, `test.yml:251`, `dev-version/action.yml:2`,
+  `release.yml:223` and `release.yml:339`'s `issue #1166` are qualified
+  as `btclib-org/btclib#1166`** (closes #398), matching what
+  `CONTRIBUTING.md` and `RELEASING.md` already write for the same
+  referent -- the earlier fix, closing #221, reached only those two
+  files, leaving `.github/`'s five sites bare. A bare `#1166` in this
+  tracker resolves nowhere --
+  `gh api repos/btclib-org/bitcoin-core-rpc/issues/1166` answers 404,
+  this tracker's own highest number sitting in the hundreds -- and the
+  five sites under `.github/` had stayed bare.
+- **`test.yml:148`'s `#189` is qualified as
+  `btclib-org/btclib-secp256k1#189`, and `#145` beside it stays bare.**
+  Read in this tracker, a bare `#189` resolves to this repository's own
+  closed issue about `docs/source/conf.py`'s toctree comment undercounting
+  its pages -- closed, never merged since it was never a pull request,
+  and sharing nothing with the `changes` job the sentence names, so the
+  reference pointed at the wrong place with no 404 to signal it. Only
+  `btclib-org/btclib-secp256k1#189`, the one the sentence means, is a
+  merged pull request. `#145` is this repository's own issue, about the
+  permission that job needs on the caller's side, and is correct bare.
+- **No arithmetic gate is added for a bare `#N` above this tracker's own
+  highest number.** It would have caught the `#1166` sites; it would not
+  have caught `#189`, which sits inside the range and resolves to a real,
+  closed (not merged) issue of this repository -- the shape
+  btclib-org/.github#899 found reading
+  `btclib-node`'s own `.github/` the same way, a number inside range
+  resolving to the wrong issue in silence there too. Reading the sentence
+  a bare reference sits in is what the arithmetic cannot stand in for.
+
 ## v2026.9.3
 
 ### Repository
