@@ -886,6 +886,16 @@ sides'.
   resolving to the wrong issue in silence there too. Reading the sentence
   a bare reference sits in is what the arithmetic cannot stand in for.
 
+### `regebro/pyroma`'s pin returns to its latest released version
+
+- **`.pre-commit-config.yaml`'s `regebro/pyroma` entry is pinned to
+  `5.0.1`** (closes #413): the weekly `autoupdate` pull request had
+  moved it to `5.1b1`, exactly what this file's own `pinned-rev` hook
+  exists to reject -- "every pre-commit rev names a released version" --
+  `gh api repos/regebro/pyroma/tags` naming `5.1b1` and `5.1b2` as
+  pre-releases of an unreleased `5.1` and `5.0.1` as the latest actual
+  release.
+
 ## v2026.9.3
 
 ### Repository
