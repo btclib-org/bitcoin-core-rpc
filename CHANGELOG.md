@@ -765,6 +765,29 @@ sides'.
   `btclib` as btclib-org/btclib#1869; btclib-org/.github#910 stays open
   for the copies in the other trees.
 
+### The convention-test entries' open-issue sentences are superseded
+
+- **The entry *`conventions_test.py`'s module docstring names the ways
+  and counts nothing* above ends by saying btclib-org/.github#906 stays
+  open** (issue btclib-org/.github#946): that issue closed on
+  2026-09-08. `btclib` took the same change at
+  btclib-org/btclib@385406f1, `btclib-secp256k1` at
+  btclib-org/btclib-secp256k1@8d84015d, `btclib-node` at
+  btclib-org/btclib-node@8e0a0a48 and `btclib-benchmarks` at
+  btclib-org/btclib-benchmarks@dc47a41f.
+- **The entry *The declaration says what it is and leaves its assertions
+  to the module* above says btclib-org/.github#910 stays open for the
+  copies in the other trees** (issue btclib-org/.github#946): that issue
+  closed on 2026-09-08. `btclib` took the same replacement at
+  btclib-org/btclib@bd4a4654, `btclib-secp256k1` at
+  btclib-org/btclib-secp256k1@d80e2c07 and `btclib-node` at
+  btclib-org/btclib-node@c8586937.
+- **Both sentences were true when they landed**: each issue closed after
+  the entry naming it did, the last copy of its change landing in
+  another tree. A sentence naming the tree and the sha of a landing
+  stays true as the other trees move, which is why the bullets above
+  give those rather than a state.
+
 ## v2026.9.3
 
 ### Repository
