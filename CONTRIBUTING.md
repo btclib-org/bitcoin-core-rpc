@@ -363,12 +363,12 @@ uv run --locked --no-default-groups --group test pytest --no-cov
 ```
 
 `test.yml`, the `coverage` job — `--cov` is in addopts, so this and the
-bare `pytest` above are the same measurement; what this job adds is the
-report:
+bare `pytest` above are the same measurement; the report options live in
+`[tool.coverage.report]`'s `show_missing` and `skip_covered`, so the job
+types nothing after `pytest`:
 
 ```shell
-uv run --locked --no-default-groups --group test \
-    pytest --cov-report term-missing:skip-covered
+uv run --locked --no-default-groups --group test pytest
 ```
 
 `test.yml`, the `dist` job — build the distribution files, check them
