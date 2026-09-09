@@ -664,6 +664,159 @@ sides'.
   btclib-org/btclib-node#903; btclib-org/.github#906 is filed against the
   copies of this module across the organization and stays open.
 
+### Token permissions states what caps a called workflow
+
+- **`REPOSITORY.md`'s *Token permissions* says the caller's grant is the
+  cap on every job of the called workflow** (closes
+  btclib-org/.github#914): it said that grant *replaces* the callee's
+  default outright, a substitution refuted by a run of the very call it
+  describes. This tree's `v2026.9.3` release run 33753542084, at
+  `614a8720`, where `release.yml`'s `test` job grants `contents: read`
+  and `pull-requests: read` and `test.yml` declares `contents: read` at
+  its own top level with a block on `changes` alone: each job of
+  `test.yml` declaring no block of its own logs `Contents: read` and
+  `Metadata: read` in its `GITHUB_TOKEN Permissions` group, and not the
+  `pull-requests` the caller grants. Under substitution each would hold
+  the caller's list. The control that could have failed is `changes`
+  itself, in the same run and through the same `uses:`, which logs
+  `PullRequests: read`, so the group does report that scope where a
+  block asks for it.
+- **What naming `pull-requests: read` alone would do to the other jobs
+  of `test.yml` is no longer drawn** (issue btclib-org/.github#912): the
+  paragraph said it would leave them without even `contents: read`,
+  refusing their checkout steps, where what a run does with a called
+  workflow's top-level declaration outside the caller's list is
+  unmeasured. The refusal a job's own declaration draws — the whole run
+  refused before any job of it starts, btclib-org/btclib-secp256k1#281 —
+  is not evidence for it, and the paragraph names the case as unmeasured
+  instead.
+
+### `conventions_test.py` splits the *Not tested here* list at its separator
+
+- **`tests/conventions_test.py` splits the collapsed list at a semicolon
+  and a space, and collapses no name after that** (issue
+  btclib-org/.github#911): the line above the split has already replaced
+  every run of whitespace, newlines included, with one space, so
+  collapsing a piece of it again is `strip()` with nothing left to strip.
+  The comment giving an eighty-column wrap that falls inside a name as
+  the reason for that second collapse goes with it: the *Not tested here*
+  list of `tests/README.md` wraps at a semicolon, so no name in it is
+  broken across lines here.
+- **The separator keeps its space rather than becoming the semicolon
+  alone**, and what the comment says now is why: the split is lossless —
+  `sep.join(s.split(sep))` is `s` for any non-empty `sep` — so a
+  separator the declaration wrote some other way leaves the name whatever
+  the split did not take, and the assertion that every name listed is one
+  of section 7's reports it. The semicolon alone would take a separator
+  written without its space too, and nothing would report it.
+- **That assertion's message quotes the names it read out of the
+  declaration**: a semicolon written with a space on each side is
+  consumed by the split and leaves the name a trailing one, which
+  unquoted reads as a name the same message goes on to list as known. The
+  comments and this message are word-identical to `btclib`'s, landed there
+  as `bd9e3e87`, the issue asking one decision of every copy of this
+  module rather than one per tree.
+
+### `templates_path` goes, this tree keeping no templates
+
+- **`docs/source/conf.py` no longer assigns `templates_path`** (issue
+  btclib-org/.github#901): nothing is tracked under
+  `docs/source/_templates`, `docs/` holds no template of its own, and no
+  `html`, `jinja`, `j2` or `tmpl` file is tracked anywhere, so the key
+  named a directory this repository does not have. Section 2 of the
+  organization standard is where the rule this converges on lives —
+  "`templates_path` names the directory under `docs/source/` where the
+  tree keeps its own templates, and a tree keeping none does not carry
+  the key" — and it names writing the key empty, the way
+  `exclude_patterns` beside it is written, as the rejected alternative.
+- **No `# no templates_path` comment goes in its place**, though this
+  file explains the absence of `sphinx.ext.todo`, `suppress_warnings`
+  and `html_static_path` that way: section 2 carries the whole reason
+  for this key, and section 9's *One fact in one place* is then what
+  decides it. The `# no suppress_warnings` block above keeps the blank
+  line it already had, so it still reads as that key's absence comment
+  rather than as a comment on `exclude_patterns`.
+
+### The declaration says what it is and leaves its assertions to the module
+
+- **`tests/README.md`'s *Convention tests* sentence names no assertion of
+  `conventions_test.py`** (issue btclib-org/.github#910): the list it
+  carried left out `test_the_table_is_not_empty`, which is what fails
+  where a column added to the table or the backticks dropped from its
+  second column stops a row parsing — either mutation failing
+  `test_the_two_halves_account_for_every_convention` as well, the
+  assertions parametrized on the rows being skipped on the empty
+  parameter set. That module reads the heading, the row pattern and the
+  *Not tested here* line rather than the sentence, so a list of its
+  assertions there is a second statement of what it checks with nothing
+  holding the two together, and completing the list would leave the next
+  assertion free to go out of step the same way. What replaces it says
+  what the declaration is — the table and the "Not tested here" line
+  under it, accounting between them for the whole list — and sends a
+  reader wanting what those assertions catch to that module's docstring,
+  section 9 of the organization standard asking that the second statement
+  point at the first.
+- **The halves are named rather than dropped with the list**: nothing
+  else in the section says what the line under the table is, the
+  paragraphs under it giving the reason each convention it names is
+  absent rather than that line's own place in the declaration. The tail
+  clause is the one this copy already carried. The shape is the
+  organization's decision, taken on btclib-org/.github#910 and landed in
+  `btclib` as btclib-org/btclib#1869; btclib-org/.github#910 stays open
+  for the copies in the other trees.
+
+### The convention-test entries' open-issue sentences are superseded
+
+- **The entry *`conventions_test.py`'s module docstring names the ways
+  and counts nothing* above ends by saying btclib-org/.github#906 stays
+  open** (issue btclib-org/.github#946): that issue closed on
+  2026-09-08. `btclib` took the same change at
+  btclib-org/btclib@385406f1, `btclib-secp256k1` at
+  btclib-org/btclib-secp256k1@8d84015d, `btclib-node` at
+  btclib-org/btclib-node@8e0a0a48 and `btclib-benchmarks` at
+  btclib-org/btclib-benchmarks@dc47a41f.
+- **The entry *The declaration says what it is and leaves its assertions
+  to the module* above says btclib-org/.github#910 stays open for the
+  copies in the other trees** (issue btclib-org/.github#946): that issue
+  closed on 2026-09-08. `btclib` took the same replacement at
+  btclib-org/btclib@bd4a4654, `btclib-secp256k1` at
+  btclib-org/btclib-secp256k1@d80e2c07 and `btclib-node` at
+  btclib-org/btclib-node@c8586937.
+- **Both sentences were true when they landed**: each issue closed after
+  the entry naming it did, the last copy of its change landing in
+  another tree. A sentence naming the tree and the sha of a landing
+  stays true as the other trees move, which is why the bullets above
+  give those rather than a state.
+
+### The lint gate is not installed as a git hook
+
+- **`CONTRIBUTING.md`'s *The environment and the gates* no longer asks
+  for `uv run pre-commit install`** (issue btclib-org/.github#949):
+  `pre-commit install` writes into the common git directory, which every
+  worktree of this repository shares, so a worktree's own
+  `rev-parse --git-path hooks` answers with the primary checkout's
+  `.git/hooks` and one session installing the hook installs it for every
+  other. The environment step is `uv sync` alone, and the
+  paragraph saying why sits under *Check exit codes, not filtered
+  output*, where `.github`, `btclib-node` and `btclib-secp256k1` each
+  put theirs.
+- **`CLAUDE.md`'s paragraph below the worktree fence calls that step one
+  command.** Its clause about a line chained onto the block carrying
+  only the first of two goes with the second command, and what the
+  paragraph rests on is untouched: a line that writes goes in a fence of
+  its own, and no line of the block moves the shell.
+- **The landed entry *`CLAUDE.md`'s worktree fence carries no `uv sync`*
+  above says that step is two commands, `uv sync` and the
+  `uv run pre-commit install` that puts the lint gate on a commit.** It
+  is one command now, and the fence that entry is about is unchanged.
+- **`UV_PROJECT_ENVIRONMENT`'s reason is what uv does to the
+  environment, not what a hook does with it**: `uv run --python
+  <version>` removes `.venv`, builds it again on that interpreter and
+  with the command's own group set, and leaves it there. Both the
+  paragraph in *The environment and the gates* and the line beside the
+  matrix command in *Reproducing what CI runs* gave the reason as a
+  `git commit` dying inside the hook this change declines to install.
+
 ## v2026.9.3
 
 ### Repository
