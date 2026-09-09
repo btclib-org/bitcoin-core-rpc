@@ -220,10 +220,10 @@ jobs:
       # while the two numbers' digit counts happened to line up. The two
       # digits reserved for the attempt are checked, not assumed.
       # Computed here rather than inside test.yml's `dist` job, which is
-      # what applies it (issue #1166): every job this workflow dispatches
-      # during one run has to agree on the same suffix, and this is the
-      # one job every one of them already depends on, directly or
-      # through `test`
+      # what applies it (issue btclib-org/btclib#1166): every job this
+      # workflow dispatches during one run has to agree on the same
+      # suffix, and this is the one job every one of them already
+      # depends on, directly or through `test`
       - name: Compute the rehearsal version suffix
         id: suffix
         if: github.event_name == 'workflow_dispatch'
@@ -336,7 +336,8 @@ jobs:
   # the whole build/test matrix, exactly as a pull request runs it, and
   # now the build too: test.yml's `dist` job builds the distribution
   # files, checks them and uploads them, so this call is what makes them
-  # exist for the publish jobs below to download (issue #1166).
+  # exist for the publish jobs below to download
+  # (issue btclib-org/btclib#1166).
   # REPOSITORY.md's "Token permissions" section has why this job names
   # a `permissions:` block of its own
   test:

@@ -64,12 +64,12 @@ on:
         description: >
           Appended to the version in pyproject.toml before the `dist`
           job builds anything, by the dev-version composite action
-          (issue #1166: this is what lets that job's own build be the
-          one a rehearsal publishes, rather than a second build checked
-          separately). A release passes nothing and ships the version
-          the tree declares; the rehearsal passes a .dev suffix, which
-          is how it reaches TestPyPI with a version that index has not
-          already consumed.
+          (issue btclib-org/btclib#1166: this is what lets that job's
+          own build be the one a rehearsal publishes, rather than a
+          second build checked separately). A release passes nothing
+          and ships the version the tree declares; the rehearsal
+          passes a .dev suffix, which is how it reaches TestPyPI with
+          a version that index has not already consumed.
         type: string
         default: ""
       disable-dist-cache:
@@ -145,9 +145,10 @@ jobs:
   #   one of them changes what it does. Leaving every workflow edit to run
   #   everything is the cheap direction to be wrong in
   #
-  # Mirrors btclib-secp256k1's own `changes` job (#189), and issue #145's
-  # heads-up about the permission it needs on the caller's side once it
-  # landed here: release.yml's `test:` job grants it explicitly
+  # Mirrors btclib-secp256k1's own `changes` job
+  # (btclib-org/btclib-secp256k1#189), and issue #145's heads-up about
+  # the permission it needs on the caller's side once it landed here:
+  # release.yml's `test:` job grants it explicitly
   changes:
     name: Decide whether the jobs below have anything to check
     if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
@@ -248,11 +249,12 @@ jobs:
   # the tag that ships it: a release is the one place where finding a
   # problem is too late, a version being consumed by the upload that
   # carries it, and then only yankable.
-  # issue #1166: this job used to build a copy that was checked and then
-  # thrown away, while release.yml's own `build` job built a second,
-  # separate copy -- with no SOURCE_DATE_EPOCH and no sdist normalization
-  # -- and ran the same three checks on that copy again (issue #155),
-  # because passing here said nothing about files this job never saw.
+  # issue btclib-org/btclib#1166: this job used to build a copy that was
+  # checked and then thrown away, while release.yml's own `build` job
+  # built a second, separate copy -- with no SOURCE_DATE_EPOCH and no
+  # sdist normalization -- and ran the same three checks on that copy
+  # again (issue #155), because passing here said nothing about files
+  # this job never saw.
   # This job now does what that job used to: pin the timestamp, apply a
   # rehearsal's version suffix, build once, and upload what it built
   # before installing anything. release.yml no longer has a `build` job
