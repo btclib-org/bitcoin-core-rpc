@@ -825,6 +825,21 @@ sides'.
   second one, so nothing in this tree's history has ever written a
   directory of that name.
 
+### The smoke script's docstring stops claiming `wait_for_rpc` is untested
+
+- **`.github/scripts/rpc_smoke.py`'s module docstring now names
+  `wait_for_rpc`'s retry policy among what `tests/rpc_smoke_test.py`
+  covers, and scopes the "mocking that node would be the recording this
+  script exists to not trust" sentence to `wait_for_rpc`'s own success
+  path along with the rest of the file's `pragma: no cover` sites**
+  (closes #382): `wait_for_rpc` carried no entry in either list, so it
+  read as covered by neither claim, where `tests/rpc_smoke_test.py`'s
+  own docstring already named the retry policy as tested with a stub --
+  a status that clears from one that does not, and the credential a node
+  has already refused. The one branch a stub cannot reach is the answer
+  that actually ends the wait, which keeps both the sentence and the
+  pragma naming it.
+
 ## v2026.9.3
 
 ### Repository
