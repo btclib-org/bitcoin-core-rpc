@@ -14,9 +14,9 @@ python-jsonrpc ancestry, and both are normally vendored — copied into the
 caller's own tree, which makes the copy the caller's to maintain.
 
 **bitcoin-core-rpc** is a standalone JSON-RPC client for Bitcoin Core,
-MIT licensed, with no dependencies, released in lockstep with btclib. It
-is an implementation of the protocol rather than a translation of that
-one, and shares no line with either.
+MIT licensed, with no dependencies, released in lockstep with the
+library downstream of it. It is an implementation of the protocol
+rather than a translation of that one, and shares no line with either.
 
 ## Comparison
 

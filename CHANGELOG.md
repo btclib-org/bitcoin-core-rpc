@@ -914,6 +914,24 @@ sides'.
   the fast-forward the same section prescribes for bringing the primary
   checkout forward does.
 
+### Prose outside the shipped module stops naming the library downstream of it
+
+- **Comments and docstrings across the workflows, `.pre-commit-config.yaml`,
+  `pyproject.toml`, `COMPARISON.md`, `.readthedocs.yaml`, `CONTRIBUTING.md`
+  and `tests/conftest.py` stop naming the library downstream of this package
+  to justify a choice made here** (closes #421): the
+  `no-downstream-name-in-package` hook only reads `src/bitcoin_core_rpc/`, and
+  section 9 of the organization standard reaches this repository's own prose
+  too, this repository being upstream of that library the same way the shipped
+  module is. Each rewritten line keeps the fact it stated -- a shared release
+  schedule, a shared badge split, a shared URL key spelling, a cache
+  exclusion, a documented incident, a type-stub cost -- and drops the
+  comparison. The hook's own `entry:` pattern, the JSON fixtures' literal
+  `"id": "btclib"`, and the smoke script's wallet and probe names are
+  untouched: none of them is prose justifying a choice by comparison, and
+  rewriting any of them would change what it tests rather than clean up a
+  comment.
+
 ## v2026.9.3
 
 ### Repository

@@ -111,9 +111,10 @@ jobs:
       # there, not variables, so a step with no shell: goes green having
       # done nothing. This one command has no POSIX-only syntax and
       # would run identically under either shell today --
-      # btclib-org/btclib#1141 shipped in exactly this shape in btclib's
-      # own pypi-install.yml, the defect latent until the next edit adds a
-      # conditional, a substitution or a loop (issue btclib-org/btclib#1148)
+      # btclib-org/btclib#1141 shipped in exactly this shape in a sibling
+      # repository's own pypi-install.yml, the defect latent until the
+      # next edit adds a conditional, a substitution or a loop (issue
+      # btclib-org/btclib#1148)
       - name: Run pytest
         shell: bash
         run: uv run --locked --no-default-groups --group test pytest --no-cov

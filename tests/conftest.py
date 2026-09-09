@@ -6,13 +6,14 @@
 
 `coverage_fail_under` below answers section 8 of the organization
 standard, which is where the set of invocations that count as a selection
-is decided; the pytest hooks it hangs on are btclib's tests/conftest.py's
-too, that file asking the same question of the same plugin. The two
-docstrings are not the same text and cannot be -- each names an example
-path out of the suite it sits in -- so a difference between them is not a
-drift to close, and neither file is the other's copy of record. This
-file has no hypothesis profile and no golden-file fixture to carry, `--cov`
-in addopts being the one thing bitcoin-core-rpc's suite and btclib's share.
+is decided; the pytest hooks it hangs on are the same ones a sibling
+repository's own conftest.py asks the identical question of, against the
+same plugin. The two docstrings are not the same text and cannot be --
+each names an example path out of the suite it sits in -- so a
+difference between them is not a drift to close, and neither file is the
+other's copy of record. This file has no hypothesis profile and no
+golden-file fixture to carry, `--cov` in addopts being the one thing this
+suite and that sibling's share.
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 # glob patterns in the [tool.uv.build-backend] table below, beside the
 # rest of the configuration, in place of the separate include and exclude
 # language of a MANIFEST.in. That a pure-Python project uses this backend
-# is btclib-org/.github#118, and btclib is where it was done first.
+# is btclib-org/.github#118, first adopted elsewhere in the organization.
 #
 # What the floor has to clear is 0.12.0, where the sdist's own
 # pyproject.toml became a normalized copy of this file with the verbatim
@@ -151,8 +151,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 
-# the seven links section 3 of btclib-org/.github names, keyed as btclib
-# and btclib-secp256k1 key them: the index reports the key as written --
+# the seven links section 3 of btclib-org/.github names, keyed the same
+# way every other published package of the organization keys them: the
+# index reports the key as written --
 # v2026.8.20 is on it as "GitHub" and "Pull Requests" -- so the spelling
 # is what a reader sees, and one spelling across the three published
 # packages is what lets a check read the set back
@@ -261,9 +262,9 @@ required-version = ">=0.12.7"
 # So the alternatives are a `bitcoin_core_rpc-stubs` distribution, which is
 # a hand-written second copy of the whole interface and drifts the first
 # time either moves, or leaving every typed consumer to configure
-# `follow_untyped_imports` for this one module -- which btclib measured at
-# 21 lines of override, and which the consumers who do not notice pay in
-# silence rather than in errors.
+# `follow_untyped_imports` for this one module -- a per-consumer override
+# that the consumers who do not notice pay in silence rather than in
+# errors.
 #
 # There is no package-data entry beside this: the backend copies what is
 # under `module-name` whole, `py.typed` and any other non-`.py` file
@@ -336,10 +337,9 @@ source-exclude = [
     # just read, and not something anyone puts there on purpose: the VS
     # Code mypy extension .vscode/extensions.json recommends writes one
     # per directory it type-checks, so one can appear under tests/ or
-    # docs/, which `**` above reaches whole. btclib shipped a nested one
-    # that way (btclib-org/btclib#985) and carries these three patterns
-    # for it. Unanchored, a cache being wherever the tool that wrote it
-    # was pointed
+    # docs/, which `**` above reaches whole -- these three patterns keep
+    # it out of the sdist wherever it lands. Unanchored, a cache being
+    # wherever the tool that wrote it was pointed
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
