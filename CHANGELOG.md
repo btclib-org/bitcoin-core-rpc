@@ -1062,6 +1062,16 @@ sides'.
   `needs.*.result`; that job reads the listing now, and what that entry
   says about `integration-passed` and `test-passed` still holds.
 
+### `REPOSITORY.md` reads the wiki and the projects board back
+
+- **`has_wiki` and `has_projects` are read back beside `.visibility` and
+  `has_issues`** (issue btclib-org/.github#550): section 11 of
+  `btclib-org/.github`'s `README.md` turns both off on every tree and
+  asks a copy to read them back, so the sentence at the foot that placed
+  them outside the perimeter, on the ground that section 11 stated no
+  rule for either, goes. The call still answers `true` for both here;
+  turning them off is the issue's other half and not this change.
+
 ## v2026.9.3
 
 ### Repository
