@@ -932,6 +932,41 @@ sides'.
   rewriting any of them would change what it tests rather than clean up a
   comment.
 
+### Three gate aggregates take btclib's own allowlist shape
+
+- **`integration-bitcoind.yml`'s `integration-passed` step decides in a
+  shell loop over `join(needs.*.result, ...)` rather than in a boolean
+  `if:` expression** (issue btclib-org/.github#475): the boolean form
+  is the shape btclib-org/btclib#1001 records failing -- a matrix cell
+  dying in "Set up job" leaves `needs.*.result` without `'failure'` in
+  it, the `if:` then evaluates false, and a skipped step leaves its job
+  green. The loop always runs, and an allowlist of `success` and
+  `skipped` fails on anything else instead of only on the two named
+  results. Section 10 of the organization standard names a different
+  shape for this step -- reading the run's own job listing from the
+  API -- and `release.yml` calls this workflow, where that listing is
+  the caller's run rather than this workflow's own
+  (btclib-org/.github#474).
+- **`test.yml`'s `test-passed` step takes the same shape, in place of a
+  `case` denylist over the same join** (issue btclib-org/.github#537): a
+  denylist passes any result outside its own patterns, and an empty
+  join passed both forms alike; the `case ",$results," in *,,*)` guard
+  ahead of the loop is what btclib-org/btclib#1454 asked for.
+- **`codeql.yml`'s `codeql-passed` step takes the same shape too**, for
+  the same boolean-`if:` reason `integration-passed` did -- found
+  reading this tree's own aggregates while porting the other two, and
+  fixed alongside them rather than filed.
+
+### The coverage job's `pytest` invocation drops its duplicate report flag
+
+- **`test.yml`'s `coverage` job runs `pytest` with nothing after it**
+  (issue btclib-org/.github#433): `--cov-report
+  term-missing:skip-covered` duplicated `[tool.coverage.report]`'s own
+  `show_missing` and `skip_covered`, which already give the bare
+  `pytest` `addopts` runs the same report -- measured identical, table
+  for table, with and without the flag. `CONTRIBUTING.md`'s own
+  reproduction of this job is updated to match.
+
 ## v2026.9.3
 
 ### Repository

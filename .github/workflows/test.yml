@@ -235,15 +235,16 @@ jobs:
           # gate runs: the fail_under comment in pyproject.toml names this
           # version, and the two have to move together
           python-version: "3.14"
-      # --cov itself is not repeated here: addopts already carries it, and
-      # what it measures is [tool.coverage.run]'s source. Naming
-      # bitcoin_core_rpc and tests again here would be a second copy of
-      # that list, and the copy a contributor cannot run, this file not
-      # being what anyone types locally
+      # neither --cov nor its report format is repeated here: addopts
+      # already carries --cov, and [tool.coverage.report]'s show_missing
+      # and skip_covered already give the bare pytest below the same
+      # report this job used to type explicitly -- measured identical,
+      # table for table, with and without the flag (btclib-org/.github#433).
+      # Naming bitcoin_core_rpc and tests again here would be a second
+      # copy of that list, and the copy a contributor cannot run, this
+      # file not being what anyone types locally
       - name: Run pytest under coverage
-        run: >
-          uv run --locked --no-default-groups --group test
-          pytest --cov-report term-missing:skip-covered
+        run: uv run --locked --no-default-groups --group test pytest
 
   # the packaging metadata is checked on every pull request, not only on
   # the tag that ships it: a release is the one place where finding a
@@ -460,12 +461,50 @@ jobs:
       # (changes answering nothing, either of the two not running while
       # changes said code=true) reads as the failure it is, and that
       # still shows up as "failure" propagated from changes or from
-      # whichever job did not run for a reason of its own
-      - name: Fail unless every job above succeeded
-        env:
-          RESULTS: ${{ join(needs.*.result, ' ') }}
+      # whichever job did not run for a reason of its own.
+      #
+      # Deciding in the shell rather than in a boolean
+      # `contains(needs.*.result, ...)` expression: issue
+      # btclib-org/btclib#1001 saw four matrix cells die in "Set up job"
+      # downloading a pinned action, the run's own conclusion was
+      # `failure`, and yet that job's `needs.<job>.result` was not
+      # `'failure'` -- so an `if:`-gated step keying on that expression
+      # was skipped, and a skipped step leaves the job green by
+      # construction. Looping over every result here instead means the
+      # step always runs and the log always carries what `needs` actually
+      # held.
+      #
+      # The loop decides one field at a time, and word splitting does not
+      # hand it every field: a trailing empty one is dropped and an empty
+      # join gives no iteration at all, so the loop by itself would pass
+      # on the results beside the empty one, or on nothing
+      # (btclib-org/btclib#1454). The `case` before it is what refuses
+      # those, and the comma separator is what lets it: an empty result
+      # is an empty field, and the commas wrapped around `$results` make
+      # an empty first field, an empty last one, an empty one between two
+      # others and an empty join a single pattern.
+      #
+      # An allowlist of the two legitimate results rather than a denylist
+      # of the bad ones, so a result this file does not anticipate fails
+      # the gate instead of passing it for not being named
+      # (btclib-org/.github#537).
+      - name: Fail unless every job above succeeded or was legitimately skipped
         run: |
-          echo "$RESULTS"
-          case " $RESULTS " in
-            *" failure "* | *" cancelled "*) exit 1 ;;
+          results='${{ join(needs.*.result, ',') }}'
+          echo "results: $results"
+          case ",$results," in
+            *,,*)
+              echo "::error::a job this gate depends on reported no result"
+              exit 1
+              ;;
           esac
+          IFS=,
+          for result in $results; do
+            case "$result" in
+              success | skipped) ;;
+              *)
+                echo "::error::a job this gate depends on reported $result"
+                exit 1
+                ;;
+            esac
+          done

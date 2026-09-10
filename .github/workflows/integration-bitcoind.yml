@@ -350,12 +350,53 @@ jobs:
     steps:
       # the condition reads the whole needs context rather than testing
       # each job by name, so a cell added to the matrix above is covered
-      # without touching this
-      - name: Fail unless every job above succeeded
-        if: >-
-          contains(needs.*.result, 'failure') ||
-          contains(needs.*.result, 'cancelled') ||
-          contains(needs.*.result, 'skipped')
+      # without touching this.
+      #
+      # Deciding in the shell rather than in a boolean `if:` expression:
+      # btclib-org/btclib#1001 is a run whose matrix cells died in "Set up
+      # job" downloading a pinned action, the run's own conclusion was
+      # `failure`, and yet `needs.*.result` did not carry that into the
+      # boolean expression this step used to key on -- so the step was
+      # skipped, and a skipped step leaves the job green by construction,
+      # which is the shape btclib-org/.github#475 records this job having
+      # had. Looping over every result here instead means the step always
+      # runs and the log always carries what `needs` actually held.
+      #
+      # The loop decides one field at a time, and word splitting does not
+      # hand it every field: a trailing empty one is dropped and an empty
+      # join gives no iteration at all, so the loop by itself would pass
+      # on the results beside the empty one, or on nothing
+      # (btclib-org/btclib#1454). The `case` before it is what refuses
+      # those, and the comma separator is what lets it: an empty result
+      # is an empty field, and the commas wrapped around `$results` make
+      # an empty first field, an empty last one, an empty one between two
+      # others and an empty join a single pattern.
+      #
+      # An allowlist of the two legitimate results rather than a denylist
+      # of the bad ones, so a result this file does not anticipate fails
+      # the gate instead of passing it for not being named
+      # (btclib-org/.github#537): neither job below is conditional on
+      # anything but the draft/closed guard every job in this file
+      # carries, so a "skipped" reaching this loop is a dependency that
+      # already failed, and it is that dependency's own "failure" the
+      # loop below actually catches.
+      - name: Fail unless every job above succeeded or was legitimately skipped
         run: |
-          echo "::error::a job this gate depends on did not succeed"
-          exit 1
+          results='${{ join(needs.*.result, ',') }}'
+          echo "results: $results"
+          case ",$results," in
+            *,,*)
+              echo "::error::a job this gate depends on reported no result"
+              exit 1
+              ;;
+          esac
+          IFS=,
+          for result in $results; do
+            case "$result" in
+              success | skipped) ;;
+              *)
+                echo "::error::a job this gate depends on reported $result"
+                exit 1
+                ;;
+            esac
+          done
