@@ -890,8 +890,12 @@ ignore = [
 # comes, or the ::error:: annotation naming the last answer and the
 # builds page that says why
 ".github/scripts/wait_for_readthedocs_build.py" = ["T201"]
-# flake8-no-pep420: each is a standalone entry point a workflow step
-# invokes with `python .github/scripts/<name>.py`, never an import -- the
+# and the changelog check, run by the check-changelog hook and read on
+# the terminal of whoever's commit it refused: what it prints is each
+# line it refuses and the reason, which is the whole of its report
+".github/scripts/check_changelog.py" = ["T201"]
+# flake8-no-pep420: each is a standalone entry point a workflow step or
+# a hook invokes with `python .github/scripts/<name>.py`, never an import -- the
 # directory holds no __init__.py because it is not a package, and adding
 # one to satisfy this rule would make it look like one
 ".github/scripts/*.py" = ["INP001"]
