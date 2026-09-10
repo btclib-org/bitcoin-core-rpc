@@ -976,6 +976,20 @@ sides'.
   `CONTRIBUTING.md`'s *The environment and the gates* and *The lint gate
   is not installed as a git hook* already state in full, so the new
   section drops that paragraph rather than moving it.
+- **The section landed here supersedes what earlier entries say about a
+  paragraph below the fence** (issue btclib-org/.github#739). *`CLAUDE.md`'s
+  worktree fence carries no `uv sync`*'s third bullet says that paragraph gives
+  the environment step as two commands, `uv sync` and `uv run pre-commit
+  install`; *The lint gate is not installed as a git hook*'s second and third
+  bullets say the same paragraph, amended by that entry, calls the step one
+  command instead. No such paragraph is in the section landed here at all:
+  `CONTRIBUTING.md`'s *The environment and the gates* and its own *The lint gate
+  is not installed as a git hook* paragraph state the step now, and what that
+  entry's first bullet changed in `CONTRIBUTING.md` itself stands.
+  *`CLAUDE.md`'s worktree fence takes the standard's converged form*'s fourth
+  bullet names the sha the fence converged at as `btclib-org/.github`'s
+  `20ad654`; the section landed here is the standard's at `2a7a8fc` instead, its
+  create, push and removal lines unchanged from what that entry described.
 
 ## v2026.9.3
 
