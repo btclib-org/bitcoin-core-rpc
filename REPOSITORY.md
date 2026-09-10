@@ -27,8 +27,9 @@ feature (HTTP 403)`. Everything below depends on it, and so does Actions
 being unmetered.
 
 ```shell
-gh api repos/btclib-org/bitcoin-core-rpc --jq '{visibility, has_issues}'
-# {"has_issues":true,"visibility":"public"}
+gh api repos/btclib-org/bitcoin-core-rpc \
+  --jq '{visibility, has_issues, wiki: .has_wiki, projects: .has_projects}'
+# {"has_issues":true,"projects":true,"visibility":"public","wiki":true}
 ```
 
 Section 10's `scorecard` sentinel is the other thing resting on the
@@ -40,6 +41,12 @@ flip one command from being seen.
 `has_issues` is what `CONTRIBUTING.md`'s *The issue tracker* rests on —
 an issue about this tree alone stays here — and so does the
 `.github/ISSUE_TEMPLATE/` section 16's checklist gives every repository.
+
+Section 11 turns the wiki and the projects board off on every tree of
+the organization: an unused wiki is a second place a reader can land
+looking for what the tracker already records, and the projects board is
+a per-user view of the same issues the tracker holds. The call above
+still answers `true` for both, so neither has been turned off here yet.
 
 ## Required checks on main
 
@@ -810,11 +817,7 @@ standard's own `README.md`, `grep -c allow_forking` answers `0` where
 `grep -c 'default branch'` does not, which is what makes the first an
 absence rather than a file that was not read. Recording them would grow
 this file with GitHub's API rather than with the standard, and what that
-costs is a change to one of
-them showing up nowhere here. `has_wiki` and `has_projects` are outside
-the perimeter by section 11's own sentence, which states no rule about
-either, so this file neither reads them back nor explains an answer to
-them.
+costs is a change to one of them showing up nowhere here.
 
 **A credential this repository spends and does not hold.**
 `claude-review.yml` reads `secrets.CLAUDE_CODE_OAUTH_TOKEN`, and both
