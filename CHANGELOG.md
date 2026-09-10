@@ -967,6 +967,16 @@ sides'.
   for table, with and without the flag. `CONTRIBUTING.md`'s own
   reproduction of this job is updated to match.
 
+### `CLAUDE.md` carries the shared primary-checkout section byte for byte
+
+- **`## The primary checkout is the maintainer's` matches
+  `btclib-org/.github`'s `CLAUDE.md` at `2a7a8fc`, heading to heading**
+  (issue btclib-org/.github#739): the section this tree carried instead
+  named `uv sync` and the git-hook install directly, which
+  `CONTRIBUTING.md`'s *The environment and the gates* and *The lint gate
+  is not installed as a git hook* already state in full, so the new
+  section drops that paragraph rather than moving it.
+
 ## v2026.9.3
 
 ### Repository
