@@ -1657,8 +1657,9 @@ def test_a_fresh_connect_failure_does_not_poison_the_pool() -> None:
     third succeeds, which it could not if the first failure's connection
     were still sitting in the pool for every later call to inherit --
     `connection.sock.settimeout` on the `None` a failed connect leaves
-    behind, an `AttributeError` escaping the module's every-failure-is-
-    `FetchError` contract, forever, is the shape this refuses.
+    behind, an `AttributeError` escaping the module's
+    every-failure-is-`FetchError` contract, forever, is the shape this
+    refuses.
     """
     node_is_up = False
 
