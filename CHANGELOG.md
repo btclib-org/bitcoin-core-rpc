@@ -1072,6 +1072,25 @@ sides'.
   rule for either, goes. The call still answers `true` for both here;
   turning them off is the issue's other half and not this change.
 
+### The hyphen hook reads Python and rst beside markdown
+
+- **`no-hyphen-at-end-of-line` carries
+  `types_or: [markdown, python, rst]`, under `btclib-org/.github`'s own
+  comment with its `README.md` read as the organization standard, the
+  phrase the comments beside it use for the standard** (issue
+  btclib-org/.github#921): section 4 of the organization standard gives
+  the hook the file types whose prose a build renders, and a docstring
+  reaches that rendering through docutils, which leaves the source break
+  inside the paragraph it builds and lets html collapse it to a space,
+  as it does markdown's join.
+- **The lines the widened hook refused hold their token whole**:
+  `docs/source/conf.py`'s module docstring wrapped its URL at `sphinx-`
+  and has it on a line of its own, and the docstring of
+  `tests/transport_test.py`'s
+  `test_a_fresh_connect_failure_does_not_poison_the_pool` wrapped
+  `every-failure-is-` at its last hyphen and carries the compound on one
+  line.
+
 ## v2026.9.3
 
 ### Repository
