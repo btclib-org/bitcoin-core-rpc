@@ -310,7 +310,9 @@ makes that difference.
 The documentation build is the one to remember, because no hook reads
 reStructuredText: a docstring docutils cannot parse fails it with every
 hook green — a name ending in an underscore is a reference to a link
-target (``mult_``, and the fix is those very backticks).
+target (``mult_``, and the fix is those very backticks). That build is not
+the whole of the `docs` job: the steps after it read the pages it wrote,
+and *Reproducing what CI runs* below carries them with it in one block.
 
 **Check exit codes, not filtered output.** `pre-commit run ... | grep -v
 Passed` hides a failure, and `grep` finding nothing exits 1, which is not
@@ -447,12 +449,33 @@ uv run --locked --only-group lint pre-commit run --all-files
 
 `docs.yml`, the `docs` job — and this one is worth running even when every
 hook passes, because no hook reads reStructuredText: a docstring docutils
-cannot parse fails the workflow while pre-commit is green.
+cannot parse fails the workflow while pre-commit is green. The steps after
+the build read the pages it wrote, and run in this order:
 
 ```shell
 uv run --locked --no-default-groups --group docs \
     sphinx-build -n -W -b html docs/source docs/build/html
+if grep -rn 'href="#\./' docs/build/html --include='*.html'; then
+    echo "::error::the links above resolve to no page (unresolved relative path)"
+    exit 1
+fi
+uv run --locked --no-default-groups --group docs \
+    python .github/scripts/check_api_page.py docs/build/html/api.html
 ```
+
+The `grep` makes the unresolved-link claim about the built pages rather
+than about the configuration that keeps them resolvable. What myst renders
+for a destination it cannot resolve is an anchor to an id no page has, and
+`-W` reports it because `docs/source/conf.py` resolves the links the
+included root files carry and suppresses no myst warning; the `grep` is
+what still finds one the day a suppression goes back in.
+
+`check_api_page.py` asks the built page for every name of
+`bitcoin_core_rpc.__all__`, and `docs/source/api.rst`'s block of one
+`automodule` per submodule is what makes each of them findable there.
+What the check is for is a member dropped without a word, which no
+warning and therefore no `-W` reports; the script's own docstring names
+the shape that does it.
 
 `codeql.yml` has no line here, and it is the one gate that cannot: its jobs
 run `github/codeql-action` and no command of this project's, so reproducing
