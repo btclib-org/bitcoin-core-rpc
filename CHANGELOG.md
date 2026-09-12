@@ -1108,6 +1108,21 @@ sides'.
   checks that — not this list" — so nothing red follows from the copies
   disagreeing at this line.
 
+### The issue-form hooks join the `check-jsonschema` block
+
+- **`check-github-issue-config` and `check-github-issue-forms` sit beside
+  `check-dependabot` and `check-readthedocs` in `.pre-commit-config.yaml`'s
+  `python-jsonschema/check-jsonschema` entry, at its `rev: 0.38.0`, under
+  `btclib-org/.github`'s own comment** (issue btclib-org/.github#767):
+  section 4 of the organization standard names the pair in its *schemas*
+  bullet, both hooks carrying `types: [yaml]`, `config.yml` under that
+  spelling for the first and the directory's yaml that is neither
+  `config.yml` nor `config.yaml` for the second, and `check-hooks-apply`
+  failing a hook that matches no file. This tree's
+  `.github/ISSUE_TEMPLATE/` holds `config.yml` for the first and
+  `bug_report.yml`, `feature_request.yml` and `question.yml` for the
+  second, and both hooks pass on those files, none of which changes here.
+
 ## v2026.9.3
 
 ### Repository
