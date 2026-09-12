@@ -1192,6 +1192,27 @@ sides'.
   aggregate's own -- and the comment now writes it as the condition it
   is, which a job added later with a condition of its own ends.
 
+### `REVIEWING.md` and `.gitattributes` are the standard's copies byte for byte
+
+- **`REVIEWING.md`'s shared half is `btclib-org/.github`'s at `1058ef3`,
+  and everything from `## This repository in particular` down is this
+  tree's, unchanged** (issue btclib-org/.github#353): the half is
+  replaced whole rather than difference by difference,
+  `tests/verbatim_test.py`'s comparison being of bytes. What it says
+  that the copy it replaces did not: a finding about the wording of
+  prose no user reads is named at the foot of the review rather than
+  filed, on btclib-org/.github#976's authority; what makes a suggestion
+  the right shape is the signature GitHub's own commit carries; and
+  *Re-review* reads the old sha off the previous round's verdict, an
+  amend or a rebase leaving it off the branch.
+- **`.gitattributes` carries what the union driver charges at the seam,
+  and the rejected alternative of not setting the driver at all** (issue
+  btclib-org/.github#1026): the paragraphs are the standard's own words,
+  and section 14 compares this file whole, so a wording of this tree's
+  own is one that comparison refuses. `check-changelog` is the hook the
+  seam paragraph names, and `.pre-commit-config.yaml` here runs it ahead
+  of the markdownlint autofix for the reason that paragraph gives.
+
 ## v2026.9.3
 
 ### Repository
