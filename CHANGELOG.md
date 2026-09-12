@@ -1213,6 +1213,21 @@ sides'.
   seam paragraph names, and `.pre-commit-config.yaml` here runs it ahead
   of the markdownlint autofix for the reason that paragraph gives.
 
+### `CONTRIBUTING.md` reproduces the `docs` job whole
+
+- **The `docs.yml` block under *Reproducing what CI runs* carries the
+  unresolved-link `grep` and the public-surface check beside the
+  `sphinx-build` call** (issue btclib-org/.github#973): that section's
+  opening sentence is that each command in it is the one a CI job runs,
+  and a contributor reproducing the build alone leaves the checks over
+  its output unrun — green locally, with the job red all the same. Each
+  of them reads what the build wrote, so they stand in one ordered
+  block, and the paragraphs under it say what each is for.
+- **The gate section *The environment and the gates* says that build is
+  not the whole of the `docs` job**, and points at that block rather
+  than repeating it: what a contributor runs before committing is the
+  job, and the commands stay in one place.
+
 ## v2026.9.3
 
 ### Repository
