@@ -298,7 +298,10 @@ jobs:
       # into the bytes `attest` below signs, and the script's docstring
       # has that measurement. The commit date, not the tag's: `git log -1`
       # on a shallow clone reads the tip, which is the commit the tag
-      # points at, and a lightweight tag has no date of its own to prefer
+      # points at, and a lightweight tag has no date of its own to prefer.
+      #
+      # The bill of materials written below reads it too, as the
+      # document's own timestamp
       - name: Pin the build timestamp to the commit
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
       # empty on every trigger but a release rehearsal: `inputs` is unset
@@ -337,6 +340,19 @@ jobs:
           uv run --no-project --python 3.14 \
             .github/scripts/normalize_sdist.py dist/
           sha256sum dist/*
+      # and what nothing said at all: what the files contain, as a
+      # document rather than as a check. The bill of materials is
+      # reproducible for the reason the step above is -- SOURCE_DATE_EPOCH
+      # is its timestamp, and its serial number is derived from the two
+      # digests -- so a rebuild of a released tag writes this file too,
+      # and release.yml's `attest` job signs it beside the distribution
+      # files. Into a directory of its own and not dist/: that directory
+      # is uploaded as the artifact the publish jobs hand to an index, and
+      # an index takes distribution files
+      - name: Write the bill of materials
+        run: |
+          uv run --no-project --python 3.14 \
+            .github/scripts/generate_sbom.py dist/ sbom/
       # before anything is installed, and that ordering is the point: a
       # step below runs third-party code -- twine, check-wheel-contents
       # and pyroma come from a group uv installs, and a `.pth` file in a
@@ -350,6 +366,15 @@ jobs:
         with:
           name: dist
           path: dist/
+      # an artifact of its own, for the reason the step that writes it
+      # gives: release.yml's `attest` and `github-release` jobs both hand
+      # every file in it to a signature or a release, the same way they
+      # do dist's
+      - name: Upload the bill of materials
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom
+          path: sbom/
       # the same validation PyPI applies on upload: broken metadata, or a
       # README that does not render, cannot be fixed by reuploading.
       # After the upload above rather than before it, for the reason

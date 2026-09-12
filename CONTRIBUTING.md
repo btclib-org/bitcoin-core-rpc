@@ -386,7 +386,12 @@ normalizer's output rather than the backend's and a job without that
 step would publish, and attest, other bytes; `normalize_sdist.py`'s
 docstring has the measurement. `sha256sum` after them is the digest a
 rebuild from the tag is compared against, per RELEASING.md's "Rebuild a
-release from its tag". The
+release from its tag". `generate_sbom.py` writes the CycloneDX bill of
+materials into `sbom/` and not `dist/`, an index taking distribution
+files and the publish jobs handing it that artifact whole;
+`release.yml`'s `attest` job signs the document beside the two files, and
+its timestamp is that same `SOURCE_DATE_EPOCH`, so a rebuild from the tag
+answers with the same bytes there too. The
 distribution files are uploaded before anything below installs a package:
 installing a dependency executes its code, and a compromised one must not
 reach a `dist/` that still has to be handed on:
@@ -396,6 +401,7 @@ export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
 uv build
 uv run --no-project --python 3.14 .github/scripts/normalize_sdist.py dist/
 sha256sum dist/*
+uv run --no-project --python 3.14 .github/scripts/generate_sbom.py dist/ sbom/
 uv run --locked --only-group check twine check --strict dist/*
 uv run --locked --only-group check check-wheel-contents dist/*.whl
 uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz

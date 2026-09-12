@@ -1228,6 +1228,42 @@ sides'.
   than repeating it: what a contributor runs before committing is the
   job, and the commands stay in one place.
 
+### A bill of materials is published with the release, and attested with it
+
+- **`test.yml`'s `dist` job writes a CycloneDX 1.6 document into `sbom/`
+  and uploads it as an artifact of its own** (issue
+  btclib-org/.github#144): `.github/scripts/generate_sbom.py` is btclib's
+  at `d68c1e8a`, and it reads the built wheel's `METADATA` rather than
+  `pyproject.toml`, so a rehearsal describes the `.dev` version it
+  actually built. `components` is an empty list here, `dependencies = []`
+  being what this distribution declares, and a signed statement of that
+  is what the document is for: a consumer reading the organization's
+  releases gets the same artefact from each rather than learning which of
+  them describes itself and why.
+- **`release.yml`'s `attest` job carries `sbom/*` among its subjects, and
+  `github-release` attaches the document beside the distribution files**:
+  one attestation covers the wheel, the sdist and the document, so the
+  document verifies against the bundle the wheel does. Recovering a
+  release by hand therefore takes the run's `sbom` artifact as well as
+  `dist` and `attestation`.
+- **`RELEASING.md` reads the document instead of explaining its
+  absence**, and its pointer at btclib-org/.github#24 goes with the
+  paragraph that carried it: that issue watches an exemption this
+  repository no longer takes, and stays open for `btclib-secp256k1`,
+  which has not adopted.
+- **"Rebuild a release from its tag" exports `SOURCE_DATE_EPOCH` rather
+  than prefixing it onto `uv build`**: a prefix binds the one command,
+  and both scripts the fence runs after it read the variable out of their
+  own environment and refuse to run without it. The tag is a
+  `${version:?}` placeholder there now, which is what lets the fence
+  verify a document only a release that carries one has.
+- **The submodule half of the script is ported unrun.** This repository
+  vendors no submodule, so `GITLINK` and the functions around it are a
+  no-op here; stripping them would put a silent divergence between the
+  copies, `generate_sbom.py` being no part of section 14's list. Its two
+  bare issue references are qualified as `btclib-org/btclib#1280` and
+  `btclib-org/btclib#1194`, which resolve to nothing in this tracker.
+
 ## v2026.9.3
 
 ### Repository
