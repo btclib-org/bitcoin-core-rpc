@@ -29,7 +29,10 @@ that either.
 """
 
 import re
+import sys
 from pathlib import Path
+
+import pytest
 
 _ROOT = Path(__file__).parents[1]
 _PYPROJECT = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
@@ -85,7 +88,34 @@ _JOBS = re.compile(r"^jobs:\n(?P<block>.*)\Z", re.MULTILINE | re.DOTALL)
 _JOB = re.compile(
     r"^  (?P<key>[a-z0-9_-]+):\n(?P<block>(?:^ {3,}.*\n|^\n)*)", re.MULTILINE
 )
-_NEEDS = re.compile(r"^    needs: (?P<needs>\[[^]\n]*\]|\S+)", re.MULTILINE)
+# `needs:` in each of the three shapes GitHub takes -- one job after the
+# key, a flow list there, and a block list under it -- read as whatever
+# follows the key on its own line plus the items below it. A reader blind
+# to the block shape answers a closure short of whatever sits behind an
+# edge written that way, and the biconditional below then passes on a gate
+# it has not read (btclib-org/.github#1031).
+#
+# The run of items takes a comment line and a blank one as well, and an
+# item's own trailing comment with it: a whole-line comment among the
+# items, a blank line between two of them and a `#` after an item are one
+# thing to a yaml reader, and a run of adjacent item lines ends at each of
+# them and drops every item below. A tree that strips comments before the
+# job blocks are read meets whitespace where this one meets the comment,
+# so both arrive here and one spelling answers for the organization's
+# copies of this module rather than for this tree
+# (btclib-org/.github#1038).
+#
+# What the run must not take is a step: `steps:` entries sit at the item
+# indent, and `      - name: Setup uv` is kept out by an item being the
+# whole line up to its comment
+_NEEDS = re.compile(
+    r"^    needs:(?P<inline>[^#\n]*)(?:#[^\n]*)?\n"
+    r"(?P<items>(?:^      - \S+[ \t]*(?:#[^\n]*)?\n|^[ \t]*(?:#[^\n]*)?\n)*)",
+    re.MULTILINE,
+)
+# one item of the block list above, the key picked off a line the run has
+# already read as an item
+_ITEM = re.compile(r"^      - (?P<key>\S+)", re.MULTILINE)
 _NAME = re.compile(r'^    name: "?(?P<name>[^"\n]*?)"?$', re.MULTILINE)
 _KEY = re.compile(r"[\w-]+")
 # each gating job writes the interpreter it runs into itself, as
@@ -138,7 +168,11 @@ def _named(block: str) -> str:
 
 def _needed(block: str) -> set[str]:
     """Return the job keys a job block's `needs:` names."""
-    return {key for names in _NEEDS.findall(block) for key in _KEY.findall(names)}
+    return {
+        key
+        for match in _NEEDS.finditer(block)
+        for key in _KEY.findall(match["inline"]) + _ITEM.findall(match["items"])
+    }
 
 
 def _gating() -> dict[str, str]:
@@ -257,6 +291,113 @@ def test_free_threading_is_classified_exactly_when_the_gate_runs_it() -> None:
         " and the jobs the gate waits on name"
         f" {', '.join(run) or 'no free-threaded interpreter'}"
     )
+
+
+def test_needed_reads_needs_in_every_shape_the_gate_may_take(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One job after the key, a flow list there, a block list under it.
+
+    GitHub takes all three and they name the same jobs, so a reader of
+    two of them answers a closure short of whatever sits behind an edge
+    written in the third -- short in silence, the `no job ... names an
+    interpreter` assertion above firing only where the aggregate's own
+    `needs:` is the unread one (btclib-org/.github#1031). No job of
+    `test.yml` writes a block list, so the text read here is its own.
+
+    A whole-line comment among the items, a blank line between two of
+    them and a trailing comment on one each end a run of adjacent item
+    lines, and each is one thing to a yaml reader
+    (btclib-org/.github#1038). A comment reaches this module as it was
+    written, where a tree stripping comments ahead of the job blocks
+    meets whitespace in its place, so both forms stand below and one
+    spelling answers for the organization's copies of this module.
+    """
+    tail = "    runs-on: ubuntu-latest\n"
+    both = {"changes", "coverage"}
+    flow = f"    needs: [changes, coverage]\n{tail}"
+    scalar = f"    needs: changes\n{tail}"
+    under_the_key = {
+        "a block list": f"    needs:\n      - changes\n      - coverage\n{tail}",
+        "a comment among the items": (
+            "    needs:\n"
+            "      - changes\n"
+            "      # the cell the coverage floor is measured on\n"
+            f"      - coverage\n{tail}"
+        ),
+        "that comment stripped": (
+            f"    needs:\n      - changes\n     \n      - coverage\n{tail}"
+        ),
+        "a comment on an item": (
+            f"    needs:\n      - changes  # the gate\n      - coverage\n{tail}"
+        ),
+        "that one stripped": (
+            f"    needs:\n      - changes \n      - coverage\n{tail}"
+        ),
+        "a blank line between two items": (
+            f"    needs:\n      - changes\n\n      - coverage\n{tail}"
+        ),
+    }
+    assert _needed(flow) == both
+    assert _needed(scalar) == {"changes"}
+    for shape, block in under_the_key.items():
+        assert _needed(block) == both, shape
+    # the control: a reader of the key's own line and nothing under it --
+    # which is what this module read before -- answers the same for the
+    # two shapes that write the list there and nothing at all for the
+    # shapes that write it below, so what the assertions above turn on is
+    # the items being read rather than the text merely being job text
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_NEEDS",
+        re.compile(
+            r"^    needs:(?P<inline>[^#\n]*)(?:#[^\n]*)?\n(?P<items>)", re.MULTILINE
+        ),
+    )
+    assert _needed(flow) == both
+    assert _needed(scalar) == {"changes"}
+    for shape, block in under_the_key.items():
+        assert _needed(block) == set(), shape
+
+
+def test_needed_reads_no_step_of_a_job_as_a_job_it_waits_on(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A `steps:` entry sits at the item indent and is not an item.
+
+    `      - name: Setup uv` differs from an item in what follows the
+    dash and in nothing else, so a run widened to take the rest of the
+    line reads its first token as a job and goes on reading below it.
+    What ends the run ahead of a real job's steps is the `steps:` key,
+    written at the indent a job's keys take, so the text that separates
+    the two readings is a step line where an item goes; the widened
+    reader below is what says so, both readings answering alike on the
+    job whose steps follow its `needs:`.
+    """
+    steps = (
+        "    needs:\n"
+        "      - changes\n"
+        "      - coverage\n"
+        "    steps:\n"
+        "      - name: Setup uv\n"
+        "        uses: astral-sh/setup-uv@v7\n"
+    )
+    misplaced = (
+        "    needs:\n      - changes\n      - name: Setup uv\n      - coverage\n"
+    )
+    assert _needed(steps) == {"changes", "coverage"}
+    assert _needed(misplaced) == {"changes"}
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_NEEDS",
+        re.compile(
+            r"^    needs:(?P<inline>[^#\n]*)(?:#[^\n]*)?\n"
+            r"(?P<items>(?:^      - \S+[^\n]*\n|^[ \t]*(?:#[^\n]*)?\n)*)",
+            re.MULTILINE,
+        ),
+    )
+    assert _needed(steps) == {"changes", "coverage"}
+    assert _needed(misplaced) == {"changes", "name:", "coverage"}
 
 
 def test_every_sweep_runs_the_same_interpreters() -> None:

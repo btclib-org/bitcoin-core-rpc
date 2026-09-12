@@ -1264,6 +1264,37 @@ sides'.
   bare issue references are qualified as `btclib-org/btclib#1280` and
   `btclib-org/btclib#1194`, which resolve to nothing in this tracker.
 
+### The gate's `needs:` closure reads a block list, and the comments in it
+
+- **`tests/interpreters_test.py` reads a job's `needs:` in each of the
+  three shapes GitHub takes, and takes a comment or a blank line among
+  the items** (closes btclib-org/.github#1031, issue
+  btclib-org/.github#1038): the reader this replaces matched a flow list
+  or a scalar on the key's own line, so a block list under the key named
+  no job at all, the closure `test: every job passed` waits on narrowed
+  with nothing red to say so, and the free-threading biconditional that
+  reads it measured a gate it had not read. No job of `test.yml` writes
+  its `needs:` under the key, so the closure holds the same jobs either
+  way; what changes is what a job written that way would do to it.
+- **The spelling is the organization's rather than this tree's** (issue
+  btclib-org/.github#1038): `btclib`, `btclib-secp256k1` and
+  `btclib-node` carry the same module, and that issue stays open for the
+  three of them to take the same spelling. This tree wrote it because it
+  is the one that reads the job blocks with their comments still in
+  them: it meets a `# a note` line at the indent the items take, where
+  the others meet the whitespace their strip leaves there, so a run
+  tolerating the whitespace alone passes there and fails here. An item's
+  own trailing comment goes with the two -- an item written
+  `- changes  # the gate` is the shape the tolerance drafted in that
+  issue's body still dropped, and an item is read up to it.
+- **A step is not an item, and the test says so.** A `- name: Setup uv`
+  step line sits at the indent the items take, and what keeps it out is
+  that an item is the whole line up to its own comment; a run widened to
+  the rest of the line reads its first token, `name:`, as a job and every
+  item below it with them. What ends the run ahead of a real job's steps
+  is the `steps:` key at the indent a job's keys take, so what separates
+  the two readings is a step line written where an item goes.
+
 ## v2026.9.3
 
 ### Repository
