@@ -593,23 +593,28 @@ result.
    `author` is the cheap second question: `github-actions` is the workflow
    having cut it, any other login a release recreated by hand. Its notes
    are the tag's section of RELEASE_NOTES.md, and the distribution files are
-   attached, `<tag>.attestation.jsonl` beside them. A run that logs
+   attached, `<tag>.attestation.jsonl` and the bill of materials beside
+   them. A run that logs
    `RELEASE_NOTES.md has no v<version> section` generated the notes from the
    merged pull requests instead — the fallback `version-check` exists to make
    unreachable, not a second way to write release notes — and they are worth
    replacing by hand if it ever fires.
 
-   **No CycloneDX bill of materials is among them, on purpose.** This
-   repository declares `dependencies = []` in `pyproject.toml`, and
-   `pypi-install.yml` already asserts that against the installed package
-   on every run, so a bill of materials would list nothing beyond what
-   those already prove empty. A real runtime dependency arriving here is
-   the most direct way to change the answer, and that trigger is this
-   repository's own. If the generator ever learns
-   to describe a component `Requires-Dist` cannot express, the question
-   reopens for this repository and its siblings at once, and
-   [btclib-org/.github#24](https://github.com/btclib-org/.github/issues/24)
-   is the open issue that carries it.
+1. Read the bill of materials attached to the release,
+   `bitcoin_core_rpc-<version>.cdx.json`: a CycloneDX 1.6 document naming
+   the distribution, its licence, the two files with their SHA-256, and
+   one component per dependency the wheel's metadata declares. It is read
+   out of the built wheel and not out of `pyproject.toml`, which is what
+   lets a rehearsal describe the `.dev` version it actually built.
+
+   `components` is an empty list here, `dependencies = []` being what
+   this distribution declares, and that empty list is the point rather
+   than an accident of it: a consumer reading three releases of this
+   organization gets the same document from each, and does not have to
+   learn which of them describes itself and why. Anything appearing in
+   that list is a `Requires-Dist` this repository did not mean to ship.
+   Attested with the distribution files, so `gh attestation verify` below
+   covers it too.
 
 1. Verify the provenance of an asset, which is the release's own and not
    the PEP 740 attestations checked two steps up: those cover the copies
@@ -629,8 +634,9 @@ result.
    the first asks the attestations API for the signed statement, the
    second reads it from the asset and asks nothing — which is what the
    bundle is attached for, mirroring the releases page being the case it
-   answers. One attestation covers both files, so the sdist verifies
-   against the same bundle.
+   answers. One attestation covers every asset the `attest` job was
+   given, so the sdist and the bill of materials verify against the same
+   bundle.
 
    `--signer-workflow` is the flag that makes the check say *which*
    workflow signed: without it a valid attestation from any workflow in
@@ -671,15 +677,42 @@ provenance one above: verify the *rebuilt* file rather than a downloaded
 one, and it can only pass if the digests agree.
 
 ```shell
-git checkout v2026.8.8
-SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) uv build
-uv run --no-project --python 3.14 .github/scripts/normalize_sdist.py dist/
-repo=btclib-org/bitcoin-core-rpc
-gh attestation verify dist/bitcoin_core_rpc-2026.8.8-py3-none-any.whl \
-  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
-gh attestation verify dist/bitcoin_core_rpc-2026.8.8.tar.gz \
+version=<the released version>
+```
+
+The placeholder stands in a fence with nothing under it to reach, and the
+fence below writes it `${version:?}` and chains, which is the pair the
+tagging step of *Release to PyPI* describes. `SOURCE_DATE_EPOCH` is
+exported rather than prefixed onto `uv build`: a prefix binds one
+command, and both scripts below read the variable out of their own
+environment and refuse to run without it.
+
+```shell
+git checkout "v${version:?}" &&
+export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) &&
+uv build &&
+uv run --no-project --python 3.14 \
+  .github/scripts/normalize_sdist.py dist/ &&
+uv run --no-project --python 3.14 \
+  .github/scripts/generate_sbom.py dist/ sbom/ &&
+repo=btclib-org/bitcoin-core-rpc &&
+gh attestation verify "dist/bitcoin_core_rpc-${version:?}-py3-none-any.whl" \
+  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml" &&
+gh attestation verify "dist/bitcoin_core_rpc-${version:?}.tar.gz" \
+  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml" &&
+gh attestation verify "sbom/bitcoin_core_rpc-${version:?}.cdx.json" \
   --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
 ```
+
+The bill of materials is rebuilt with them and verified like them: its
+timestamp is `SOURCE_DATE_EPOCH` and its serial number is derived from
+the two digests, so it is the same bytes as the released copy — which is
+the only reason a third `gh attestation verify` can pass at all. It is
+no steadier than the files, though: any of the bounds below that moves a
+distribution file's digest moves this document's serial number with it,
+so the third command fails wherever the first two do. A tag whose release
+carries no such document has nothing for it to check, and it is the one
+to leave out there.
 
 Three things bound that guarantee, and each is worth knowing before
 reading a mismatch as tampering:
@@ -694,7 +727,7 @@ reading a mismatch as tampering:
   is what the checkout above is only if nothing was ever built in it:
 
   ```shell
-  d=$(mktemp -d) && git archive v2026.8.8 | tar -x -C "$d" && cd "$d"
+  d=$(mktemp -d) && git archive "v${version:?}" | tar -x -C "$d" && cd "$d"
   ```
 
 - **the build backend is bounded, not pinned.** `[build-system] requires`
@@ -755,16 +788,17 @@ reading a mismatch as tampering:
   (`2026.8.6` → `2026.8.6.1`).
 
 - Only the `github-release` job failed: the PyPI upload is already done;
-  re-run the failed job, or recover by hand from the run's `dist` **and**
-  `attestation` artifacts, not `dist` alone — the job downloads both
-  before it writes the release, and a release built from `dist` only
-  would carry the wheel and the sdist with no signed statement beside
-  them, leaving "Verify the provenance of an asset" above nothing to
-  `--bundle` against. The by-hand recovery is the same script the
-  `skipped` case spells out next; the difference between the two is
-  only that `gh run rerun --failed` reaches a job the run marks
-  *failed*, so it is worth trying first here and is not an option
-  there at all.
+  re-run the failed job, or recover by hand from the run's `dist`,
+  `sbom` **and** `attestation` artifacts, not `dist` alone — the job
+  downloads all three before it writes the release, and a release built
+  from `dist` only would carry the wheel and the sdist with no signed
+  statement beside them, leaving "Verify the provenance of an asset"
+  above nothing to `--bundle` against, and no bill of materials for
+  "Read the bill of materials attached to the release" to read. The
+  by-hand recovery is the same script the `skipped` case spells out
+  next; the difference between the two is only that `gh run rerun
+  --failed` reaches a job the run marks *failed*, so it is worth trying
+  first here and is not an option there at all.
 
 - `github-release` shows **`skipped`** rather than failed, though both of
   its needs — `publish-pypi` and `attest` — report `success`. The run's own
@@ -796,6 +830,7 @@ reading a mismatch as tampering:
 
   ```shell
   gh run download "${run:?}" -n dist -D dist &&
+  gh run download "${run:?}" -n sbom -D sbom &&
   gh run download "${run:?}" -n attestation -D attestation &&
   shasum -a 256 dist/* &&
   curl -s "https://pypi.org/pypi/bitcoin-core-rpc/${version:?}/json" \
@@ -808,7 +843,8 @@ reading a mismatch as tampering:
     found {print}
   ' > notes.md &&
   cp attestation/attestation.jsonl "v${version:?}.attestation.jsonl" &&
-  gh release create "v${version:?}" dist/* "v${version:?}.attestation.jsonl" \
+  gh release create "v${version:?}" dist/* sbom/* \
+    "v${version:?}.attestation.jsonl" \
     --title "v${version:?}" --notes-file notes.md
   ```
 

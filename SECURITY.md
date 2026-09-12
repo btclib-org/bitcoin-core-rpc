@@ -64,8 +64,20 @@ gh attestation verify bitcoin_core_rpc-<version>-py3-none-any.whl \
 than accepting any attestation this repository has. The signed statement
 is attached to the release as well, as `<tag>.attestation.jsonl`, so
 `--bundle <tag>.attestation.jsonl` runs the same check reading it from
-disk instead of asking GitHub for it; one attestation covers the wheel
-and the sdist both.
+disk instead of asking GitHub for it. One attestation covers the wheel,
+the sdist and the bill of materials; the bundle is that attestation and
+is not among its subjects.
+
+A CycloneDX 1.6 bill of materials is attached beside them,
+`bitcoin_core_rpc-<version>.cdx.json`: the two files with their SHA-256,
+the licence, and one component per dependency the wheel's metadata
+declares. It is generated from the built wheel rather than from the
+source tree, so it describes the files it is attached to, and it is
+covered by the same attestation — a bill of materials whose provenance
+nobody can check says only what whoever wrote it wanted said. This
+package declares no dependency, so `components` is an empty list, and the
+signed emptiness is what the document is for here: without one a consumer
+has to go and establish it somewhere else.
 
 ## Limitations, not vulnerabilities
 
