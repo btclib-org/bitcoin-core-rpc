@@ -1150,6 +1150,48 @@ sides'.
 - **Both sentences were true when `fee4f1f7` wrote them**: every landing
   they were waiting on is later than that commit.
 
+### The anchor depth, the free-threading reading and the allowlist converge
+
+- **`docs/source/conf.py` sets `myst_heading_anchors = 6`, and the comment
+  gives the standard's reason in place of this tree's own heading depth**
+  (issue btclib-org/.github#715): section 2 of `btclib-org/.github`'s
+  `README.md`, under *The documentation*, makes six "every level markdown
+  heads at, which makes the number a fixed point rather than a value
+  re-derived from files that move", and names a depth read off the tree's
+  own headings as the rejected alternative -- which is the reason the
+  comment it replaces gave for three. Nothing here links into a heading
+  deeper than `###`, so no link is repaired: whole html trees built from
+  this tip at 3 and at 6 differ in no byte, with a planted `####` heading
+  as the control that `diff -r` can see one. What the wider setting takes
+  away is the failure a deeper heading would reintroduce -- a link into a
+  `####` heading of `README.md` fails `sphinx-build -n -W` at 3 and
+  builds at 6.
+- **`tests/interpreters_test.py` reads the free-threading biconditional's
+  second side off the jobs `test: every job passed` waits on, rather than
+  off `test.yml` as a file** (issue btclib-org/.github#634): section 3 of
+  the standard makes that side "the jobs the required check waits on --
+  the aggregate's own `needs` closure", and names reading the workflow
+  file as the rejected alternative. The aggregate is located by the name
+  `main`'s rule requires, which `REPOSITORY.md`'s *Required checks on
+  main* reads back from the endpoint, and the test refuses a closure that
+  does not hold it rather than comparing against an empty one. The two
+  readings answer alike here, every job of `test.yml` sitting inside
+  `test-passed`'s `needs:`; what changes is what the answer rests on,
+  measured against a copy of the workflow carrying a report-only job at
+  `3.14t` outside that closure -- the reading this replaces asks for a
+  `Free Threading` classifier there and this one does not.
+- **`.github/workflows/codeql.yml`'s listing allowlist names `success`
+  and `skipped`** (issue btclib-org/.github#990): section 10 of the
+  standard fixes both names "whatever the workflow's own jobs can report
+  today", and names an allowlist following the jobs as the rejected
+  alternative. This supersedes *`codeql.yml`'s aggregate reads the run's
+  job listing* above, whose second bullet has the allowlist naming
+  `success` alone and calls this tree's the narrowing. What that bullet
+  gave as its reason holds unchanged -- no job of this workflow is
+  conditional on the diff and none carries a condition narrower than the
+  aggregate's own -- and the comment now writes it as the condition it
+  is, which a job added later with a condition of its own ends.
+
 ## v2026.9.3
 
 ### Repository
