@@ -216,16 +216,22 @@ jobs:
       # reaching nothing outside its own workflow -- and test.yml keeps
       # `needs`, release.yml calling it
       #
-      # the allowlist below names "success" alone and not "success" and
-      # "skipped": analyze carries no condition narrower than this job's
-      # own draft/closed one above, so whenever analyze would report
-      # "skipped" this job skips with it and never reaches this step, and
-      # no job here is conditional on the diff, there being no `changes`
-      # job. A "skipped" row in the listing would mean this step ran
-      # without its dependency having, which its own `if:` already rules
-      # out, so the allowlist refuses it rather than tolerating it.
-      # btclib-org/.github#990 is where the standard settles whether a
-      # listing step accepts "skipped" whatever its jobs can report
+      # the allowlist below names "success" and "skipped", both of them,
+      # whatever this workflow's own jobs can report today: section 10 of
+      # the organization standard fixes the two names rather than letting
+      # them follow the jobs (btclib-org/.github#990). What the jobs can
+      # report is a condition and not a property -- analyze carries no
+      # condition narrower than this job's own draft/closed one above,
+      # and no job here is conditional on the diff, there being no
+      # `changes` job, so nothing produces a "skipped" row while both
+      # hold, and either one added later produces one. A narrowed
+      # allowlist is sound while they hold and expires with nothing
+      # watching: what would say it had stopped matching the run is this
+      # check failing on the first run that legitimately skips, and here
+      # that is a red "codeql: every job passed" rather than a blocked
+      # merge, that context not being one main's rule requires --
+      # REPOSITORY.md's *Required checks on main* is where the rule is
+      # read back from the endpoint
       - name: Fail unless every other job of this run succeeded
         env:
           GH_TOKEN: ${{ github.token }}
@@ -244,7 +250,7 @@ jobs:
           # implementation's extension and a literal "t" in another's,
           # where awk's field separator is POSIX
           bad=$(printf '%s\n' "${jobs}" |
-            awk -F'\t' '$1 != "success" && $1 != "unfinished"')
+            awk -F'\t' '$1 != "success" && $1 != "skipped" && $1 != "unfinished"')
           unfinished=$(printf '%s\n' "${jobs}" |
             awk -F'\t' '$1 == "unfinished"' | wc -l | tr -d ' ')
           # each annotation names the rows it is about, an annotation

@@ -71,14 +71,19 @@ intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 
 source_suffix = [".rst", ".md"]
 
-# anchors for h1 to h3, which is what makes a link to a heading of the same
+# anchors for h1 to h6, which is what makes a link to a heading of the same
 # markdown file resolve here. Without it myst generates no anchor at all,
 # so "[Talking to a node](#talking-to-a-node)" -- a link GitHub and PyPI
 # both follow, the anchor being what those two derive from the heading
 # text -- becomes an xref to a target no page has, and -W fails the
-# build. Three levels, because that is how deep the root markdown files
-# head their sections
-myst_heading_anchors = 3
+# build. Six is every level markdown heads at, which makes the number a
+# fixed point rather than one re-derived from files that move: section 2
+# of the organization standard says so, and names a depth read off this
+# tree's own headings as the rejected alternative. Part of what such a
+# re-derivation would read is not this tree's to hold still either --
+# section 14 ports CONTRIBUTING.md's shared half into every repository,
+# so a heading added there moves the depth in each of them at once
+myst_heading_anchors = 6
 
 # no suppress_warnings, and myst.xref_missing least of all: the transform
 # at the bottom of this file resolves every link the included root files
