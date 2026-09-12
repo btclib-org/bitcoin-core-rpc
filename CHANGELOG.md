@@ -1123,6 +1123,33 @@ sides'.
   `bug_report.yml`, `feature_request.yml` and `question.yml` for the
   second, and both hooks pass on those files, none of which changes here.
 
+### The token-grant entry's deferrals to the other trees are superseded
+
+- **This supersedes *The token grants are read from the workflows rather
+  than bounded in prose* above, whose entry leaves `scorecard.yml`'s
+  workflow-level comment to be ported into the trees not yet carrying
+  it** (issue btclib-org/.github#946): no tree is owed it.
+  `btclib-secp256k1` wrote that comment in
+  btclib-org/btclib-secp256k1@e01d63f9, `btclib-node` took it in
+  btclib-org/btclib-node@1cdaec6a and `btclib` in
+  btclib-org/btclib@30a05904. `git grep -c 'each grant explained at its
+  own line there' origin/main -- .github/workflows/scorecard.yml`
+  answers `1` in every repository of the organization carrying the file,
+  with `permissions:` in the same pathspec as the control the search
+  reads.
+- **This supersedes that entry a second time, where it leaves the clause
+  quantifying over every scope to be corrected on btclib-org/.github#893
+  rather than here** (issue btclib-org/.github#946): that issue is
+  closed, on 2026-09-07, and every repository carrying the file
+  corrected its own copy — btclib-org/btclib-secp256k1@5716b6cc,
+  btclib-org/btclib-node@d82ccc37, `5f5c280b` here and
+  btclib-org/btclib@30a05904, which closed it. Their blocks read the
+  same bytes out of each `origin/main`, which is the identity
+  *`scorecard.yml`'s `contents: read` comment names the scope it is
+  about* above left to each tree's port.
+- **Both sentences were true when `fee4f1f7` wrote them**: every landing
+  they were waiting on is later than that commit.
+
 ## v2026.9.3
 
 ### Repository
