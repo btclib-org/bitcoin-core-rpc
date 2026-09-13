@@ -1295,6 +1295,34 @@ sides'.
   is the `steps:` key at the indent a job's keys take, so what separates
   the two readings is a step line written where an item goes.
 
+### The `testpaths` resolution takes a case that asks for no symlink
+
+- **`tests/conftest_test.py` asks the coverage gate about a `testpaths`
+  entry whose `..` leaves the directory it names, and the case fails
+  with the `.resolve()` removed from `wanted` in `tests/conftest.py`**
+  (closes btclib-org/.github#1022): `tests/../src` is `src`, which a
+  command line naming `tests` is not above, while unresolved it reads
+  as a directory `tests` contains -- so a run collecting nothing of
+  `src` is handed the whole suite's ratchet.
+  `test_a_symlinked_spelling_of_one_tree_is_still_the_whole_suite` is
+  the other case that kills that call, and its assertions sit behind a
+  `pytest.skip`, so on a platform that refuses a symlink nothing else
+  in the suite kills it.
+- **`--no-cov` is what makes the pair reproducible.** With
+  `Path.symlink_to` made to refuse and the call removed,
+  `uv run pytest --no-cov` exits 0 without this case and 1 with it,
+  that case being the failure. The same pair under the coverage floor
+  cannot tell the two runs apart: the skipped case's own assertions go
+  unexecuted either way, so an identical shortfall fails both.
+- **An entry reaching the same directory with no `..` in it leaves the
+  removal undetected**, which is what assigns the kill to the segment
+  rather than to the method. A `..` that re-enters -- `tests/../tests`,
+  on the entry and on the command line alike -- answers the same with
+  the call and without it.
+- **The symlinked spelling is what reaches the resolution on `given`**:
+  with the `.resolve()` removed there the symlink case fails and this
+  one passes, so neither case stands in for the other.
+
 ## v2026.9.3
 
 ### Repository
