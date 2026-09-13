@@ -1649,6 +1649,10 @@ contract is stated.
   `btclib-org/.github`** (issue btclib-org/.github#1075): what is filed
   is one test, and an entry's body past three lines is refused.
 
+### The lint gate's prose names a local run, not a commit
+
+- **`lint.yml` says what a local run enforces** (issue btclib-org/.github#966).
+
 ## v2026.9.3
 
 ### Repository
