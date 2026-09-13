@@ -1371,6 +1371,47 @@ sides'.
   defends the call on `given`. A sentence derived here rather than
   taken from the family is what went false.
 
+### The symlink case's pragma takes the case, not the handler alone
+
+- **The `# pragma: no cover` sits on the case's `def`** (issue
+  btclib-org/.github#1042): an exclusion on a line that introduces a
+  block takes the whole block, so it reaches the assertions after the
+  skip as well. On the `except` it reaches the handler and the
+  `pytest.skip` alone, which are the lines that do not run wherever the
+  link is made, and a platform refusing `os.symlink` then meets the skip
+  and a coverage floor it cannot reach in the same run -- the exit code
+  the floor's and the failure naming a percentage rather than a symlink.
+  Measured with a plugin making `Path.symlink_to` raise `OSError`: with
+  the pragma on the `except` the documented `uv run pytest` exits 1 with
+  the lines after the skip named missing, and with it on the `def` the
+  same run meets the floor and the case reports `SKIPPED`.
+- **The comment above the line says why coverage can ask nothing of the
+  case, and what the exclusion costs**: the body is reachable only where
+  the platform makes a symbolic link, so a floor over a `source` naming
+  `tests` asks about the runner rather than about the suite, and dead
+  code inside the case stops being flagged in exchange. A reason above
+  the line with an inline half naming the case is what
+  `[tool.coverage.report]`'s comment asks of a reason too long for the
+  line it belongs to.
+- **The docstring's sentence -- a platform that refuses says so as a
+  skip, which `-ra` reports -- is what the move makes true of the run**:
+  the case skips either way, and with the pragma on the `except` the run
+  it skips in fails the floor.
+- **What *The `testpaths` resolution takes a case that asks for no
+  symlink* and *The command line's parent segment takes the case the
+  family already has* say about the coverage floor is superseded**: each
+  says the floor cannot tell its reproduction pair apart, and the
+  skipped case's unexecuted assertions are what make that true -- with
+  `Path.symlink_to` refusing and one `.resolve()` removed from
+  `tests/conftest.py`, the run with that removal's own case deleted
+  fails on the shortfall alone. The exclusion takes the shortfall away,
+  so the documented `uv run pytest` exits 1 with that case in the file
+  and 0 with it deleted. The `--no-cov` half of each pair answers as
+  those entries say it does, and they stand as written, nothing landed
+  being rewritten.
+- **`btclib` carries the same shape**, so the issue stays open on this
+  landing and the citation above is `issue` rather than `closes`.
+
 ## v2026.9.3
 
 ### Repository
