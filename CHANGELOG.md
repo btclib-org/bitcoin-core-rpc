@@ -1462,6 +1462,79 @@ sides'.
   its own tree -- `btclib-org/btclib-node#761`, since closed by that tree
   giving every entry a bound, and `btclib-org/btclib-benchmarks#320`.
 
+### A run coverage's configuration never reached is refused
+
+- **`tests/conftest.py` refuses a run coverage read no configuration
+  for** (issue btclib-org/.github#443). coverage looks for its
+  configuration in the directory the process started in, so a run
+  started from `tests/` finds no `fail_under`, no `source` and no
+  `branch = true` and is held to no floor, while pytest walks up and
+  reads `pyproject.toml` all the same. That asymmetry is what the guard
+  reads, and it needs no copy of the floor's number. Section 8 of the
+  organization standard leaves a tree with a local floor to point such a
+  run at its configuration or to make it say it is ungated, and this is
+  the second limb: `pytest.UsageError`, which pytest prints without a
+  traceback and exits `4` for -- an exit of its own, so the code says the
+  run measured nothing rather than that something in the tree failed.
+  Measured from `tests/`: exit 4, the hook running ahead of collection.
+- **The message names the directory the run started in, the
+  configuration pytest read, the rootdir to run from, and
+  `--cov-config`.** `--cov-config` is named without a caveat because in
+  this tree it restores everything: from `tests/`, a run given the
+  tree's own `pyproject.toml` that way reports a per-file table
+  byte-identical to the run from the root and meets the floor. The
+  `omit` is what would otherwise be left behind, and is not here --
+  coverage makes a pattern absolute against the process's own directory
+  unless it opens with a wildcard, which this tree's one pattern does.
+  `source` is not what carries this tree either: coverage takes a
+  `source` entry naming no directory as a package, so `tests`, a
+  directory at the root, is an import name from `tests/` that reaches
+  the same files, and `bitcoin_core_rpc` is an import name from either.
+- **The exemptions are an enumeration and not a rule**: `--no-cov`, an
+  explicit `--cov-fail-under`, `--help` and `--collect-only`, each
+  measured from `tests/` at exit 0, where `--markers` and `--fixtures`
+  are refused knowingly, measured there at exit 4. What would decide the
+  question is whether pytest-cov would have gated the run, which is no
+  property to read at this hook, so a longer list is the same guess
+  under more names. Every run this tree makes on purpose starts from the
+  repository root -- no step of any workflow gives a pytest command a
+  working directory -- and the mutation session's `test-command` passes
+  `--no-cov` besides.
+- **`coverage_fail_under` is not what does this, and is not repaired.**
+  pytest-cov fills `known_args_namespace.cov_fail_under` from the
+  coverage configuration in `pytest_load_initial_conftests`, before
+  `pytest_configure` runs, so from `tests/` the hook is handed a floor of
+  zero and hands it back. The guard runs in front of it and raises
+  before it writes.
+- **`pyproject.toml`'s `runtime-cast-value` comment no longer says the
+  tree holds no `cast()`**: `tests/conftest_test.py` casts its stand-ins
+  to the types they stand in for, in the quoted form that rule asks for,
+  and the comment says so where it said there was none to find.
+- **The justifications this guard falsified name the run that still
+  demonstrates them**: the `.coverage` entry of
+  `[tool.uv.build-backend]`'s exclude list and `asks_for_everything`'s
+  docstring each cited a bare `pytest .` from `tests/`, and what leaves
+  `tests/.coverage` behind, and what reaches `asks_for_everything` from
+  a directory the rootdir is not, is that run given `--cov-config`.
+- **`btclib-node` and `btclib-benchmarks` are owed the same guard**,
+  btclib-org/.github#443 having taken that decision for the family;
+  `btclib-secp256k1` landed it at `bd71d7c8` and `btclib` at `da3e0d15`.
+  What lands with the last of them is the sentence recording which limb
+  of section 8 the family took, which is why this cites the issue rather
+  than closing it.
+
+### `asks_for_everything` says why it resolves both sides
+
+**The docstring gains a paragraph on the two `.resolve()` calls** (closes
+btclib-org/.github#810): either side can arrive carrying a symlink --
+pytest builds the rootdir with `os.path.abspath`, which leaves one in the
+path alone, and a positional argument is whatever was typed -- so one
+directory reaches the comparison under two spellings unless both sides
+are resolved. The reason goes in the docstring rather than in a comment
+beside the calls, which stand either side of an early return: one comment
+would sit at one of them, and the docstring is where this function's
+contract is stated.
+
 ## v2026.9.3
 
 ### Repository
