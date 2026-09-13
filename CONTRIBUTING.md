@@ -553,6 +553,7 @@ which is the reliance `REVIEWING.md` provides for.
 | `links` | weekly | — |
 | `mutation` | weekly | — |
 | `pypi-install` | weekly, a release | what PyPI serves |
+| `sdist-rebuild` | weekly | the latest release's sdist, rebuilt |
 | `release` | a tag | the workflows it calls |
 
 Which workflows that last row covers is

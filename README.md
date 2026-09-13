@@ -44,6 +44,7 @@ says how the choice is enforced.
 [![os-ubuntu workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-ubuntu.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-ubuntu.yml?query=branch%3Amain)
 [![os-windows workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-windows.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-windows.yml?query=branch%3Amain)
 [![links workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/links.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/links.yml?query=branch%3Amain)
+[![sdist-rebuild workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/sdist-rebuild.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/sdist-rebuild.yml?query=branch%3Amain)
 [![codeql workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/codeql.yml?query=branch%3Amain)
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/btclib-org/bitcoin-core-rpc/badge)](https://scorecard.dev/viewer/?uri=github.com/btclib-org/bitcoin-core-rpc)
