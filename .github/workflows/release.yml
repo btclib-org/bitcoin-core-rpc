@@ -378,6 +378,11 @@ jobs:
   docs:
     name: Run the docs workflow
     uses: ./.github/workflows/docs.yml # zizmor: ignore[self-repository]
+    with:
+      # a rehearsal computes the same group a push to the dispatching
+      # branch holds otherwise: see the group in docs.yml
+      # (issue btclib-org/.github#1083)
+      concurrency-suffix: "-release"
 
   # and the two images the merge gate does not wait for: each runs weekly,
   # so a regression there could otherwise sit on main until the morning
@@ -388,14 +393,23 @@ jobs:
   macos:
     name: Run the macos workflow
     uses: ./.github/workflows/os-macos.yml # zizmor: ignore[self-repository]
+    with:
+      # see the docs job above
+      concurrency-suffix: "-release"
 
   ubuntu:
     name: Run the ubuntu workflow
     uses: ./.github/workflows/os-ubuntu.yml # zizmor: ignore[self-repository]
+    with:
+      # see the docs job above
+      concurrency-suffix: "-release"
 
   windows:
     name: Run the windows workflow
     uses: ./.github/workflows/os-windows.yml # zizmor: ignore[self-repository]
+    with:
+      # see the docs job above
+      concurrency-suffix: "-release"
 
   # and the one claim a recorded reply cannot make: that a live bitcoind
   # still answers the way tests/_data says it does. It gates every pull
@@ -407,6 +421,9 @@ jobs:
   integration:
     name: Run the integration workflow
     uses: ./.github/workflows/integration-bitcoind.yml # zizmor: ignore[self-repository]
+    with:
+      # see the docs job above
+      concurrency-suffix: "-release"
 
   publish-testpypi:
     name: Publish to TestPyPI

@@ -60,6 +60,13 @@ on:
     # this is reachable through the dispatch below alone
     - cron: "12 5 * * 2"
   workflow_call:
+    inputs:
+      concurrency-suffix:
+        description: >
+          Appended to the concurrency group, and the release workflow is
+          the only caller that passes one. See the group below.
+        type: string
+        default: ""
   workflow_dispatch:
   # no `paths` here any more: see the note above on a required check that
   # does not run
@@ -100,9 +107,18 @@ permissions:
 # pull_request run of any action groups by, so a closed run cannot
 # resolve to the same group as a push to main -- the pull_request
 # trigger's own comment above has the evidence. A push carries no
-# pull_request context, so github.ref is still what groups it, unchanged
+# pull_request context, so github.ref is still what groups it, unchanged.
+# The suffix is a second, independent problem with github.ref: inside a
+# called workflow that context is the caller's ref, so a rehearsal -- a
+# workflow_dispatch of release.yml on a branch -- computes
+# integration-bitcoind-refs/heads/<branch>, the very group a push to
+# that branch or a direct dispatch of this workflow computes. One then
+# kills the other. release.yml passes a suffix of its own, which keeps
+# the release path out of the branch groups (issue btclib-org/.github#1083)
 concurrency:
-  group: integration-bitcoind-${{ github.event.pull_request.number || github.ref }}
+  group: >-
+    integration-bitcoind-${{ github.event.pull_request.number ||
+    github.ref }}${{ inputs.concurrency-suffix }}
   cancel-in-progress: true
 
 jobs:

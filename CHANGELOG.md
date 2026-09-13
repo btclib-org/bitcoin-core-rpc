@@ -1676,6 +1676,12 @@ contract is stated.
   btclib-org/.github#523), and `gh attestation verify` over the rebuilt
   sdist fails the run where no attestation of the release carries its digest.
 
+### `release.yml`'s called workflows take a `concurrency-suffix`
+
+- **`release.yml`'s remaining called workflows gain the `concurrency-suffix`
+  `test.yml` and `lint.yml` already had** (closes btclib-org/.github#1083): a
+  called `github.ref` is the caller's, so a rehearsal shared `main`'s group.
+
 ## v2026.9.3
 
 ### Repository
