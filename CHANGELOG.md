@@ -1575,6 +1575,43 @@ contract is stated.
   instead, and the comment above `_NEEDS` is where both halves are
   written.
 
+### What enforces the lint gate is a local run, and not a commit
+
+- **`.pre-commit-config.yaml`'s header says CI enforces exactly what a
+  local run of `.pre-commit-config.yaml` enforces** (issue
+  btclib-org/.github#966): the lint gate is not installed as a git hook
+  here, so a commit enforces nothing, which `CONTRIBUTING.md`'s *The
+  lint gate is not installed as a git hook* paragraph states with the
+  `rev-parse --git-path hooks` measurement behind it. *A local run* is
+  the noun `btclib-benchmarks` substituted at `c2c0b2a2`, where one
+  entry gating a commit and CI at once became one entry gating a local
+  run and CI at once.
+- **Naming the command in `.pre-commit-config.yaml`'s header is the
+  rejected alternative.** `CONTRIBUTING.md` here documents
+  `uv run pre-commit run --all-files` where `btclib-org/.github`'s
+  documents `uvx pre-commit run --all-files`, so one spelling written
+  into text the trees share is false in one of them, and a spelling per
+  tree reopens the divergence the shared text closes.
+- **`.pre-commit-config.yaml`'s skip recipe keeps its `pre-commit run`
+  line alone.** `SKIP=mypy git commit -m "foo"` and the `--no-verify`
+  pair were instructions for skipping a hook this repository does not
+  install, written in the file a session reads while it is committing.
+  Keeping them for a reader who installed the hook anyway is the
+  rejected alternative: that reader is acting against this tree's own
+  instruction, and pre-commit's own documentation is where an interface
+  this tree does not use belongs.
+- **`CONTRIBUTING.md`'s *The editor* paragraph says a local run in both
+  of its halves**: what installing the extensions changes nothing about,
+  and where a finding is met instead of while typing. The decision on
+  btclib-org/.github#966 quotes the first half; the second named the
+  commit that trips over a finding, which is the same claim about a hook
+  that is not installed.
+- **`.vscode/extensions.json` names no commit.** What the editor reports
+  is what a local run of `.pre-commit-config.yaml` would report, what
+  formats yaml and jsonc on save is the tool that formats them on a
+  local run, and what writes back what a second formatter on save wrote
+  is the `ruff-format` hook.
+
 ## v2026.9.3
 
 ### Repository
