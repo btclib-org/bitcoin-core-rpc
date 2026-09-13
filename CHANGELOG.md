@@ -1412,6 +1412,56 @@ sides'.
 - **`btclib` carries the same shape**, so the issue stays open on this
   landing and the citation above is `issue` rather than `closes`.
 
+### The tree gains the `deps-oldest` sentinel, and the badge with it
+
+- **`.github/workflows/deps-oldest.yml` runs the suite weekly with every
+  direct dependency at the oldest release `pyproject.toml`'s own
+  specifier allows** (issue btclib-org/.github#323): section 10's *Which
+  trees carry which sentinel* names this repository for that row, and
+  `git grep -l 'lowest-direct' -- .github/workflows/` answered nothing
+  here with `uv lock` in `deps-latest.yml` as the control that the path
+  was read -- the tree resolved upward and nothing resolved down,
+  leaving every `>=` it declares a claim no run had installed. The cron
+  is `12 3 * * 4`, read off section 10's two tables: the workflow
+  table's `deps-oldest` row gives Thursday and hour 03, the repository
+  table's `bitcoin-core-rpc` row gives minute 12. It gates nothing --
+  no aggregate job and no branch protection rule -- and `README.md`'s
+  badge row gains it where the calendar puts it.
+- **The cell is 3.10 and there is no matrix**: `requires-python` names
+  that floor, where `.python-version` pins 3.14 as the newest
+  interpreter the package supports, and a floor run asks the other end.
+  One cell because a floor is one claim to verify rather than a range
+  to scan, the range being `deps-latest.yml`'s and the platform sweeps'.
+- **`UV_RESOLUTION: lowest-direct` is declared on the job and not passed
+  to the step that resolves**: `uv lock` records a non-default mode
+  inside `uv.lock`, and a later uv command under the default `highest`
+  reads that lock as stale, so `--locked` refuses the lock the step
+  above it just wrote. Measured with uv 0.12.7 on a probe project
+  holding one specifier: against a `lowest-direct` lock
+  `uv run --locked` exits 2, and 0 with the variable set.
+- **Neither the lint job nor the dist job of `deps-latest.yml` is
+  mirrored.** That lint job is there because mypy is a local hook
+  shelling out to uv, so a new mypy release adds a check this code base
+  fails; a floor resolution moves mypy backward instead, which is the
+  tooling's question rather than the floor's. The same reading refuses a
+  dist job from the other end: the `check` group declares no floor, so
+  an old twine, check-wheel-contents and pyroma would rate metadata this
+  resolution does not move, and the floor a distribution does declare --
+  `[build-system]`'s `uv_build` range -- is not in `uv.lock` for the
+  step to reach.
+- **The resolution fails on a group entry rather than at any declared
+  floor, so the sentinel goes red before it reaches the suite**:
+  `uv lock --resolution lowest-direct --dry-run`, uv 0.12.7, warns on
+  each `[dependency-groups]` entry that declares no lower bound and then
+  fails building `coverage==3.0`. `uv lock --help` lists one option
+  naming a group, `--upgrade-group`, and none that selects or excludes
+  one, where `uv sync --help` names several, so a lock is over every
+  group there is and the resolution cannot be narrowed to the entries
+  carrying a bound. What bound each entry owes is #446, filed by the
+  review of this branch; each landed copy points at the same question in
+  its own tree -- `btclib-org/btclib-node#761`, since closed by that tree
+  giving every entry a bound, and `btclib-org/btclib-benchmarks#320`.
+
 ## v2026.9.3
 
 ### Repository
