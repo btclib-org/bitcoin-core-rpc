@@ -5,11 +5,16 @@
 """Tests for the built-page census of `.github/scripts`.
 
 `missing_names` is what is asserted here, against a page built by hand
-rather than a real one: proving it catches a name docs.yml would find
-missing is the point, and a real `sphinx-build` needs the `docs` group
-this suite does not carry. `docs.yml` is where the real page is read, and
-`.github/scripts/check_api_page.py`'s own docstring says why the check
-lives there and not here.
+rather than a real one: proving it catches a name the reusable docs
+workflow would find missing is the point, and a real `sphinx-build`
+needs the `docs` group this suite does not carry. That workflow is
+where the real page is read, and `.github/scripts/check_api_page.py`'s
+own docstring says why the check lives there and not here.
+
+`page_path` is asserted too, against a bare directory name rather than
+one an actual build wrote: it is the one part of the script's own
+signature this change touches, `main`'s single argument having moved
+from the built `api.html` itself to the directory holding it.
 
 The script is loaded by path, `.github/scripts` being no package.
 """
@@ -82,3 +87,10 @@ def test_an_empty_page_is_missing_every_name(checker: ModuleType) -> None:
     """No anchor at all is the page a failed build or a wrong path gives."""
     names = ("Chain", "chain_from_network")
     assert checker.missing_names(names, "<html><body></body></html>") == list(names)
+
+
+def test_page_path_joins_api_html_onto_the_build_directory(
+    checker: ModuleType,
+) -> None:
+    """The reusable workflow passes the build directory, not the page."""
+    assert checker.page_path("docs/build/html") == Path("docs/build/html/api.html")

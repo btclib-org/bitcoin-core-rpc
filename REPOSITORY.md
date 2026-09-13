@@ -71,7 +71,7 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 | Check | Produced by |
 | --- | --- |
 | `Lint and type-check` | `lint.yml`, first job |
-| `Build the documentation` | `docs.yml`, its only job |
+| `docs / Build the documentation` | `docs.yml`, calling `reusable-docs.yml` |
 | `test: every job passed` | `test.yml`, aggregate over its jobs |
 | `integration: every job passed` | `integration-bitcoind.yml`, over its cells |
 
@@ -79,18 +79,26 @@ The last row is whichever context was added most recently, that endpoint
 appending rather than sorting — so the tail of this table moves whenever a
 check is renamed, a rename being a drop and an add.
 
-**Each row above is a job name or an aggregate**, and that is a
-rule rather than an inconsistency: a workflow with one job needs no
-aggregate, the job *being* the context. It is also the answer to why a
-sibling repository's own live-node check can be a bare job name,
-`Regtest against Bitcoin Core`, where this one is
-`integration: every job passed`. The two workflows ask the same
+**Each row above is a job name, an aggregate, or a called job's name
+joined to its caller's**, and that is a rule rather than an
+inconsistency: a workflow with one job needs no aggregate, the job
+*being* the context, which is still `Lint and type-check`'s shape. It
+is also the answer to why a sibling repository's own live-node check
+can be a bare job name, `Regtest against Bitcoin Core`, where this one
+is `integration: every job passed`. The two workflows ask the same
 question of a real node and are governed by the same rule; there it is one
 job and here it is a matrix whose cells the trigger decides, so there the
 job name is the context and here an aggregate has to be. Making the two
 strings match would mean
 inventing a job whose only purpose is to be named, or naming a matrix cell
 in the rule — which is the first thing this section forbids.
+
+A job whose whole body is a call to a reusable workflow contributes no
+name of its own, which is the third shape: the context joins the
+calling job's id to the called job's own name. `docs.yml`'s `docs` job
+calls `reusable-docs.yml`, whose own job is still named
+`Build the documentation`, so together they produce
+`docs / Build the documentation` (issue btclib-org/.github#35).
 
 `codeql: every job passed` is not among them, and it is a name this rule
 could take: `codeql.yml` runs on a pull request, so the aggregate reports
@@ -234,7 +242,7 @@ branch=repos/btclib-org/bitcoin-core-rpc/branches/main
 gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
 {"strict": true,
  "checks": [{"context": "Lint and type-check", "app_id": 15368},
-            {"context": "Build the documentation", "app_id": 15368},
+            {"context": "docs / Build the documentation", "app_id": 15368},
             {"context": "test: every job passed", "app_id": 15368},
             {"context": "integration: every job passed", "app_id": 15368}]}
 JSON

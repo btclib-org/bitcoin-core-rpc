@@ -1688,6 +1688,12 @@ contract is stated.
   (issue btclib-org/.github#35): this file keeps the trigger, the
   schedule, the concurrency group and the aggregate job.
 
+### `docs.yml` calls the organization's reusable workflow
+
+- **The checkout, the build and the link check move to
+  `btclib-org/.github`'s `reusable-docs.yml`** (issue btclib-org/.github#35):
+  `main`'s required check renames to `docs / Build the documentation`.
+
 ## v2026.9.3
 
 ### Repository
