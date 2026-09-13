@@ -549,6 +549,7 @@ which is the reliance `REVIEWING.md` provides for.
 | `os-windows` | weekly, a release | 2 Windows images × 7 interpreters |
 | `scorecard` | weekly, push to main | — |
 | `deps-latest` | weekly | 3 images × the floor and the ceiling, upgraded |
+| `deps-oldest` | weekly | the floor interpreter, dependencies at their floors |
 | `bitcoind` | weekly | every Core major, then 5 chains on the newest |
 | `links` | weekly | — |
 | `mutation` | weekly | — |
