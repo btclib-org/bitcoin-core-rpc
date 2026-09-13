@@ -1323,6 +1323,54 @@ sides'.
   with the `.resolve()` removed there the symlink case fails and this
   one passes, so neither case stands in for the other.
 
+### The command line's parent segment takes the case the family already has
+
+- **`tests/conftest_test.py` gains
+  `test_a_parent_directory_segment_names_the_whole_suite_too`, which
+  names the whole suite as `tests/../tests` and as `../tests` from
+  inside `tests/`, and fails with the `.resolve()` removed from `given`
+  in `tests/conftest.py`** (closes btclib-org/.github#1045): a `..`
+  segment survives into the path object where `.` and a trailing
+  separator are collapsed, so an unresolved command-line path compares
+  unequal to the `testpaths` entry it names and a run that takes the
+  whole suite in is gated at nothing. Each of the two spellings fails
+  on its own.
+- **The case, its name and its wording are `btclib-benchmarks`'s,
+  carried byte for byte** out of its `tests/conftest_test.py` at
+  `ac260ed6` and placed where it sits there, between
+  `test_a_path_is_read_against_where_pytest_was_started` and the
+  symlinked spelling. Deriving a spelling here instead is how one
+  question gets two answers in the family.
+- **`--no-cov` is what makes the pair reproducible.** With
+  `Path.symlink_to` made to refuse and the call removed,
+  `uv run pytest --no-cov` exits 0 without this case and 1 with it,
+  that case being the failure. Under the coverage floor both runs fail
+  and the exit code tells them apart no better; the totals differ
+  there, but only because a case that fails on its first assertion
+  leaves a line of its own unexecuted, which reports the failure rather
+  than the mutation.
+- **The same `..` on the `testpaths` side leaves the removal
+  undetected**, which is what assigns the kill to the command line, and
+  so do `./tests` and `tests/`, which carry no `..` for the join to
+  keep.
+- **What *The `testpaths` resolution takes a case that asks for no
+  symlink* says about the symlinked spelling reaching the resolution on
+  `given` is superseded**: this case reaches it too, with no symlink
+  and no privilege. That entry stands as written, nothing landed being
+  rewritten. Its own case still answers the call on `wanted` where this
+  one does not -- with the `.resolve()` removed from `wanted` that case
+  fails and this one passes -- and its sentence about a `..` that
+  re-enters answering the same with the call and without it is about
+  the call on `wanted`, which is the call the entry is written of.
+- **The same claim in
+  `test_a_testpaths_entry_is_the_directory_its_parent_segment_reaches`'s
+  docstring sits in a file this diff opens, so it is replaced rather
+  than superseded**: that case now carries `btclib-benchmarks`'s
+  wording whole, which names
+  `test_a_parent_directory_segment_names_the_whole_suite_too` as what
+  defends the call on `given`. A sentence derived here rather than
+  taken from the family is what went false.
+
 ## v2026.9.3
 
 ### Repository
