@@ -1612,6 +1612,37 @@ contract is stated.
   local run, and what writes back what a second formatter on save wrote
   is the `ruff-format` hook.
 
+### The hook preambles say why the hook is there, in the present tense
+
+- **`.pre-commit-config.yaml`'s yamllint preamble said the workflows
+  *were* the one place prose could grow without a limit** (issue
+  btclib-org/.github#880): a sentence about the tree before the hook,
+  where section 9 of the organization standard asks a comment for why
+  the code is as it is in the present tense. The reason survives the
+  tense, so the sentence names what holds each format instead:
+  markdownlint holds markdown, `max-doc-length` a Python docstring and
+  a whole-line comment, `toml-comment-width` a toml comment, and the
+  prose in a yaml file is this hook's or nothing's.
+- **prettier reads the same files two hooks above, so the sentence says
+  what it does with a comment.** Measured at the rev this
+  tree pins: it explodes an inline sequence that runs past the width and
+  hands a long comment back byte for byte, and the second is what leaves
+  a yaml comment's width to this hook. The exploded sequence is the
+  control saying the file was rewritten at all.
+- **`the hook above` named markdownlint rather than taplo, the hook it
+  sat under.** Each tool is named.
+- **The `toml-comment-width` preamble carried the same tense**: a toml
+  comment's width *was* the last prose here held to nothing, and nothing
+  *read* toml for it. It opens on that width being prose and names
+  MD013, W505 and yamllint as what holds the other three, the sentence
+  below it already giving, in the present tense, the reason no tool off
+  the shelf does toml.
+- **This supersedes one sentence of *Four comments say what
+  `max-doc-length` reaches* above**, which has that preamble there "to
+  say that toml prose was the last kind held to nothing, and that is
+  what it still says". What the same entry says about W505's two kinds
+  and about the 80 `[tool.ruff.lint.pycodestyle]` names is untouched.
+
 ## v2026.9.3
 
 ### Repository
