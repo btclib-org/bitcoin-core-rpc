@@ -154,6 +154,40 @@ def test_a_symlinked_spelling_of_one_tree_is_still_the_whole_suite(
     assert testpaths_through_the_link == 100.0
 
 
+def test_a_testpaths_entry_is_the_directory_its_parent_segment_reaches(
+    tmp_path: Path,
+) -> None:
+    """`tests/../src` is `src`, which a command line naming `tests` misses.
+
+    `pathlib` keeps a parent-directory segment where it collapses `.` and
+    a trailing separator, so the join `pytest_configure` makes carries
+    `..` into an entry whose parents include the directory that segment
+    left: `tests` reads as above `tests/../src`, and a run collecting
+    nothing of `src` is handed the whole suite's ratchet. Resolving the
+    entry makes it the directory it reaches, which `tests` is not above.
+
+    That is the `testpaths` side's second reason to resolve, and it asks
+    for no symlink and no privilege, so it holds where
+    `test_a_symlinked_spelling_of_one_tree_is_still_the_whole_suite` can
+    only skip. It does not stand in for that case either: the resolution
+    on `given` is what a symlinked spelling reaches, and this one passes
+    with that one removed.
+
+    A `..` that re-enters the directory it left -- `tests/../tests` --
+    cannot see any of this: the unresolved entry then has more parents
+    and the command line's path is one of them, so containment answers
+    the same with the call and without it.
+    """
+    # both sides are spelled from the same base, so the `..` is the only
+    # difference between them and the case cannot pass for a second
+    # reason
+    base = tmp_path.resolve()
+    entry_that_leaves_the_directory = _threshold(
+        file_or_dir=["tests"], invocation_dir=base, testpaths=[base / "tests/../src"]
+    )
+    assert entry_that_leaves_the_directory == 0
+
+
 def test_the_help_path_is_no_selection_either() -> None:
     """`--help` leaves `file_or_dir` at `None` rather than at `[]`.
 
