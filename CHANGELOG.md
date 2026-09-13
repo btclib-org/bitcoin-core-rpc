@@ -1643,6 +1643,12 @@ contract is stated.
   what it still says". What the same entry says about W505's two kinds
   and about the 80 `[tool.ruff.lint.pycodestyle]` names is untouched.
 
+### A changelog entry is its title and at most three lines
+
+- **`REVIEWING.md`, `CONTRIBUTING.md` and `check_changelog.py` follow
+  `btclib-org/.github`** (issue btclib-org/.github#1075): what is filed
+  is one test, and an entry's body past three lines is refused.
+
 ## v2026.9.3
 
 ### Repository
