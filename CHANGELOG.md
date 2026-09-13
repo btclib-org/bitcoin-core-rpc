@@ -1535,6 +1535,46 @@ beside the calls, which stand either side of an early return: one comment
 would sit at one of them, and the docstring is where this function's
 contract is stated.
 
+### The gate's closure is asserted to walk, and both consequences are named
+
+- **`tests/interpreters_test.py` asserted nothing about `_gating`
+  reaching a job named only by another job** (issue
+  btclib-org/.github#1053): `test.yml`'s `test: every job passed` names
+  each job it waits on directly, so a `_gating` reading the aggregate's
+  own `needs:` and stopping answers the real gate, and the shape cases
+  above read one job block each and ask for no second hop. The case
+  added for it is written against a dict in which the aggregate names
+  `changes` and `changes` names `coverage`, so it asserts its own
+  closure and nothing about a shape. Measured over the whole module by
+  replacing that walk with a single union over the same `_needed`: every
+  assertion above the case passes and it is the one that fails.
+- **The comment above `_NEEDS` gave one of the two things a reader blind
+  to the block shape does** (closes btclib-org/.github#1057): it named
+  the biconditional passing on a gate it has not read, which is what
+  happens where the jobs the narrowing keeps still name an interpreter.
+  Where the narrowing leaves the aggregate alone, the aggregate's own job
+  names none and the `no job the merge gate waits on names an
+  interpreter` assertion ahead of that biconditional fires instead. Both
+  halves are measured against this tree's own `test.yml`: `test-passed`
+  writes its `needs:` as a flow list on the key's own line, so a reader
+  narrowed to that line answers the gate's closure unchanged, and with
+  that `needs:` written under the key instead the narrowed reader
+  collapses the closure to `test-passed`, no job of it names an
+  interpreter and that assertion fires; with a job naming a free-threaded
+  interpreter listed below a comment line among those items, the reader
+  as written puts it in the tuple the biconditional reads, where a reader
+  carrying no whole-line alternative answers `3.14` alone and passes on a
+  gate it has not read. The comment's third paragraph ends in a full
+  stop, and `_NEEDS` and `_ITEM` are untouched.
+- **This bears on *The gate's `needs:` closure reads a block list, and
+  the comments in it* above.** That entry has the narrowed closure leave
+  the free-threading biconditional measuring a gate it has not read,
+  which is the half of the consequence that holds where the jobs the
+  narrowing keeps still name an interpreter; where the narrowing leaves
+  the aggregate alone the assertion ahead of that biconditional fires
+  instead, and the comment above `_NEEDS` is where both halves are
+  written.
+
 ## v2026.9.3
 
 ### Repository

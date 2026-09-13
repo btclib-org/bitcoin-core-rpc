@@ -92,8 +92,12 @@ _JOB = re.compile(
 # key, a flow list there, and a block list under it -- read as whatever
 # follows the key on its own line plus the items below it. A reader blind
 # to the block shape answers a closure short of whatever sits behind an
-# edge written that way, and the biconditional below then passes on a gate
-# it has not read (btclib-org/.github#1031).
+# edge written that way. Where the jobs the narrowing keeps still name an
+# interpreter it answers short in silence, the biconditional below
+# passing on a gate it has not read; where the narrowing leaves the
+# aggregate alone, the aggregate's own job names none and the `no job the
+# merge gate waits on names an interpreter` assertion ahead of that
+# biconditional fires instead (btclib-org/.github#1031).
 #
 # The run of items takes a comment line and a blank one as well, and an
 # item's own trailing comment with it: a whole-line comment among the
@@ -107,7 +111,7 @@ _JOB = re.compile(
 #
 # What the run must not take is a step: `steps:` entries sit at the item
 # indent, and `      - name: Setup uv` is kept out by an item being the
-# whole line up to its comment
+# whole line up to its comment.
 _NEEDS = re.compile(
     r"^    needs:(?P<inline>[^#\n]*)(?:#[^\n]*)?\n"
     r"(?P<items>(?:^      - \S+[ \t]*(?:#[^\n]*)?\n|^[ \t]*(?:#[^\n]*)?\n)*)",
@@ -398,6 +402,29 @@ def test_needed_reads_no_step_of_a_job_as_a_job_it_waits_on(
     )
     assert _needed(steps) == {"changes", "coverage"}
     assert _needed(misplaced) == {"changes", "name:", "coverage"}
+
+
+def test_gating_reaches_a_job_reached_only_through_another(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The closure is transitive, and the gate as written does not say so.
+
+    `test: every job passed` names each job it waits on directly, so a
+    `_gating` reading the aggregate's own `needs:` and stopping answers
+    the real gate, and every shape above with it. The dict below is the
+    one that reaches a job through another, and it asserts its own
+    closure and nothing about a shape (btclib-org/.github#1053).
+    """
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_jobs",
+        lambda: {
+            "aggregate": f'    name: "{_AGGREGATE}"\n    needs: changes\n',
+            "changes": "    needs: coverage\n",
+            "coverage": "",
+        },
+    )
+    assert set(_gating()) == {"aggregate", "changes", "coverage"}
 
 
 def test_every_sweep_runs_the_same_interpreters() -> None:
