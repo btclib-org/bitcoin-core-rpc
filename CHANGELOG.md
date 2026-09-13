@@ -1682,6 +1682,12 @@ contract is stated.
   `test.yml` and `lint.yml` already had** (closes btclib-org/.github#1083): a
   called `github.ref` is the caller's, so a rehearsal shared `main`'s group.
 
+### `codeql.yml` calls the organization's reusable workflow
+
+- **The matrix and its two CodeQL steps live in `btclib-org/.github`**
+  (issue btclib-org/.github#35): this file keeps the trigger, the
+  schedule, the concurrency group and the aggregate job.
+
 ## v2026.9.3
 
 ### Repository
