@@ -117,6 +117,24 @@ def test_a_path_is_read_against_where_pytest_was_started() -> None:
     assert _threshold(file_or_dir=["tests"]) == 100.0
 
 
+def test_a_parent_directory_segment_names_the_whole_suite_too() -> None:
+    """`..` survives into the path object, so the spelling has to resolve.
+
+    `.` and the trailing separator are collapsed when the path is built,
+    which is why they sit in
+    `test_naming_the_suite_is_not_selecting_from_it` and this is its own
+    case: a `..` segment is kept instead, so `tests/../tests` and `tests`
+    are two objects that compare unequal until each side is resolved.
+    Both commands here collect the suite, and without `given`'s call each
+    reads as a selection and is gated at nothing.
+    """
+    assert _threshold(file_or_dir=["tests/../tests"]) == 100.0
+    from_the_tests_directory = _threshold(
+        file_or_dir=["../tests"], invocation_dir=_ROOT / "tests"
+    )
+    assert from_the_tests_directory == 100.0
+
+
 def test_a_symlinked_spelling_of_one_tree_is_still_the_whole_suite(
     tmp_path: Path,
 ) -> None:
@@ -169,14 +187,12 @@ def test_a_testpaths_entry_is_the_directory_its_parent_segment_reaches(
     That is the `testpaths` side's second reason to resolve, and it asks
     for no symlink and no privilege, so it holds where
     `test_a_symlinked_spelling_of_one_tree_is_still_the_whole_suite` can
-    only skip. It does not stand in for that case either: the resolution
-    on `given` is what a symlinked spelling reaches, and this one passes
-    with that one removed.
-
-    A `..` that re-enters the directory it left -- `tests/../tests` --
-    cannot see any of this: the unresolved entry then has more parents
-    and the command line's path is one of them, so containment answers
-    the same with the call and without it.
+    only skip. A `..` that re-enters the directory it left --
+    `tests/../tests` -- cannot see it: the unresolved entry then has more
+    parents and the command line's path is one of them, so containment
+    answers the same with the call and without it. That is
+    `test_a_parent_directory_segment_names_the_whole_suite_too`, whose
+    `..` re-enters and which therefore defends the call on `given`.
     """
     # both sides are spelled from the same base, so the `..` is the only
     # difference between them and the case cannot pass for a second
