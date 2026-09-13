@@ -346,6 +346,10 @@ def test_needed_reads_needs_in_every_shape_the_gate_may_take(
     assert _needed(scalar) == {"changes"}
     for shape, block in under_the_key.items():
         assert _needed(block) == both, shape
+    # a job key may carry a hyphen, and an item token stopping at one
+    # loses the job (btclib-org/.github#1063)
+    hyphenated = f"    needs:\n      - test-passed\n      - free-threaded\n{tail}"
+    assert _needed(hyphenated) == {"test-passed", "free-threaded"}
     # the control: a reader of the key's own line and nothing under it --
     # which is what this module read before -- answers the same for the
     # two shapes that write the list there and nothing at all for the
