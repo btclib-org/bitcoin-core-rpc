@@ -29,7 +29,7 @@ being unmetered.
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc \
   --jq '{visibility, has_issues, wiki: .has_wiki, projects: .has_projects}'
-# {"has_issues":true,"projects":true,"visibility":"public","wiki":true}
+# {"has_issues":true,"projects":false,"visibility":"public","wiki":false}
 ```
 
 Section 10's `scorecard` sentinel is the other thing resting on the
@@ -45,8 +45,7 @@ an issue about this tree alone stays here — and so does the
 Section 11 turns the wiki and the projects board off on every tree of
 the organization: an unused wiki is a second place a reader can land
 looking for what the tracker already records, and the projects board is
-a per-user view of the same issues the tracker holds. The call above
-still answers `true` for both, so neither has been turned off here yet.
+a per-user view of the same issues the tracker holds.
 
 ## Required checks on main
 
