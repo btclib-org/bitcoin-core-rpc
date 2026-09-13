@@ -255,11 +255,11 @@ of this: the name is what the rule matches, and `Build the documentation`
 kept reporting when it left `lint.yml` for `docs.yml`.
 
 No sentinel appears in the rule, and none of them may: `mutation.yml`,
-`links.yml`, `deps-latest.yml`, `os-ubuntu.yml`, `os-macos.yml`,
-`os-windows.yml` and `pypi-install.yml` are each expected to go red for
-reasons no pull request introduced -- an upgrade upstream, a link on
-somebody else's website, a runner image -- and a red check nobody can act
-on from a branch is noise.
+`links.yml`, `deps-latest.yml`, `deps-oldest.yml`, `os-ubuntu.yml`,
+`os-macos.yml`, `os-windows.yml` and `pypi-install.yml` are each expected
+to go red for reasons no pull request introduced -- an upgrade upstream, a
+link on somebody else's website, a runner image -- and a red check nobody
+can act on from a branch is noise.
 `integration-bitcoind.yml` is in the rule rather than in that list, its cost
 having been measured rather than assumed: 12 to 24 seconds a cell, the download
 of a live bitcoind included, and the cells run concurrently. What it

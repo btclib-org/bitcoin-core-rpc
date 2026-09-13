@@ -1264,6 +1264,385 @@ sides'.
   bare issue references are qualified as `btclib-org/btclib#1280` and
   `btclib-org/btclib#1194`, which resolve to nothing in this tracker.
 
+### The gate's `needs:` closure reads a block list, and the comments in it
+
+- **`tests/interpreters_test.py` reads a job's `needs:` in each of the
+  three shapes GitHub takes, and takes a comment or a blank line among
+  the items** (closes btclib-org/.github#1031, issue
+  btclib-org/.github#1038): the reader this replaces matched a flow list
+  or a scalar on the key's own line, so a block list under the key named
+  no job at all, the closure `test: every job passed` waits on narrowed
+  with nothing red to say so, and the free-threading biconditional that
+  reads it measured a gate it had not read. No job of `test.yml` writes
+  its `needs:` under the key, so the closure holds the same jobs either
+  way; what changes is what a job written that way would do to it.
+- **The spelling is the organization's rather than this tree's** (issue
+  btclib-org/.github#1038): `btclib`, `btclib-secp256k1` and
+  `btclib-node` carry the same module, and that issue stays open for the
+  three of them to take the same spelling. This tree wrote it because it
+  is the one that reads the job blocks with their comments still in
+  them: it meets a `# a note` line at the indent the items take, where
+  the others meet the whitespace their strip leaves there, so a run
+  tolerating the whitespace alone passes there and fails here. An item's
+  own trailing comment goes with the two -- an item written
+  `- changes  # the gate` is the shape the tolerance drafted in that
+  issue's body still dropped, and an item is read up to it.
+- **A step is not an item, and the test says so.** A `- name: Setup uv`
+  step line sits at the indent the items take, and what keeps it out is
+  that an item is the whole line up to its own comment; a run widened to
+  the rest of the line reads its first token, `name:`, as a job and every
+  item below it with them. What ends the run ahead of a real job's steps
+  is the `steps:` key at the indent a job's keys take, so what separates
+  the two readings is a step line written where an item goes.
+
+### The `testpaths` resolution takes a case that asks for no symlink
+
+- **`tests/conftest_test.py` asks the coverage gate about a `testpaths`
+  entry whose `..` leaves the directory it names, and the case fails
+  with the `.resolve()` removed from `wanted` in `tests/conftest.py`**
+  (closes btclib-org/.github#1022): `tests/../src` is `src`, which a
+  command line naming `tests` is not above, while unresolved it reads
+  as a directory `tests` contains -- so a run collecting nothing of
+  `src` is handed the whole suite's ratchet.
+  `test_a_symlinked_spelling_of_one_tree_is_still_the_whole_suite` is
+  the other case that kills that call, and its assertions sit behind a
+  `pytest.skip`, so on a platform that refuses a symlink nothing else
+  in the suite kills it.
+- **`--no-cov` is what makes the pair reproducible.** With
+  `Path.symlink_to` made to refuse and the call removed,
+  `uv run pytest --no-cov` exits 0 without this case and 1 with it,
+  that case being the failure. The same pair under the coverage floor
+  cannot tell the two runs apart: the skipped case's own assertions go
+  unexecuted either way, so an identical shortfall fails both.
+- **An entry reaching the same directory with no `..` in it leaves the
+  removal undetected**, which is what assigns the kill to the segment
+  rather than to the method. A `..` that re-enters -- `tests/../tests`,
+  on the entry and on the command line alike -- answers the same with
+  the call and without it.
+- **The symlinked spelling is what reaches the resolution on `given`**:
+  with the `.resolve()` removed there the symlink case fails and this
+  one passes, so neither case stands in for the other.
+
+### The command line's parent segment takes the case the family already has
+
+- **`tests/conftest_test.py` gains
+  `test_a_parent_directory_segment_names_the_whole_suite_too`, which
+  names the whole suite as `tests/../tests` and as `../tests` from
+  inside `tests/`, and fails with the `.resolve()` removed from `given`
+  in `tests/conftest.py`** (closes btclib-org/.github#1045): a `..`
+  segment survives into the path object where `.` and a trailing
+  separator are collapsed, so an unresolved command-line path compares
+  unequal to the `testpaths` entry it names and a run that takes the
+  whole suite in is gated at nothing. Each of the two spellings fails
+  on its own.
+- **The case, its name and its wording are `btclib-benchmarks`'s,
+  carried byte for byte** out of its `tests/conftest_test.py` at
+  `ac260ed6` and placed where it sits there, between
+  `test_a_path_is_read_against_where_pytest_was_started` and the
+  symlinked spelling. Deriving a spelling here instead is how one
+  question gets two answers in the family.
+- **`--no-cov` is what makes the pair reproducible.** With
+  `Path.symlink_to` made to refuse and the call removed,
+  `uv run pytest --no-cov` exits 0 without this case and 1 with it,
+  that case being the failure. Under the coverage floor both runs fail
+  and the exit code tells them apart no better; the totals differ
+  there, but only because a case that fails on its first assertion
+  leaves a line of its own unexecuted, which reports the failure rather
+  than the mutation.
+- **The same `..` on the `testpaths` side leaves the removal
+  undetected**, which is what assigns the kill to the command line, and
+  so do `./tests` and `tests/`, which carry no `..` for the join to
+  keep.
+- **What *The `testpaths` resolution takes a case that asks for no
+  symlink* says about the symlinked spelling reaching the resolution on
+  `given` is superseded**: this case reaches it too, with no symlink
+  and no privilege. That entry stands as written, nothing landed being
+  rewritten. Its own case still answers the call on `wanted` where this
+  one does not -- with the `.resolve()` removed from `wanted` that case
+  fails and this one passes -- and its sentence about a `..` that
+  re-enters answering the same with the call and without it is about
+  the call on `wanted`, which is the call the entry is written of.
+- **The same claim in
+  `test_a_testpaths_entry_is_the_directory_its_parent_segment_reaches`'s
+  docstring sits in a file this diff opens, so it is replaced rather
+  than superseded**: that case now carries `btclib-benchmarks`'s
+  wording whole, which names
+  `test_a_parent_directory_segment_names_the_whole_suite_too` as what
+  defends the call on `given`. A sentence derived here rather than
+  taken from the family is what went false.
+
+### The symlink case's pragma takes the case, not the handler alone
+
+- **The `# pragma: no cover` sits on the case's `def`** (issue
+  btclib-org/.github#1042): an exclusion on a line that introduces a
+  block takes the whole block, so it reaches the assertions after the
+  skip as well. On the `except` it reaches the handler and the
+  `pytest.skip` alone, which are the lines that do not run wherever the
+  link is made, and a platform refusing `os.symlink` then meets the skip
+  and a coverage floor it cannot reach in the same run -- the exit code
+  the floor's and the failure naming a percentage rather than a symlink.
+  Measured with a plugin making `Path.symlink_to` raise `OSError`: with
+  the pragma on the `except` the documented `uv run pytest` exits 1 with
+  the lines after the skip named missing, and with it on the `def` the
+  same run meets the floor and the case reports `SKIPPED`.
+- **The comment above the line says why coverage can ask nothing of the
+  case, and what the exclusion costs**: the body is reachable only where
+  the platform makes a symbolic link, so a floor over a `source` naming
+  `tests` asks about the runner rather than about the suite, and dead
+  code inside the case stops being flagged in exchange. A reason above
+  the line with an inline half naming the case is what
+  `[tool.coverage.report]`'s comment asks of a reason too long for the
+  line it belongs to.
+- **The docstring's sentence -- a platform that refuses says so as a
+  skip, which `-ra` reports -- is what the move makes true of the run**:
+  the case skips either way, and with the pragma on the `except` the run
+  it skips in fails the floor.
+- **What *The `testpaths` resolution takes a case that asks for no
+  symlink* and *The command line's parent segment takes the case the
+  family already has* say about the coverage floor is superseded**: each
+  says the floor cannot tell its reproduction pair apart, and the
+  skipped case's unexecuted assertions are what make that true -- with
+  `Path.symlink_to` refusing and one `.resolve()` removed from
+  `tests/conftest.py`, the run with that removal's own case deleted
+  fails on the shortfall alone. The exclusion takes the shortfall away,
+  so the documented `uv run pytest` exits 1 with that case in the file
+  and 0 with it deleted. The `--no-cov` half of each pair answers as
+  those entries say it does, and they stand as written, nothing landed
+  being rewritten.
+- **`btclib` carries the same shape**, so the issue stays open on this
+  landing and the citation above is `issue` rather than `closes`.
+
+### The tree gains the `deps-oldest` sentinel, and the badge with it
+
+- **`.github/workflows/deps-oldest.yml` runs the suite weekly with every
+  direct dependency at the oldest release `pyproject.toml`'s own
+  specifier allows** (issue btclib-org/.github#323): section 10's *Which
+  trees carry which sentinel* names this repository for that row, and
+  `git grep -l 'lowest-direct' -- .github/workflows/` answered nothing
+  here with `uv lock` in `deps-latest.yml` as the control that the path
+  was read -- the tree resolved upward and nothing resolved down,
+  leaving every `>=` it declares a claim no run had installed. The cron
+  is `12 3 * * 4`, read off section 10's two tables: the workflow
+  table's `deps-oldest` row gives Thursday and hour 03, the repository
+  table's `bitcoin-core-rpc` row gives minute 12. It gates nothing --
+  no aggregate job and no branch protection rule -- and `README.md`'s
+  badge row gains it where the calendar puts it.
+- **The cell is 3.10 and there is no matrix**: `requires-python` names
+  that floor, where `.python-version` pins 3.14 as the newest
+  interpreter the package supports, and a floor run asks the other end.
+  One cell because a floor is one claim to verify rather than a range
+  to scan, the range being `deps-latest.yml`'s and the platform sweeps'.
+- **`UV_RESOLUTION: lowest-direct` is declared on the job and not passed
+  to the step that resolves**: `uv lock` records a non-default mode
+  inside `uv.lock`, and a later uv command under the default `highest`
+  reads that lock as stale, so `--locked` refuses the lock the step
+  above it just wrote. Measured with uv 0.12.7 on a probe project
+  holding one specifier: against a `lowest-direct` lock
+  `uv run --locked` exits 2, and 0 with the variable set.
+- **Neither the lint job nor the dist job of `deps-latest.yml` is
+  mirrored.** That lint job is there because mypy is a local hook
+  shelling out to uv, so a new mypy release adds a check this code base
+  fails; a floor resolution moves mypy backward instead, which is the
+  tooling's question rather than the floor's. The same reading refuses a
+  dist job from the other end: the `check` group declares no floor, so
+  an old twine, check-wheel-contents and pyroma would rate metadata this
+  resolution does not move, and the floor a distribution does declare --
+  `[build-system]`'s `uv_build` range -- is not in `uv.lock` for the
+  step to reach.
+- **The resolution fails on a group entry rather than at any declared
+  floor, so the sentinel goes red before it reaches the suite**:
+  `uv lock --resolution lowest-direct --dry-run`, uv 0.12.7, warns on
+  each `[dependency-groups]` entry that declares no lower bound and then
+  fails building `coverage==3.0`. `uv lock --help` lists one option
+  naming a group, `--upgrade-group`, and none that selects or excludes
+  one, where `uv sync --help` names several, so a lock is over every
+  group there is and the resolution cannot be narrowed to the entries
+  carrying a bound. What bound each entry owes is #446, filed by the
+  review of this branch; each landed copy points at the same question in
+  its own tree -- `btclib-org/btclib-node#761`, since closed by that tree
+  giving every entry a bound, and `btclib-org/btclib-benchmarks#320`.
+
+### A run coverage's configuration never reached is refused
+
+- **`tests/conftest.py` refuses a run coverage read no configuration
+  for** (issue btclib-org/.github#443). coverage looks for its
+  configuration in the directory the process started in, so a run
+  started from `tests/` finds no `fail_under`, no `source` and no
+  `branch = true` and is held to no floor, while pytest walks up and
+  reads `pyproject.toml` all the same. That asymmetry is what the guard
+  reads, and it needs no copy of the floor's number. Section 8 of the
+  organization standard leaves a tree with a local floor to point such a
+  run at its configuration or to make it say it is ungated, and this is
+  the second limb: `pytest.UsageError`, which pytest prints without a
+  traceback and exits `4` for -- an exit of its own, so the code says the
+  run measured nothing rather than that something in the tree failed.
+  Measured from `tests/`: exit 4, the hook running ahead of collection.
+- **The message names the directory the run started in, the
+  configuration pytest read, the rootdir to run from, and
+  `--cov-config`.** `--cov-config` is named without a caveat because in
+  this tree it restores everything: from `tests/`, a run given the
+  tree's own `pyproject.toml` that way reports a per-file table
+  byte-identical to the run from the root and meets the floor. The
+  `omit` is what would otherwise be left behind, and is not here --
+  coverage makes a pattern absolute against the process's own directory
+  unless it opens with a wildcard, which this tree's one pattern does.
+  `source` is not what carries this tree either: coverage takes a
+  `source` entry naming no directory as a package, so `tests`, a
+  directory at the root, is an import name from `tests/` that reaches
+  the same files, and `bitcoin_core_rpc` is an import name from either.
+- **The exemptions are an enumeration and not a rule**: `--no-cov`, an
+  explicit `--cov-fail-under`, `--help` and `--collect-only`, each
+  measured from `tests/` at exit 0, where `--markers` and `--fixtures`
+  are refused knowingly, measured there at exit 4. What would decide the
+  question is whether pytest-cov would have gated the run, which is no
+  property to read at this hook, so a longer list is the same guess
+  under more names. Every run this tree makes on purpose starts from the
+  repository root -- no step of any workflow gives a pytest command a
+  working directory -- and the mutation session's `test-command` passes
+  `--no-cov` besides.
+- **`coverage_fail_under` is not what does this, and is not repaired.**
+  pytest-cov fills `known_args_namespace.cov_fail_under` from the
+  coverage configuration in `pytest_load_initial_conftests`, before
+  `pytest_configure` runs, so from `tests/` the hook is handed a floor of
+  zero and hands it back. The guard runs in front of it and raises
+  before it writes.
+- **`pyproject.toml`'s `runtime-cast-value` comment no longer says the
+  tree holds no `cast()`**: `tests/conftest_test.py` casts its stand-ins
+  to the types they stand in for, in the quoted form that rule asks for,
+  and the comment says so where it said there was none to find.
+- **The justifications this guard falsified name the run that still
+  demonstrates them**: the `.coverage` entry of
+  `[tool.uv.build-backend]`'s exclude list and `asks_for_everything`'s
+  docstring each cited a bare `pytest .` from `tests/`, and what leaves
+  `tests/.coverage` behind, and what reaches `asks_for_everything` from
+  a directory the rootdir is not, is that run given `--cov-config`.
+- **`btclib-node` and `btclib-benchmarks` are owed the same guard**,
+  btclib-org/.github#443 having taken that decision for the family;
+  `btclib-secp256k1` landed it at `bd71d7c8` and `btclib` at `da3e0d15`.
+  What lands with the last of them is the sentence recording which limb
+  of section 8 the family took, which is why this cites the issue rather
+  than closing it.
+
+### `asks_for_everything` says why it resolves both sides
+
+**The docstring gains a paragraph on the two `.resolve()` calls** (closes
+btclib-org/.github#810): either side can arrive carrying a symlink --
+pytest builds the rootdir with `os.path.abspath`, which leaves one in the
+path alone, and a positional argument is whatever was typed -- so one
+directory reaches the comparison under two spellings unless both sides
+are resolved. The reason goes in the docstring rather than in a comment
+beside the calls, which stand either side of an early return: one comment
+would sit at one of them, and the docstring is where this function's
+contract is stated.
+
+### The gate's closure is asserted to walk, and both consequences are named
+
+- **`tests/interpreters_test.py` asserted nothing about `_gating`
+  reaching a job named only by another job** (issue
+  btclib-org/.github#1053): `test.yml`'s `test: every job passed` names
+  each job it waits on directly, so a `_gating` reading the aggregate's
+  own `needs:` and stopping answers the real gate, and the shape cases
+  above read one job block each and ask for no second hop. The case
+  added for it is written against a dict in which the aggregate names
+  `changes` and `changes` names `coverage`, so it asserts its own
+  closure and nothing about a shape. Measured over the whole module by
+  replacing that walk with a single union over the same `_needed`: every
+  assertion above the case passes and it is the one that fails.
+- **The comment above `_NEEDS` gave one of the two things a reader blind
+  to the block shape does** (closes btclib-org/.github#1057): it named
+  the biconditional passing on a gate it has not read, which is what
+  happens where the jobs the narrowing keeps still name an interpreter.
+  Where the narrowing leaves the aggregate alone, the aggregate's own job
+  names none and the `no job the merge gate waits on names an
+  interpreter` assertion ahead of that biconditional fires instead. Both
+  halves are measured against this tree's own `test.yml`: `test-passed`
+  writes its `needs:` as a flow list on the key's own line, so a reader
+  narrowed to that line answers the gate's closure unchanged, and with
+  that `needs:` written under the key instead the narrowed reader
+  collapses the closure to `test-passed`, no job of it names an
+  interpreter and that assertion fires; with a job naming a free-threaded
+  interpreter listed below a comment line among those items, the reader
+  as written puts it in the tuple the biconditional reads, where a reader
+  carrying no whole-line alternative answers `3.14` alone and passes on a
+  gate it has not read. The comment's third paragraph ends in a full
+  stop, and `_NEEDS` and `_ITEM` are untouched.
+- **This bears on *The gate's `needs:` closure reads a block list, and
+  the comments in it* above.** That entry has the narrowed closure leave
+  the free-threading biconditional measuring a gate it has not read,
+  which is the half of the consequence that holds where the jobs the
+  narrowing keeps still name an interpreter; where the narrowing leaves
+  the aggregate alone the assertion ahead of that biconditional fires
+  instead, and the comment above `_NEEDS` is where both halves are
+  written.
+
+### What enforces the lint gate is a local run, and not a commit
+
+- **`.pre-commit-config.yaml`'s header says CI enforces exactly what a
+  local run of `.pre-commit-config.yaml` enforces** (issue
+  btclib-org/.github#966): the lint gate is not installed as a git hook
+  here, so a commit enforces nothing, which `CONTRIBUTING.md`'s *The
+  lint gate is not installed as a git hook* paragraph states with the
+  `rev-parse --git-path hooks` measurement behind it. *A local run* is
+  the noun `btclib-benchmarks` substituted at `c2c0b2a2`, where one
+  entry gating a commit and CI at once became one entry gating a local
+  run and CI at once.
+- **Naming the command in `.pre-commit-config.yaml`'s header is the
+  rejected alternative.** `CONTRIBUTING.md` here documents
+  `uv run pre-commit run --all-files` where `btclib-org/.github`'s
+  documents `uvx pre-commit run --all-files`, so one spelling written
+  into text the trees share is false in one of them, and a spelling per
+  tree reopens the divergence the shared text closes.
+- **`.pre-commit-config.yaml`'s skip recipe keeps its `pre-commit run`
+  line alone.** `SKIP=mypy git commit -m "foo"` and the `--no-verify`
+  pair were instructions for skipping a hook this repository does not
+  install, written in the file a session reads while it is committing.
+  Keeping them for a reader who installed the hook anyway is the
+  rejected alternative: that reader is acting against this tree's own
+  instruction, and pre-commit's own documentation is where an interface
+  this tree does not use belongs.
+- **`CONTRIBUTING.md`'s *The editor* paragraph says a local run in both
+  of its halves**: what installing the extensions changes nothing about,
+  and where a finding is met instead of while typing. The decision on
+  btclib-org/.github#966 quotes the first half; the second named the
+  commit that trips over a finding, which is the same claim about a hook
+  that is not installed.
+- **`.vscode/extensions.json` names no commit.** What the editor reports
+  is what a local run of `.pre-commit-config.yaml` would report, what
+  formats yaml and jsonc on save is the tool that formats them on a
+  local run, and what writes back what a second formatter on save wrote
+  is the `ruff-format` hook.
+
+### The hook preambles say why the hook is there, in the present tense
+
+- **`.pre-commit-config.yaml`'s yamllint preamble said the workflows
+  *were* the one place prose could grow without a limit** (issue
+  btclib-org/.github#880): a sentence about the tree before the hook,
+  where section 9 of the organization standard asks a comment for why
+  the code is as it is in the present tense. The reason survives the
+  tense, so the sentence names what holds each format instead:
+  markdownlint holds markdown, `max-doc-length` a Python docstring and
+  a whole-line comment, `toml-comment-width` a toml comment, and the
+  prose in a yaml file is this hook's or nothing's.
+- **prettier reads the same files two hooks above, so the sentence says
+  what it does with a comment.** Measured at the rev this
+  tree pins: it explodes an inline sequence that runs past the width and
+  hands a long comment back byte for byte, and the second is what leaves
+  a yaml comment's width to this hook. The exploded sequence is the
+  control saying the file was rewritten at all.
+- **`the hook above` named markdownlint rather than taplo, the hook it
+  sat under.** Each tool is named.
+- **The `toml-comment-width` preamble carried the same tense**: a toml
+  comment's width *was* the last prose here held to nothing, and nothing
+  *read* toml for it. It opens on that width being prose and names
+  MD013, W505 and yamllint as what holds the other three, the sentence
+  below it already giving, in the present tense, the reason no tool off
+  the shelf does toml.
+- **This supersedes one sentence of *Four comments say what
+  `max-doc-length` reaches* above**, which has that preamble there "to
+  say that toml prose was the last kind held to nothing, and that is
+  what it still says". What the same entry says about W505's two kinds
+  and about the 80 `[tool.ruff.lint.pycodestyle]` names is untouched.
+
 ## v2026.9.3
 
 ### Repository

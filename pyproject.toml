@@ -349,9 +349,10 @@ source-exclude = [
     # length of it
     "*.egg-info",
     # coverage.py's own data file, written beside the tree it measured
-    # rather than under a cache directory: `cd tests && uv run pytest .`
-    # leaves `tests/.coverage` behind, gitignored and unanchored the same
-    # way as the three cache entries above
+    # rather than under a cache directory: a run started from tests/ and
+    # given this file with `--cov-config` leaves `tests/.coverage` behind,
+    # gitignored and unanchored the same way as the three cache entries
+    # above
     ".coverage",
     ".coverage.*",
     "coverage.xml",
@@ -815,7 +816,8 @@ ignore = [
     # them -- it is already written that way by hand, which is a choice
     # this rule has no way to tell from the ones above where the same
     # shape would cost a reader for nothing. `runtime-cast-value` is the
-    # same trade at a `cast()`, and there is none in the tree to find
+    # same trade at a `cast()`, and `tests/conftest_test.py`'s stand-ins
+    # are cast in the quoted form it asks for anyway
     "typing-only-first-party-import",
     "typing-only-third-party-import",
     "typing-only-standard-library-import",

@@ -14,12 +14,21 @@ difference between them is not a drift to close, and neither file is the
 other's copy of record. This file has no hypothesis profile and no
 golden-file fixture to carry, `--cov` in addopts being the one thing this
 suite and that sibling's share.
+
+The second thing here is a guard on that threshold reaching the run at
+all. coverage looks for its configuration in the directory the process
+started in, so a run started from `tests/` finds no `fail_under`, no
+`source` and no `branch = true`. Section 8 of the organization standard
+leaves a tree to point such a run at its configuration or to make it say
+it is ungated, and this file is the second of the two: such a run is
+refused (btclib-org/.github#443).
 """
 
 from __future__ import annotations
 
 from argparse import Namespace
 from pathlib import Path
+from typing import Protocol
 
 import pytest
 
@@ -38,9 +47,19 @@ def asks_for_everything(
     subset -- and it is what somebody types who means the whole suite
     and says so.
 
-    The two bases are different directories, which `pytest .` run from
-    `tests/` shows: pytest reads a positional argument against the
-    directory it was invoked from, and `testpaths` against the rootdir.
+    The two bases are different directories, which a `pytest .` from
+    `tests/` shows, given `--cov-config=../pyproject.toml` so that the
+    guard below lets it through: pytest reads a positional argument
+    against the directory it was invoked from, and `testpaths` against
+    the rootdir.
+
+    Both sides are resolved, so that one directory reaches the
+    comparison under one spelling. Either can arrive carrying a symlink:
+    pytest builds the rootdir with `os.path.abspath`, which leaves one
+    in the path alone, and a positional argument is whatever was typed.
+    `/tmp` is such a link on macOS, and unresolved the two spellings
+    contain each other nowhere, so the whole suite reads as a subset of
+    itself.
 
     `file_or_dir` is `None` rather than `[]` on the `--help` path, the
     positional never having been parsed, and that names no path either
@@ -145,6 +164,86 @@ def coverage_fail_under(
     return configured
 
 
+class CoverageConfiguration(Protocol):
+    """What this file reads of coverage's own configuration object.
+
+    `config_file` is the file coverage took its settings from, and
+    `None` where it took them from none: coverage sets it as it reads
+    one, so the attribute is the run's own answer to whether the
+    configuration reached it, rather than an inference from a value that
+    reached it.
+    """
+
+    config_file: str | None
+
+
+def coverage_configuration(config: pytest.Config) -> CoverageConfiguration | None:
+    """Return the configuration coverage is measuring with, or `None`.
+
+    `None` is the two ways there is nothing to ask about: `--no-cov`,
+    where pytest-cov registers its plugin and returns from `__init__`
+    with the controller left unbuilt, and a run whose plugin was never
+    registered, where `getplugin` hands back `None` -- the same
+    `getattr` default answers for both.
+    """
+    plugin = config.pluginmanager.getplugin("_cov")
+    controller = getattr(plugin, "cov_controller", None)
+    if controller is None:
+        return None
+    # annotated because the plugin manager hands back `Any`, and a return
+    # of that is what mypy's strict mode refuses here
+    measuring: CoverageConfiguration = controller.cov.config
+    return measuring
+
+
+def configuration_went_unread(
+    cov_config: CoverageConfiguration | None,
+    inipath: Path | None,
+    options: Namespace,
+) -> bool:
+    """Return whether a run held to the floor cannot see one.
+
+    A guard and not a sentence in CONTRIBUTING.md saying where to start
+    the suite from. What it catches is a plausible spelling switching
+    the floor off, and a reader told to start from the root is not the
+    run that does not: the sentence leaves the same failure, with
+    somebody having been told about it.
+
+    What it compares is not the threshold. pyproject.toml is the one
+    place the number lives, and a `== 100` here would be the second, so
+    what decides is whether coverage read a file at all against whether
+    pytest read one -- the asymmetry the defect leaves behind, pytest
+    walking up from where it was invoked to find its configuration and
+    coverage looking only where the process started.
+
+    `options` is `config.option` as `coverage_fail_under` above takes
+    it, and for the same reason: what a caller asked for is what decides
+    here, and the namespace pytest-cov holds has stopped saying that by
+    the time either of these runs.
+    """
+    if cov_config is None:
+        return False
+    if options.cov_fail_under is not None:
+        # section 8 of the organization standard has the hook never
+        # overruling an explicit `--cov-fail-under`, and a caller who
+        # named the floor has not had one taken away in silence
+        return False
+    if options.help or options.collectonly:
+        # neither run is held to a floor to begin with: `--help` exits
+        # before a session, and pytest-cov never fails a `--collect-only`
+        # run on the floor whatever its report prints. The pair is an
+        # enumeration rather than every run pytest-cov leaves ungated,
+        # and `--markers` and `--fixtures` are refused knowingly.
+        # Widening it is the rejected alternative: what would decide the
+        # question is whether pytest-cov would have gated this run, which
+        # is no property to read here, so a longer list is the same guess
+        # under more names
+        return False
+    # `inipath` is what the message has to name, so a run pytest read no
+    # configuration for is one this cannot tell anybody anything about
+    return cov_config.config_file is None and inipath is not None
+
+
 def pytest_configure(config: pytest.Config) -> None:
     """Gate a whole run at `fail_under`, and a partial one at nothing.
 
@@ -154,7 +253,24 @@ def pytest_configure(config: pytest.Config) -> None:
     that copy. Writing to `config.option` instead runs without error and
     changes nothing -- the plugin never reads it back, and the run still
     fails on the whole tree's coverage.
+
+    A run coverage's configuration never reached is refused rather than
+    gated, `pytest.UsageError` being what pytest prints without a
+    traceback and exits `4` for -- an exit of its own, so the code says
+    the run measured nothing rather than that something in the tree
+    failed.
     """
+    if configuration_went_unread(
+        coverage_configuration(config), config.inipath, config.option
+    ):
+        raise pytest.UsageError(
+            "coverage read no configuration, so this run is held to no"
+            " floor and measures a different set of files: coverage looks"
+            f" only in the directory the run started in, {Path.cwd()}, and"
+            f" pytest read {config.inipath}. Run from {config.rootpath},"
+            f" or pass --cov-config={config.inipath}, which restores the"
+            " floor and the file set alike."
+        )
     testpaths: list[str] = config.getini("testpaths")
     namespace = config.known_args_namespace
     namespace.cov_fail_under = coverage_fail_under(
