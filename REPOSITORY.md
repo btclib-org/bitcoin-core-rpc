@@ -70,7 +70,7 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 
 | Check | Produced by |
 | --- | --- |
-| `Lint and type-check` | `lint.yml`, first job |
+| `lint / Lint and type-check` | `lint.yml`, calling `reusable-lint.yml` |
 | `test: every job passed` | `test.yml`, aggregate over its jobs |
 | `integration: every job passed` | `integration-bitcoind.yml`, over its cells |
 | `docs / Build the documentation` | `docs.yml`, calling `reusable-docs.yml` |
@@ -82,8 +82,9 @@ check is renamed, a rename being a drop and an add.
 **Each row above is a job name, an aggregate, or a called job's name
 joined to its caller's**, and that is a rule rather than an
 inconsistency: a workflow with one job needs no aggregate, the job
-*being* the context, which is still `Lint and type-check`'s shape. It
-is also the answer to why a sibling repository's own live-node check
+*being* the context — a shape no row above still takes, `lint.yml` and
+`docs.yml` alike producing the third. It is also the answer to why a
+sibling repository's own live-node check
 can be a bare job name, `Regtest against Bitcoin Core`, where this one
 is `integration: every job passed`. The two workflows ask the same
 question of a real node and are governed by the same rule; there it is one
@@ -98,7 +99,10 @@ name of its own, which is the third shape: the context joins the
 calling job's id to the called job's own name. `docs.yml`'s `docs` job
 calls `reusable-docs.yml`, whose own job is still named
 `Build the documentation`, so together they produce
-`docs / Build the documentation` (issue btclib-org/.github#35).
+`docs / Build the documentation`; `lint.yml`'s `lint` job calls
+`reusable-lint.yml` the same way, whose own job is still named
+`Lint and type-check`, producing `lint / Lint and type-check`
+(issue btclib-org/.github#35).
 
 `codeql: every job passed` is not among them, and it is a name this rule
 could take: `codeql.yml` runs on a pull request, so the aggregate reports
@@ -116,9 +120,10 @@ run defers is not the analysis but the blocking — the alerts are raised
 against the branch either way, and a merge is what stops waiting on them.
 
 `docs / Build the documentation` is named on its own on purpose: a rule
-naming `Lint and type-check` alone would leave a red docs build outside the
-required checks entirely. It moved from `lint.yml` to a workflow of its own
-without the rule changing, which is worth knowing before renaming anything:
+naming `lint / Lint and type-check` alone would leave a red docs build
+outside the required checks entirely. It moved from `lint.yml` to a
+workflow of its own without the rule changing, which is worth knowing
+before renaming anything:
 a context is matched by name, not by the workflow that reported it, so
 moving a job is free and renaming one is not. `lint.yml` and `docs.yml` both
 trigger on `pull_request` with no branch and no `paths` filter, so both
@@ -241,7 +246,7 @@ pull request that renames the job reports the name the rule now wants:
 branch=repos/btclib-org/bitcoin-core-rpc/branches/main
 gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
 {"strict": true,
- "checks": [{"context": "Lint and type-check", "app_id": 15368},
+ "checks": [{"context": "lint / Lint and type-check", "app_id": 15368},
             {"context": "test: every job passed", "app_id": 15368},
             {"context": "integration: every job passed", "app_id": 15368},
             {"context": "docs / Build the documentation", "app_id": 15368}]}

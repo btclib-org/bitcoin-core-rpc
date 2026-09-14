@@ -1700,6 +1700,12 @@ contract is stated.
   naming this row take `docs / Build the documentation`**
   (issue btclib-org/.github#35), the endpoint's own order and name.
 
+### `lint.yml` calls the organization's reusable workflow
+
+- **The checkout and the pre-commit run move to `btclib-org/.github`'s
+  `reusable-lint.yml`** (issue btclib-org/.github#35): `main`'s required
+  check renames to `lint / Lint and type-check`.
+
 ## v2026.9.3
 
 ### Repository
