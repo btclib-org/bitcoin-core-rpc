@@ -1712,6 +1712,12 @@ contract is stated.
   `lint / Lint and type-check`'s tail position**
   (issue btclib-org/.github#35), the endpoint's own order.
 
+### `conf.py`'s version-source comment no longer claims an absent install
+
+- **The comment's false clause is replaced with the reason that survives
+  either install form** (issue btclib-org/.github#1098): a version
+  should not depend on whether the environment installs the package.
+
 ## v2026.9.3
 
 ### Repository

@@ -36,8 +36,9 @@ project = PYPROJECT["project"]["name"]
 project_copyright = "The btclib developers"
 author = "The btclib developers"
 # read from pyproject.toml, the one place the version is declared, and not
-# from importlib.metadata: that would need the package installed in the
-# environment building the documentation, which read the docs does not do
+# from importlib.metadata: the value should not depend on whether the
+# package happens to be installed in the environment building the
+# documentation (btclib-org/.github#1098)
 release = PYPROJECT["project"]["version"]
 
 # -- General configuration ---------------------------------------------------
