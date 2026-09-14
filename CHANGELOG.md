@@ -1694,6 +1694,12 @@ contract is stated.
   `btclib-org/.github`'s `reusable-docs.yml`** (issue btclib-org/.github#35):
   `main`'s required check renames to `docs / Build the documentation`.
 
+### `REPOSITORY.md` reads the required checks back in the rule's order
+
+- **The required-checks table, the `PATCH` example and the sentence
+  naming this row take `docs / Build the documentation`**
+  (issue btclib-org/.github#35), the endpoint's own order and name.
+
 ## v2026.9.3
 
 ### Repository

@@ -71,9 +71,9 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 | Check | Produced by |
 | --- | --- |
 | `Lint and type-check` | `lint.yml`, first job |
-| `docs / Build the documentation` | `docs.yml`, calling `reusable-docs.yml` |
 | `test: every job passed` | `test.yml`, aggregate over its jobs |
 | `integration: every job passed` | `integration-bitcoind.yml`, over its cells |
+| `docs / Build the documentation` | `docs.yml`, calling `reusable-docs.yml` |
 
 The last row is whichever context was added most recently, that endpoint
 appending rather than sorting — so the tail of this table moves whenever a
@@ -115,8 +115,8 @@ an injected expression on every pull request. What an unrequired CodeQL
 run defers is not the analysis but the blocking — the alerts are raised
 against the branch either way, and a merge is what stops waiting on them.
 
-`Build the documentation` is named on its own on purpose: a rule naming
-`Lint and type-check` alone would leave a red docs build outside the
+`docs / Build the documentation` is named on its own on purpose: a rule
+naming `Lint and type-check` alone would leave a red docs build outside the
 required checks entirely. It moved from `lint.yml` to a workflow of its own
 without the rule changing, which is worth knowing before renaming anything:
 a context is matched by name, not by the workflow that reported it, so
@@ -242,9 +242,9 @@ branch=repos/btclib-org/bitcoin-core-rpc/branches/main
 gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
 {"strict": true,
  "checks": [{"context": "Lint and type-check", "app_id": 15368},
-            {"context": "docs / Build the documentation", "app_id": 15368},
             {"context": "test: every job passed", "app_id": 15368},
-            {"context": "integration: every job passed", "app_id": 15368}]}
+            {"context": "integration: every job passed", "app_id": 15368},
+            {"context": "docs / Build the documentation", "app_id": 15368}]}
 JSON
 ```
 
