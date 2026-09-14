@@ -1706,6 +1706,12 @@ contract is stated.
   `reusable-lint.yml`** (issue btclib-org/.github#35): `main`'s required
   check renames to `lint / Lint and type-check`.
 
+### `REPOSITORY.md` puts the lint rename's check at the rule's tail
+
+- **The required-checks table and the `PATCH` example take
+  `lint / Lint and type-check`'s tail position**
+  (issue btclib-org/.github#35), the endpoint's own order.
+
 ## v2026.9.3
 
 ### Repository

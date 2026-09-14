@@ -70,10 +70,10 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 
 | Check | Produced by |
 | --- | --- |
-| `lint / Lint and type-check` | `lint.yml`, calling `reusable-lint.yml` |
 | `test: every job passed` | `test.yml`, aggregate over its jobs |
 | `integration: every job passed` | `integration-bitcoind.yml`, over its cells |
 | `docs / Build the documentation` | `docs.yml`, calling `reusable-docs.yml` |
+| `lint / Lint and type-check` | `lint.yml`, calling `reusable-lint.yml` |
 
 The last row is whichever context was added most recently, that endpoint
 appending rather than sorting — so the tail of this table moves whenever a
@@ -246,10 +246,10 @@ pull request that renames the job reports the name the rule now wants:
 branch=repos/btclib-org/bitcoin-core-rpc/branches/main
 gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
 {"strict": true,
- "checks": [{"context": "lint / Lint and type-check", "app_id": 15368},
-            {"context": "test: every job passed", "app_id": 15368},
+ "checks": [{"context": "test: every job passed", "app_id": 15368},
             {"context": "integration: every job passed", "app_id": 15368},
-            {"context": "docs / Build the documentation", "app_id": 15368}]}
+            {"context": "docs / Build the documentation", "app_id": 15368},
+            {"context": "lint / Lint and type-check", "app_id": 15368}]}
 JSON
 ```
 
