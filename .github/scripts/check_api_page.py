@@ -10,13 +10,14 @@ not in the source of the module being documented -- the exact shape
 avoid, and the one `sphinx-build -n -W` does not warn about either way,
 since nothing is malformed and nothing fails to resolve. This is the
 check that reads the artifact instead of the configuration: `docs.yml`
-runs it against the page its own build just wrote, so this script pays
-for no second build and no second install of the `docs` group.
+names this script as `reusable-docs.yml`'s `post-build-script`, which
+runs it against the directory its own build just wrote, so this script
+pays for no second build and no second install of the `docs` group.
 
-`tests/check_api_page_test.py` is where `missing_names` is proven, against
-a page invented for the purpose rather than a real build -- the test
-suite does not carry the `docs` group, and a real build is not what this
-function's own correctness needs.
+`tests/check_api_page_test.py` is where `missing_names` and `page_path`
+are proven, against a page invented for the purpose rather than a real
+build -- the test suite does not carry the `docs` group, and a real
+build is not what either function's own correctness needs.
 """
 
 from __future__ import annotations
@@ -48,12 +49,17 @@ def missing_names(all_names: Sequence[str], page: str) -> list[str]:
     ]
 
 
+def page_path(build_directory: str) -> Path:
+    """Return the built `api.html` under `build_directory`."""
+    return Path(build_directory) / "api.html"
+
+
 def main(argv: list[str]) -> int:
-    """Print every name missing from the page named by `argv[1]`."""
+    """Print every name missing from `api.html` under `argv[1]`."""
     if len(argv) != 2:
-        print("usage: check_api_page.py <built api.html>", file=sys.stderr)
+        print("usage: check_api_page.py <build directory>", file=sys.stderr)
         return 2
-    page = Path(argv[1]).read_text(encoding="utf-8")
+    page = page_path(argv[1]).read_text(encoding="utf-8")
     missing = missing_names(bitcoin_core_rpc.__all__, page)
     for name in missing:
         print(f"::error::{name!r} is in __all__ and not on the built api page")
