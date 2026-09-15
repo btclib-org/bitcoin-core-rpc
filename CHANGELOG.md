@@ -1718,6 +1718,12 @@ contract is stated.
   either install form** (issue btclib-org/.github#1098): a version
   should not depend on whether the environment installs the package.
 
+### `[tool.mypy] exclude` is anchored to the `build/` directory it means
+
+- **`"build"` was an unanchored regex, dropping any path merely
+  containing that substring** (issue btclib-org/.github#1102): the
+  readthedocs-wait script and its test, un-excluded, type-check clean.
+
 ## v2026.9.3
 
 ### Repository
