@@ -460,7 +460,7 @@ the build read the pages it wrote, and run in this order:
 ```shell
 uv run --locked --no-default-groups --group docs \
     sphinx-build -n -W -b html docs/source docs/build/html
-if grep -rn 'href="#\./' docs/build/html --include='*.html'; then
+if grep -rn 'href="#\.\.\?/' docs/build/html --include='*.html'; then
     echo "::error::the links above resolve to no page (unresolved relative path)"
     exit 1
 fi
