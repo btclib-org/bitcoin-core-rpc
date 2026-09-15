@@ -1736,6 +1736,12 @@ contract is stated.
   widened `href="#\.\.\?/`** (issue btclib-org/.github#1105): a broken
   `../` destination passed the local check and failed the actual gate.
 
+### `release.yml` calls the organization's reusable workflows
+
+- **`version-check`, `public-api` and `documented` become calls to
+  `btclib-org/.github`'s reusable workflows, at `@main`** (issue
+  btclib-org/.github#35): none is a required check on `main`.
+
 ## v2026.9.3
 
 ### Repository
