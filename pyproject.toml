@@ -633,8 +633,19 @@ warn_unreachable = true
 # only a checker aimed at the floor reads correctly. Ruff needs no
 # equivalent, inferring py310 from requires-python
 python_version = "3.10"
+# mypy's own crawl runs this through re.search, unanchored, against
+# every path it walks -- so a bare "build" also caught
+# .github/scripts/wait_for_readthedocs_build.py and
+# tests/wait_for_readthedocs_build_test.py, dropping both from the type
+# gate with nothing said about it (issue btclib-org/.github#1102).
+# Neither is reached by a static import the crawl would otherwise still
+# check it through -- the test opens the script by path at run time --
+# so the unanchored pattern was the only thing between either file and
+# the gate. "^" pins the match to where matches_exclude's own relative
+# path starts, and the trailing "/" keeps a file merely called build out
+# of a match meant for the directory
 exclude = [
-    "build",
+    "^build/",
 ]
 
 [tool.ruff]
