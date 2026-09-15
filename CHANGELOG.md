@@ -1724,6 +1724,18 @@ contract is stated.
   containing that substring** (issue btclib-org/.github#1102): the
   readthedocs-wait script and its test, un-excluded, type-check clean.
 
+### `links.yml`'s `targets:` reaches every tracked markdown file
+
+- **`targets:` skipped `.claude/` and `.github/`, hidden to lychee's
+  glob walker without a glob naming them** (issue btclib-org/.github#1104):
+  it becomes `"**/*.md" ".github/**/*.md" ".claude/**/*.md" "docs/**/*.rst"`.
+
+### `CONTRIBUTING.md`'s local docs-gate grep matches the widened pattern
+
+- **The documented docs-gate grep still read `href="#\./`, not the
+  widened `href="#\.\.\?/`** (issue btclib-org/.github#1105): a broken
+  `../` destination passed the local check and failed the actual gate.
+
 ## v2026.9.3
 
 ### Repository
