@@ -465,7 +465,7 @@ if grep -rn 'href="#\.\.\?/' docs/build/html --include='*.html'; then
     exit 1
 fi
 uv run --locked --no-default-groups --group docs \
-    python .github/scripts/check_api_page.py docs/build/html/api.html
+    python .github/scripts/check_api_page.py docs/build/html
 ```
 
 The `grep` makes the unresolved-link claim about the built pages rather

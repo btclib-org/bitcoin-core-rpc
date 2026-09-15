@@ -1742,6 +1742,12 @@ contract is stated.
   `btclib-org/.github`'s reusable workflows, at `@main`** (issue
   btclib-org/.github#35): none is a required check on `main`.
 
+### `CONTRIBUTING.md`'s docs-gate line passes `check_api_page.py` the directory
+
+- **The documented last line passed the built page itself, where the
+  script wants the directory it lives under** (closes #467): run as
+  written, it raised rather than checking anything.
+
 ## v2026.9.3
 
 ### Repository
