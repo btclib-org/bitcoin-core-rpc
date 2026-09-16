@@ -73,57 +73,7 @@ concurrency:
 
 jobs:
   suite-windows:
-    name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      # every cell to the end: which interpreter fails is the whole answer,
-      # and stopping at the first one hides the rest
-      fail-fast: false
-      matrix:
-        # both images: what differs between them is the architecture the
-        # interpreter targets, and neither is on the merge gate, which is
-        # one ubuntu cell -- every other image of every platform belongs
-        # to a sentinel
-        os:
-          - windows-latest
-          - windows-11-arm
-        # the same list os-ubuntu.yml carries, and its comment is the
-        # argument for all three: this workflow moves the image and
-        # nothing else, so a difference between them is the image's
-        python:
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.14"
-          - "3.14t"
-          - "pypy3.11"
-    # far above what a run of the suite needs, and it bounds a hung job
-    # rather than a slow one: the queueing this workflow exists to move
-    # happens before a job starts and is not counted here
-    timeout-minutes: 30
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # see the checkout of the coverage job in test.yml
-          persist-credentials: false
-      - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          enable-cache: true
-          python-version: ${{ matrix.python }}
-      # --no-cov for the reason os-ubuntu.yml gives beside its own
-      #
-      # windows-11-arm's default shell is PowerShell rather than bash:
-      # "$GITHUB_ENV" and the rest of the POSIX spelling are literals
-      # there, not variables, so a step with no shell: goes green having
-      # done nothing. This one command has no POSIX-only syntax and
-      # would run identically under either shell today --
-      # btclib-org/btclib#1141 shipped in exactly this shape in a sibling
-      # repository's own pypi-install.yml, the defect latent until the
-      # next edit adds a conditional, a substitution or a loop (issue
-      # btclib-org/btclib#1148)
-      - name: Run pytest
-        shell: bash
-        run: uv run --locked --no-default-groups --group test pytest --no-cov
+    uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@main
+    with:
+      runners: '["windows-latest", "windows-11-arm"]'
+      python-versions: '["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "pypy3.11"]'

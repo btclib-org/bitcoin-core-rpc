@@ -116,20 +116,22 @@ jobs:
       # knowing before running the same command in a working tree
       - name: Upgrade every dependency to its latest release
         # this matrix includes windows-latest, whose default shell is
-        # PowerShell rather than bash -- see os-windows.yml's
-        # suite-windows job for the failure mode a POSIX-only step
-        # hits there unnoticed (issue btclib-org/btclib#1148). Both steps
-        # below are one plain command each and run identically under
-        # either shell today, which is exactly the hazard: a future edit
-        # that adds POSIX-only syntax would go green on this cell having
-        # run nothing
+        # PowerShell rather than bash -- reusable-os-suite.yml's own
+        # header has the failure mode a POSIX-only step hits there
+        # unnoticed (issue btclib-org/btclib#1148), declaring
+        # shell: bash unconditionally for exactly that reason. Both
+        # steps below are one plain command each and run identically
+        # under either shell today, which is exactly the hazard: a
+        # future edit that adds POSIX-only syntax would go green on
+        # this cell having run nothing
         shell: bash
         run: uv lock --upgrade
       # still --locked, which is not a contradiction: the step above just
       # wrote that lock, so this asserts nothing moved between the two and
       # keeps the convention that no uv command in these workflows
       # installs from a lock it has not checked
-      # --no-cov for the reason os-ubuntu.yml gives beside its own
+      # --no-cov for the reason btclib-org/.github's
+      # reusable-os-suite.yml gives beside its own
       - name: Run pytest
         shell: bash
         run: uv run --locked --no-default-groups --group test pytest --no-cov

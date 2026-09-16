@@ -1760,6 +1760,12 @@ contract is stated.
   of `reusable-os-suite.yml` will carry, beside `_PYTHONS`'s own block
   sequence** (issue btclib-org/.github#1119): no such caller exists yet.
 
+### The `os-*` sweeps call the organization's reusable workflow
+
+- **Each `os-*` sweep's `suite-*` job now calls `reusable-os-suite.yml`** (issue
+  btclib-org/.github#35): none is a required check on `main`, and this bears on
+  *`interpreters_test.py` reads a caller's `with:` beside the block* above.
+
 ## v2026.9.3
 
 ### Repository
