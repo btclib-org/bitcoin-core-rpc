@@ -547,9 +547,11 @@ every job of the called workflow. A scope a job over there declares and
 the caller leaves off is not quietly dropped: the run is refused before
 any job of it starts, the caller's own jobs included
 (btclib-org/btclib-secp256k1#281). `pull-requests: read` is granted here
-for that reason: `test.yml`'s `changes` job declares it, for the file
-list of a pull request, which `contents: read` does not carry
-(issue #145).
+for that reason: `test.yml`'s `changes` job declares it, alongside
+`contents: read`, so its own call to `btclib-org/.github`'s
+`reusable-changes.yml` can list a pull request's files, which
+`contents: read` alone does not carry (issue #145, issue
+btclib-org/.github#35).
 
 The cap bounds what the called workflow declares rather than standing in
 for it: a job over there with no block of its own is granted `test.yml`'s
