@@ -1784,6 +1784,12 @@ contract is stated.
   hook's old `files:` key left it unreachable exactly then** (issue
   btclib-org/.github#1138): `pass_filenames: false` selected nothing.
 
+### `check_changelog.py`'s docstring names the comparison, not a heading
+
+- **The citation to `CONTRIBUTING.md`'s *Committing and rebasing* named
+  a heading no tree holds** (issue btclib-org/.github#1137): the
+  docstring now states the rebase discipline in its own words instead.
+
 ## v2026.9.3
 
 ### Repository
