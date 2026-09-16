@@ -81,60 +81,7 @@ concurrency:
 
 jobs:
   suite-ubuntu:
-    name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      # every cell to the end: which interpreter fails on which image is
-      # the whole answer, and stopping at the first one hides the rest
-      fail-fast: false
-      matrix:
-        # the two images test.yml no longer carries. Both, and not the
-        # newest alone: what differs between them is the architecture the
-        # interpreter and everything it loads are built for
-        os:
-          - ubuntu-latest
-          - ubuntu-24.04-arm
-        # every interpreter this package claims, where the merge gate
-        # runs the one .python-version pins. os-macos.yml and os-windows.yml
-        # carry the same list, so each of the three moves the platform
-        # and nothing else and a difference between them is the
-        # platform's. tests/interpreters_test.py is what keeps this list
-        # and the classifiers one fact.
-        # 3.14t is the free-threaded interpreter, and it is here for what
-        # this module promises: concurrent calls are supported while the
-        # configuration is not mutated, and a build without the GIL is the
-        # one that would report a shared counter or a cached credential if
-        # either existed
-        python:
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.14"
-          - "3.14t"
-          - "pypy3.11"
-    # far above what a run of the suite needs, and it bounds a hung job
-    # rather than a slow one: the queueing this workflow exists to move
-    # happens before a job starts and is not counted here
-    timeout-minutes: 30
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # see the checkout of the coverage job in test.yml
-          persist-credentials: false
-      - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          enable-cache: true
-          python-version: ${{ matrix.python }}
-      # --no-cov, against the --cov addopts carries: what a matrix cell
-      # asks is whether an (image, interpreter) pair passes, and the
-      # coverage job of test.yml is where coverage is measured and gated
-      # -- instrumenting these cells too would measure the same lines
-      # again for nothing. On pypy it is not merely redundant:
-      # CONTRIBUTING.md's "Reproducing what CI runs" has the measured
-      # reason a bare `pytest` there fails a run this step does not even
-      # attempt
-      - name: Run pytest
-        run: uv run --locked --no-default-groups --group test pytest --no-cov
+    uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@main
+    with:
+      runners: '["ubuntu-latest", "ubuntu-24.04-arm"]'
+      python-versions: '["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "pypy3.11"]'

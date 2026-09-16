@@ -76,45 +76,7 @@ concurrency:
 
 jobs:
   suite-macos:
-    name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      # every cell to the end: which interpreter fails on which image is
-      # the whole answer, and stopping at the first one hides the rest
-      fail-fast: false
-      matrix:
-        # the two images test.yml no longer carries. Both, and not the
-        # newest alone: one is Apple silicon and the other Intel, and what
-        # differs between them is the architecture the interpreter targets
-        os:
-          - macos-26-intel
-          - macos-latest
-        # the same list os-ubuntu.yml carries, and its comment is the
-        # argument for all three: this workflow moves the platform and
-        # nothing else, so a difference between them is the platform's
-        python:
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.14"
-          - "3.14t"
-          - "pypy3.11"
-    # far above what a run of the suite needs, and it bounds a hung job
-    # rather than a slow one: the queueing this workflow exists to move
-    # happens before a job starts and is not counted here
-    timeout-minutes: 30
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # see the checkout of the coverage job in test.yml
-          persist-credentials: false
-      - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          enable-cache: true
-          python-version: ${{ matrix.python }}
-      # --no-cov for the reason os-ubuntu.yml gives beside its own
-      - name: Run pytest
-        run: uv run --locked --no-default-groups --group test pytest --no-cov
+    uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@main
+    with:
+      runners: '["macos-26-intel", "macos-latest"]'
+      python-versions: '["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "pypy3.11"]'
