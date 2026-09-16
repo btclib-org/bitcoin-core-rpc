@@ -1778,6 +1778,12 @@ contract is stated.
   `btclib-org/.github`'s `reusable-changes.yml`** (issue
   btclib-org/.github#35): this file keeps which files are its own prose.
 
+### `check-changelog`'s stanza loses `files:` and gains `always_run: true`
+
+- **A rebase that eats a heading's blank line stages nothing, so the
+  hook's old `files:` key left it unreachable exactly then** (issue
+  btclib-org/.github#1138): `pass_filenames: false` selected nothing.
+
 ## v2026.9.3
 
 ### Repository
