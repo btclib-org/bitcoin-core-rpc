@@ -1772,6 +1772,12 @@ contract is stated.
   headings, and `REVIEWING.md` a question asking whether the branch's
   own entry is last** (issue btclib-org/.github#1097): no gate reads it.
 
+### `test.yml`'s `changes` job calls the organization's reusable workflow
+
+- **The event handling, the pagination and the decision move to
+  `btclib-org/.github`'s `reusable-changes.yml`** (issue
+  btclib-org/.github#35): this file keeps which files are its own prose.
+
 ## v2026.9.3
 
 ### Repository

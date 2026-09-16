@@ -130,70 +130,42 @@ jobs:
   # the gate rather than being read as everything downstream correctly
   # declining nothing to do.
   #
-  # Three things this must not get wrong:
-  #
-  # - it runs on every trigger, and answers `true` on all but one. A
-  #   `changes` job that skipped itself off the pull_request path would
-  #   leave every dependent reading an empty output, which is not 'true',
-  #   and the whole workflow would skip on main and on a release
-  # - README.md is not prose for this purpose. It is the long description
-  #   the dist job's twine and pyroma steps check, so an edit to it is a
-  #   change that job can fail on
-  # - a workflow is *not* on the allowlist, deliberately: which workflows
-  #   these jobs read is this file and what it calls, plus release.yml,
-  #   and naming the rest would be a judgement call stale the first time
-  #   one of them changes what it does. Leaving every workflow edit to run
-  #   everything is the cheap direction to be wrong in
-  #
-  # Mirrors btclib-secp256k1's own `changes` job
-  # (btclib-org/btclib-secp256k1#189), and issue #145's heads-up about
-  # the permission it needs on the caller's side once it landed here:
-  # release.yml's `test:` job grants it explicitly
+  # One thing this must not get wrong: the event handling, the
+  # pagination and the decision are btclib-org/.github's own, called at
+  # @main so a fix there reaches this tree in one landing (section 10
+  # of its README.md); what stays here is which files are this tree's
+  # own prose, below (issue btclib-org/.github#35)
   changes:
     name: Decide whether the jobs below have anything to check
-    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    # the file list of a pull request, which contents: read does not carry
+    uses: btclib-org/.github/.github/workflows/reusable-changes.yml@main
+    # A job's permissions replace the workflow's rather than adding to
+    # them, so contents: read is named here too, alongside
+    # pull-requests: read, which the callee's own job needs to list a
+    # pull request's files: a block here that left off contents: read
+    # would bound the whole call to contents: none, and the callee's
+    # own `contents: read` would be refused before any job in it starts
     permissions:
+      contents: read
       pull-requests: read
-    outputs:
-      code: ${{ steps.decide.outputs.code }}
-    steps:
-      - name: Ask which files the pull request touches
-        id: decide
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EVENT: ${{ github.event_name }}
-          REPO: ${{ github.repository }}
-          NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          # a push to main, a release call and a dispatch build everything:
-          # only a pull request has a base to be a diff against
-          if [ "$EVENT" != pull_request ]; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "$EVENT is not a pull request: everything runs"
-            exit 0
-          fi
-          gh api "repos/$REPO/pulls/$NUMBER/files" --paginate \
-            --jq '.[].filename' > files.txt
-          echo "files changed:"
-          cat files.txt
-          # every root prose file but README.md, .github's own markdown,
-          # the mutation configuration (read by mutation.yml, not this
-          # workflow) and the detect-secrets baseline (read by the
-          # pre-commit hook lint.yml gates) -- nothing these jobs read.
-          # An empty list is not a documentation change, it is a question
-          # this could not answer, so the count is checked before the
-          # pattern
-          prose='^(AUTHORS|CHANGELOG|CLAUDE|COMPARISON|CONTRIBUTING|RELEASE_NOTES|RELEASING|REPOSITORY|REVIEWING|SECURITY)\.md$|^\.github/[^/]*\.md$|^\.github/mutation/[^/]*\.toml$|^\.secrets\..*baseline$'
-          if [ ! -s files.txt ] || grep -qvE "$prose" files.txt; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "something the jobs below read changed: everything runs"
-          else
-            echo "code=false" >> "$GITHUB_OUTPUT"
-            echo "prose only: the jobs below have nothing to check"
-          fi
+    with:
+      # every root prose file but README.md, .github's own markdown,
+      # the mutation configuration (read by mutation.yml, not this
+      # workflow) and the detect-secrets baseline (read by the
+      # pre-commit hook lint.yml gates) -- nothing these jobs read.
+      # README.md stays off this list: it is the long description the
+      # dist job's twine and pyroma steps check, so an edit to it is a
+      # change that job can fail on. A workflow is *not* on this list
+      # either, deliberately: which workflows these jobs read is this
+      # file and what it calls, plus release.yml, and naming the rest
+      # would be a judgement call stale the first time one of them
+      # changes what it does -- leaving every workflow edit to run
+      # everything is the cheap direction to be wrong in.
+      # A literal block scalar rather than a quoted one on the key's
+      # own line: the pattern has no space in it, which is what keeps
+      # yamllint's line-length rule off a line a quoted string on the
+      # `prose-pattern:` line itself would put well past it
+      prose-pattern: |-
+        ^(AUTHORS|CHANGELOG|CLAUDE|COMPARISON|CONTRIBUTING|RELEASE_NOTES|RELEASING|REPOSITORY|REVIEWING|SECURITY)\.md$|^\.github/[^/]*\.md$|^\.github/mutation/[^/]*\.toml$|^\.secrets\..*baseline$
 
   coverage:
     name: Measure coverage, gated at 100%
