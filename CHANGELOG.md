@@ -1766,6 +1766,12 @@ contract is stated.
   btclib-org/.github#35): none is a required check on `main`, and this bears on
   *`interpreters_test.py` reads a caller's `with:` beside the block* above.
 
+### `CONTRIBUTING.md` gains the command naming an open section's order
+
+- **`CONTRIBUTING.md` gains the `awk` command naming the open section's
+  headings, and `REVIEWING.md` a question asking whether the branch's
+  own entry is last** (issue btclib-org/.github#1097): no gate reads it.
+
 ## v2026.9.3
 
 ### Repository
