@@ -1748,6 +1748,12 @@ contract is stated.
   script wants the directory it lives under** (closes #467): run as
   written, it raised rather than checking anything.
 
+### `deps-oldest.yml` calls the organization's reusable workflow
+
+- **The floor sentinel's own job becomes a call to
+  `btclib-org/.github`'s `reusable-deps-oldest.yml`, at `@main`** (issue
+  btclib-org/.github#35): none is a required check on `main`.
+
 ## v2026.9.3
 
 ### Repository
