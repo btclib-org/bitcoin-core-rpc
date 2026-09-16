@@ -1754,6 +1754,12 @@ contract is stated.
   `btclib-org/.github`'s `reusable-deps-oldest.yml`, at `@main`** (issue
   btclib-org/.github#35): none is a required check on `main`.
 
+### `interpreters_test.py` reads a caller's `with:` beside the block
+
+- **`_PYTHONS_CALLER` reads the JSON-encoded interpreter list a caller
+  of `reusable-os-suite.yml` will carry, beside `_PYTHONS`'s own block
+  sequence** (issue btclib-org/.github#1119): no such caller exists yet.
+
 ## v2026.9.3
 
 ### Repository
