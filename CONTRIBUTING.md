@@ -641,13 +641,16 @@ configuration is the single source of the scope and the test command.
 uv run --locked --no-default-groups --group test --group mutation \
     cosmic-ray baseline .github/mutation/bitcoin_core_rpc.toml
 uv run --locked --no-default-groups --group test --group mutation \
-    cosmic-ray init .github/mutation/bitcoin_core_rpc.toml rpc.sqlite
+    cosmic-ray init .github/mutation/bitcoin_core_rpc.toml \
+    bitcoin_core_rpc.sqlite
 uv run --locked --no-default-groups --group test --group mutation \
-    cr-filter-operators rpc.sqlite .github/mutation/bitcoin_core_rpc.toml
+    cr-filter-operators bitcoin_core_rpc.sqlite \
+    .github/mutation/bitcoin_core_rpc.toml
 uv run --locked --no-default-groups --group test --group mutation \
-    cosmic-ray exec .github/mutation/bitcoin_core_rpc.toml rpc.sqlite
+    cosmic-ray exec .github/mutation/bitcoin_core_rpc.toml \
+    bitcoin_core_rpc.sqlite
 uv run --locked --no-default-groups --group test --group mutation \
-    cr-report --surviving-only --show-diff rpc.sqlite
+    cr-report --surviving-only --show-diff bitcoin_core_rpc.sqlite
 ```
 
 The session writes each mutation into the client source and restores it
