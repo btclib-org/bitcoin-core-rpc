@@ -1838,6 +1838,12 @@ contract is stated.
   re-derived from the last run** (issue btclib-org/.github#1158): the
   workflow prints those counts, and `RPCErrorCode`'s members now dominate.
 
+### The `ready_for_review` comments name the workflow the draft condition is in
+
+- **`docs.yml`, `links.yml` and `lint.yml` name the workflow each
+  calls as where the draft condition is** (closes
+  btclib-org/.github#1177): the caller's own job carries none.
+
 ## v2026.9.3
 
 ### Repository
