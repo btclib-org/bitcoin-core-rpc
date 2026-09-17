@@ -1802,6 +1802,12 @@ contract is stated.
   `btclib-org/.github`'s `reusable-deps-latest.yml`, at `@main`** (issue
   btclib-org/.github#35): `dist-latest` stays, uncovered by the callee.
 
+### `scorecard.yml` calls the organization's reusable workflow
+
+- **The `analysis` job becomes a call to `btclib-org/.github`'s
+  `reusable-scorecard.yml`** (issue btclib-org/.github#35): the caller
+  grants every scope the callee needs, its pin moving to `v4.38.0`.
+
 ## v2026.9.3
 
 ### Repository
