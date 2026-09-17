@@ -1808,6 +1808,12 @@ contract is stated.
   `reusable-scorecard.yml`** (issue btclib-org/.github#35): the caller
   grants every scope the callee needs, its pin moving to `v4.38.0`.
 
+### `sdist-rebuild.yml` calls the organization's reusable workflow
+
+- **The `rebuild` job becomes a call to `btclib-org/.github`'s
+  `reusable-sdist-rebuild.yml`, at `@main`** (issue btclib-org/.github#35):
+  this workflow stops building the wheel it never read back.
+
 ## v2026.9.3
 
 ### Repository
