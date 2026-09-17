@@ -4,26 +4,37 @@
 [cosmic-ray]
 module-path = "src/bitcoin_core_rpc"
 
-# Measured on the checkout that introduced this profile: 1054 mutants
-# enumerate, the annotation filter below skips 330, and the 724 that run
-# take under three minutes of wall clock -- which is what the wide budget
-# in mutation.yml is for, a runner being slower than that machine but not
-# by an order of magnitude. The suite kills 698.
+# What a session finds is the workflow's own output: it prints the counts
+# and uploads the surviving mutants with their diffs. What belongs here
+# instead is the judgement -- which survivors are not a test to write,
+# and why.
 #
-# Twenty-six survive. Four are bitwise replacements whose constant
-# operands have disjoint bits (`+ 1024` and `+ 1` becoming `|` and `^`);
-# two are identity comparisons standing in for equality between booleans;
-# one is `remaining > 0` against `remaining != 0` for a bounded read that
-# cannot go negative. Two are a bare keyword-only `*,` marker, at
-# `assert_chain` and `_read_bounded`, that Cosmic Ray's parso-based
-# operator reads as division -- it excludes `*args`, which names an
-# argument, but not a marker that names none. Three are `>=`, `<` and `>`
-# standing in for `==` and `!=` against the literal `"signet"`, true only
-# because every chain a test passes sorts on one side of it. Three replace
-# the sign in the wallet-path check's `[-2:]`. Two replace `<` or `>` with
-# the adjacent comparison at the challenge-length and script-length
-# boundaries. Nine are arithmetic on `_READ_CHUNK` and the read deadline,
-# none of which a test pins to the constant's own value.
+# `RPCErrorCode`'s members are values transcribed from Core's own header,
+# so replacing a member's number, or the sign in front of it, survives
+# unless a reply recorded under `tests/_data` carries that code. A test
+# pinning every member to its number is that transcription written a
+# second time, and it agrees with a mistranscription as readily as with
+# Core.
+#
+# Bitwise replacements whose constant operands have disjoint bits
+# (`+ 1024` and `+ 1` becoming `|` and `^`) compute what `+` computes.
+# Identity comparisons stand in for equality between booleans, and
+# `remaining > 0` for `remaining != 0` on a bounded read that cannot go
+# negative. An ordering stands in for `==` or `!=` against the literal
+# `"signet"`, true while every chain a test passes sorts to one side of
+# it. The adjacent comparison stands in at both length boundaries of the
+# signet challenge: nothing a test builds is exactly the length the first
+# refuses above, and the longest challenge reaching the second is the one
+# the two-byte form begins at. The sign in the wallet-path check's
+# `[-2:]` widens a slice the check reads for membership. Arithmetic on
+# `_READ_CHUNK` and on the read deadline moves a constant no test pins to
+# its own value.
+#
+# A bare keyword-only `*,` marker becomes the positional-only `/,`, which
+# Cosmic Ray's parso-based operator reads as division: it excludes the
+# `*` of `*args`, which parso parents to the named parameter, but not a
+# marker that names none. What it leaves accepts every call the
+# keyword-only form accepts.
 
 # The client tests judge JSON-RPC construction and validation, credentials,
 # cookies and per-call bounds. The chain tests judge the port, datadir and
@@ -48,8 +59,7 @@ test-command = """python -m pytest -x -q -n0 -p no:randomly --no-cov \
   tests/chains_test.py tests/transport_test.py tests/client_test.py \
   tests/census_test.py"""
 
-# The unmutated command is well under a second on the measured checkout. The
-# per-mutant ceiling is wide even so: a timeout is reported as KILLED by Cosmic
+# The per-mutant ceiling is wide: a timeout is reported as KILLED by Cosmic
 # Ray, so a tight bound turns runner load into a false kill, and this scope
 # includes response-reading loops whose bounds are among the expressions being
 # mutated.
