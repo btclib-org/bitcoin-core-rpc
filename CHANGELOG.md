@@ -1826,6 +1826,12 @@ contract is stated.
   `reusable-claude-review.yml`, `@main`** (issue btclib-org/.github#35): fixes
   the stale-verdict jq (btclib-org/btclib-secp256k1#394), pins `ef8bb1e4`.
 
+### `claude-review.yml`'s comments describe the file, not the conversion
+
+- **The before/after account of the step-level closed guards, of the
+  concurrency key and of `claude_args` goes** (closes
+  btclib-org/.github#1178): section 9's *No history in the prose*.
+
 ## v2026.9.3
 
 ### Repository
