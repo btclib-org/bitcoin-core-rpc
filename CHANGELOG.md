@@ -1820,6 +1820,12 @@ contract is stated.
   `reusable-wait-for-index.yml`, at `@main`** (issue btclib-org/.github#35):
   `package` is `bitcoin-core-rpc`, read off the script's own argument.
 
+### `claude-review.yml` becomes a caller of `reusable-claude-review.yml`
+
+- **`claude-review.yml` becomes one job, a call to `btclib-org/.github`'s
+  `reusable-claude-review.yml`, `@main`** (issue btclib-org/.github#35): fixes
+  the stale-verdict jq (btclib-org/btclib-secp256k1#394), pins `ef8bb1e4`.
+
 ## v2026.9.3
 
 ### Repository

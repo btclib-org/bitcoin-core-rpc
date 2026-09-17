@@ -616,9 +616,10 @@ that reading for its own column, and it is the same on the other two. Every
 workflow here also takes `workflow_dispatch`, gates included, `claude-review`
 and `scorecard` excepted — `grep -c workflow_dispatch: .github/workflows/*.yml`
 is what says so, and for the three image workflows it is the only way to ask
-about a branch at all. `claude-review` takes none because both its jobs read
-the pull request or the comment that triggered them, so a manual run would
-start with nothing to read. `scorecard` takes none because its triggers are
+about a branch at all. `claude-review` takes none because its one job
+calls a workflow whose two jobs read the pull request or the comment
+that triggered them, so a manual run would start with nothing to read.
+`scorecard` takes none because its triggers are
 the action's rather than this section's: `ossf/scorecard-action` names `push`
 and `schedule` as supported and calls `workflow_dispatch` experimental.
 
