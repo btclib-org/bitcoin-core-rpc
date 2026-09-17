@@ -1844,6 +1844,12 @@ contract is stated.
   calls as where the draft condition is** (closes
   btclib-org/.github#1177): the caller's own job carries none.
 
+### `release.yml`'s `attest`/`github-release` call the organization's workflows
+
+- **Both become calls to `btclib-org/.github`'s `reusable-attest.yml`
+  and `reusable-github-release.yml`, `@main`** (issue
+  btclib-org/.github#35): the signer moves at the next release.
+
 ## v2026.9.3
 
 ### Repository
