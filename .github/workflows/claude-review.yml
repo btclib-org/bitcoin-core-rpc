@@ -28,32 +28,6 @@ name: claude-review
 # against `reusable-deps-latest.yml` is the precedent: one calling job
 # reaching several internal jobs, keyed by name in the run rather than
 # by the caller's job id.
-#
-# What the five step-level `if: github.event.action != 'closed'` guards
-# this file used to carry on Checkout code, Refuse to review without a
-# credential, Review against REVIEWING.md, and the two verdict-reporting
-# steps did, is now the callee's own job-level decline on that same
-# expression: every one of the five was a closed-event guard and nothing
-# else, checked against the callee's own text -- three declined
-# outright, and the two verdict-reporting steps carried a second clause
-# of their own (`!cancelled()`, and a bare default `success()`) that the
-# callee still carries on those same two steps, unchanged. So the
-# job-level decline reproduces every one of the five.
-#
-# The concurrency group moves to the workflow level, and changes shape
-# with it. Eight of the nine trees keyed a job-level group on the
-# `review` job alone, `claude-review-${{ github.event.pull_request.number
-# }}`, and gave `mention` none; that key breaks under one calling job,
-# twice over -- on an issue_comment event the pull request number is
-# empty, so every mention in the repository would land in the single
-# group `claude-review-` and cancel each other, and a review and a
-# mention on the same pull request would now share a group where before
-# neither could touch the other. `btclib-org/btclib-secp256k1#593`
-# already settled the shape that survives this: a pull_request event
-# groups and cancels by pull request number, as the review job always
-# did, and every other event falls back to `github.run_id`, unique per
-# run, which is what "the mention job carries no group" meant before
-# there was one group to fall into.
 
 on:
   pull_request:
@@ -79,13 +53,19 @@ permissions:
   contents: read
 
 # named literally rather than through github.workflow, as everywhere
-# else here. A pull_request event groups and cancels by pull request
-# number, exactly what the review job's own group always did; every
-# other event -- a comment, on a pull request or not -- falls back to
-# github.run_id, unique per run, so no two mentions and no mention and
-# review ever share a group and cancel-in-progress is inert for them,
-# which is what a job with no concurrency block at all used to give the
-# mention alone (btclib-org/btclib-secp256k1#593)
+# else here. One key serves both halves of the call: a pull_request
+# event groups and cancels by the pull request's number, so a push
+# supersedes the review it overtakes, and every other event falls back
+# to github.run_id, which no two runs share, so no two mentions and no
+# mention and review share a group and cancel-in-progress is inert for
+# them. The number alone does not do that: a pull_request_review_comment
+# event carries github.event.pull_request.number too, landing a mention
+# in the review's own group, and an issue_comment event leaves it empty,
+# putting every mention in the repository in the one group
+# `claude-review-`. At the workflow level rather than on the job, which
+# is the placement btclib-org/btclib-secp256k1#593 settled: it is
+# correct whether or not a job an `if` skips claims a job-level group, a
+# question that issue closed without answering
 concurrency:
   group: >-
     claude-review-${{ github.event_name == 'pull_request'
@@ -116,10 +96,10 @@ jobs:
         stated elsewhere, and a rule whose own repository does not keep it
         are the defects the organization's standard names, and they are
         what to look for beside anything specific to this client.
-      # no extra-allowed-tools: claude_args here named exactly the
-      # callee's own base set
+      # no extra-allowed-tools: the callee's own base set
       # (mcp__github_inline_comment__create_inline_comment, Bash(gh
-      # pr:*), Read, Grep, Glob) and nothing beyond it
+      # pr:*), Read, Grep, Glob) is what a review of this client reaches
+      # for, and nothing beyond it
     # named rather than `inherit`: the callee declares one secret, and
     # zizmor's secrets-inherit audit is right that handing it every
     # secret this repository has is more than that one takes
