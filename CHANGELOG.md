@@ -1814,6 +1814,12 @@ contract is stated.
   `reusable-sdist-rebuild.yml`, at `@main`** (issue btclib-org/.github#35):
   this workflow stops building the wheel it never read back.
 
+### `pypi-install.yml`'s `wait-for-index` calls the organization's reusable workflow
+
+- **The `wait-for-index` job becomes a call to `btclib-org/.github`'s
+  `reusable-wait-for-index.yml`, at `@main`** (issue btclib-org/.github#35):
+  `package` is `bitcoin-core-rpc`, read off the script's own argument.
+
 ## v2026.9.3
 
 ### Repository
