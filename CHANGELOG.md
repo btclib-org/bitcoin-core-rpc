@@ -1796,6 +1796,12 @@ contract is stated.
   `reusable-mutation.yml`** (issue btclib-org/.github#35): the counter's
   exit code decides the job now.
 
+### `deps-latest.yml` calls the organization's reusable workflow
+
+- **`lint-latest` and `suite-latest` become one call to
+  `btclib-org/.github`'s `reusable-deps-latest.yml`, at `@main`** (issue
+  btclib-org/.github#35): `dist-latest` stays, uncovered by the callee.
+
 ## v2026.9.3
 
 ### Repository
