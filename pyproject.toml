@@ -907,6 +907,10 @@ ignore = [
 # the terminal of whoever's commit it refused: what it prints is each
 # line it refuses and the reason, which is the whole of its report
 ".github/scripts/check_changelog.py" = ["T201"]
+# and the mutation counter, run by mutation.yml's reusable workflow and
+# read on the runner's own log: the one line worth reading per session,
+# printed rather than reduced to an artifact, is the whole of its output
+".github/scripts/mutation_counts.py" = ["T201"]
 # flake8-no-pep420: each is a standalone entry point a workflow step or
 # a hook invokes with `python .github/scripts/<name>.py`, never an import -- the
 # directory holds no __init__.py because it is not a package, and adding

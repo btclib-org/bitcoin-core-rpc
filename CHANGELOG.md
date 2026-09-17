@@ -1790,6 +1790,12 @@ contract is stated.
   a heading no tree holds** (issue btclib-org/.github#1137): the
   docstring now states the rebase discipline in its own words instead.
 
+### `mutation.yml` calls `btclib-org/.github`'s reusable workflow
+
+- **The mutation job becomes a call to `btclib-org/.github`'s
+  `reusable-mutation.yml`** (issue btclib-org/.github#35): the counter's
+  exit code decides the job now.
+
 ## v2026.9.3
 
 ### Repository
