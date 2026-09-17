@@ -1850,6 +1850,12 @@ contract is stated.
   and `reusable-github-release.yml`, `@main`** (issue
   btclib-org/.github#35): the signer moves at the next release.
 
+### `wait_for_pypi_release.py` takes the body the four trees converge on
+
+- **The docstring gains the `(btclib-org/btclib#1165)` citation it never
+  carried, the usage example passes `"$PACKAGE"`, and the `except`
+  becomes two clauses** (issue btclib-org/.github#1160).
+
 ## v2026.9.3
 
 ### Repository
