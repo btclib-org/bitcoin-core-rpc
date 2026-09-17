@@ -1832,6 +1832,12 @@ contract is stated.
   concurrency key and of `claude_args` goes** (closes
   btclib-org/.github#1178): section 9's *No history in the prose*.
 
+### The mutation profile states no totals and keeps its judgement
+
+- **`bitcoin_core_rpc.toml`'s counts go and its survivor prose is
+  re-derived from the last run** (issue btclib-org/.github#1158): the
+  workflow prints those counts, and `RPCErrorCode`'s members now dominate.
+
 ## v2026.9.3
 
 ### Repository
