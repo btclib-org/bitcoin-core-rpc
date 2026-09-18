@@ -146,12 +146,38 @@ _KEY = re.compile(r"[\w-]+")
 # is a "3.14t" of the same shape, so they are read as tokens off the job
 # block rather than out of a matrix. Comments go first, so that a
 # sentence about a sweep's free-threaded cell does not read as the gate
-# running one. What this does not read is .python-version: a job pointed
-# at it through `python-version-file:` names its interpreter nowhere in
-# this file, so a `t` in that pin would be missed here -- no job of the
-# gate is written that way
+# running one.
+#
+# A Setup uv step naming neither is dist's own shape: it takes whatever
+# .python-version pins instead, so `_SETUP_UV` and `_PIN` below stand in
+# for it where the job block itself names nothing (issue #435). What
+# this still does not read is `python-version-file:`: a job pointed at
+# .python-version that way names its interpreter through neither route
+# this module reads, and no job of the gate is written that way today
 _COMMENT = re.compile(r"(?:^|\s)#.*$", re.MULTILINE)
 _INTERPRETER = re.compile(r"\b3\.\d+t?\b")
+# astral-sh/setup-uv is what fetches every job's own interpreter, and a
+# step calling it with no python-version: -- dist's own shape -- takes
+# whatever .python-version pins rather than naming one itself. Matched
+# on the same comment-stripped text `_INTERPRETER` reads, so a comment
+# inside the step's own `with:` block mentioning python-version does not
+# read as the step naming one
+_SETUP_UV = re.compile(
+    r"^      - name: Setup uv\n(?P<block>(?:^ {7,}.*\n|^ *\n)*)", re.MULTILINE
+)
+# the interpreter uv picks when nothing overrides it: the first
+# non-blank, non-comment line of .python-version, "t" kept where the pin
+# carries one. A free-threaded pin is exactly what a Setup uv step
+# naming none would resolve to, so stripping the suffix here would make
+# `_gate_interpreters` blind to precisely the case issue #435 is about
+_PIN = next(
+    (
+        line.strip()
+        for line in (_ROOT / ".python-version").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ),
+    "",
+)
 
 
 def _versions(pattern: re.Pattern[str], text: str) -> tuple[str, ...]:
@@ -235,10 +261,20 @@ def _gating() -> dict[str, str]:
 
 
 def _gate_interpreters() -> tuple[str, ...]:
-    """Return every interpreter a gating job names outside its comments."""
+    """Return every interpreter a gating job names, `.python-version` included.
+
+    A job whose Setup uv step names no python-version: runs on whatever
+    that file pins instead of naming an interpreter in test.yml at all --
+    dist's own shape -- so `_PIN` is added for such a job rather than
+    left for the biconditional below to miss silently (issue #435).
+    """
     found: set[str] = set()
     for block in _gating().values():
-        found.update(_INTERPRETER.findall(_COMMENT.sub("", block)))
+        uncommented = _COMMENT.sub("", block)
+        found.update(_INTERPRETER.findall(uncommented))
+        setup = _SETUP_UV.search(uncommented)
+        if setup and "python-version" not in setup["block"]:
+            found.add(_PIN)
     return tuple(sorted(found))
 
 
@@ -259,16 +295,17 @@ _MATRIX = _matrix()
 _CPYTHON = tuple(sorted({v.rstrip("t") for v in _MATRIX if not v.startswith("pypy")}))
 
 
-def test_the_three_declarations_were_read() -> None:
+def test_the_declarations_were_read() -> None:
     """Each pattern found something, so the checks below quantify over it.
 
-    A key renamed, a classifier reindented, the workflow's block moved:
-    each would leave one of these empty and every comparison below
-    trivially true.
+    A key renamed, a classifier reindented, the workflow's block moved,
+    .python-version emptied: each would leave one of these empty and
+    every comparison below trivially true.
     """
     assert _FLOOR.search(_PYPROJECT), "pyproject.toml declares no requires-python"
     assert _CLASSIFIED, "pyproject.toml declares no per-version Python classifier"
     assert _MATRIX, "no workflow declares a python matrix block"
+    assert _PIN, ".python-version names no interpreter"
 
 
 def test_the_floor_is_the_lowest_classifier() -> None:
@@ -472,6 +509,40 @@ def test_gating_reaches_a_job_reached_only_through_another(
         },
     )
     assert set(_gating()) == {"aggregate", "changes", "coverage"}
+
+
+def test_gate_interpreters_reads_the_pin_where_setup_uv_names_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A Setup uv step naming no python-version: takes .python-version's pin.
+
+    `dist`'s own step is written this way (issue #435): read off the job
+    block alone, its interpreter is nowhere in test.yml, so a
+    free-threaded pin would reach the gate with nothing here to say so.
+    The unpinned case below is `dist`'s own shape; the pinned one is
+    `coverage`'s, which names an interpreter explicitly and gets nothing
+    added beside it.
+    """
+    unpinned = (
+        "    needs: changes\n"
+        "    steps:\n"
+        "      - name: Setup uv\n"
+        "        uses: astral-sh/setup-uv@v7\n"
+        "        with:\n"
+        "          enable-cache: true\n"
+    )
+    pinned = (
+        "    needs: changes\n"
+        "    steps:\n"
+        "      - name: Setup uv\n"
+        "        uses: astral-sh/setup-uv@v7\n"
+        "        with:\n"
+        '          python-version: "3.12"\n'
+    )
+    monkeypatch.setattr(sys.modules[__name__], "_gating", lambda: {"dist": unpinned})
+    assert _gate_interpreters() == (_PIN,)
+    monkeypatch.setattr(sys.modules[__name__], "_gating", lambda: {"coverage": pinned})
+    assert _gate_interpreters() == ("3.12",)
 
 
 def test_every_sweep_runs_the_same_interpreters() -> None:
