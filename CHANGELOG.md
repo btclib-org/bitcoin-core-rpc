@@ -1862,6 +1862,12 @@ contract is stated.
   comment, the leading prose kept** (issue btclib-org/.github#1164): the
   auditor reads a permission's own line, not the one above it.
 
+### `codeql.yml`'s two permission blocks document their grants too
+
+- **The three flagged grants, in `analyze` and `codeql-passed`, take a
+  trailing comment, the leading prose kept** (issue
+  btclib-org/.github#1164): the auditor reads a permission's own line.
+
 ## v2026.9.3
 
 ### Repository
