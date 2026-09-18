@@ -66,6 +66,25 @@ _FREE_THREADING_CLASSIFIER = re.compile(
 _PYTHONS = re.compile(
     r"^        python:\n(?P<block>(?:^          - \"\S+\"\n)+)", re.MULTILINE
 )
+# the shape a caller of the `os-*` sweeps' own reusable-os-suite.yml
+# carries (btclib-org/.github#35): a `workflow_call` input can only be
+# a string, so the list a caller passes arrives JSON-encoded inside
+# one -- `python-versions: '["3.10", "3.11"]'`, the same shape
+# reusable-deps-oldest.yml's own five callers already establish for
+# one interpreter, `python-version: "3.10"`. Read alongside `_PYTHONS`
+# rather than instead of it: `os-macos.yml`, `os-ubuntu.yml` and
+# `os-windows.yml` are all callers now and none still declares the
+# block sequence in this tree, but `_interpreters` below is one reader
+# for every workflow file, kept able to recognize the shape it no
+# longer finds here rather than narrowed to the one it does
+# (btclib-org/.github#1119). `deps-latest.yml`'s own caller job takes an
+# input of this same name for a different reusable workflow
+# (btclib-org/.github#35): `_interpreters` still recognizes the shape
+# there, and it is `_declared` below that ties the match to a file
+# calling reusable-os-suite.yml before counting it as a sweep
+_PYTHONS_CALLER = re.compile(
+    r"^      python-versions: '(?P<block>\[.*?\])'$", re.MULTILINE
+)
 # the merge gate, and inside it the jobs a landing waits on. Section 3 of
 # the organization standard declares a free-threading classifier where
 # the gate exercises that build, a gate being what refuses the landing
@@ -140,18 +159,42 @@ def _versions(pattern: re.Pattern[str], text: str) -> tuple[str, ...]:
     return tuple(m["version"] for m in pattern.finditer(text))
 
 
+def _interpreters(text: str) -> set[str]:
+    """Return every interpreter one workflow's text declares, in either shape.
+
+    `_PYTHONS`'s block sequence and `_PYTHONS_CALLER`'s JSON-encoded
+    list, the shape a caller of `reusable-os-suite.yml` carries
+    (btclib-org/.github#1119) -- both read here, though `os-macos.yml`,
+    `os-ubuntu.yml` and `os-windows.yml` are callers now and none of
+    them writes the block sequence in this tree any more.
+    """
+    listed: set[str] = set()
+    for match in _PYTHONS.finditer(text):
+        listed.update(
+            line.strip().removeprefix('- "').removesuffix('"')
+            for line in match["block"].splitlines()
+        )
+    for match in _PYTHONS_CALLER.finditer(text):
+        listed.update(re.findall(r'"(\S+?)"', match["block"]))
+    return listed
+
+
 def _declared() -> dict[str, tuple[str, ...]]:
-    """Return each workflow's interpreter list, those that declare one."""
+    """Return each workflow's interpreter list, those that declare one.
+
+    `_PYTHONS_CALLER` recognizes the caller shape wherever it sits, which
+    is what the fragment-level check on it wants; a whole file is a
+    platform sweep only where that shape sits in a job calling
+    reusable-os-suite.yml, so a caller of a different reusable workflow
+    that happens to take an input of the same name -- deps-latest.yml's
+    own `python-versions`, btclib-org/.github#35 -- does not read as a
+    fourth one here.
+    """
     found: dict[str, tuple[str, ...]] = {}
     for workflow in _WORKFLOWS:
-        listed: set[str] = set()
         text = workflow.read_text(encoding="utf-8")
-        for match in _PYTHONS.finditer(text):
-            listed.update(
-                line.strip().removeprefix('- "').removesuffix('"')
-                for line in match["block"].splitlines()
-            )
-        if listed:
+        listed = _interpreters(text)
+        if listed and (_PYTHONS.search(text) or "reusable-os-suite.yml" in text):
             found[workflow.name] = tuple(sorted(listed))
     return found
 
@@ -454,3 +497,40 @@ def test_every_sweep_runs_the_same_interpreters() -> None:
     assert len(lists) <= 1, (
         f"the workflows do not name the same interpreters: {declared}"
     )
+
+
+def test_a_caller_shaped_with_reads_the_same_interpreters_as_a_block() -> None:
+    """The shape a caller of `reusable-os-suite.yml` carries.
+
+    `os-macos.yml`, `os-ubuntu.yml` and `os-windows.yml` all carry it
+    now (btclib-org/.github#35). This still constructs the shape
+    directly rather than reading it off any of them,
+    `reusable-deps-oldest.yml`'s own five callers already establishing
+    it for one interpreter -- `python-version: "3.10"` -- widened the
+    only way a `workflow_call` input can carry a list, JSON-encoded
+    inside a quoted string, and checks that `_interpreters` reads it
+    the same as the block sequence it stands beside
+    (btclib-org/.github#1119).
+    """
+    block = (
+        '        python:\n          - "3.10"\n          - "3.11"\n          - "3.12"\n'
+    )
+    caller = '    with:\n      python-versions: \'["3.10", "3.11", "3.12"]\'\n'
+    listed = {"3.10", "3.11", "3.12"}
+    assert _interpreters(block) == listed
+    assert _interpreters(caller) == listed
+
+
+def test_a_bare_with_and_a_matrix_expression_read_no_interpreter() -> None:
+    """Neither an unrelated `with:` nor an expression is an interpreter list.
+
+    The negative control the positive above needs: a pattern widened
+    until it matches anything passes that one regardless. `with:` naming
+    something other than the interpreters, and `python-versions:` naming
+    an expression rather than a JSON string, are the two ways a caller's
+    block can hold neither without the key itself being absent.
+    """
+    unrelated = "    with:\n      submodules: true\n"
+    expression = "    with:\n      python-versions: ${{ matrix.python }}\n"
+    assert _interpreters(unrelated) == set()
+    assert _interpreters(expression) == set()

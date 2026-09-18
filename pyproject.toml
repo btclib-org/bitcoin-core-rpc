@@ -633,8 +633,19 @@ warn_unreachable = true
 # only a checker aimed at the floor reads correctly. Ruff needs no
 # equivalent, inferring py310 from requires-python
 python_version = "3.10"
+# mypy's own crawl runs this through re.search, unanchored, against
+# every path it walks -- so a bare "build" also caught
+# .github/scripts/wait_for_readthedocs_build.py and
+# tests/wait_for_readthedocs_build_test.py, dropping both from the type
+# gate with nothing said about it (issue btclib-org/.github#1102).
+# Neither is reached by a static import the crawl would otherwise still
+# check it through -- the test opens the script by path at run time --
+# so the unanchored pattern was the only thing between either file and
+# the gate. "^" pins the match to where matches_exclude's own relative
+# path starts, and the trailing "/" keeps a file merely called build out
+# of a match meant for the directory
 exclude = [
-    "build",
+    "^build/",
 ]
 
 [tool.ruff]
@@ -896,6 +907,10 @@ ignore = [
 # the terminal of whoever's commit it refused: what it prints is each
 # line it refuses and the reason, which is the whole of its report
 ".github/scripts/check_changelog.py" = ["T201"]
+# and the mutation counter, run by mutation.yml's reusable workflow and
+# read on the runner's own log: the one line worth reading per session,
+# printed rather than reduced to an artifact, is the whole of its output
+".github/scripts/mutation_counts.py" = ["T201"]
 # flake8-no-pep420: each is a standalone entry point a workflow step or
 # a hook invokes with `python .github/scripts/<name>.py`, never an import -- the
 # directory holds no __init__.py because it is not a package, and adding

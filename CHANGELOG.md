@@ -1718,6 +1718,156 @@ contract is stated.
   either install form** (issue btclib-org/.github#1098): a version
   should not depend on whether the environment installs the package.
 
+### `[tool.mypy] exclude` is anchored to the `build/` directory it means
+
+- **`"build"` was an unanchored regex, dropping any path merely
+  containing that substring** (issue btclib-org/.github#1102): the
+  readthedocs-wait script and its test, un-excluded, type-check clean.
+
+### `links.yml`'s `targets:` reaches every tracked markdown file
+
+- **`targets:` skipped `.claude/` and `.github/`, hidden to lychee's
+  glob walker without a glob naming them** (issue btclib-org/.github#1104):
+  it becomes `"**/*.md" ".github/**/*.md" ".claude/**/*.md" "docs/**/*.rst"`.
+
+### `CONTRIBUTING.md`'s local docs-gate grep matches the widened pattern
+
+- **The documented docs-gate grep still read `href="#\./`, not the
+  widened `href="#\.\.\?/`** (issue btclib-org/.github#1105): a broken
+  `../` destination passed the local check and failed the actual gate.
+
+### `release.yml` calls the organization's reusable workflows
+
+- **`version-check`, `public-api` and `documented` become calls to
+  `btclib-org/.github`'s reusable workflows, at `@main`** (issue
+  btclib-org/.github#35): none is a required check on `main`.
+
+### `CONTRIBUTING.md`'s docs-gate line passes `check_api_page.py` the directory
+
+- **The documented last line passed the built page itself, where the
+  script wants the directory it lives under** (closes #467): run as
+  written, it raised rather than checking anything.
+
+### `deps-oldest.yml` calls the organization's reusable workflow
+
+- **The floor sentinel's own job becomes a call to
+  `btclib-org/.github`'s `reusable-deps-oldest.yml`, at `@main`** (issue
+  btclib-org/.github#35): none is a required check on `main`.
+
+### `interpreters_test.py` reads a caller's `with:` beside the block
+
+- **`_PYTHONS_CALLER` reads the JSON-encoded interpreter list a caller
+  of `reusable-os-suite.yml` will carry, beside `_PYTHONS`'s own block
+  sequence** (issue btclib-org/.github#1119): no such caller exists yet.
+
+### The `os-*` sweeps call the organization's reusable workflow
+
+- **Each `os-*` sweep's `suite-*` job now calls `reusable-os-suite.yml`** (issue
+  btclib-org/.github#35): none is a required check on `main`, and this bears on
+  *`interpreters_test.py` reads a caller's `with:` beside the block* above.
+
+### `CONTRIBUTING.md` gains the command naming an open section's order
+
+- **`CONTRIBUTING.md` gains the `awk` command naming the open section's
+  headings, and `REVIEWING.md` a question asking whether the branch's
+  own entry is last** (issue btclib-org/.github#1097): no gate reads it.
+
+### `test.yml`'s `changes` job calls the organization's reusable workflow
+
+- **The event handling, the pagination and the decision move to
+  `btclib-org/.github`'s `reusable-changes.yml`** (issue
+  btclib-org/.github#35): this file keeps which files are its own prose.
+
+### `check-changelog`'s stanza loses `files:` and gains `always_run: true`
+
+- **A rebase that eats a heading's blank line stages nothing, so the
+  hook's old `files:` key left it unreachable exactly then** (issue
+  btclib-org/.github#1138): `pass_filenames: false` selected nothing.
+
+### `check_changelog.py`'s docstring names the comparison, not a heading
+
+- **The citation to `CONTRIBUTING.md`'s *Committing and rebasing* named
+  a heading no tree holds** (issue btclib-org/.github#1137): the
+  docstring now states the rebase discipline in its own words instead.
+
+### `mutation.yml` calls `btclib-org/.github`'s reusable workflow
+
+- **The mutation job becomes a call to `btclib-org/.github`'s
+  `reusable-mutation.yml`** (issue btclib-org/.github#35): the counter's
+  exit code decides the job now.
+
+### `deps-latest.yml` calls the organization's reusable workflow
+
+- **`lint-latest` and `suite-latest` become one call to
+  `btclib-org/.github`'s `reusable-deps-latest.yml`, at `@main`** (issue
+  btclib-org/.github#35): `dist-latest` stays, uncovered by the callee.
+
+### `scorecard.yml` calls the organization's reusable workflow
+
+- **The `analysis` job becomes a call to `btclib-org/.github`'s
+  `reusable-scorecard.yml`** (issue btclib-org/.github#35): the caller
+  grants every scope the callee needs, its pin moving to `v4.38.0`.
+
+### `sdist-rebuild.yml` calls the organization's reusable workflow
+
+- **The `rebuild` job becomes a call to `btclib-org/.github`'s
+  `reusable-sdist-rebuild.yml`, at `@main`** (issue btclib-org/.github#35):
+  this workflow stops building the wheel it never read back.
+
+### `pypi-install.yml`'s `wait-for-index` calls the organization's reusable workflow
+
+- **The `wait-for-index` job becomes a call to `btclib-org/.github`'s
+  `reusable-wait-for-index.yml`, at `@main`** (issue btclib-org/.github#35):
+  `package` is `bitcoin-core-rpc`, read off the script's own argument.
+
+### `claude-review.yml` becomes a caller of `reusable-claude-review.yml`
+
+- **`claude-review.yml` becomes one job, a call to `btclib-org/.github`'s
+  `reusable-claude-review.yml`, `@main`** (issue btclib-org/.github#35): fixes
+  the stale-verdict jq (btclib-org/btclib-secp256k1#394), pins `ef8bb1e4`.
+
+### `claude-review.yml`'s comments describe the file, not the conversion
+
+- **The before/after account of the step-level closed guards, of the
+  concurrency key and of `claude_args` goes** (closes
+  btclib-org/.github#1178): section 9's *No history in the prose*.
+
+### The mutation profile states no totals and keeps its judgement
+
+- **`bitcoin_core_rpc.toml`'s counts go and its survivor prose is
+  re-derived from the last run** (issue btclib-org/.github#1158): the
+  workflow prints those counts, and `RPCErrorCode`'s members now dominate.
+
+### The `ready_for_review` comments name the workflow the draft condition is in
+
+- **`docs.yml`, `links.yml` and `lint.yml` name the workflow each
+  calls as where the draft condition is** (closes
+  btclib-org/.github#1177): the caller's own job carries none.
+
+### `release.yml`'s `attest`/`github-release` call the organization's workflows
+
+- **Both become calls to `btclib-org/.github`'s `reusable-attest.yml`
+  and `reusable-github-release.yml`, `@main`** (issue
+  btclib-org/.github#35): the signer moves at the next release.
+
+### `wait_for_pypi_release.py` takes the body the four trees converge on
+
+- **The docstring gains the `(btclib-org/btclib#1165)` citation it never
+  carried, the usage example passes `"$PACKAGE"`, and the `except`
+  becomes two clauses** (issue btclib-org/.github#1160).
+
+### `scorecard.yml`'s `analysis` job documents its permission grants
+
+- **The three grants `zizmor --persona=auditor` flags take a trailing
+  comment, the leading prose kept** (issue btclib-org/.github#1164): the
+  auditor reads a permission's own line, not the one above it.
+
+### `codeql.yml`'s two permission blocks document their grants too
+
+- **The three flagged grants, in `analyze` and `codeql-passed`, take a
+  trailing comment, the leading prose kept** (issue
+  btclib-org/.github#1164): the auditor reads a permission's own line.
+
 ## v2026.9.3
 
 ### Repository

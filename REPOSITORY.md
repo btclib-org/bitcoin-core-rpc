@@ -531,9 +531,9 @@ mapping, or a quoted key or value — is outside that answer.
 `id-token: write` on `publish-pypi` and `publish-testpypi`, the OIDC
 token that lets each index trust the workflow itself, with
 `attestations: write` beside it on `attest`. `claude-review.yml` takes
-`pull-requests: write` to post its review and `id-token: write` for the
-token its action mints at startup, on `review` and on `mention` alike.
-`codeql.yml`'s `analyze` and `scorecard.yml`'s `analysis` take
+`pull-requests: write` to post a review or a reply and `id-token: write`
+for the token its action mints at startup, on its one `claude-review`
+job. `codeql.yml`'s `analyze` and `scorecard.yml`'s `analysis` take
 `security-events: write` to file a SARIF as code-scanning alerts, and
 `analysis` takes `id-token: write` besides, for the transparency-log
 entry its published score rests on. The workflow-level
@@ -547,9 +547,11 @@ every job of the called workflow. A scope a job over there declares and
 the caller leaves off is not quietly dropped: the run is refused before
 any job of it starts, the caller's own jobs included
 (btclib-org/btclib-secp256k1#281). `pull-requests: read` is granted here
-for that reason: `test.yml`'s `changes` job declares it, for the file
-list of a pull request, which `contents: read` does not carry
-(issue #145).
+for that reason: `test.yml`'s `changes` job declares it, alongside
+`contents: read`, so its own call to `btclib-org/.github`'s
+`reusable-changes.yml` can list a pull request's files, which
+`contents: read` alone does not carry (issue #145, issue
+btclib-org/.github#35).
 
 The cap bounds what the called workflow declares rather than standing in
 for it: a job over there with no block of its own is granted `test.yml`'s
@@ -564,9 +566,9 @@ One elevation per job is the shape most jobs keep: the job that signs
 the distribution files writes no release, the job that writes the
 release holds no OIDC token, and neither builds anything.
 
-Four jobs are the exception, each declaring two elevations rather than
+Three jobs are the exception, each declaring two elevations rather than
 one, and the reason for every pair already sits where it is declared:
-`claude-review.yml`'s `review` and `mention`, and `scorecard.yml`'s
+`claude-review.yml`'s `claude-review`, and `scorecard.yml`'s
 `analysis`, are named above. `release.yml`'s `attest` holds `id-token:
 write` with `attestations: write` besides — the pair its own block
 already explains, rather than repeated here.
@@ -852,9 +854,9 @@ an organization secret at `visibility=all`, in both stores, so a
 repository adopting the workflow configures nothing for it, and a copy
 of it in a store here would be that decision undone.
 
-**A switch this repository does not set.** `claude-review.yml` guards
-its jobs with `vars.CLAUDE_REVIEW_ENABLED`, and neither variable store
-holds it:
+**A switch this repository does not set.** `claude-review.yml` calls
+`btclib-org/.github`'s `reusable-claude-review.yml`, whose jobs guard on
+`vars.CLAUDE_REVIEW_ENABLED`, and neither variable store holds it:
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/actions/variables \

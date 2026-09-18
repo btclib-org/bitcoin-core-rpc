@@ -78,6 +78,23 @@ pull request will be answered against.
 release notes move only for something a user has to *act* on, in the
 repositories that publish.
 
+Where that entry goes is [section 9][s9]'s — the end of the open
+section — and no gate reads it: `check-changelog` is handed the file and
+no base, so it cannot tell which entry the branch wrote. The open
+section's headings, in the order the file holds them, a branch's own
+last:
+
+```shell
+awk '/^## /{n++} n==1 && /^### /' CHANGELOG.md
+```
+
+`n==1` takes the open section, from the first `##` heading to the next,
+and the scan is `/^## /` rather than `/^## v/`: a section headed
+`## Unreleased` is no match for `/^## v/`, which counts from the first
+release heading instead and prints a released section's entries — or
+nothing, where the tree has released nothing — while reading as a
+check that passed.
+
 ### One subject, opened as soon as it is written
 
 A pull request answers one question. Issues that share a subject are one
@@ -460,12 +477,12 @@ the build read the pages it wrote, and run in this order:
 ```shell
 uv run --locked --no-default-groups --group docs \
     sphinx-build -n -W -b html docs/source docs/build/html
-if grep -rn 'href="#\./' docs/build/html --include='*.html'; then
+if grep -rn 'href="#\.\.\?/' docs/build/html --include='*.html'; then
     echo "::error::the links above resolve to no page (unresolved relative path)"
     exit 1
 fi
 uv run --locked --no-default-groups --group docs \
-    python .github/scripts/check_api_page.py docs/build/html/api.html
+    python .github/scripts/check_api_page.py docs/build/html
 ```
 
 The `grep` makes the unresolved-link claim about the built pages rather
@@ -599,9 +616,10 @@ that reading for its own column, and it is the same on the other two. Every
 workflow here also takes `workflow_dispatch`, gates included, `claude-review`
 and `scorecard` excepted — `grep -c workflow_dispatch: .github/workflows/*.yml`
 is what says so, and for the three image workflows it is the only way to ask
-about a branch at all. `claude-review` takes none because both its jobs read
-the pull request or the comment that triggered them, so a manual run would
-start with nothing to read. `scorecard` takes none because its triggers are
+about a branch at all. `claude-review` takes none because its one job
+calls a workflow whose two jobs read the pull request or the comment
+that triggered them, so a manual run would start with nothing to read.
+`scorecard` takes none because its triggers are
 the action's rather than this section's: `ossf/scorecard-action` names `push`
 and `schedule` as supported and calls `workflow_dispatch` experimental.
 
@@ -624,13 +642,16 @@ configuration is the single source of the scope and the test command.
 uv run --locked --no-default-groups --group test --group mutation \
     cosmic-ray baseline .github/mutation/bitcoin_core_rpc.toml
 uv run --locked --no-default-groups --group test --group mutation \
-    cosmic-ray init .github/mutation/bitcoin_core_rpc.toml rpc.sqlite
+    cosmic-ray init .github/mutation/bitcoin_core_rpc.toml \
+    bitcoin_core_rpc.sqlite
 uv run --locked --no-default-groups --group test --group mutation \
-    cr-filter-operators rpc.sqlite .github/mutation/bitcoin_core_rpc.toml
+    cr-filter-operators bitcoin_core_rpc.sqlite \
+    .github/mutation/bitcoin_core_rpc.toml
 uv run --locked --no-default-groups --group test --group mutation \
-    cosmic-ray exec .github/mutation/bitcoin_core_rpc.toml rpc.sqlite
+    cosmic-ray exec .github/mutation/bitcoin_core_rpc.toml \
+    bitcoin_core_rpc.sqlite
 uv run --locked --no-default-groups --group test --group mutation \
-    cr-report --surviving-only --show-diff rpc.sqlite
+    cr-report --surviving-only --show-diff bitcoin_core_rpc.sqlite
 ```
 
 The session writes each mutation into the client source and restores it
