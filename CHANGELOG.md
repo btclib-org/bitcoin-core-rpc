@@ -1904,6 +1904,12 @@ contract is stated.
   template `unserved` formats with the project, taking it as a third
   parameter** (issue btclib-org/.github#1186).
 
+### `mutation_counts.py` gains the test `btclib`'s own copy already carries
+
+- **`tests/mutation_counts_test.py` is `btclib`'s test of the identical
+  script, unchanged** (closes #496): a synthetic Cosmic Ray session
+  names no distribution.
+
 ## v2026.9.3
 
 ### Repository
