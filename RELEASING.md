@@ -622,13 +622,17 @@ result.
    signature read two ways:
 
    ```shell
-   gh release download v2026.8.8 --repo btclib-org/bitcoin-core-rpc
-   wheel=bitcoin_core_rpc-2026.8.8-py3-none-any.whl
-   repo=btclib-org/bitcoin-core-rpc
+   version=<the released version>
+   ```
+
+   ```shell
+   gh release download "v${version:?}" --repo btclib-org/bitcoin-core-rpc &&
+   wheel=bitcoin_core_rpc-${version:?}-py3-none-any.whl &&
+   repo=btclib-org/bitcoin-core-rpc &&
    gh attestation verify "$wheel" --repo "$repo" \
-     --signer-workflow "$repo/.github/workflows/release.yml"
+     --signer-workflow "$repo/.github/workflows/release.yml" &&
    gh attestation verify "$wheel" --repo "$repo" \
-     --bundle v2026.8.8.attestation.jsonl
+     --bundle "v${version:?}.attestation.jsonl"
    ```
 
    the first asks the attestations API for the signed statement, the
