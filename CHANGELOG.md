@@ -1892,6 +1892,12 @@ contract is stated.
   script, its fixtures renamed to this distribution's own wheel and
   sdist** (closes #439).
 
+### Every `[dependency-groups]` entry declares a lower bound
+
+- **Every entry but `ruff`, which already had one, gains a floor set to
+  the version its own consumer runs at** (closes #446): `uv lock
+  --resolution lowest-direct` used to fail on `coverage==3.0` first.
+
 ## v2026.9.3
 
 ### Repository

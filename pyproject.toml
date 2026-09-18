@@ -171,6 +171,32 @@ issues = "https://github.com/btclib-org/bitcoin-core-rpc/issues"
 pull_requests = "https://github.com/btclib-org/bitcoin-core-rpc/pulls"
 
 [dependency-groups]
+# Every entry here declares a lower bound, and `uv lock --resolution
+# lowest-direct` is what reads them: it takes each direct dependency down
+# to its own bound, and one declaring no bound as far down as the rest of
+# the resolution allows -- which is how it reached `coverage==3.0` and
+# failed to build it before verifying a single declared floor
+# (btclib-org/bitcoin-core-rpc#446).
+#
+# What decides the number is a run. deps-oldest.yml installs `--group
+# test` alone and resolves it at this bound, so `test`'s own floors are
+# what that run exercises directly. Every other group's floor is decided
+# by that group's own consumer instead, each already at the locked
+# resolution: lint.yml's `--only-group lint pre-commit run`, the local
+# `mypy` hook's own `--group lint --group test`, mutation.yml's `--group
+# mutation` cosmic-ray session, docs.yml's `--group docs` sphinx-build,
+# and test.yml's `dist` job for check-wheel-contents, pyroma and twine.
+# check-sdist runs as a pre-commit hook out of an environment pre-commit
+# builds from .pre-commit-config.yaml rather than from the group, so the
+# run behind that one floor is the `rev:` that file pins instead, which
+# is where the two have to stay in step -- true of `ruff` too, the one
+# entry this table already bounded before this comment was written.
+#
+# A floor below the lock is not the defect this closes: nothing here
+# re-widens one once `uv.lock` moves past it, and dependabot's uv-lock
+# hook does not raise a floor either. The defect was a bound no run had
+# ever exercised at all.
+
 # what it takes to develop, build and test this package. hypothesis is
 # absent, unlike in a codec library where the malformed input nobody wrote
 # down is the point. Most of what this module refuses is a shape -- a
@@ -195,34 +221,39 @@ pull_requests = "https://github.com/btclib-org/bitcoin-core-rpc/pulls"
 # `max_body_size` and one past it, and `tests/transport_test.py` asserts
 # both, in each direction and against a disagreeing `Content-Length`
 test = [
-    "coverage",
-    "pytest",
-    "pytest-cov",
-    "pytest-randomly",
-    "pytest-xdist",
+    "coverage>=7.16.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-randomly>=5.0.0",
+    "pytest-xdist>=3.8.0",
     # `override` for the test doubles: typing has it from 3.12 and the
     # interpreter floor is 3.10. The package itself cannot take it either
     # way -- census_test.py reads the imports of every module and refuses
     # any outside the standard library
-    "typing-extensions",
+    "typing-extensions>=4.16.0",
 ]
 # a floor here and on nothing else in this group: the suppressions in this
 # tree are written `ruff: ignore`, and 0.16 is the first release that reads
 # them. An older ruff does not fail on the syntax -- it fails on the
 # findings those comments suppress, which is the confusing way to learn it
-lint = ["mypy", "pre-commit", "ruff>=0.16"]
+lint = ["mypy>=2.3.1", "pre-commit>=4.6.2", "ruff>=0.16"]
 # mutation testing, which asks the question coverage cannot: a line the
 # suite executes is not a line the suite checks. Its own group and not part
 # of test, because every cell of the matrix installs that one and none of
 # them runs this -- the scheduled mutation workflow is the only consumer,
 # and it asks for --group test as well, cosmic-ray shelling out to pytest
-mutation = ["cosmic-ray"]
+mutation = ["cosmic-ray>=8.7.0"]
 # the distribution files are built and published by uv itself: what this
 # group holds is what inspects them, before an upload consumes the version.
 # Named check, not build, so that --only-group build means the same thing
 # in btclib-secp256k1, which genuinely needs a group for building wheels
-check = ["check-sdist", "check-wheel-contents", "pyroma", "twine"]
-docs = ["furo", "myst-parser", "sphinx"]
+check = [
+    "check-sdist>=1.6.0",
+    "check-wheel-contents>=0.6.3",
+    "pyroma>=5.0.1",
+    "twine>=7.0.0",
+]
+docs = ["furo>=2025.12.19", "myst-parser>=4.0.1", "sphinx>=8.1.3"]
 dev = [
     { include-group = "test" },
     { include-group = "lint" },
