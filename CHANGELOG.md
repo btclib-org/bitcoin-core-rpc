@@ -1856,6 +1856,12 @@ contract is stated.
   carried, the usage example passes `"$PACKAGE"`, and the `except`
   becomes two clauses** (issue btclib-org/.github#1160).
 
+### `scorecard.yml`'s `analysis` job documents its permission grants
+
+- **The three grants `zizmor --persona=auditor` flags take a trailing
+  comment, the leading prose kept** (issue btclib-org/.github#1164): the
+  auditor reads a permission's own line, not the one above it.
+
 ## v2026.9.3
 
 ### Repository
