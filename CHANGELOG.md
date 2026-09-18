@@ -1832,6 +1832,42 @@ contract is stated.
   concurrency key and of `claude_args` goes** (closes
   btclib-org/.github#1178): section 9's *No history in the prose*.
 
+### The mutation profile states no totals and keeps its judgement
+
+- **`bitcoin_core_rpc.toml`'s counts go and its survivor prose is
+  re-derived from the last run** (issue btclib-org/.github#1158): the
+  workflow prints those counts, and `RPCErrorCode`'s members now dominate.
+
+### The `ready_for_review` comments name the workflow the draft condition is in
+
+- **`docs.yml`, `links.yml` and `lint.yml` name the workflow each
+  calls as where the draft condition is** (closes
+  btclib-org/.github#1177): the caller's own job carries none.
+
+### `release.yml`'s `attest`/`github-release` call the organization's workflows
+
+- **Both become calls to `btclib-org/.github`'s `reusable-attest.yml`
+  and `reusable-github-release.yml`, `@main`** (issue
+  btclib-org/.github#35): the signer moves at the next release.
+
+### `wait_for_pypi_release.py` takes the body the four trees converge on
+
+- **The docstring gains the `(btclib-org/btclib#1165)` citation it never
+  carried, the usage example passes `"$PACKAGE"`, and the `except`
+  becomes two clauses** (issue btclib-org/.github#1160).
+
+### `scorecard.yml`'s `analysis` job documents its permission grants
+
+- **The three grants `zizmor --persona=auditor` flags take a trailing
+  comment, the leading prose kept** (issue btclib-org/.github#1164): the
+  auditor reads a permission's own line, not the one above it.
+
+### `codeql.yml`'s two permission blocks document their grants too
+
+- **The three flagged grants, in `analyze` and `codeql-passed`, take a
+  trailing comment, the leading prose kept** (issue
+  btclib-org/.github#1164): the auditor reads a permission's own line.
+
 ## v2026.9.3
 
 ### Repository

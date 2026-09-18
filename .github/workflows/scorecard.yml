@@ -67,12 +67,17 @@ jobs:
     # (btclib-org/.github#912)
     permissions:
       # the transparency-log entry publish_results uses to publish
-      id-token: write
+      id-token: write # the OpenSSF transparency log publish
       # SARIF results filed as code-scanning alerts
-      security-events: write
+      security-events: write # the SARIF upload
       # the callee's job writes neither a release nor anything else to
       # the tree, so read is all it takes
       contents: read
       # what the Packaging check reads workflow-run history with, to see
-      # whether release.yml has runs that succeeded
-      actions: read
+      # whether release.yml has runs that succeeded. The trailing
+      # comments on this block repeat each grant's purpose in one line
+      # for the reason btclib's codeql.yml gives on its own block:
+      # zizmor's undocumented-permissions audit (persona=auditor) reads
+      # the permission's own line rather than a comment above it
+      # (btclib-org/.github#1164)
+      actions: read # the Packaging check's workflow-run history read
