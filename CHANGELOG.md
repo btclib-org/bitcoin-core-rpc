@@ -1880,6 +1880,12 @@ contract is stated.
   whatever `.python-version` pins, and `_PIN` now stands in for it
   there** (closes #435): `dist`'s own step is written that way.
 
+### `RELEASING.md`'s provenance fence takes a `${version:?}` placeholder
+
+- **The "Verify the provenance of an asset" fence no longer hard-codes
+  `v2026.8.8`** (closes #440): it takes `btclib-node`'s
+  placeholder-and-`${version:?}` shape.
+
 ## v2026.9.3
 
 ### Repository
