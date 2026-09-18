@@ -117,9 +117,9 @@ jobs:
     # repository, inert here and kept so that making this repository
     # private is not also a broken required check
     permissions:
-      security-events: write
+      security-events: write # the SARIF upload
       contents: read
-      actions: read
+      actions: read # CodeQL's run-metadata read in a private repository
 
   # one context for a branch rule to name, in place of job names that move:
   # the matrix the called workflow runs produces one row per language,
@@ -157,8 +157,13 @@ jobs:
       contents: read
       # what asking the API for this run's own jobs takes. A read, so the
       # write-only census REPOSITORY.md's "Token permissions" hands the
-      # reader does not list it, as it does not list analyze's above
-      actions: read
+      # reader does not list it, as it does not list analyze's above.
+      # The trailing comment repeats it in one line for the reason the
+      # analyze job's block above also carries one: zizmor's
+      # undocumented-permissions audit (persona=auditor) reads the
+      # permission's own line rather than a comment above it
+      # (btclib-org/.github#1164)
+      actions: read # the run's job listing, which contents: read misses
     steps:
       # the run's own job listing rather than `needs.*.result`, which is
       # section 10 of the organization standard's shape for a workflow
