@@ -1898,6 +1898,12 @@ contract is stated.
   the version its own consumer runs at** (closes #446): `uv lock
   --resolution lowest-direct` used to fail on `coverage==3.0` first.
 
+### `wait_for_readthedocs_build.py` takes the body the four trees converge on
+
+- **The usage example passes `"$SLUG"`, and `USER_AGENT` becomes a
+  template `unserved` formats with the project, taking it as a third
+  parameter** (issue btclib-org/.github#1186).
+
 ## v2026.9.3
 
 ### Repository
