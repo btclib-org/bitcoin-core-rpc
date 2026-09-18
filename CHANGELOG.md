@@ -1874,6 +1874,12 @@ contract is stated.
   (closes #422): `btclib-node` depends on this package directly, the
   relationship the hook exists to guard against.
 
+### `interpreters_test.py` reads `.python-version` where `dist` names no interpreter
+
+- **A gating job whose Setup uv step names no `python-version:` runs on
+  whatever `.python-version` pins, and `_PIN` now stands in for it
+  there** (closes #435): `dist`'s own step is written that way.
+
 ## v2026.9.3
 
 ### Repository
