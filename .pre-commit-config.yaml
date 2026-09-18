@@ -671,14 +671,17 @@ repos:
   # that publishes the package is allowed -- "btclib-org" in a URL, "The
   # btclib developers" in the copyright line -- because a consumer does
   # care who publishes it; naming the downstream package that depends on
-  # this one is not.
+  # this one is not. btclib-node is a downstream dependent exactly like
+  # btclib itself (its own [project.dependencies] carries a direct
+  # bitcoin-core-rpc entry), so it gets no exception either
+  # (issue #422).
   - repo: local
     hooks:
       - id: no-downstream-name-in-package
         name: the shipped module does not name btclib, org spelling excepted
         language: pygrep
         args: ["-i"]
-        entry: 'btclib(?!-secp256k1|_secp256k1|-org|\.org|-node|_node|-benchmarks| developers)'
+        entry: 'btclib(?!-secp256k1|_secp256k1|-org|\.org|-benchmarks| developers)'
         files: ^src/bitcoin_core_rpc/.*\.py$
   # not the mirrors-mypy hook: it injects --ignore-missing-imports, which
   # turns an unresolved (or misspelled) import into Any, the opposite of

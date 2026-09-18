@@ -1868,6 +1868,12 @@ contract is stated.
   trailing comment, the leading prose kept** (issue
   btclib-org/.github#1164): the auditor reads a permission's own line.
 
+### `no-downstream-name-in-package`'s pattern drops its `btclib-node` exception
+
+- **The hook's negative lookahead no longer whitelists `-node|_node`**
+  (closes #422): `btclib-node` depends on this package directly, the
+  relationship the hook exists to guard against.
+
 ## v2026.9.3
 
 ### Repository
