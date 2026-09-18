@@ -1886,6 +1886,12 @@ contract is stated.
   `v2026.8.8`** (closes #440): it takes `btclib-node`'s
   placeholder-and-`${version:?}` shape.
 
+### `generate_sbom.py` gains the test `btclib`'s own copy already carries
+
+- **`tests/generate_sbom_test.py` is `btclib`'s test of the identical
+  script, its fixtures renamed to this distribution's own wheel and
+  sdist** (closes #439).
+
 ## v2026.9.3
 
 ### Repository
