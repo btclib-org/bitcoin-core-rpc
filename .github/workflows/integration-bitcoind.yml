@@ -396,8 +396,13 @@ jobs:
       # carries, so a "skipped" reaching this loop is a dependency that
       # already failed, and it is that dependency's own "failure" the
       # loop below actually catches.
+      #
+      # `join(needs.*.result, ',')` interpolates a closed set: each
+      # element is one of `success`, `failure`, `cancelled`, `skipped`
+      # or absent, all written by GitHub, so no fork-controlled string
+      # -- a branch name, a title, a body -- reaches this shell
       - name: Fail unless every job above succeeded or was legitimately skipped
-        run: |
+        run: | # zizmor: ignore[template-injection]
           results='${{ join(needs.*.result, ',') }}'
           echo "results: $results"
           case ",$results," in
