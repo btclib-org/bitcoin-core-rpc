@@ -1916,6 +1916,12 @@ contract is stated.
   backstop against it** (closes #494): pre-commit.ci excludes no repo
   from autoupdate, so nothing stops a third proposal.
 
+### `zizmor`'s auditor persona becomes the gate, every finding answered
+
+- **`.pre-commit-config.yaml`'s zizmor hook gains `--persona=auditor`,
+  every flagged grant and the shared gate step now answered**
+  (issue btclib-org/.github#1164, issue btclib-org/.github#1198).
+
 ## v2026.9.3
 
 ### Repository

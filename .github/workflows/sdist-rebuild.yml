@@ -55,5 +55,5 @@ jobs:
     # any job starts, as a startup_failure (btclib-org/.github#912)
     permissions:
       contents: read
-      attestations: read
+      attestations: read # gh attestation verify reads the attestations API with it
     uses: btclib-org/.github/.github/workflows/reusable-sdist-rebuild.yml@main

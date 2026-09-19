@@ -81,10 +81,8 @@ jobs:
     # (btclib-org/.github#912)
     permissions:
       contents: read
-      # what posting a review or a reply takes
-      pull-requests: write
-      # the OIDC token the action mints during its own startup
-      id-token: write
+      pull-requests: write # posting the review, and the reply to a mention
+      id-token: write # the OIDC token the action mints at its own startup
     uses: btclib-org/.github/.github/workflows/reusable-claude-review.yml@main
     with:
       # this tree's own paragraph, landing between the verdict paragraph
