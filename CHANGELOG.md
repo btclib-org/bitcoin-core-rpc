@@ -1910,6 +1910,12 @@ contract is stated.
   script, unchanged** (closes #496): a synthetic Cosmic Ray session
   names no distribution.
 
+### `regebro/pyroma`'s recurring pre-release proposal is accepted, not fixed
+
+- **`.pre-commit-config.yaml` writes down why `pinned-rev` stays the
+  backstop against it** (closes #494): pre-commit.ci excludes no repo
+  from autoupdate, so nothing stops a third proposal.
+
 ## v2026.9.3
 
 ### Repository
