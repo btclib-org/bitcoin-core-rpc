@@ -753,6 +753,27 @@ repos:
   # own, so the environment satisfies the declaration by construction and
   # the fallback -- a virtual environment pre-commit.ci cannot create -- is
   # never asked for
+  #
+  # regebro/pyroma's own tag order puts two pre-releases, 5.1b2 and
+  # 5.1b1, ahead of 5.0.1, its last real release, and pre-commit.ci
+  # resolves to the nearest tag reachable from the tracked branch, with
+  # no regard for pre-release status: it has proposed 5.1b1 here twice
+  # on that reachability order (#413, recurring on PR #465), and
+  # `pinned-rev` above is what turns each proposal red rather than
+  # merged.
+  #
+  # Nothing in pre-commit.ci stops the proposal recurring a third time.
+  # `autoupdate_schedule` has no per-repo or "never" value that would
+  # leave this one alone (pre-commit-ci/issues#83, declined as raising
+  # operating cost); a `# frozen: <tag>` comment is `pre-commit
+  # autoupdate --freeze`'s own output, recording which tag a frozen
+  # commit sha came from, and does not suppress a later update -- asked
+  # for directly, and declined, in pre-commit-ci/issues#115 ("holding
+  # back a version is intentionally not supported"). So the next
+  # recurrence is accepted rather than fixed: `pinned-rev` stays the
+  # backstop that catches it, and bumping this rev by hand, once pyroma
+  # cuts a release past 5.0.1, is the maintainer's job rather than
+  # autoupdate's (issue #494)
   - repo: https://github.com/regebro/pyroma
     rev: "5.0.1"
     hooks:
