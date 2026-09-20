@@ -1928,6 +1928,12 @@ contract is stated.
   the marker, and `_GRANDFATHERED_ENTRIES` below it is set to this tree's
   own count of entries above the rule** (issue btclib-org/.github#1215).
 
+### The `check-changelog` hook's comment names no count
+
+- **`.pre-commit-config.yaml`'s comment above `check-changelog` no
+  longer counts `check_changelog.py`'s checks** (issue
+  btclib-org/.github#1225): its own docstring already enumerates them.
+
 ## v2026.9.3
 
 ### Repository
