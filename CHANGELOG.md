@@ -1922,6 +1922,12 @@ contract is stated.
   every flagged grant and the shared gate step now answered**
   (issue btclib-org/.github#1164, issue btclib-org/.github#1198).
 
+### `check_changelog.py` gains the fifth check `.github` already carries
+
+- **This tree's own copy is replaced with `.github`'s, byte for byte above
+  the marker, and `_GRANDFATHERED_ENTRIES` below it is set to this tree's
+  own count of entries above the rule** (issue btclib-org/.github#1215).
+
 ## v2026.9.3
 
 ### Repository
