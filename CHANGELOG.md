@@ -1958,6 +1958,12 @@ contract is stated.
   [the standard][std] section 10 names, in place of `true`** (issue
   btclib-org/.github#1226): each takes `closed` with no `push` trigger.
 
+### `REPOSITORY.md` marks its two observations, `stable` in its own subsection
+
+- **The `stable` tag and the plan name carry `a fact about a changing
+  world` and a read date** (issue btclib-org/.github#1017): `stable`'s
+  mark sits apart from the hook reading beside it, which stays gated.
+
 ## v2026.9.3
 
 ### Repository

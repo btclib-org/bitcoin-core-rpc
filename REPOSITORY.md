@@ -667,7 +667,9 @@ This tree serves no GitHub Pages site of its own.
 The project's slug is `bitcoin-core-rpc`, and its public API answers
 without a token for what section 11 asks of the project — `latest`
 follows the default branch, `stable` is the highest release tag, and an
-automation rule activates each new tag:
+automation rule activates each new tag.
+
+### `latest` and `stable`, from the project's own API
 
 ```shell
 p=https://app.readthedocs.org/api/v3/projects/bitcoin-core-rpc
@@ -677,10 +679,10 @@ curl -s "$p/" | jq -c '{default_branch, repository: .repository.url}'
 curl -s "$p/versions/?active=true" \
   | jq -c '.results[] | select(.slug == "latest" or .slug == "stable")
            | [.slug, .type, .ref]'
-# ["stable","tag","v2026.8.29"]
+# ["stable","tag","v2026.9.3"]
 # ["latest","branch",null]
 git tag --list 'v*' --sort=version:refname | tail -1
-# v2026.8.29
+# v2026.9.3
 ```
 
 `repository.url` says which repository the slug serves. `latest` is a
@@ -690,6 +692,13 @@ tags beside those two in the same answer are the automation rule's
 result rather than the rule, which that API does not expose —
 `automation-rules/` answers 404 where an endpoint needing a token, such
 as `redirects/`, answers 401.
+
+**Which tag `stable` names is a fact about a changing world rather than
+a setting this repository decides**: each release moves it to whatever
+`git tag` then sorts highest, with nothing recorded here having decided
+otherwise. Read at 2026-09-21T22:08:07Z.
+
+### The connection is the organization's App, and the hook is gone
 
 **What connects this repository to Read the Docs is the organization-wide
 `read-the-docs-community` GitHub App, not a per-repository webhook.**
@@ -797,6 +806,10 @@ where the command answers for the day it is run:
 gh api orgs/btclib-org --jq .plan.name
 # free
 ```
+
+That answer is a fact about a changing world rather than a setting this
+repository decides: an upgrade is the organization's own choice, and not
+a drift this file's readback catches. Read at 2026-09-21T22:08:07Z.
 
 [GitHub's own table](https://docs.github.com/en/actions/reference/limits)
 is what turns that answer into a number, and on the free plan it is twenty
