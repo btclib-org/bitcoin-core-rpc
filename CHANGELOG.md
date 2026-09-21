@@ -1940,6 +1940,12 @@ contract is stated.
   `>=0.12.17`** (issue btclib-org/.github#1229): the old floor admitted a `uv`
   older than the one `dependabot-core`'s updater writes `uv.lock` with.
 
+### `source-exclude` excludes a shape, not a list of caches
+
+- **`[tool.uv.build-backend] source-exclude` excludes any dot-prefixed
+  path under `docs/`, `src/bitcoin_core_rpc/` or `tests/`, replacing
+  named cache entries with the shape** (issue btclib-org/.github#1070).
+
 ## v2026.9.3
 
 ### Repository

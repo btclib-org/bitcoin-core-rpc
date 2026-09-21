@@ -364,28 +364,70 @@ source-exclude = [
     "/tests/wait_for_pypi_release_test.py",
     "/tests/wait_for_readthedocs_build_test.py",
     "/tests/interpreters_test.py",
-    # a cache a linter or a type checker writes beside the file it has
-    # just read, and not something anyone puts there on purpose: the VS
-    # Code mypy extension .vscode/extensions.json recommends writes one
-    # per directory it type-checks, so one can appear under tests/ or
-    # docs/, which `**` above reaches whole -- these three patterns keep
-    # it out of the sdist wherever it lands. Unanchored, a cache being
-    # wherever the tool that wrote it was pointed
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-    # the same kind of leftover, and the one this list is checked against
-    # on every run: the check-sdist hook below passes --inject-junk, which
-    # plants tests/package/anything.egg-info beside the sources for the
-    # length of it
+    # the same reasoning once more, reaching outside the sdist through
+    # `.git` rather than through `.github`: this one asks `git ls-files`
+    # which tracked paths lie under the trees the shape entries below
+    # take a dot-prefixed name out of, so that a dotted file one of
+    # those trees means to ship is a red test rather than a release
+    # missing a file. A tree stripped to its tracked files has no index
+    # to ask, and no cache in it to take out either
+    "/tests/sdist_dotted_names_test.py",
+    # a cache a tool writes beside what it has just read, taken out by a
+    # property such caches share -- a dot-prefixed basename, at any depth
+    # under a tree the archive carries whole -- rather than by the name of
+    # the tool that wrote it. A name is one somebody has already thought
+    # of, and the gate over the list, check-sdist, compares the archive
+    # against the tree it was built from, so it refuses only a cache that
+    # is on disk while it runs; the lint workflow runs the hooks over a
+    # checkout and no step of it runs the suite (btclib-org/.github#1070).
+    #
+    # Three anchors rather than tests/ alone: the VS Code mypy extension
+    # writes a cache per directory it type-checks, so one appears under
+    # src/bitcoin_core_rpc/ as readily as under tests/, and docs/ is
+    # carried whole by a pattern of the same shape as tests/'s.
+    # The anchors are what leave the root's own dotted files in the
+    # archive: unanchored, ".*" takes .python-version and
+    # .secrets.baseline with it, an exclusion dropping what an include
+    # above asks for.
+    #
+    # These three lines were measured by planting and building, btclib's
+    # own method for its list: a planted tests/.hypothesis/,
+    # tests/_data/.ruff_cache/, docs/source/.pytest_cache/ and
+    # src/bitcoin_core_rpc/.mypy_cache/ are each absent from the sdist
+    # built next, and each is carried by the sdist the same tree builds
+    # with these lines taken out.
+    #
+    # What a property costs is the other direction, and it is as silent: a
+    # dotted file this tree means to ship goes at a release rather than in
+    # a gate. tests/sdist_dotted_names_test.py above is that direction's
+    # gate, and it asks git rather than the disk, so it answers where
+    # check-sdist cannot.
+    #
+    # __pycache__, *.pyc and *.pyo are the backend's own default excludes,
+    # and are not repeated here
+    "/docs/**/.*",
+    "/src/bitcoin_core_rpc/**/.*",
+    "/tests/**/.*",
+    # a leftover of the same kind whose name carries no leading dot, so
+    # the shape above does not reach it: the check-sdist hook plants one
+    # under tests/ while it runs, which is how this pattern is known to
+    # hold rather than believed to
     "*.egg-info",
-    # coverage.py's own data file, written beside the tree it measured
-    # rather than under a cache directory: a run started from tests/ and
-    # given this file with `--cov-config` leaves `tests/.coverage` behind,
-    # gitignored and unanchored the same way as the three cache entries
-    # above
-    ".coverage",
-    ".coverage.*",
+    # coverage.py's own xml report, written beside the tree it measured
+    # rather than under a cache directory: a run started from tests/
+    # leaves tests/coverage.xml behind. It carries no leading dot, so the
+    # shape above does not reach it and it keeps its own entry here. Its
+    # sibling data file, .coverage, and that file's parallel-mode
+    # variant, .coverage.*, are dot-prefixed, so the shape reaches the
+    # one an include above could have carried -- tests/.coverage, which
+    # is what the entries here used to answer. The root's own, which the
+    # ordinary `uv run pytest` leaves behind, is reached by nothing and
+    # needs nothing: source-include carries a root dotted file only by
+    # extension -- .taplo.toml and .pre-commit-config.yaml ride *.toml
+    # and *.yaml -- or by its literal name, and .coverage has neither.
+    # Planting one shows it absent under this list and under the one
+    # before it alike, while those still ship, so what keeps it out is
+    # the include list and not the shape. Neither entry is repeated
     "coverage.xml",
 ]
 
