@@ -1952,6 +1952,12 @@ contract is stated.
   already-anchored entries** (closes #508): each loads a script out of
   `.github/scripts` by path, the shape the comment already covers.
 
+### `links.yml` and `sdist-rebuild.yml` take the conditional in place of `true`
+
+- **Both workflows' `concurrency:` block takes the conditional
+  [the standard][std] section 10 names, in place of `true`** (issue
+  btclib-org/.github#1226): each takes `closed` with no `push` trigger.
+
 ## v2026.9.3
 
 ### Repository

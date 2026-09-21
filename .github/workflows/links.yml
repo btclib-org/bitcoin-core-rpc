@@ -39,21 +39,21 @@ on:
     # draft condition in reusable-links.yml withheld while it was a draft:
     # the default types do not include it, and without it a readied pull
     # request would wait for its next push to be checked at all.
-    # closed too, though the job below declines the real work on it: a
-    # merge or a close is neither a push nor a synchronize, so a run
-    # this pull request's own concurrency group is still holding
-    # survives either unless the closed event lands in that same group
-    # -- which this type is what makes it do, cancel-in-progress below
-    # turning the landing into the cancellation. That was meant to be
-    # *this* pull request's own group and nothing else's: github.ref for
-    # a closed, merged pull request resolves to the base branch's ref
-    # rather than refs/pull/N/merge, which this workflow has no push
-    # trigger to collide with, but the weekly schedule and a
+    # closed too, though the job below declines the real work on it: a merge
+    # or a close is neither a push nor a synchronize, so a run this pull
+    # request's own concurrency group is still holding survives either
+    # unless the closed event lands in that same group -- which this type is
+    # what makes it do, cancel-in-progress below cancelling the survivor for
+    # a bare close and letting a landing queue behind it instead. That was
+    # meant to be *this* pull request's own group and nothing else's:
+    # github.ref for a closed, merged pull request resolves to the base
+    # branch's ref rather than refs/pull/N/merge, which this workflow has no
+    # push trigger to collide with, but the weekly schedule and a
     # workflow_dispatch both also run on the default branch and would
     # resolve to that same ref -- the concurrency block below groups a
-    # pull_request run by the pull request's own number instead, immune
-    # to that under any action, on the same reasoning applied where it
-    # was observed to matter, in this repository's push-triggered gates
+    # pull_request run by the pull request's own number instead, immune to
+    # that under any action, on the same reasoning applied where it was
+    # observed to matter, in this repository's push-triggered gates
     types: [opened, reopened, synchronize, ready_for_review, closed]
     paths:
       - .github/workflows/links.yml
@@ -77,7 +77,7 @@ permissions:
 # what groups either, unchanged
 concurrency:
   group: links-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ !(github.event.action == 'closed' && github.event.pull_request.merged) }}
 
 jobs:
   # the job itself is btclib-org/.github's, called at @main so a fix there
