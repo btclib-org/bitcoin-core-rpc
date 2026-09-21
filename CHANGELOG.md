@@ -1934,6 +1934,12 @@ contract is stated.
   longer counts `check_changelog.py`'s checks** (issue
   btclib-org/.github#1225): its own docstring already enumerates them.
 
+### `[tool.uv] required-version` moves to the ceiling `dependabot-core` now bundles
+
+- **`pyproject.toml`'s `[tool.uv] required-version` moves from `>=0.12.7` to
+  `>=0.12.17`** (issue btclib-org/.github#1229): the old floor admitted a `uv`
+  older than the one `dependabot-core`'s updater writes `uv.lock` with.
+
 ## v2026.9.3
 
 ### Repository
