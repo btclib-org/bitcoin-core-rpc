@@ -1946,6 +1946,12 @@ contract is stated.
   path under `docs/`, `src/bitcoin_core_rpc/` or `tests/`, replacing
   named cache entries with the shape** (issue btclib-org/.github#1070).
 
+### `source-exclude` gains the two script-loading tests it missed
+
+- **`generate_sbom_test.py` and `mutation_counts_test.py` join the six
+  already-anchored entries** (closes #508): each loads a script out of
+  `.github/scripts` by path, the shape the comment already covers.
+
 ## v2026.9.3
 
 ### Repository

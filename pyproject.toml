@@ -363,6 +363,8 @@ source-exclude = [
     "/tests/check_api_page_test.py",
     "/tests/wait_for_pypi_release_test.py",
     "/tests/wait_for_readthedocs_build_test.py",
+    "/tests/generate_sbom_test.py",
+    "/tests/mutation_counts_test.py",
     "/tests/interpreters_test.py",
     # the same reasoning once more, reaching outside the sdist through
     # `.git` rather than through `.github`: this one asks `git ls-files`
