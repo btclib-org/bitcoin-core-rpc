@@ -1964,6 +1964,12 @@ contract is stated.
   world` and a read date** (issue btclib-org/.github#1017): `stable`'s
   mark sits apart from the hook reading beside it, which stays gated.
 
+### The `pyroma` hook moves out of `autoupdate`'s reach, as a local hook
+
+- **`.pre-commit-config.yaml`'s `pyroma` hook is `repo: local`, bound now by
+  `check`'s `pyroma>=5.0.1`** (issue btclib-org/.github#1199): `autoupdate` can
+  no longer propose it a prerelease revision.
+
 ## v2026.9.3
 
 ### Repository
