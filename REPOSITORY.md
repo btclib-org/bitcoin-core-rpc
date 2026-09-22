@@ -287,8 +287,8 @@ owns, and `actions/workflows/<id>/disable` answers 422. The endpoint that
 reports the setting is the one that sets it:
 
 ```shell
-gh api repos/btclib-org/bitcoin-core-rpc/code-quality/setup
-# {"state":"not-configured","languages":["python"], ...}
+gh api repos/btclib-org/bitcoin-core-rpc/code-quality/setup --jq '{state, languages}'
+# {"languages":["python"],"state":"not-configured"}
 
 gh api -X PATCH repos/btclib-org/bitcoin-core-rpc/code-quality/setup \
   -F state=not-configured
@@ -745,12 +745,13 @@ this list is the whole of them:
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc --jq '.security_and_analysis'
-# the alerts themselves are not in that object: the endpoint that
-# answers for them has no body, and says so with its status -- 204 for
-# enabled, 404 for not
 gh api -i repos/btclib-org/bitcoin-core-rpc/vulnerability-alerts | head -1
 gh api repos/btclib-org/bitcoin-core-rpc/private-vulnerability-reporting
 ```
+
+The alerts themselves are not in `.security_and_analysis`: the endpoint
+that answers for them has no body, and says so with its status -- 204
+for enabled, 404 for not.
 
 | Setting | State |
 | --- | --- |
@@ -852,14 +853,16 @@ secret stores here answer empty for it:
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/actions/secrets --jq .total_count
+# 0
 gh api repos/btclib-org/bitcoin-core-rpc/dependabot/secrets \
   --jq .total_count
-# 0, both
+# 0
 gh api orgs/btclib-org/actions/secrets \
   --jq '.secrets[] | [.name, .visibility]'
+# ["CLAUDE_CODE_OAUTH_TOKEN","all"]
 gh api orgs/btclib-org/dependabot/secrets \
   --jq '.secrets[] | [.name, .visibility]'
-# ["CLAUDE_CODE_OAUTH_TOKEN","all"], both
+# ["CLAUDE_CODE_OAUTH_TOKEN","all"]
 ```
 
 Those two zeros record a decision, and it is section 11's: the token is
@@ -876,7 +879,7 @@ gh api repos/btclib-org/bitcoin-core-rpc/actions/variables \
   --jq .total_count
 # 0
 gh api orgs/btclib-org/actions/variables --jq '.variables[].name'
-# (nothing)
+#
 gh api orgs/btclib-org/actions/variables --jq .total_count
 # 0
 ```

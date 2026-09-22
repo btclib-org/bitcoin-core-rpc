@@ -5473,6 +5473,12 @@ contract is stated.
   shape the commit a squash writes; CONTRIBUTING.md and RELEASING.md said
   all three methods were enabled and say what holds instead.
 
+### `REPOSITORY.md`'s recorded answers stop eliding, glossing and sharing
+
+- **`REPOSITORY.md`'s elision, gloss and shared comments recorded
+  other than a command's own output** (issue btclib-org/.github#1262)
+  (issue btclib-org/.github#1263) (issue btclib-org/.github#1264).
+
 ## v2026.8.8
 
 ### Added
