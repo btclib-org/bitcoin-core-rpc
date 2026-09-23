@@ -1970,6 +1970,12 @@ contract is stated.
   `check`'s `pyroma>=5.0.1`** (issue btclib-org/.github#1199): `autoupdate` can
   no longer propose it a prerelease revision.
 
+### The shared scripts are read from `btclib-org/.github`, not carried here
+
+- **The shared scripts leave `.github/scripts`, their tests with
+  them** (issue btclib-org/.github#1293): `check-changelog` now runs
+  pinned from `btclib-org/.github`, `args: [--grandfathered, "67"]`.
+
 ## v2026.9.3
 
 ### Repository

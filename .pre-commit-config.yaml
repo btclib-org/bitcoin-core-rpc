@@ -156,14 +156,11 @@ repos:
         # `test_every_public_name_carries_a_docstring` is what checks the
         # arrangement it can no longer see. `__init__.py` and `errors.py`
         # carry none and need no exclusion, so they are not named here.
-        # `.github/scripts/check_changelog.py` carries one such constant
-        # too, and section 14 of the organization standard owes that
-        # file byte for byte, so the exclusion is the one place its
-        # finding can be answered. A block scalar for the same reason the
-        # `entry:` patterns below are: one line with no space in it, which
-        # yamllint's width rule exempts
+        # A block scalar for the same reason the `entry:` patterns below
+        # are: one line with no space in it, which yamllint's width rule
+        # exempts
         exclude: |-
-          ^(src/bitcoin_core_rpc/(chains|transport|client)\.py|\.github/scripts/check_changelog\.py)$
+          ^src/bitcoin_core_rpc/(chains|transport|client)\.py$
       # the hook's default, *_test.py, with neither args nor exclude.
       # What it is for is the one failure mode a test suite cannot report
       # on itself -- a file named so that pytest never collects it is not
@@ -261,27 +258,14 @@ repos:
         args: [--write-changes, --force-exclude]
         types: [text]
         stages: [pre-commit, pre-merge-commit, pre-push, manual]
-  # `merge=union` stays on `CHANGELOG.md` (btclib-org/.github#21), and
-  # this is the gate its price bought back -- `.github/scripts/
-  # check_changelog.py`'s own docstring carries what its checks catch,
-  # what they still cannot, and the alternatives declined
-  # (btclib-org/.github#305, btclib-org/.github#516). It runs ahead of
-  # markdownlint-cli2 below on purpose: that hook's `--fix` repairs the
-  # very seam the third check exists to name, so a hook reading the
-  # file after it would find nothing left to report.
-  #
-  # `always_run: true`, and no `files:`: the rebase that eats the seam
-  # stages nothing, so a hook keyed on the diff is unreachable after the
-  # event the blank-line check exists to name. Section 4 carries the
-  # rest.
-  - repo: local
+  # ahead of markdownlint-cli2 below on purpose: that hook's `--fix`
+  # repairs the very seam the third check exists to name, so a hook
+  # reading the file after it would find nothing left to report.
+  - repo: https://github.com/btclib-org/.github
+    rev: 93615580cdf8afb1b0a89bf38b707232d39a502a
     hooks:
       - id: check-changelog
-        name: the open CHANGELOG.md repeats no heading, closes no issue twice
-        entry: python3 .github/scripts/check_changelog.py
-        language: system
-        pass_filenames: false
-        always_run: true
+        args: [--grandfathered, "67"]
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.2
     hooks:
