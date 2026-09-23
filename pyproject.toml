@@ -368,10 +368,7 @@ source-exclude = [
     "/tests/rpc_smoke_test.py",
     "/tests/normalize_sdist_test.py",
     "/tests/check_api_page_test.py",
-    "/tests/wait_for_pypi_release_test.py",
-    "/tests/wait_for_readthedocs_build_test.py",
     "/tests/generate_sbom_test.py",
-    "/tests/mutation_counts_test.py",
     "/tests/interpreters_test.py",
     # the same reasoning once more, reaching outside the sdist through
     # `.git` rather than through `.github`: this one asks `git ls-files`
@@ -975,24 +972,6 @@ ignore = [
 # missing name, and a name missing from the built page is the one thing
 # a red run needs to say
 ".github/scripts/check_api_page.py" = ["T201"]
-# and the release wait, whose output is the log of a job with nothing
-# else in it: one line per question the index has not answered yet, the
-# answer when it comes, or the ::error:: annotation naming the version
-# that never arrived
-".github/scripts/wait_for_pypi_release.py" = ["T201"]
-# and the documentation wait, the same shape one service over: one line
-# per answer read the docs gave that was not the page, the page when it
-# comes, or the ::error:: annotation naming the last answer and the
-# builds page that says why
-".github/scripts/wait_for_readthedocs_build.py" = ["T201"]
-# and the changelog check, run by the check-changelog hook and read on
-# the terminal of whoever's commit it refused: what it prints is each
-# line it refuses and the reason, which is the whole of its report
-".github/scripts/check_changelog.py" = ["T201"]
-# and the mutation counter, run by mutation.yml's reusable workflow and
-# read on the runner's own log: the one line worth reading per session,
-# printed rather than reduced to an artifact, is the whole of its output
-".github/scripts/mutation_counts.py" = ["T201"]
 # flake8-no-pep420: each is a standalone entry point a workflow step or
 # a hook invokes with `python .github/scripts/<name>.py`, never an import -- the
 # directory holds no __init__.py because it is not a package, and adding
