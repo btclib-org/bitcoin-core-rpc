@@ -23,7 +23,24 @@ This tree carries no standalone `uv run mypy ...` line in
 gate runs only inside `.pre-commit-config.yaml`'s `mypy` hook, so this
 module reads that hook's own `entry:` for the roots and `pyproject.toml`
 for the `exclude` list, rather than importing mypy or invoking
-`pre-commit`, which `test`'s own environment does not carry.
+`pre-commit`, which `test`'s own environment does not carry. The same
+reasoning keeps this a regex rather than a `tomllib` parse: `tomllib`
+is stdlib only from 3.11, and this package's floor is 3.10, so reading
+it would need a fallback parser as a new test dependency for no gain --
+a regex already has to read `.pre-commit-config.yaml`, which is not
+TOML at all.
+
+`_EXCLUDE_LIST` reads the array whichever shape it is written in: this
+tree's own file spans it over several lines, and so does `uv_build`'s
+normalized sdist copy wherever `exclude` holds more than one entry --
+only a single-entry array collapses to `exclude = ["^build/"]` on one
+line (issue #510). It also reads past an entry's own `]`: mypy's
+exclude values are themselves regexes, so a character class such as
+`[a-z]` is an ordinary entry rather than a syntax error, and a scan
+anchored to the first `]` would end the array there instead of reading
+past it. `_LIST_ITEM` then finds each entry's own quoted string
+directly rather than assuming one per physical line, which is what
+lets more than one entry share the array's own line.
 """
 
 import re
@@ -36,16 +53,24 @@ _HOOKS = (_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
 # the section alone, so a `[tool.ruff.format]` or `[tool.typos.files]`
 # `exclude` sitting elsewhere in the file is never read as this one
 _MYPY_SECTION = re.compile(r"(?ms)^\[tool\.mypy\]\n(.*?)(?=\n\[|\Z)")
-_EXCLUDE_LIST = re.compile(r"(?ms)^exclude = \[\n(.*?)^\]")
-_LIST_ITEM = re.compile(r'^\s*"((?:[^"\\]|\\.)*)",?\s*$', re.MULTILINE)
+# the array's body is quoted strings and whatever sits between them;
+# text inside a string is skipped whole, so an entry's own unescaped
+# `]` -- a regex character class, say -- is never mistaken for the
+# array's closing bracket (issue #510)
+_EXCLUDE_LIST = re.compile(r'(?ms)^exclude = \[((?:"(?:[^"\\]|\\.)*"|[^"\]])*)\]')
+_LIST_ITEM = re.compile(r'"((?:[^"\\]|\\.)*)"')
 
 
-def _mypy_exclude_patterns() -> tuple[str, ...]:
-    section = _MYPY_SECTION.search(_PYPROJECT)
+def _parse_exclude_patterns(pyproject_text: str) -> tuple[str, ...]:
+    section = _MYPY_SECTION.search(pyproject_text)
     assert section is not None, "[tool.mypy] is not in pyproject.toml"
     exclude_list = _EXCLUDE_LIST.search(section.group(1))
     assert exclude_list is not None, "[tool.mypy] carries no exclude list"
     return tuple(_LIST_ITEM.findall(exclude_list.group(1)))
+
+
+def _mypy_exclude_patterns() -> tuple[str, ...]:
+    return _parse_exclude_patterns(_PYPROJECT)
 
 
 def _fold_block_scalar(text: str, after: str) -> str:
@@ -113,6 +138,49 @@ def test_the_exclude_reaches_the_directory_it_names() -> None:
     """A real `build/` output stays out, proving the control has teeth."""
     patterns = _mypy_exclude_patterns()
     assert _excluded("build/lib/bitcoin_core_rpc/version.py", patterns)
+
+
+def test_the_exclude_list_parses_the_sdists_normalized_single_line_shape() -> None:
+    """A single-entry array collapses to one line in `uv_build`'s sdist.
+
+    Measured against a built sdist (issue #510): its normalized
+    `pyproject.toml` carries `exclude = ["^build/"]` on one line, where
+    this tree's own file spans that one entry across several -- the
+    text below is that single-line shape, constructed directly rather
+    than requiring a build to exercise it. A two-entry array stays on
+    several lines in the same build,
+    `test_the_exclude_list_survives_a_bracket_inside_an_entry` below.
+    """
+    text = '[tool.mypy]\nexclude = ["^build/"]\n\n[tool.ruff]\n'
+    assert _parse_exclude_patterns(text) == ("^build/",)
+
+
+def test_the_exclude_list_reads_multiple_entries_on_one_line() -> None:
+    """More than one entry on the array's own line is read too.
+
+    `_LIST_ITEM` finds each quoted string directly rather than
+    assuming one entry per physical line -- a line carrying more than
+    one comma-separated entry, which no build measured here produces
+    but which is valid TOML, is read the same way.
+    """
+    text = '[tool.mypy]\nexclude = ["^build/", "^dist/"]\n\n[tool.ruff]\n'
+    assert _parse_exclude_patterns(text) == ("^build/", "^dist/")
+
+
+def test_the_exclude_list_survives_a_bracket_inside_an_entry() -> None:
+    """An entry's own `]` does not end the array early.
+
+    mypy's exclude values are regexes, this module's own opening line,
+    so a character class such as `[a-z]` is an ordinary entry rather
+    than a syntax error -- an array reader anchored to the first `]`
+    would stop at that entry and silently drop everything after it.
+    """
+    text = (
+        "[tool.mypy]\n"
+        'exclude = [\n    "^build/",\n    "^docs/[a-z]+/",\n    "^dist/",\n]\n'
+        "\n[tool.ruff]\n"
+    )
+    assert _parse_exclude_patterns(text) == ("^build/", "^docs/[a-z]+/", "^dist/")
 
 
 def test_fold_block_scalar_runs_to_the_texts_end_with_no_dedent() -> None:

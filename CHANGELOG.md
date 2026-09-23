@@ -1976,6 +1976,12 @@ contract is stated.
   them** (issue btclib-org/.github#1293): `check-changelog` now runs
   pinned from `btclib-org/.github`, `args: [--grandfathered, "67"]`.
 
+### `mypy_exclude_test.py` reads `[tool.mypy] exclude` on one line too
+
+- **`_EXCLUDE_LIST`'s regex reads `[tool.mypy] exclude` whichever
+  shape it is written in** (closes #510): `uv_build`'s sdist writes a
+  single-entry array on one line, which the previous pattern missed.
+
 ## v2026.9.3
 
 ### Repository
