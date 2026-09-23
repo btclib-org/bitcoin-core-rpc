@@ -1030,10 +1030,11 @@ convention = "pep257"
 [tool.ruff.lint.flake8-copyright]
 # COPYRIGHT transcribed, as section 5 of btclib-org/.github asks of every
 # tree: each line with its regex metacharacters escaped, the lines joined
-# by \n, the whole anchored with ^. tests/copyright_test.py of that
-# repository derives this string from COPYRIGHT and refuses one that is
-# not it byte for byte, which is the check ruff cannot make -- CPY reads
-# the regex and never the file.
+# by \n, anchored with ^ and preceded by an optional #! line so that the
+# notice opens the file or follows the shebang a `language: script` hook
+# needs. tests/copyright_test.py of that repository derives this string
+# from COPYRIGHT and refuses one that is not it byte for byte, which is
+# the check ruff cannot make -- CPY reads the regex and never the file.
 # The pointer form and not the MIT permission notice in full, which the
 # headers here carried until btclib-org/.github#119 decided otherwise for
 # every repository of the organization, this one included: a header
@@ -1043,10 +1044,9 @@ convention = "pep257"
 # else. One notice, the pointer form, is what the section settles on.
 # Anchored with ^: unanchored, a search over the first 4096 bytes is not
 # a check that the notice opens the file, so an import placed above it
-# would still pass. No source file here opens with a shebang, so nothing
-# legitimate sits between byte zero and the notice for the anchor to
-# exclude
-notice-rgx = "^# Copyright \\(c\\) The btclib developers\\n# Distributed under the MIT software license, see the accompanying\\n# LICENSE file or https://opensource\\.org/license/mit for the full text\\."
+# would still pass, and the shebang is the one thing permitted to sit
+# between byte zero and the notice.
+notice-rgx = "^(#![^\\n]*\\n)?# Copyright \\(c\\) The btclib developers\\n# Distributed under the MIT software license, see the accompanying\\n# LICENSE file or https://opensource\\.org/license/mit for the full text\\."
 
 # what ruff's D rules do not reach: they ask that a docstring exists, and
 # this asks that the parameters and the return it names are the ones the
