@@ -1982,6 +1982,12 @@ contract is stated.
   shape it is written in** (closes #510): `uv_build`'s sdist writes a
   single-entry array on one line, which the previous pattern missed.
 
+### `notice-rgx` takes an optional shebang line ahead of the notice
+
+- **`pyproject.toml`'s `flake8-copyright` `notice-rgx` now reads
+  `^(#![^\n]*\n)?` ahead of `COPYRIGHT` transcribed** (issue
+  btclib-org/.github#1294): one shebang line may precede the notice.
+
 ## v2026.9.3
 
 ### Repository
