@@ -1031,9 +1031,9 @@ convention = "pep257"
 # COPYRIGHT transcribed, as section 5 of btclib-org/.github asks of every
 # tree: each line with its regex metacharacters escaped, the lines joined
 # by \n, anchored with ^ and preceded by an optional #! line so that the
-# notice opens the file or follows the shebang a `language: script` hook
-# needs. tests/copyright_test.py of that repository derives this string
-# from COPYRIGHT and refuses one that is not it byte for byte, which is
+# notice opens the file or immediately follows the shebang a script run by
+# path opens with. tests/copyright_test.py of that repository derives this
+# string from COPYRIGHT and refuses one that is not it byte for byte, which is
 # the check ruff cannot make -- CPY reads the regex and never the file.
 # The pointer form and not the MIT permission notice in full, which the
 # headers here carried until btclib-org/.github#119 decided otherwise for
