@@ -633,11 +633,11 @@ result.
    gh attestation verify "$wheel" --repo "$repo" \
      --signer-workflow "$signer" &&
    gh attestation verify "$wheel" --repo "$repo" \
-     --bundle "v${version:?}.attestation.jsonl"
+     --signer-workflow "$signer" --bundle "v${version:?}.attestation.jsonl"
    ```
 
    the first asks the attestations API for the signed statement, the
-   second reads it from the asset and asks nothing — which is what the
+   second reads it from the asset rather than asking the API — which is what the
    bundle is attached for, mirroring the releases page being the case it
    answers. One attestation covers every asset the `attest` job was
    given, so the sdist and the bill of materials verify against the same
