@@ -9,7 +9,7 @@ name: os-ubuntu
 # question about which cells were left out.
 #
 # What the gate does not ask is the point of that split rather than a cost
-# it hides. A regression on 3.10, on arm or on PyPy is not refused before
+# it hides. A regression on 3.11, on arm or on PyPy is not refused before
 # a merge; it sits on main until this runs, at most six days. What the
 # split buys is every pull request: the ceiling on concurrent jobs is
 # shared across every repository in the organization -- REPOSITORY.md's
@@ -84,4 +84,4 @@ jobs:
     uses: btclib-org/.github/.github/workflows/reusable-os-suite.yml@main
     with:
       runners: '["ubuntu-latest", "ubuntu-24.04-arm"]'
-      python-versions: '["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "pypy3.11"]'
+      python-versions: '["3.11", "3.12", "3.13", "3.14", "3.14t", "pypy3.11"]'

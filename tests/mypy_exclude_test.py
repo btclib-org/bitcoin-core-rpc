@@ -23,12 +23,9 @@ This tree carries no standalone `uv run mypy ...` line in
 gate runs only inside `.pre-commit-config.yaml`'s `mypy` hook, so this
 module reads that hook's own `entry:` for the roots and `pyproject.toml`
 for the `exclude` list, rather than importing mypy or invoking
-`pre-commit`, which `test`'s own environment does not carry. The same
-reasoning keeps this a regex rather than a `tomllib` parse: `tomllib`
-is stdlib only from 3.11, and this package's floor is 3.10, so reading
-it would need a fallback parser as a new test dependency for no gain --
-a regex already has to read `.pre-commit-config.yaml`, which is not
-TOML at all.
+`pre-commit`, which `test`'s own environment does not carry. A regex
+reads `pyproject.toml` too, rather than a `tomllib` parse, because one
+already has to read `.pre-commit-config.yaml`, which is not TOML at all.
 
 `_EXCLUDE_LIST` reads the array whichever shape it is written in: this
 tree's own file spans it over several lines, and so does `uv_build`'s

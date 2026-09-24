@@ -82,7 +82,7 @@ jobs:
     uses: btclib-org/.github/.github/workflows/reusable-deps-latest.yml@main
     with:
       runners: '["ubuntu-latest", "macos-latest", "windows-latest"]'
-      python-versions: '["3.10", "3.14"]'
+      python-versions: '["3.11", "3.14"]'
 
   # the check group, for the same reason the packaging checks live in
   # test.yml rather than in the release workflow: a release is the one place

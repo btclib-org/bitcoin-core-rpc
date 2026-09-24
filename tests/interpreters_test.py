@@ -21,11 +21,8 @@ and a test that hard-coded a date would be one more thing to move. What
 it holds is the weaker and checkable claim: whatever the three say, they
 say the same thing.
 
-Read with a regex rather than parsed. `tomllib` arrives in 3.11 and the
-floor here is 3.10, so a test that imported it would fail on the oldest
-interpreter this package claims -- which is one of the things this module
-is about. The workflow is yaml and no group here carries a parser for
-that either.
+Read with a regex rather than parsed. The workflows are yaml, and no
+group here carries a parser for that.
 """
 
 import re
@@ -43,7 +40,7 @@ _WORKFLOWS = sorted((_ROOT / ".github/workflows").glob("*.yml"))
 # rather than one that quietly stops being compared
 _SWEEPS = ("os-macos.yml", "os-ubuntu.yml", "os-windows.yml")
 
-# "3.10" out of `requires-python = ">=3.10"`, the floor and nothing else:
+# "3.11" out of `requires-python = ">=3.11"`, the floor and nothing else:
 # an upper bound is not declared here and would be a different claim
 _FLOOR = re.compile(r'^requires-python = ">=(?P<version>3\.\d+)"', re.MULTILINE)
 # the per-version classifiers, not `:: 3` or `:: 3 :: Only`, which say
@@ -71,7 +68,7 @@ _PYTHONS = re.compile(
 # a string, so the list a caller passes arrives JSON-encoded inside
 # one -- `python-versions: '["3.10", "3.11"]'`, the same shape
 # reusable-deps-oldest.yml's own five callers already establish for
-# one interpreter, `python-version: "3.10"`. Read alongside `_PYTHONS`
+# one interpreter, `python-version: "3.11"`. Read alongside `_PYTHONS`
 # rather than instead of it: `os-macos.yml`, `os-ubuntu.yml` and
 # `os-windows.yml` are all callers now and none still declares the
 # block sequence in this tree, but `_interpreters` below is one reader
@@ -577,7 +574,7 @@ def test_a_caller_shaped_with_reads_the_same_interpreters_as_a_block() -> None:
     now (btclib-org/.github#35). This still constructs the shape
     directly rather than reading it off any of them,
     `reusable-deps-oldest.yml`'s own five callers already establishing
-    it for one interpreter -- `python-version: "3.10"` -- widened the
+    it for one interpreter -- `python-version: "3.11"` -- widened the
     only way a `workflow_call` input can carry a list, JSON-encoded
     inside a quoted string, and checks that `_interpreters` reads it
     the same as the block sequence it stands beside

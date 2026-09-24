@@ -45,6 +45,11 @@ entries is a reading of the file rather than a command.
   now gives section 5's own reason instead -- a script run by path opens with
   its own shebang (issue btclib-org/.github#1294).
 
+### Python 3.10 leaves the supported range, and the floor is 3.11
+
+- **`requires-python` is `>=3.11`**, 3.10's end of life being 2026-10:
+  `SessionTransport.__enter__` returns `Self`, typing's from 3.11.
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
