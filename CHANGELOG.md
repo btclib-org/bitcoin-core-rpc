@@ -39,6 +39,8 @@ entries is a reading of the file rather than a command.
 
 ## v2026.10 (work in progress, not released yet)
 
+## v2026.9.24
+
 ### Section 9's comment and placeholder rules land in this tree's own docs
 
 - **A trailing `#` comment inside a `shell` fence of `CLAUDE.md`,
