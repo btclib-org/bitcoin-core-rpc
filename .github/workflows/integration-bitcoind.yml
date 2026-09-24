@@ -349,18 +349,22 @@ jobs:
     needs: [versions, integration]
     # not success(): a job whose dependencies failed is skipped, and a
     # skipped check reports "skipped", which branch protection counts as
-    # satisfied. The gate has to run to be able to fail. And the draft
-    # condition every job above carries, so a draft skips uniformly rather
-    # than tripping the skip check below -- the closed one for the same
-    # reason, added at the trigger above
+    # satisfied. The gate has to run to be able to fail.
     # not always(): a cancellation of this run itself -- the concurrency
     # group superseding it with a newer push -- would still reach this
     # job and have it fail explicitly, turning a cancellation the newer
     # run already speaks for into a required check with no defect behind
     # it. !cancelled() lets this job be skipped in that case instead,
     # which satisfies the check same as any other skip, while a single
-    # needed job cancelled on its own still fails below
-    if: ${{ !cancelled() && !github.event.pull_request.draft && github.event.action != 'closed' }}
+    # needed job cancelled on its own still fails below.
+    # The draft flag is not part of this condition: a skipped required
+    # check reads as passing, and this job's own check run does not exist
+    # until versions and integration have settled, so declining it here
+    # while draft would leave the draft's skip as the only check of this
+    # name on the sha until a later run's own aggregate exists. The
+    # closed condition stays, added at the trigger above: a closed pull
+    # request has nothing left to become ready (btclib-org/.github#1327)
+    if: ${{ !cancelled() && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -393,14 +397,25 @@ jobs:
       # the gate instead of passing it for not being named
       # (btclib-org/.github#537): neither job below is conditional on
       # anything but the draft/closed guard every job in this file
-      # carries, so a "skipped" reaching this loop is a dependency that
-      # already failed, and it is that dependency's own "failure" the
-      # loop below actually catches.
+      # carries, and the step below fails outright on the draft flag
+      # before this loop ever runs, so a "skipped" reaching this loop is
+      # a dependency that already failed, and it is that dependency's own
+      # "failure" the loop below actually catches.
       #
       # `join(needs.*.result, ',')` interpolates a closed set: each
       # element is one of `success`, `failure`, `cancelled`, `skipped`
       # or absent, all written by GitHub, so no fork-controlled string
       # -- a branch name, a title, a body -- reaches this shell
+      #
+      # a skipped required check reads as passing, so the draft flag
+      # moves from the job's own `if:` above into this first step: the
+      # job still runs while draft, and reports a failure instead of a
+      # skip (btclib-org/.github#1327)
+      - name: Fail while this pull request is a draft
+        if: github.event.pull_request.draft
+        run: |
+          echo "::error::this pull request is a draft"
+          exit 1
       - name: Fail unless every job above succeeded or was legitimately skipped
         run: | # zizmor: ignore[template-injection]
           results='${{ join(needs.*.result, ',') }}'

@@ -78,6 +78,12 @@ The architecture moves there from `CLAUDE.md` and `README.md`, which point
 at it; the assurance case cites the tree for every claim (issue
 btclib-org/.github#1321).
 
+### The three aggregate jobs no longer skip while draft
+
+A skipped required check reads as passing, so `codeql-passed`,
+`integration-passed` and `test-passed` now fail a first step on the
+draft flag instead of skipping on it (issue btclib-org/.github#1327).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
