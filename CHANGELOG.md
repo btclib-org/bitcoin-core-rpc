@@ -67,6 +67,11 @@ entries is a reading of the file rather than a command.
 - **It passes `-s . -s src`**, without which griffe searches only the
   `-a` revision's root and stops at `ModuleNotFoundError` (closes #522).
 
+### `sdist-rebuild.yml` stops passing `attest-signer`
+
+The called workflow verifies against `reusable-attest.yml` alone, so the
+input decides nothing (issue btclib-org/.github#1315).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
