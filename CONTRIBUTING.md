@@ -415,9 +415,9 @@ reach a `dist/` that still has to be handed on:
 ```shell
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
 uv build
-uv run --no-project --python 3.14 .github/scripts/normalize_sdist.py dist/
+uv run --no-project --python 3.15 .github/scripts/normalize_sdist.py dist/
 sha256sum dist/*
-uv run --no-project --python 3.14 .github/scripts/generate_sbom.py dist/ sbom/
+uv run --no-project --python 3.15 .github/scripts/generate_sbom.py dist/ sbom/
 uv run --locked --only-group check twine check --strict dist/*
 uv run --locked --only-group check check-wheel-contents dist/*.whl
 uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
@@ -560,9 +560,9 @@ which is the reliance `REVIEWING.md` provides for.
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `bitcoind` | pull request, push | Core's two ends, then 5 chains |
 | `codeql` | pull request, push to main, and weekly | 2 languages |
-| `os-ubuntu` | weekly, a release | 2 ubuntu images × 6 interpreters |
-| `os-macos` | weekly, a release | 2 macOS images × 6 interpreters |
-| `os-windows` | weekly, a release | 2 Windows images × 6 interpreters |
+| `os-ubuntu` | weekly, a release | 2 ubuntu images × 8 interpreters |
+| `os-macos` | weekly, a release | 2 macOS images × 8 interpreters |
+| `os-windows` | weekly, a release | 2 Windows images × 8 interpreters |
 | `scorecard` | weekly, push to main | — |
 | `deps-latest` | weekly | 3 images × the floor and the ceiling, upgraded |
 | `deps-oldest` | weekly | the floor interpreter, dependencies at their floors |

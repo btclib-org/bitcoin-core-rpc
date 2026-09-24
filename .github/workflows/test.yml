@@ -198,7 +198,7 @@ jobs:
           # the cache holds the wheels uv.lock resolves, which every run
           # of every commit otherwise fetches again
           enable-cache: true
-          # 3.14, i.e. what .python-version pins and what a bare `uv run`
+          # 3.15, i.e. what .python-version pins and what a bare `uv run`
           # gives a maintainer locally: the number this job gates on is a
           # ratio of statements, and the statement count moves between
           # interpreters, so a threshold checked on one version is not the
@@ -206,7 +206,7 @@ jobs:
           # .python-version even so, because the coupling belongs where the
           # gate runs: the fail_under comment in pyproject.toml names this
           # version, and the two have to move together
-          python-version: "3.14"
+          python-version: "3.15"
       # neither --cov nor its report format is repeated here: addopts
       # already carries --cov, and [tool.coverage.report]'s show_missing
       # and skip_covered already give the bare pytest below the same
@@ -309,7 +309,7 @@ jobs:
       # compares it against what PyPI serves
       - name: Rewrite the sdist's member metadata
         run: |
-          uv run --no-project --python 3.14 \
+          uv run --no-project --python 3.15 \
             .github/scripts/normalize_sdist.py dist/
           sha256sum dist/*
       # and what nothing said at all: what the files contain, as a
@@ -323,7 +323,7 @@ jobs:
       # an index takes distribution files
       - name: Write the bill of materials
         run: |
-          uv run --no-project --python 3.14 \
+          uv run --no-project --python 3.15 \
             .github/scripts/generate_sbom.py dist/ sbom/
       # before anything is installed, and that ordering is the point: a
       # step below runs third-party code -- twine, check-wheel-contents
