@@ -72,6 +72,12 @@ entries is a reading of the file rather than a command.
 The called workflow verifies against `reusable-attest.yml` alone, so the
 input decides nothing (issue btclib-org/.github#1315).
 
+### `ARCHITECTURE.md` and `ASSURANCE_CASE.md` join the root
+
+The architecture moves there from `CLAUDE.md` and `README.md`, which point
+at it; the assurance case cites the tree for every claim (issue
+btclib-org/.github#1321).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
