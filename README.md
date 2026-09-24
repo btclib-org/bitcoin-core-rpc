@@ -372,6 +372,15 @@ That marker is why `py.typed` sits inside `src/bitcoin_core_rpc/`: PEP 561
 puts it inside a package directory and nowhere else. `pyproject.toml`
 records what the alternatives were measured to do.
 
+## Architecture
+
+[ARCHITECTURE.md](./ARCHITECTURE.md) is the design: the four modules and
+the one direction their imports run, the transport layer's own refusals,
+how the two JSON-RPC dialects are told apart, and what the suite proves
+against recorded replies versus what a live node adds.
+[ASSURANCE_CASE.md](./ASSURANCE_CASE.md) is the threat model and the
+argument that this design meets it.
+
 ## Security
 
 Basic authentication is cleartext over plain HTTP, that being what Core's

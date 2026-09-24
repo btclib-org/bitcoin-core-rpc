@@ -15,43 +15,13 @@ against.
 
 ## Architecture
 
-A package of four modules under `src/bitcoin_core_rpc/`, `__init__.py`
-itself a facade re-exporting `__all__` rather than defining any of it:
-`errors.py` the exception hierarchy every other module raises out of,
-`chains.py` the chain and network vocabulary, `transport.py` the urllib
-layer, `client.py` the RPC client built on the three beneath it. A
-module may import any of the ones before it in that order and none of
-the ones after — `errors < chains < transport < client` — and none of
-the four takes a dependency outside the standard library. That the
-package stays that way is a rule a contributor is bound by rather than
-a fact about the code, so it is `CONTRIBUTING.md`'s *The one
-constraint*; what follows is what the package is made of.
-
-- every module opens with `COPYRIGHT`'s three lines like every other
-  source file of the organization — the pointer form, whose third line
-  names the URL of the license text — checked by
-  `[tool.ruff.lint.flake8-copyright]` in `pyproject.toml`. There is
-  deliberately no version constant anywhere in the package: the release
-  tag is the version
-- layers, such as they are: `http_request` and `urlopen_transport` open
-  the socket and map everything below an HTTP status onto `FetchError`;
-  `BitcoinCoreRpcClient.call` builds the request, and `_reply_object`,
-  `_legacy_result` and `_v2_result` decide what came back. What a status
-  *means* is the client's question and never the transport's
-- **JSON-RPC 2.0, and 1.1 read back.** Core answers 1.1 by default and
-  2.0 to a request carrying the marker; a node older than v28 does not
-  know the marker and replies 1.1 to it. Under 1.1 an rpc error arrives
-  as the body of an HTTP 500, so the error is read before the status is
-  judged — which is why `_legacy_result` and `_v2_result` are two
-  functions and not one with a flag
-
-The tests: `tests/client_test.py` judges the client,
-`tests/chains_test.py` the chain and network vocabulary,
-`tests/transport_test.py` the urllib layer under it, `tests/census_test.py`
-the package's public surface, documentation and import graph.
-`tests/__init__.py` holds `Recorded`, the transport that answers from
-`tests/_data` and opens no socket — which is what keeps the suite
-hermetic, not the absence of a node.
+[ARCHITECTURE.md](./ARCHITECTURE.md) is the design: the four modules and
+the one direction their imports run, the transport layer's own refusals,
+how JSON-RPC 1.1 and 2.0 are told apart, and what the suite proves
+against recorded replies versus what a live node adds. Read it before
+touching `src/bitcoin_core_rpc/transport.py` or `client.py`'s reply
+discrimination, where a change has both the layering and the two
+protocol versions to keep right.
 
 ## The primary checkout is the maintainer's
 

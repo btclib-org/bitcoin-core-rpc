@@ -24,8 +24,8 @@ import pytest
 import bitcoin_core_rpc
 
 # errors < chains < transport < client, the order stated in each module's
-# own docstring and in CLAUDE.md's architecture section: a module may
-# import any of the ones before it and none of the ones after
+# own docstring and in ARCHITECTURE.md's *Four modules, one direction*: a
+# module may import any of the ones before it and none of the ones after
 _MODULE_ORDER = ("errors", "chains", "transport", "client")
 
 

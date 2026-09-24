@@ -484,7 +484,8 @@ because that document, and not this one, is where the rule lives.
   and under 1.1 an rpc error arrives as the body of an HTTP 500 — which
   is why `_legacy_result` and `_v2_result` are two functions and not one
   with a flag. Folding them is the change to look at hardest, and
-  `CLAUDE.md`'s *Architecture* is where the two are described.
+  [ARCHITECTURE.md](./ARCHITECTURE.md)'s *Two JSON-RPC versions, one
+  client* is where the two are described.
 - Does it keep the boundary the layers draw? The transport maps
   everything below an HTTP status onto `FetchError`; what a status
   *means* is the client's question and never the transport's.
