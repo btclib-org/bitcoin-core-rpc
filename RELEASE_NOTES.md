@@ -12,6 +12,16 @@ in this file — read it before upgrading, rather than a digit.
 
 ## v2026.10 (work in progress, not released yet)
 
+## v2026.9.24
+
+Nothing to act on: the module is the one v2026.9.3 shipped, and its
+public surface did not move.
+
+The GitHub release now carries a CycloneDX bill of materials,
+`bitcoin_core_rpc-2026.9.24.cdx.json`, attested with the distribution
+files. Its `components` list is empty, this distribution declaring no
+dependency.
+
 ## v2026.9.3
 
 Nothing to act on: both additions to the public surface are opt-in.
