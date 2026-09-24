@@ -27,7 +27,7 @@ from http.client import (
 )
 from io import BytesIO
 from types import SimpleNamespace, TracebackType
-from typing import Any
+from typing import Any, Self
 from urllib.error import HTTPError, URLError
 from urllib.request import (
     HTTPHandler,
@@ -117,10 +117,7 @@ class FakeResponse:
         # still one to keep, which is the only thing here that cares
         self.will_close = will_close
 
-    # PYI034 asks for `Self`, which is typing's from 3.11 and this suite's
-    # floor is 3.10. Nothing subclasses this double, so the concrete return
-    # type says exactly what a caller gets
-    def __enter__(self) -> FakeResponse:  # noqa: PYI034
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

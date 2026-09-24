@@ -107,7 +107,7 @@ class HttpError(FetchError):
         self.status = status
         super().__init__(message, status)
 
-    # no @override: typing has it from 3.12, the floor here is 3.10, and
+    # no @override: typing has it from 3.12, the floor here is 3.11, and
     # this file takes nothing outside the standard library
     def __str__(self) -> str:  # type: ignore[explicit-override]
         # the message alone, which is what BaseException returns for a
@@ -229,7 +229,7 @@ class RpcError(FetchError):
         self.data = data
         super().__init__(message, code, data)
 
-    # no @override: typing has it from 3.12, the floor here is 3.10, and
+    # no @override: typing has it from 3.12, the floor here is 3.11, and
     # this file takes nothing outside the standard library
     def __str__(self) -> str:  # type: ignore[explicit-override]
         return f"{self.args[0]} (rpc error code {self.code})"

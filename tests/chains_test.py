@@ -178,12 +178,9 @@ def test_no_absolute_home_is_no_default_datadir_and_no_exception(
     A `HOME` that holds a relative path is the other way, and it raises
     nothing at all.
 
-    `Path.home` is patched, and not the `os.path.expanduser` under it. Some
-    interpreters of the matrix call that function while resolving the home;
-    others bound it to a pathlib accessor when the class was created, and
-    there patching the module attribute is invisible -- written that way,
-    this passed on 3.14 and did not raise at all on 3.10. What
-    `default_datadir` reads is `Path.home`, so that is what this arranges.
+    `Path.home` is patched, and not the `os.path.expanduser` under it:
+    what `default_datadir` reads is `Path.home`, so that is what this
+    arranges.
 
     The platform is one whose base is the home, `Path.home` being what
     there is to make fail: `APPDATA` is the Windows base and has its own

@@ -92,14 +92,9 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
-# 3.10 rather than 3.9, and the usual reason -- a split lock file -- is not
-# this project's, which resolves no runtime dependency at all. What decides
-# it is the type checker: 3.10 is the oldest mypy can be aimed at ("Python
-# 3.9 is not supported (must be 3.10 or higher)"), so a floor below it
-# would be a floor nothing static ever checks, on a package whose whole
-# surface is annotations a caller type checks against. 3.9 is also
-# end-of-life since 2025-10
-requires-python = ">=3.10"
+# 3.11: section 1 of btclib-org/.github requires a published release to
+# support every Python not at end of life, and 3.10's ends in 2026-10
+requires-python = ">=3.11"
 # none, and that is the product rather than an omission: `errors.py`,
 # `chains.py`, `transport.py` and `client.py` between them import `json`,
 # `base64`, `decimal`, `pathlib`, `secrets` and `urllib.request`, all of
@@ -131,7 +126,6 @@ keywords = [
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -227,7 +221,7 @@ test = [
     "pytest-randomly>=5.0.0",
     "pytest-xdist>=3.8.0",
     # `override` for the test doubles: typing has it from 3.12 and the
-    # interpreter floor is 3.10. The package itself cannot take it either
+    # interpreter floor is 3.11. The package itself cannot take it either
     # way -- census_test.py reads the imports of every module and refuses
     # any outside the standard library
     "typing-extensions>=4.16.0",
@@ -552,7 +546,7 @@ addopts = "-ra --cov --durations=8 --strict-config --strict-markers"
 # as broken: strict turns it red instead of reporting xpass
 xfail_strict = true
 # a deprecation warning is the early form of a break, emitted years before
-# the removal that will fail the suite: on a 3.10 to 3.14 spread, plus
+# the removal that will fail the suite: on a 3.11 to 3.14 spread, plus
 # pypy, there is time to act on it only if it is not silent. It is not
 # theoretical for a module built on `urllib.request`, whose opener and
 # handler api this one reaches into.
@@ -703,15 +697,15 @@ enable_error_code = [
 # rather than a blanket exemption that would silence the check
 # everywhere the sites are legitimate
 warn_unreachable = true
-# the oldest interpreter this package supports, and also the oldest mypy
-# can be aimed at. Keep the key: without it mypy targets whatever runs it,
-# i.e. the 3.14 of .python-version, and a typing construct missing from the
-# floor is then invisible. An annotation is not evaluated under "from
-# __future__ import annotations", but a type *alias* is an ordinary
-# assignment, so `HttpTransport` is a line no annotation rule covers and
-# only a checker aimed at the floor reads correctly. Ruff needs no
-# equivalent, inferring py310 from requires-python
-python_version = "3.10"
+# the oldest interpreter this package supports. Keep the key: without it
+# mypy targets whatever runs it, i.e. the 3.14 of .python-version, and a
+# typing construct missing from the floor is then invisible. An
+# annotation is not evaluated under "from __future__ import annotations",
+# but a type *alias* is an ordinary assignment, so `HttpTransport` is a
+# line no annotation rule covers and only a checker aimed at the floor
+# reads correctly. Ruff needs no equivalent, inferring py311 from
+# requires-python
+python_version = "3.11"
 # mypy's own crawl runs this through re.search, unanchored, against
 # every path it walks -- so a bare "build" also caught
 # .github/scripts/wait_for_readthedocs_build.py and

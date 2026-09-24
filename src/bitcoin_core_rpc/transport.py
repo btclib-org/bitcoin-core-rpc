@@ -25,7 +25,7 @@ from math import isfinite
 from select import select
 from threading import Lock
 from time import monotonic
-from typing import IO, Any, Protocol
+from typing import IO, Any, Protocol, Self
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -175,7 +175,7 @@ class _NoRedirect(HTTPRedirectHandler):
     # the seven positional parameters are urllib's own, not chosen here:
     # this overrides HTTPRedirectHandler.redirect_request, and a subclass
     # matches the base method's signature rather than shortening it.
-    # No @override: typing has it from 3.12, the floor here is 3.10, and
+    # No @override: typing has it from 3.12, the floor here is 3.11, and
     # this file takes nothing outside the standard library
     def redirect_request(  # type: ignore[explicit-override]  # noqa: PLR0917
         self,
@@ -927,10 +927,7 @@ class SessionTransport:
                 connection.close()
             self._connections.clear()
 
-    # PYI034 asks for `Self`, which is typing's from 3.11 and this
-    # package's floor is 3.10 -- the same reason `tests/transport_test.py`
-    # gives for the same suppression on a test double's own `__enter__`
-    def __enter__(self) -> SessionTransport:  # noqa: PYI034
+    def __enter__(self) -> Self:
         """Return self, so `with SessionTransport() as transport:` works."""
         return self
 

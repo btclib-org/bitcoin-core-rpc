@@ -343,7 +343,7 @@ before committing — the `uv run pre-commit run --all-files` above.
 
 **Prefix any `--python <version>` command with
 `UV_PROJECT_ENVIRONMENT=.venv-<version>`, naming the interpreter that
-command selects — `.venv-3.10` for `--python 3.10`, `.venv-pypy3.11` for
+command selects — `.venv-3.11` for `--python 3.11`, `.venv-pypy3.11` for
 `--python pypy3.11`.** Without it, `uv run --python <version>` removes
 `.venv`, builds it again on that interpreter and with that command's own
 group set, and leaves it there: a run given `--no-default-groups --group
@@ -511,8 +511,8 @@ with one built on that interpreter and the restricted group set and leaves
 it there, which *The environment and the gates* above has:
 
 ```shell
-UV_PROJECT_ENVIRONMENT=.venv-3.10 uv run --locked --no-default-groups \
-    --group test --python 3.10 pytest --no-cov
+UV_PROJECT_ENVIRONMENT=.venv-3.11 uv run --locked --no-default-groups \
+    --group test --python 3.11 pytest --no-cov
 ```
 
 On `pypy3.11` `--no-cov` guards against a measured defect rather than
@@ -560,9 +560,9 @@ which is the reliance `REVIEWING.md` provides for.
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `bitcoind` | pull request, push | Core's two ends, then 5 chains |
 | `codeql` | pull request, push to main, and weekly | 2 languages |
-| `os-ubuntu` | weekly, a release | 2 ubuntu images × 7 interpreters |
-| `os-macos` | weekly, a release | 2 macOS images × 7 interpreters |
-| `os-windows` | weekly, a release | 2 Windows images × 7 interpreters |
+| `os-ubuntu` | weekly, a release | 2 ubuntu images × 6 interpreters |
+| `os-macos` | weekly, a release | 2 macOS images × 6 interpreters |
+| `os-windows` | weekly, a release | 2 Windows images × 6 interpreters |
 | `scorecard` | weekly, push to main | — |
 | `deps-latest` | weekly | 3 images × the floor and the ceiling, upgraded |
 | `deps-oldest` | weekly | the floor interpreter, dependencies at their floors |

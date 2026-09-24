@@ -1,12 +1,10 @@
 # The interpreter uv picks by default, and the one the merge gate pins to
 # match: the newest the package supports, not the oldest. requires-python
-# is ">=3.10", and both linters are aimed at that end deliberately -- ruff
-# infers py310 from requires-python, and pyproject.toml pins mypy to
-# python_version = "3.10" to match it. So a bare "uv run" here means "the
+# is ">=3.11", and both linters are aimed at that end deliberately -- ruff
+# infers py311 from requires-python, and pyproject.toml pins mypy to
+# python_version = "3.11" to match it. So a bare "uv run" here means "the
 # newest", and running the oldest is the weekly platform sweeps' job while
-# checking it is the two linters'. Since 3.9 was dropped
-# they aim at the same version the floor names, which is what the comment
-# on [tool.mypy] is about.
+# checking it is the two linters'.
 #
 # A whole-line comment only: uv skips one of these, but a trailing comment
 # on the version line makes it ignore the file with "Ignoring unsupported
