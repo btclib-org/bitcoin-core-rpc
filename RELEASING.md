@@ -256,8 +256,15 @@ result.
 
    ```shell
    uv run --locked --with griffe griffe check bitcoin_core_rpc \
-       -a v<previous version>
+       -s . -s src -a v<previous version>
    ```
+
+   griffe reads the `-a` revision from a temporary git worktree and
+   resolves each `-s` search path against that worktree's root, which is
+   the only path it searches when none is given. `src` is where the package
+   sits in the tree, and `.` is where it sits at the two revisions of the
+   control below. Drop either and one of the two runs fails with
+   `ModuleNotFoundError` rather than answering.
 
    It reports breakage only: a public object removed, a parameter that
    changed kind or default, an attribute whose value moved. An addition is
