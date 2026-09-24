@@ -55,18 +55,29 @@ a build provenance attestation of their own, signed in the run that built
 them:
 
 ```shell
+repo=btclib-org/bitcoin-core-rpc
+signer=btclib-org/.github/.github/workflows/reusable-attest.yml
 gh attestation verify bitcoin_core_rpc-<version>-py3-none-any.whl \
-  --repo btclib-org/bitcoin-core-rpc \
-  --signer-workflow btclib-org/bitcoin-core-rpc/.github/workflows/release.yml
+  --repo "$repo" --signer-workflow "$signer"
 ```
 
-`--signer-workflow` is what makes that say which workflow signed, rather
-than accepting any attestation this repository has. The signed statement
-is attached to the release as well, as `<tag>.attestation.jsonl`, so
-`--bundle <tag>.attestation.jsonl` runs the same check reading it from
-disk instead of asking GitHub for it. One attestation covers the wheel,
-the sdist and the bill of materials; the bundle is that attestation and
-is not among its subjects.
+`--signer-workflow` names the workflow that signed. From v2026.9.24 on
+that is the organization's `reusable-attest.yml`, which this repository's
+`release.yml` calls: an attestation made inside a called workflow names
+the callee as its signer, while `--repo` still names this repository as
+the source. For those releases the flag is required rather than a
+narrowing, the command refusing a genuine release without it. Through
+v2026.9.3 the signer is `release.yml` itself, so for those releases
+`signer` is `"$repo/.github/workflows/release.yml"`, and there the flag
+narrows what passes: without it an attestation from any workflow in this
+repository is accepted. Neither path verifies a release the other
+signed. The PEP 740 attestations on PyPI name `release.yml`, the job
+that uploads there being its own rather than a called workflow's. The
+signed statement for the GitHub release is attached to it as well, as
+`<tag>.attestation.jsonl`, so `--bundle <tag>.attestation.jsonl` runs the
+same check reading it from disk instead of asking GitHub for it. One
+attestation covers the wheel, the sdist and the bill of materials; the
+bundle is that attestation and is not among its subjects.
 
 A CycloneDX 1.6 bill of materials is attached beside them,
 `bitcoin_core_rpc-<version>.cdx.json`: the two files with their SHA-256,
