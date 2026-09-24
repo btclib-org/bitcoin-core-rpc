@@ -56,6 +56,12 @@ entries is a reading of the file rather than a command.
   called workflow as the signer**, the path of `release.yml` kept for
   v2026.9.3 and earlier, which it signed (issue btclib-org/.github#1301).
 
+### The badge row ends with the OpenSSF Best Practices badge
+
+- **Project 14815 at bestpractices.dev, after the Scorecard badge**, where
+  section 2 of the organization standard places it for a tree section 10's
+  `scorecard` entry names, as it names this one (issue btclib-org/.github#350).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
