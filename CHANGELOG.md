@@ -39,6 +39,12 @@ entries is a reading of the file rather than a command.
 
 ## v2026.10 (work in progress, not released yet)
 
+### `notice-rgx`'s comment drops the hook this tree carries none of
+
+- The comment cited a `language: script` hook this tree carries none of; it
+  now gives section 5's own reason instead -- a script run by path opens with
+  its own shebang (issue btclib-org/.github#1294).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
