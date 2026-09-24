@@ -62,6 +62,11 @@ entries is a reading of the file rather than a command.
   section 2 of the organization standard places it for a tree section 10's
   `scorecard` entry names, as it names this one (issue btclib-org/.github#350).
 
+### `RELEASING.md`'s griffe command finds the package under `src/`
+
+- **It passes `-s . -s src`**, without which griffe searches only the
+  `-a` revision's root and stops at `ModuleNotFoundError` (closes #522).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
