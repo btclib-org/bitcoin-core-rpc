@@ -50,6 +50,12 @@ entries is a reading of the file rather than a command.
 - **`requires-python` is `>=3.11`**, 3.10's end of life being 2026-10:
   `SessionTransport.__enter__` returns `Self`, typing's from 3.11.
 
+### The attestation's signer is `reusable-attest.yml` from v2026.9.24 on
+
+- **`RELEASING.md`, `SECURITY.md` and `sdist-rebuild.yml` name the
+  called workflow as the signer**, the path of `release.yml` kept for
+  v2026.9.3 and earlier, which it signed (issue btclib-org/.github#1301).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

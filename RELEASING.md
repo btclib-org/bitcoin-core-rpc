@@ -629,8 +629,9 @@ result.
    gh release download "v${version:?}" --repo btclib-org/bitcoin-core-rpc &&
    wheel=bitcoin_core_rpc-${version:?}-py3-none-any.whl &&
    repo=btclib-org/bitcoin-core-rpc &&
+   signer=btclib-org/.github/.github/workflows/reusable-attest.yml &&
    gh attestation verify "$wheel" --repo "$repo" \
-     --signer-workflow "$repo/.github/workflows/release.yml" &&
+     --signer-workflow "$signer" &&
    gh attestation verify "$wheel" --repo "$repo" \
      --bundle "v${version:?}.attestation.jsonl"
    ```
@@ -644,8 +645,15 @@ result.
 
    `--signer-workflow` is the flag that makes the check say *which*
    workflow signed: without it a valid attestation from any workflow in
-   the repository passes. Neither form is offline on its own — the
-   Sigstore trusted root comes over the network unless
+   the repository passes. `signer` names the workflow that signed: from
+   v2026.9.24 on that is the organization's `reusable-attest.yml`, which
+   `release.yml`'s `attest` job calls — an attestation made inside a
+   called workflow names the callee, not the caller, while `--repo`
+   still names this repository as the source. Through v2026.9.3 the
+   signer was `release.yml` itself, so for one of those releases
+   `signer` is `"$repo/.github/workflows/release.yml"`; neither path
+   verifies a release the other signed. Neither form is offline on its
+   own — the Sigstore trusted root comes over the network unless
    `gh attestation trusted-root > trusted_root.jsonl` fetched it earlier
    and `--custom-trusted-root` points at it.
 
@@ -700,13 +708,22 @@ uv run --no-project --python 3.14 \
 uv run --no-project --python 3.14 \
   .github/scripts/generate_sbom.py dist/ sbom/ &&
 repo=btclib-org/bitcoin-core-rpc &&
+signer=btclib-org/.github/.github/workflows/reusable-attest.yml &&
 gh attestation verify "dist/bitcoin_core_rpc-${version:?}-py3-none-any.whl" \
-  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml" &&
+  --repo "$repo" --signer-workflow "$signer" &&
 gh attestation verify "dist/bitcoin_core_rpc-${version:?}.tar.gz" \
-  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml" &&
+  --repo "$repo" --signer-workflow "$signer" &&
 gh attestation verify "sbom/bitcoin_core_rpc-${version:?}.cdx.json" \
-  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
+  --repo "$repo" --signer-workflow "$signer"
 ```
+
+`signer` is the workflow that signed the tag's attestation, which is
+`reusable-attest.yml` from v2026.9.24 on, and for those tags
+`--signer-workflow` is required: without it the command refuses the
+release. A tag through v2026.9.3 was signed by `release.yml` itself, and
+for one of those `signer` is `"$repo/.github/workflows/release.yml"`,
+the flag there only narrowing what passes. Each path verifies only the
+releases its own workflow signed.
 
 The bill of materials is rebuilt with them and verified like them: its
 timestamp is `SOURCE_DATE_EPOCH` and its serial number is derived from
