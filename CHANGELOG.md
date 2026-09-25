@@ -119,6 +119,12 @@ has no `.git` for its git commands (issue btclib-org/.github#1352).
 the published wheel names and verifies the sdist first: a wheel that
 disagrees stops the chain after it (issue btclib-org/btclib-node#1063).
 
+### `pypi` and `testpypi` name three reviewers, not one
+
+`RELEASING.md` named `fametrano` alone; `pypi` and `testpypi` now
+require a review from any of `fametrano`, `giacomocaironi` and
+`pmazzocchi` (issue btclib-org/.github#1355).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

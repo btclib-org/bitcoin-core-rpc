@@ -96,23 +96,24 @@ one, and TestPyPI's rehearsal does the same there.
    with environment `testpypi`.
 
 1. In the GitHub repository settings, create the `pypi` and `testpypi`
-   environments. Both require a review from `fametrano`, so neither
-   index is uploaded to without a human approving that run; `publish-pypi`
-   and `publish-testpypi` are the only holders of `id-token: write` that
-   carry one of these two environments, and this is the gate in front of
-   them. `attest` holds `id-token: write` too, for its own Sigstore
-   exchange, but no environment of its own — what gates it instead is
-   `needs: [publish-pypi, publish-testpypi]`, so it never runs before one
-   of the two reviewed jobs already has. `pypi` is additionally restricted
-   to `v*` tags, which is the only ref its job runs on anyway — the
-   restriction is what makes that true of the environment and not just
-   of an `if:` in a file a pull request could change.
+   environments. Both require a review from one of the three organization
+   owners — `fametrano`, `giacomocaironi`, `pmazzocchi` — so neither
+   index is uploaded to without one of them approving that run;
+   `publish-pypi` and `publish-testpypi` are the only holders of
+   `id-token: write` that carry one of these two environments, and this
+   is the gate in front of them. `attest` holds `id-token: write` too,
+   for its own Sigstore exchange, but no environment of its own — what
+   gates it instead is `needs: [publish-pypi, publish-testpypi]`, so it
+   never runs before one of the two reviewed jobs already has. `pypi` is
+   additionally restricted to `v*` tags, which is the only ref its job
+   runs on anyway — the restriction is what makes that true of the
+   environment and not just of an `if:` in a file a pull request could
+   change.
 
-   Self-review stays allowed on purpose: the maintainer who pushes the
-   tag is the reviewer, and forbidding it would deadlock a
-   one-maintainer release. The approval is a confirmation step, not a
-   second pair of eyes; it becomes one as soon as there is a second
-   reviewer to add.
+   Self-review stays allowed: `prevent_self_review` is false on both
+   environments, so whoever pushed the tag may approve its run without
+   waiting on another owner. The approval is then a confirmation step;
+   it is a second pair of eyes when another owner gives it.
 
 ## Rehearse on TestPyPI
 
