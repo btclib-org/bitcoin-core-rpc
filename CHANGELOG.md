@@ -125,6 +125,11 @@ disagrees stops the chain after it (issue btclib-org/btclib-node#1063).
 require a review from any of `fametrano`, `giacomocaironi` and
 `pmazzocchi` (issue btclib-org/.github#1355).
 
+### `README.md` and `CONTRIBUTING.md` link `GOVERNANCE.md` and `ROADMAP.md`
+
+Both point a contributor at the organization's one copy of each, in
+`btclib-org/.github` (issue btclib-org/.github#1359).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
