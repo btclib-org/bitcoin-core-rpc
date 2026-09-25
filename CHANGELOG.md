@@ -113,6 +113,12 @@ hook on that interpreter (issue btclib-org/.github#1348).
 the tag, clean by construction, and drops the `git archive` export, which
 has no `.git` for its git commands (issue btclib-org/.github#1352).
 
+### The rebuild of a release builds under the release's own uv
+
+`RELEASING.md`'s *Rebuild a release from its tag* builds under the uv
+the published wheel names and verifies the sdist first: a wheel that
+disagrees stops the chain after it (issue btclib-org/btclib-node#1063).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
