@@ -102,6 +102,11 @@ Its image does not carry the interpreter `.python-version` names, and with
 no network there the hook fails downloading it; the lint workflow runs the
 hook on that interpreter (issue btclib-org/.github#1348).
 
+### The rebuild of a release names the interpreter its tag pinned
+
+`RELEASING.md`'s *Rebuild a release from its tag* reads it from the tag's
+`.python-version` rather than naming one (issue btclib-org/.github#1349).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
