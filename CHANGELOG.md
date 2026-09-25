@@ -130,6 +130,11 @@ require a review from any of `fametrano`, `giacomocaironi` and
 Both point a contributor at the organization's one copy of each, in
 `btclib-org/.github` (issue btclib-org/.github#1359).
 
+### `REVIEWING.md` lets a filed issue carry its fix
+
+An issue filed from a review may now say the fix where one is known;
+the filing bar stands as it was (issue btclib-org/.github#1378).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
