@@ -90,6 +90,12 @@ draft flag instead of skipping on it (issue btclib-org/.github#1327).
   `.readthedocs.yaml` stays on 3.14, read the docs offering nothing newer
   (issue btclib-org/.github#1324).
 
+### `sdist-rebuild.yml`'s comment names `setup-python`, not `python-version`
+
+It named `python-version`, an input the called workflow does not declare, and
+called the defaults what this file built before, a bare `uv build`; it names
+`setup-python` and what the defaults build (issue btclib-org/.github#1346).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
