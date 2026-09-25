@@ -58,7 +58,7 @@ jobs:
     permissions:
       contents: read
       attestations: read # gh attestation verify reads the attestations API with it
-    # sdist-builder, submodules and python-version all take their
-    # defaults -- "uv", "" and "" -- which is exactly what this file
-    # built before this conversion
+    # sdist-builder, submodules and setup-python all take their
+    # defaults -- "uv", "" and false: `uv build --sdist`, no submodules
+    # and no setup-python step
     uses: btclib-org/.github/.github/workflows/reusable-sdist-rebuild.yml@main
