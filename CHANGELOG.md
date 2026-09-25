@@ -113,6 +113,12 @@ hook on that interpreter (issue btclib-org/.github#1348).
 the tag, clean by construction, and drops the `git archive` export, which
 has no `.git` for its git commands (issue btclib-org/.github#1352).
 
+### `REVIEWING.md` links Conventional Comments at its GitLab Pages address
+
+`REVIEWING.md` links `https://conventionalcomments.gitlab.io/`, a name the
+`*.gitlab.io` certificate covers, which `conventionalcomments.org` can present
+and fail the TLS check (issue btclib-org/.github#1341).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
