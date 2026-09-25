@@ -130,6 +130,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Development Status :: 4 - Beta",
@@ -546,7 +547,7 @@ addopts = "-ra --cov --durations=8 --strict-config --strict-markers"
 # as broken: strict turns it red instead of reporting xpass
 xfail_strict = true
 # a deprecation warning is the early form of a break, emitted years before
-# the removal that will fail the suite: on a 3.11 to 3.14 spread, plus
+# the removal that will fail the suite: on a 3.11 to 3.15 spread, plus
 # pypy, there is time to act on it only if it is not silent. It is not
 # theoretical for a module built on `urllib.request`, whose opener and
 # handler api this one reaches into.
@@ -661,7 +662,7 @@ precision = 2
 # pragma under it -- `.github/scripts/rpc_smoke.py` is this tree's --
 # while the inline half goes on naming the case. Section 8 of
 # btclib-org/.github is where that is decided for every repository
-# Measured on one interpreter, 3.14, and on one operating system, and that
+# Measured on one interpreter, 3.15, and on one operating system, and that
 # is enough at 100: there is no sys.version_info branch in this tree, and
 # the one sys.platform branch -- the datadir table in `default_datadir` --
 # is driven by patching `sys.platform`, so a run on any of them walks all
@@ -698,7 +699,7 @@ enable_error_code = [
 # everywhere the sites are legitimate
 warn_unreachable = true
 # the oldest interpreter this package supports. Keep the key: without it
-# mypy targets whatever runs it, i.e. the 3.14 of .python-version, and a
+# mypy targets whatever runs it, i.e. the 3.15 of .python-version, and a
 # typing construct missing from the floor is then invisible. An
 # annotation is not evaluated under "from __future__ import annotations",
 # but a type *alias* is an ordinary assignment, so `HttpTransport` is a

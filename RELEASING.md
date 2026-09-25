@@ -710,9 +710,9 @@ environment and refuse to run without it.
 git checkout "v${version:?}" &&
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) &&
 uv build &&
-uv run --no-project --python 3.14 \
+uv run --no-project --python 3.15 \
   .github/scripts/normalize_sdist.py dist/ &&
-uv run --no-project --python 3.14 \
+uv run --no-project --python 3.15 \
   .github/scripts/generate_sbom.py dist/ sbom/ &&
 repo=btclib-org/bitcoin-core-rpc &&
 signer=btclib-org/.github/.github/workflows/reusable-attest.yml &&

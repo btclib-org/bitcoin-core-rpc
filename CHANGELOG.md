@@ -84,6 +84,12 @@ A skipped required check reads as passing, so `codeql-passed`,
 `integration-passed` and `test-passed` now fail a first step on the
 draft flag instead of skipping on it (issue btclib-org/.github#1327).
 
+### Python 3.15 is the pin, on its release candidate
+
+- **A classifier and the platform sweeps name 3.15 too**, and
+  `.readthedocs.yaml` stays on 3.14, read the docs offering nothing newer
+  (issue btclib-org/.github#1324).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

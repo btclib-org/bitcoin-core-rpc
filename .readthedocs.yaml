@@ -30,12 +30,13 @@
 version: 2
 
 # the interpreter is declared rather than left to whatever read the docs
-# defaults to: conf.py reads the version and the project name out of
-# pyproject.toml with tomllib, which is standard library from 3.11 on. Which
-# version above that floor is `.python-version`'s to say, 3.14 -- these
-# docs are built twice, here and by docs.yml, and one interpreter is what
-# keeps the build read on the website and the build that gates a merge from
-# being two different questions
+# defaults to, and it is the one `pip install uv` below runs on rather than
+# the one the docs are built on. sphinx-build runs in the environment
+# `uv sync` makes, on the interpreter `.python-version` pins, which is what
+# docs.yml builds on too -- these docs are built twice, and one interpreter
+# is what keeps the build read on the website and the build that gates a
+# merge from being two different questions. 3.14 rather than that pin,
+# because build.tools.python offers nothing newer
 build:
   os: ubuntu-24.04
   tools:
