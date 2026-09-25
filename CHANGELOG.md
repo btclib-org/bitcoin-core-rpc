@@ -96,6 +96,12 @@ It named `python-version`, an input the called workflow does not declare, and
 called the defaults what this file built before, a bare `uv build`; it names
 `setup-python` and what the defaults build (issue btclib-org/.github#1346).
 
+### pre-commit.ci skips `uv-lock`
+
+Its image does not carry the interpreter `.python-version` names, and with
+no network there the hook fails downloading it; the lint workflow runs the
+hook on that interpreter (issue btclib-org/.github#1348).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
