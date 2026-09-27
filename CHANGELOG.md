@@ -141,6 +141,18 @@ A json array or object as a reply `id` is a `FetchError`, a generator a batch,
 and a member that is no pair or a str or non-iterable `calls` is a
 `BtcRpcTypeError`, `None` and `""` included (closes #546) (closes #547).
 
+### `SessionTransport` sends a request once when the read fails
+
+Where a reused connection closed after the whole request was written, the
+request went out again, though the node may have executed it; that is now a
+`FetchError`, and only a failed write is sent again (closes #541).
+
+### `SessionTransport` probes a kept connection with `select.poll`
+
+`select.select` raised `ValueError` on a reused socket whose descriptor was
+at or above `FD_SETSIZE`; the probe falls back to it only where `poll` does
+not exist, as on Windows (closes #552).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

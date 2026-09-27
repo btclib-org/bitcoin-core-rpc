@@ -12,6 +12,7 @@ asked.
 
 from __future__ import annotations
 
+import select
 import socket
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -1319,12 +1320,12 @@ def _connection_factory(
 def _patch_reuse_probe(monkeypatch: pytest.MonkeyPatch, *, dead: bool) -> None:
     """Make every reused-connection probe answer `dead`, no real socket asked.
 
-    `select.select` needs a real file descriptor, which `FakeConnection`'s
+    The probe needs a real file descriptor, which `FakeConnection`'s
     socket does not have; this replaces `_is_reused_connection_dead`
     itself instead, the same seam-by-monkeypatch `monotonic` already is
     elsewhere in this file. `test_is_reused_connection_dead_reads_a_real_
-    socket` is where the probe's own `select` call is exercised instead
-    of assumed.
+    socket` is where the probe's own `poll` and `select` calls are
+    exercised instead of assumed.
     """
     monkeypatch.setattr(
         transport_module, "_is_reused_connection_dead", lambda connection: dead
@@ -1347,15 +1348,23 @@ def test_two_calls_to_the_same_host_reuse_one_connection(
     assert connection.closed is False
 
 
-def test_is_reused_connection_dead_reads_a_real_socket() -> None:
+@pytest.mark.parametrize("without_poll", [False, True])
+def test_is_reused_connection_dead_reads_a_real_socket(
+    monkeypatch: pytest.MonkeyPatch, *, without_poll: bool
+) -> None:
     """The probe itself, against a real socket pair rather than a fake.
 
     A live, idle socket reports not dead; the same socket after its peer
-    closes its own end reports dead -- `select.select` sees the read end
-    of a closed connection as read-ready with nothing sent to it, which
-    is the one thing this probe is asked to tell apart from a live
-    connection's own silence.
+    closes its own end reports dead -- the read end of a closed
+    connection is read-ready with nothing sent to it, which is the one
+    thing this probe is asked to tell apart from a live connection's own
+    silence. Asked twice: through `select.poll`, and with `poll` taken
+    away, through the `select.select` a platform without it -- Windows --
+    falls back to.
     """
+    if without_poll:
+        # `raising=False`: on Windows there is no `poll` to take away
+        monkeypatch.delattr(select, "poll", raising=False)
     readable_end, peer = socket.socketpair()
     try:
         connection = SimpleNamespace(sock=readable_end)
@@ -1366,14 +1375,53 @@ def test_is_reused_connection_dead_reads_a_real_socket() -> None:
         readable_end.close()
 
 
+def test_the_probe_reads_a_descriptor_select_refuses() -> None:
+    """A descriptor at `FD_SETSIZE` or above is probed like any other.
+
+    `select.select` answers such a descriptor with a `ValueError` outside
+    Windows -- the control below, taken on the very socket the probe is
+    then asked about -- so a process holding that many open files could
+    not reuse a connection at all. `fcntl` and `resource` are POSIX
+    modules, and Windows' `select` does not bound a descriptor's value.
+    """
+    fcntl = pytest.importorskip("fcntl")
+    resource = pytest.importorskip("resource")
+    # 1024 is `FD_SETSIZE` on Linux and on macOS alike; `F_DUPFD` answers
+    # the lowest free descriptor at or above it rather than replacing one
+    # the process already holds, and the soft limit is raised only where
+    # it would refuse that descriptor
+    fd_setsize = 1024
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (max(soft, fd_setsize + 1), hard))
+    readable_end, peer = socket.socketpair()
+    try:
+        high = socket.socket(
+            fileno=fcntl.fcntl(readable_end.fileno(), fcntl.F_DUPFD, fd_setsize)
+        )
+        try:
+            assert high.fileno() >= fd_setsize
+            with pytest.raises(ValueError, match="out of range"):
+                select.select([high], [], [], 0)
+            connection = SimpleNamespace(sock=high)
+            assert transport_module._is_reused_connection_dead(connection) is False
+            peer.close()
+            assert transport_module._is_reused_connection_dead(connection) is True
+        finally:
+            high.close()
+    finally:
+        readable_end.close()
+        peer.close()
+        resource.setrlimit(resource.RLIMIT_NOFILE, (soft, hard))
+
+
 def test_a_dead_socket_found_at_reuse_is_evicted_before_any_send(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A probe that finds the kept socket already readable evicts it first.
 
     Nothing is sent on the evicted connection at all -- unlike the
-    reconnect elsewhere in this file, which sends once knowing the first
-    attempt already reached the wire -- so the second connection
+    reconnect elsewhere in this file, which sends again knowing the first
+    attempt never reached the wire in full -- so the second connection
     answering is the ordinary fresh-connection case, not a retried one.
     """
     monkeypatch.setattr(
@@ -1469,7 +1517,7 @@ def test_the_reconnect_is_given_what_is_left_of_the_deadline(
     _patch_reuse_probe(monkeypatch, dead=False)
     stale = FakeConnection(
         FakeResponse(200, b"first"),
-        _ResponseFails(RemoteDisconnected("gone")),
+        _RequestFails(BrokenPipeError("gone")),
     )
     fresh = FakeConnection(FakeResponse(200, b"second"))
     connections = iter((stale, fresh))
@@ -1514,34 +1562,39 @@ def test_a_deadline_already_spent_refuses_the_connect(
     assert connection.requests == []
 
 
-def test_the_stale_reconnect_sends_the_request_once_and_only_once(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize(
+    "error",
+    [
+        RemoteDisconnected("Remote end closed connection without response"),
+        ConnectionResetError("reset while reading the response"),
+    ],
+)
+def test_a_drop_after_the_write_is_not_re_sent(
+    monkeypatch: pytest.MonkeyPatch, error: Exception
 ) -> None:
-    """The probe passes, and the drop still surfaces reading the response.
+    """The probe passes, the write goes through, and the read fails.
 
-    The probe is answered `False` here on purpose: this is the narrower
-    window it does not catch, the connection dying after the probe and
-    the write both go through, `getresponse()` rather than `request()`
-    being where it then surfaces, `RemoteDisconnected` being the class
-    docstring's own signal for that.
+    The whole request has been written by then, and a node that executed
+    it and closed before answering produces the `RemoteDisconnected`
+    scripted here -- a wallet command sent again could run twice. So
+    whatever the read
+    raises reaches the caller, from a reused connection as from a fresh
+    one, and `http_request` reports it as a `FetchError`. The factory
+    has this one connection to give, so a re-send would be this test's
+    own `IndexError` rather than the `FetchError` asserted.
     """
     _patch_reuse_probe(monkeypatch, dead=False)
-    stale = FakeConnection(
-        FakeResponse(200, b"first"),
-        _ResponseFails(RemoteDisconnected("Remote end closed connection")),
-    )
-    fresh = FakeConnection(FakeResponse(200, b"second"))
-    transport = SessionTransport(connection_factory=_connection_factory(stale, fresh))
-    request = Request(URL, method="GET")
+    stale = FakeConnection(FakeResponse(200, b"first"), _ResponseFails(error))
+    transport = SessionTransport(connection_factory=_connection_factory(stale))
 
-    assert transport(request, DEFAULT_TIMEOUT) == (200, b"first")
-    assert transport(request, DEFAULT_TIMEOUT) == (200, b"second")
+    assert http_request(URL, data=b"{}", transport=transport) == (200, b"first")
+    with pytest.raises(FetchError, match="no answer from") as excinfo:
+        http_request(URL, data=b"{}", transport=transport)
 
-    # the call that found the connection stale, sent once on it
+    assert excinfo.value.__cause__ is error
     assert len(stale.requests) == 2
     assert stale.closed is True
-    # the reconnect's own connection, sent once
-    assert len(fresh.requests) == 1
+    assert transport._connections == {}
 
 
 def test_a_stale_write_is_retried_once_on_a_reused_connection(
@@ -1550,10 +1603,8 @@ def test_a_stale_write_is_retried_once_on_a_reused_connection(
     """The probe passes, and the drop surfaces at the write instead.
 
     The probe is answered `False` here too: `request()` itself raising is
-    the other shape a drop the probe missed can still take, unambiguous
-    on its own since nothing reached the wire, which is why the full
-    `_STALE_CONNECTION_ERRORS` set, not only `RemoteDisconnected`, is
-    retried at this call site.
+    the one shape of a drop the probe missed that is retried, the request
+    not having reached the wire in full, so no node can have executed it.
     """
     _patch_reuse_probe(monkeypatch, dead=False)
     stale = FakeConnection(
@@ -1573,12 +1624,10 @@ def test_a_stale_write_is_retried_once_on_a_reused_connection(
 
 
 def test_a_fresh_connections_getresponse_failure_is_not_retried() -> None:
-    """The read-side twin of the write-side test elsewhere in this file.
+    """The fresh connection's twin of the reused one's test above.
 
     `RemoteDisconnected` out of a connection's very first `getresponse()`
-    is not a kept-alive connection found stale between calls -- there is
-    no earlier call for it to have outlived -- so this is not retried
-    either, the same as a fresh connection's `request()` failing outright.
+    is not retried either, and the connection is not left pooled.
     """
     connection = FakeConnection(_ResponseFails(RemoteDisconnected("gone")))
     transport = SessionTransport(connection_factory=_connection_factory(connection))
@@ -1590,39 +1639,6 @@ def test_a_fresh_connections_getresponse_failure_is_not_retried() -> None:
     assert len(connection.requests) == 1
     assert connection.closed is True
     assert transport._connections == {}
-
-
-def test_a_reset_after_the_status_line_inside_getresponse_is_not_retried(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A reset `getresponse()` raises is not always `RemoteDisconnected`.
-
-    The probe is answered `False`, so this reaches `getresponse()` at
-    all: `RemoteDisconnected` is `http.client`'s own signal for an empty
-    line where a status line belongs -- nothing came back at all. A
-    plain `ConnectionResetError` at the same call site carries no such
-    guarantee: it is at least as likely to mean the reset landed after a
-    status line was already read, which is the line a reconnect must not
-    cross, so unlike the test above it is not retried here.
-    """
-    _patch_reuse_probe(monkeypatch, dead=False)
-    stale = FakeConnection(
-        FakeResponse(200, b"first"),
-        _ResponseFails(ConnectionResetError("reset after the status line")),
-    )
-    transport = SessionTransport(connection_factory=_connection_factory(stale))
-    request = Request(URL, method="GET")
-
-    assert transport(request, DEFAULT_TIMEOUT) == (200, b"first")
-    with pytest.raises(ConnectionResetError):
-        transport(request, DEFAULT_TIMEOUT)
-
-    # the call that failed, sent once -- `_connection_factory` above has
-    # only this one connection to give, so a reconnect attempt would be
-    # the test's own `IndexError` rather than the `ConnectionResetError`
-    # asserted above
-    assert len(stale.requests) == 2
-    assert stale.closed is True
 
 
 def test_a_fresh_connections_first_failure_is_not_retried() -> None:
@@ -1677,7 +1693,7 @@ def test_a_fresh_connect_failure_does_not_poison_the_pool() -> None:
 
 
 def test_a_failure_once_the_request_is_on_the_wire_is_not_re_sent() -> None:
-    """A status line did arrive, which is the line the reconnect must not cross.
+    """A status line did arrive, so the write was long done: nothing is re-sent.
 
     An oversized body is what is used to make the read fail here, the
     same bound `urlopen_transport` enforces -- what matters for this test

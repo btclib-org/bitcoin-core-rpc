@@ -16,6 +16,11 @@ Python 3.10 is no longer supported: `requires-python` is `>=3.11`. On 3.10
 an installer resolves to v2026.9.24, the last release that runs there;
 staying current means moving to 3.11 or later.
 
+`SessionTransport` no longer sends a request a second time when a kept
+connection closes after the request was written: that is a `FetchError`
+like any other failure of the exchange, and a caller that wants an
+idempotent call retried on it writes that retry.
+
 ## v2026.9.24
 
 Nothing to act on: the module is the one v2026.9.3 shipped, and its

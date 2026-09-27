@@ -12,6 +12,7 @@ things here that open a socket; nothing else in this module does.
 
 from __future__ import annotations
 
+import select
 from collections.abc import Callable, Mapping
 from contextlib import suppress
 from http.client import (
@@ -19,10 +20,8 @@ from http.client import (
     HTTPException,
     HTTPMessage,
     HTTPSConnection,
-    RemoteDisconnected,
 )
 from math import isfinite
-from select import select
 from threading import Lock
 from time import monotonic
 from typing import IO, Any, Protocol, Self
@@ -541,25 +540,25 @@ def http_request(
     return status, body
 
 
-# What a *write* into a connection the peer already closed raises: nothing
-# reached the wire, unambiguously, because the local send is what failed.
-# This set is for `request()` alone -- a malformed but present response is
-# a `BadStatusLine` or a `LineTooLong` neither derives from, which is what
-# keeps a garbled reply from a live node out of it. `RemoteDisconnected`
-# is already a `ConnectionResetError`; it is named here anyway, since a
-# reused connection's `request()` can raise it too on some platforms, and
-# the set is meant to read as "nothing was sent" rather than as whatever
-# the MRO happens to be today.
+# What a *write* into a connection the peer already closed raises: the
+# request did not reach the wire in full, because the local send is what
+# failed. This set is for `request()` alone -- a malformed but present
+# response is a `BadStatusLine` or a `LineTooLong` neither derives from,
+# which is what keeps a garbled reply from a live node out of it.
+# `RemoteDisconnected` is a `ConnectionResetError` and has no entry of its
+# own: `http.client` raises it reading a status line, which `request()`
+# does only through a proxy tunnel's `CONNECT`, and this transport sets no
+# tunnel.
 #
-# `getresponse()` is not read against this set: a bare `ConnectionResetError`
-# there is at least as likely to mean the reset landed after a status line
-# was already read as before one arrived, which is the line this transport
-# does not cross -- see the narrower check at that call site.
+# `getresponse()` is not read against this set, nor against any other: by
+# then `request()` has returned, the whole request has been handed to the
+# socket, and a failing read is no evidence that the node did not execute
+# it -- one that did and closed before answering raises `RemoteDisconnected`
+# there.
 _STALE_CONNECTION_ERRORS = (
     BrokenPipeError,
     ConnectionAbortedError,
     ConnectionResetError,
-    RemoteDisconnected,
 )
 
 
@@ -621,16 +620,30 @@ def _new_connection(scheme: str, host: str, port: int, timeout: float) -> _Conne
 def _is_reused_connection_dead(connection: _Connection) -> bool:
     """Return whether a pooled connection's socket already saw the peer gone.
 
-    `select.select` with a zero timeout is `urllib3`'s own probe, asked
-    of the kept socket before anything is sent on it again: HTTP/1.1
-    answers one request at a time, so a kept connection with no request
-    in flight has nothing pending to make its socket readable except the
-    peer's own close or reset -- an idle timeout on the other end,
-    unrelated to anything this transport does. A live, still-open
-    connection reports not-readable, and this returns `False` for it
-    without reading anything from the socket or blocking on it.
+    A zero-timeout readability probe, asked of the kept socket before
+    anything is sent on it again: HTTP/1.1 answers one request at a time,
+    so a kept connection with no request in flight has nothing pending to
+    make its socket readable except the peer's own close or reset -- an
+    idle timeout on the other end, unrelated to anything this transport
+    does. A live, still-open connection reports nothing, and this returns
+    `False` for it without reading anything from the socket or blocking
+    on it.
+
+    `select.poll` where the platform has it, and `select.select` only
+    where it does not -- Windows. Outside Windows `select.select` refuses
+    a descriptor at or above `FD_SETSIZE` with a `ValueError`, so a
+    process holding that many open files could not reuse a connection at
+    all; on Windows it bounds how many descriptors one call holds rather
+    than their value, and this asks about one. `urllib3`'s
+    `wait_for_read` makes the same choice for the same reason. Any event
+    `poll` reports counts: `POLLHUP` and `POLLERR` arrive unasked beside
+    `POLLIN`, and each is a peer that is gone.
     """
-    readable, _, _ = select([connection.sock], [], [], 0)
+    if hasattr(select, "poll"):
+        poller = select.poll()
+        poller.register(connection.sock, select.POLLIN)
+        return bool(poller.poll(0))
+    readable, _, _ = select.select([connection.sock], [], [], 0)
     return bool(readable)
 
 
@@ -694,44 +707,40 @@ class SessionTransport:
     plain `ConnectionResetError` at either step, is a detail of what the
     peer did (a graceful `close()` versus a `shutdown()`) and of timing
     that this transport does not control and cannot tell apart from a
-    healthy connection's own silence by guessing. Before every reuse,
-    `select.select` asks the kept socket whether it is already readable
-    with no request in flight -- `_is_reused_connection_dead` above --
-    which is unambiguous under HTTP/1.1's one-request-at-a-time shape: a
-    live connection with nothing asked of it reports not-readable. A
-    readable probe evicts the kept connection and opens a fresh one
-    before anything at all is sent, which is not the reconnect below --
-    nothing has been written yet, so there is nothing to have sent twice
-    -- and the fresh connection's own first failure, if the node itself
-    is also unreachable, is the ordinary fresh-connection case: a node
-    not answering, which no reconnect fixes either.
+    healthy connection's own silence by guessing. Before every reuse, a
+    zero-timeout probe asks the kept socket whether it is already
+    readable with no request in flight -- `_is_reused_connection_dead`
+    above -- which is unambiguous under HTTP/1.1's one-request-at-a-time
+    shape: a live connection with nothing asked of it reports
+    not-readable. A readable probe evicts the kept connection and opens a
+    fresh one before anything at all is sent, which is not the reconnect
+    below -- nothing has been written yet, so there is nothing to have
+    sent twice -- and the fresh connection's own first failure, if the
+    node itself is also unreachable, is the ordinary fresh-connection
+    case: a node not answering, which no reconnect fixes either.
 
-    **The one legitimate reconnect.** What the probe above does not catch
-    is the same drop landing between the probe and the write, or
-    partway through a response already begun -- narrower than "closed
-    since the last call" now that reuse itself is guarded, but not
-    closed by a probe run once before the write and never again. Where
-    the write itself is what notices -- a `BrokenPipeError`, a
-    `ConnectionResetError` or a `ConnectionAbortedError` out of
-    `request()` -- nothing reached the wire, unambiguously. Where the
-    read is what notices, only `http.client.RemoteDisconnected` counts:
-    it is `http.client`'s own signal for an empty line where a status
-    line belongs, which is the one shape of "nothing came back" a read
-    can report with certainty. A bare `ConnectionResetError` out of
-    `getresponse()` is not treated the same way, because it is at least
-    as likely to mean the reset landed after a status line was already
-    read as before one arrived -- and that is the line a reconnect must
-    not cross, so it is left to propagate rather than guessed at. Either
-    way the one legitimate reconnect is only offered where the
-    connection was already open before this call, and it is offered
-    once: a fresh connection failing the same way is a node not
-    answering, which no reconnect fixes, and a second failure of the
-    reconnect's own attempt is not caught again. A response whose status
-    line *did* arrive and then broke -- a truncated body, a malformed
-    header -- is not this case either: something came back, so the
-    request reached a node that read it, and it is not re-sent, for the
-    reason the module docstring already gives `call`'s own lack of a
-    retry: the node may still be executing it.
+    **The one reconnect is on the write.** What the probe above does not
+    catch is a drop landing after it: between the probe and the write,
+    or after the write. Where the write is what notices -- one of
+    `_STALE_CONNECTION_ERRORS` out of `request()` -- the request never
+    reached the wire in full, so no node can have executed it, and it is
+    sent once more on a fresh connection. Where the read is what
+    notices, nothing is sent again, whatever it raises: `request()` has
+    returned, so the whole request was written, and
+    `http.client.RemoteDisconnected` -- the end of the stream where a
+    status line belongs -- is what a node that executed the call and
+    closed before answering produces. That failure propagates,
+    `http_request` reports it as a `FetchError`, and whether to send the
+    request again is the caller's decision, for the reason the package
+    docstring's *One call, one HTTP request, and no retry* gives: the
+    node may have executed it. The reconnect is offered only where the
+    connection was already open before this call, and once: a fresh
+    connection failing the same way is a node not answering, which no
+    reconnect fixes, and a failure of the reconnect's own attempt is not
+    caught again. The end of the write is the line the reconnect must
+    not cross, and a status line that did arrive is further past it
+    still: a response that began and then broke -- a truncated body, a
+    malformed header -- is not re-sent.
 
     **Nothing failed is left pooled.** Any exception `request()` or
     `getresponse()` raises that the paragraph above does not resolve into
@@ -788,14 +797,14 @@ class SessionTransport:
         entry point of its own: the pool it reads and writes is not
         otherwise guarded. On return, `self._connections[key]` holds
         whichever connection the response came over -- reused, freshly
-        made, or the reconnect's own -- so a caller reads it back from
-        there rather than being handed it directly.
+        made, or the write-side reconnect's own -- so a caller reads it
+        back from there rather than being handed it directly.
 
-        Where neither reconnect below applies, this closes and drops
+        Where the reconnect below does not apply, this closes and drops
         whatever connection was in play before re-raising: the class
         docstring's *Nothing failed is left pooled* is what that pays
         for, and its two paragraphs above are the pre-write probe and
-        the write-side and read-side reconnect this catches instead.
+        the write-side reconnect this catches instead.
         """
         connection = self._connections.get(key)
         reused = connection is not None
@@ -808,9 +817,9 @@ class SessionTransport:
             # key here, not only closing the connection, is what keeps a
             # `_time_left` raise on the very next line -- outside the
             # `try` below -- from leaving this closed connection pooled
-            # for a later call's probe to run `select` against a socket
-            # that is `None`: closing alone does not remove the entry,
-            # only a successful exchange overwrites it.
+            # for a later call's probe to register a socket that is
+            # `None`: closing alone does not remove the entry, only a
+            # successful exchange overwrites it.
             connection.close()
             self._connections.pop(key, None)
             connection = None
@@ -831,19 +840,7 @@ class SessionTransport:
                 connection.close()
                 connection = self._connection_factory(*key, _time_left(deadline, url))
                 connection.request(method, path, body=body, headers=headers)
-                response = connection.getresponse()
-            else:
-                try:
-                    response = connection.getresponse()
-                except RemoteDisconnected:
-                    if not reused:
-                        raise
-                    connection.close()
-                    connection = self._connection_factory(
-                        *key, _time_left(deadline, url)
-                    )
-                    connection.request(method, path, body=body, headers=headers)
-                    response = connection.getresponse()
+            response = connection.getresponse()
         except BaseException:
             connection.close()
             self._connections.pop(key, None)
@@ -855,10 +852,9 @@ class SessionTransport:
     def __call__(self, request: Request, timeout: float) -> tuple[int, bytes]:
         """Send `request` over the connection kept for its host and port.
 
-        Opens one where none is kept yet, reconnects once where the kept
-        one turns out to have been closed at the other end, and answers
-        the status and the bounded body -- an `HttpTransport`, like
-        `urlopen_transport`.
+        Opens one where none is kept yet, reconnects once where writing
+        to the kept one fails, and answers the status and the bounded
+        body -- an `HttpTransport`, like `urlopen_transport`.
         """
         _assert_valid_timeout(timeout, "http timeout")
         parts = urlsplit(request.full_url)
