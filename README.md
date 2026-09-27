@@ -145,9 +145,11 @@ block_id = client.call("getblockhash", [700_000])
 block = client.call("getblock", {"blockhash": block_id, "verbosity": 2})
 ```
 
-Amounts do not travel as binary floating point in either direction: a
+Amounts need not travel as binary floating point in either direction: a
 number in the reply decodes as a `Decimal`, and a `Decimal` parameter is
-refused rather than rounded through `float`.
+written as the JSON number it is, digit for digit, which Core parses as an
+amount in BTC exactly. A `float` parameter is written as its shortest
+`repr`, so pass an amount as a `Decimal`.
 
 ```python
 balance = client.for_wallet("hot").call("getbalance")  # Decimal, exact

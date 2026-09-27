@@ -168,6 +168,12 @@ does (closes #549).
 
 It points at the live workflow's `versions` job instead (closes #550).
 
+### A `Decimal` parameter is written as the JSON number it is
+
+`call`, `call_raw` and `call_batch` send one digit for digit where they refused
+it, and `COMPARISON.md` says python-bitcoinrpc rounds it through `float` where
+Core's copy sends a string (closes #545) (closes #551).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

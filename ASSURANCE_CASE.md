@@ -93,9 +93,9 @@ scheme, its embedded credentials, its query and its port
 a timeout that is a positive, finite number of seconds
 (`_assert_valid_timeout`); a body limit that is a non-negative integer
 (`_assert_valid_max_body_size`); and a parameter structure walked for
-what json cannot carry — a `Decimal`, a non-finite float, `bytes`, a
-container reached from inside itself, one nested past a stated depth —
-before the encoder ever sees it (`_assert_json_params`). Each is checked
+what json cannot carry — a non-finite number, `bytes`, a container
+reached from inside itself, one nested past a stated depth — before the
+encoder ever sees it (`_assert_json_params`). Each is checked
 while the caller is still looking at the line that supplied it, not
 deferred to the first call.
 

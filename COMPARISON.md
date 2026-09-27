@@ -25,7 +25,7 @@ rather than a translation of that one, and shares no line with either.
 | | AuthServiceProxy (vendored) | bitcoin-core-rpc |
 | --- | --- | --- |
 | Maintenance | in-repo copy, the caller's to patch | maintained package, zero dependencies |
-| Amounts | `Decimal` on replies; requests serialized through a generic fallback, so a `Decimal` could silently round through `float` | `Decimal` on replies **and** refusal of `Decimal` request parameters rather than rounding them through `float`; `NaN`/`Infinity` refused both ways |
+| Amounts | `Decimal` on replies; a `Decimal` request parameter rounded through `float` by python-bitcoinrpc, sent as a string by Core's copy, a type an amount argument accepts and an integer one refuses | `Decimal` on replies **and** on requests, a `Decimal` parameter written as the JSON number it is; `NaN`/`Infinity` refused both ways |
 | Credentials | embedded in the URL (`http://user:pass@...`), so they can leak into logs, reprs and exception messages | separate `user`/`password` fields, or first-class cookie authentication (`cookie_path`, `from_chain` with datadir discovery) |
 | Errors | `JSONRPCException` wrapping raw error dicts | typed hierarchy: `RpcError` (with `.code` and `.data`, message in `str()`), `HttpError` (with `.status`), `FetchError` for transport failures |
 | Timeouts | per-connection only, and spent per socket operation, which a peer dripping a body resets forever | per-client and **per-call** (`request_timeout`), bounding the whole exchange — answer and error page alike — plus a bounded response size (`max_body_size`) |

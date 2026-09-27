@@ -36,6 +36,7 @@ from math import isfinite
 from os import PathLike
 from pathlib import Path
 from secrets import token_hex
+from sys import get_int_max_str_digits
 from typing import Any
 from urllib.parse import quote, urlsplit
 
@@ -193,7 +194,7 @@ def _assert_json_params(
 ) -> None:
     """Refuse a parameter structure json cannot carry, before it is encoded.
 
-    Walked rather than left to the encoder, because most of what goes
+    Walked rather than left to `json.dumps`, because most of what goes
     wrong here is silent or unhelpful in it. A mapping keyed by anything
     but a string is *rewritten*: `{1: "a"}` encodes as `{"1": "a"}`, so a
     caller's value reaches the node changed rather than refused, and only
@@ -201,8 +202,8 @@ def _assert_json_params(
     containing itself raises ValueError("Circular reference detected"),
     which is the same type a non-finite number raises and means something
     else entirely. One nested past the interpreter's stack raises
-    RecursionError from inside the encoder. And a Decimal or a `bytes`
-    reaches `default`, which cannot say where in the structure it was.
+    RecursionError from inside it. And a `bytes` reaches `default`, which
+    cannot say where in the structure it was.
 
     `enclosing` carries the ids of the containers this value sits inside,
     which is what a cycle is: a container reached from within itself. No
@@ -230,24 +231,22 @@ def _assert_json_params(
 
 
 def _json_scalar(value: Any) -> bool:
-    """Say whether a value is a json scalar, refusing three that look like one.
+    """Say whether a value is a json scalar, refusing two that look like one.
 
-    A Decimal, a non-finite float and a `bytes` are each a value a caller
-    has a reason to pass and json has no rendering for, so each is refused
-    where what to pass instead can be named -- rather than reported as
-    "not a json value" from the end of the walk, or, for the `bytes`,
-    walked as the list of the ints of its octets.
+    A non-finite number and a `bytes` are each a value a caller has a
+    reason to pass and json has no rendering for, so each is refused where
+    what went wrong can be named -- rather than reported as "not a json
+    value" from the end of the walk, or, for the `bytes`, walked as the
+    list of the ints of its octets. A finite Decimal is a json number, and
+    `_decimal_json` is how it is written.
     """
-    if isinstance(value, Decimal):
-        err_msg = "Decimal rpc parameter: json carries no exact decimal, so"
-        err_msg += " pass what the method documents -- an int of satoshis,"
-        err_msg += " or the string it accepts -- rather than a rounded float"
-        raise BtcRpcTypeError(err_msg)
+    if isinstance(value, Decimal) and not value.is_finite():
+        raise BtcRpcValueError(f"not a json number in the rpc params: {value}")
     if isinstance(value, float) and not isfinite(value):
         raise BtcRpcValueError(f"not a json number in the rpc params: {value}")
     if isinstance(value, (bytes, bytearray)):
         raise BtcRpcTypeError(f"rpc parameter that is not a json value: {value!r}")
-    return value is None or isinstance(value, (bool, int, float, str))
+    return value is None or isinstance(value, (bool, int, float, str, Decimal))
 
 
 def _assert_no_cycle(value: Any, enclosing: tuple[int, ...]) -> None:
@@ -259,14 +258,75 @@ def _assert_no_cycle(value: Any, enclosing: tuple[int, ...]) -> None:
 def _refuse_param(value: Any) -> Any:
     """Refuse a parameter the walk before the encoder did not anticipate.
 
-    The backstop, and every type it can be reached with today is one
-    `_assert_json_params` refuses first. What keeps it here is that
+    The backstop under `_request_json`, which `call`, `call_raw` and
+    `call_batch` each write their request with. What keeps it here is that
     `json.dumps` calling this is the alternative to a TypeError from
     inside the encoder: an object that is a `Sequence` of json values and
     still has no json -- `range(3)` is one -- passes the walk and arrives
     here.
     """
     raise BtcRpcTypeError(f"rpc parameter that is not a json value: {value!r}")
+
+
+def _request_json(value: Any) -> str:
+    """Return a request's json text, a Decimal in it written as a number.
+
+    `json.dumps` writes a number only from an int or a float: `default`
+    answers with another object to encode, so a Decimal handed back as a
+    string goes out quoted. So the containers are written here and every
+    other value is handed to `json.dumps` alone, keeping its dispatch: a
+    `dict`, a `list` and a `tuple` are containers, and whatever else it
+    cannot write reaches `_refuse_param`.
+
+    This reads the caller's objects a second time, after
+    `_assert_json_params` has read them, and they are free to have changed
+    in between: a name that stopped being a string is refused again here,
+    a number that stopped being finite is a ValueError -- `allow_nan=False`
+    for a float, `_decimal_json` for a Decimal -- and a container that came
+    to contain itself is a RecursionError, which the caller maps with the
+    ValueError.
+    """
+    if isinstance(value, Decimal):
+        return _decimal_json(value)
+    if isinstance(value, dict):
+        members = []
+        for name, item in value.items():
+            if not isinstance(name, str):
+                raise BtcRpcTypeError(f"non-string rpc parameter name: {name!r}")
+            members.append(f"{json.dumps(name)}: {_request_json(item)}")
+        return "{" + ", ".join(members) + "}"
+    if isinstance(value, (list, tuple)):
+        # a loop rather than a generator, or on 3.11 a comprehension, each
+        # of which would spend a second frame per level of nesting
+        items = []
+        for item in value:
+            items.append(_request_json(item))  # ruff: ignore[PERF401]
+        return "[" + ", ".join(items) + "]"
+    return json.dumps(value, allow_nan=False, default=_refuse_param)
+
+
+def _decimal_json(number: Decimal) -> str:
+    """Return a finite Decimal as the json number it is, digit for digit.
+
+    Positional, never `str(number)`'s exponent form: Core parses an amount
+    with `ParseFixedPoint`, which takes either, but reads an integer
+    argument with `std::from_chars`, which stops at the `E` of `1E+1`. And
+    json's grammar is what a number has to be, so not a string either -- an
+    amount argument accepts `"0.1"`, and an integer one refuses the type.
+
+    The exponent is bounded by `sys.get_int_max_str_digits`, the limit
+    `json.dumps` already holds an int to, because positional notation
+    spends a digit for every unit of it: `Decimal("1E+999999999")` is
+    quick to build and a billion digits to write.
+    """
+    if not number.is_finite():
+        raise ValueError(f"not a json number: {number}")
+    limit = get_int_max_str_digits()
+    if limit and abs(number.adjusted()) > limit:
+        err_msg = f"a Decimal whose exponent {number.adjusted()} writes more"
+        err_msg += f" digits than sys.get_int_max_str_digits allows ({limit})"
+        raise ValueError(err_msg)
+    return format(number, "f")
 
 
 def _json_number(token: str) -> Decimal:
@@ -1094,11 +1154,13 @@ class BitcoinCoreRpcClient:
         `timeout` is a parameter of several Core methods, and a signature
         mixing the two would have to decide which of them owns the name.
 
-        Amounts do not travel as binary floating point in either
+        Amounts need not travel as binary floating point in either
         direction: a number in the reply decodes as a Decimal, and a
-        Decimal parameter is refused rather than rounded through `float`.
-        `NaN` and `Infinity` are refused both ways, being what Python
-        writes for floats json has no numbers for.
+        Decimal parameter is written as the json number it is, digit for
+        digit, which Core parses as an amount exactly. A `float` is written
+        as its shortest `repr`, and the Decimal is what makes the digits
+        the caller's. `NaN` and `Infinity` are refused both ways, json
+        having no numbers for them.
 
         `request_timeout` is this call's, defaulting to the client's, and
         for the default transport it bounds the whole exchange -- the
@@ -1137,14 +1199,15 @@ class BitcoinCoreRpcClient:
             "params": params_member,
         }
         try:
-            body = json.dumps(request, allow_nan=False, default=_refuse_param).encode()
-        except ValueError as e:
-            # an int of more digits than `sys.get_int_max_str_digits`
-            # allows, which is the mirror of the limit a *reply* holding
-            # one runs into: json has the number and this interpreter will
-            # not write it. The walk above refuses the types json has no
-            # rendering for, and this is a value of a type it does, so the
-            # encoder is where it surfaces
+            body = _request_json(request).encode()
+        except (ValueError, RecursionError) as e:
+            # an int of more digits, or a Decimal of a larger exponent,
+            # than `sys.get_int_max_str_digits` allows, which is the mirror of
+            # the limit a *reply* holding one runs into: json has the
+            # number and this interpreter will not write it. The walk above
+            # refuses the types json has no rendering for, and this is a
+            # value of a type it does, so the encoder is where it surfaces.
+            # The rest is what `_request_json` finds changed since the walk
             raise BtcRpcValueError(f"rpc params json cannot carry: {e}") from e
         status, payload = http_request(
             self.url,
@@ -1235,8 +1298,8 @@ class BitcoinCoreRpcClient:
             )
         ]
         try:
-            body = json.dumps(members, allow_nan=False, default=_refuse_param).encode()
-        except ValueError as e:
+            body = _request_json(members).encode()
+        except (ValueError, RecursionError) as e:
             raise BtcRpcValueError(f"rpc params json cannot carry: {e}") from e
         status, payload = http_request(
             self.url,
@@ -1341,8 +1404,8 @@ class BitcoinCoreRpcClient:
         request["method"] = method
         request["params"] = params_member
         try:
-            body = json.dumps(request, allow_nan=False, default=_refuse_param).encode()
-        except ValueError as e:
+            body = _request_json(request).encode()
+        except (ValueError, RecursionError) as e:
             raise BtcRpcValueError(f"rpc params json cannot carry: {e}") from e
         status, payload = http_request(
             self.url,

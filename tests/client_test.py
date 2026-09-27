@@ -1037,23 +1037,28 @@ def test_a_nested_parameter_name_that_is_not_a_string() -> None:
 
 
 @pytest.mark.parametrize(
-    "params",
+    ("params", "written"),
     [
-        [{"nested": {"amount": Decimal("0.1")}}],
-        [[[Decimal("0.1")]]],
-        {"outputs": [{"bc1qexample": Decimal("0.1")}]},
+        ([{"nested": {"amount": Decimal("0.1")}}], b'[{"nested": {"amount": 0.1}}]'),
+        ([[(Decimal("0.1"),)]], b"[[[0.1]]]"),
+        (
+            {"outputs": [{"bc1qexample": Decimal("0.1")}]},
+            b'{"outputs": [{"bc1qexample": 0.1}]}',
+        ),
     ],
 )
-def test_a_decimal_anywhere_in_the_parameters_is_refused(params: object) -> None:
-    """A Decimal is refused wherever it is, not only at the top level.
+def test_a_decimal_anywhere_in_the_parameters_is_a_json_number(
+    params: object, written: bytes
+) -> None:
+    """A Decimal is written as a number wherever it is, not only at the top.
 
     Which is where one would actually be passed: an amount belongs to an
     output of `send`, an entry of `sendmany`, a field of a descriptor
     request -- never to the array itself.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BtcRpcTypeError, match="Decimal rpc parameter"):
-        endpoint.call("send", params)  # type: ignore[arg-type]
+    endpoint.call("send", params)  # type: ignore[arg-type]
+    assert recording(endpoint).body.endswith(b'"params": ' + written + b"}")
 
 
 def test_a_non_finite_number_nested_in_the_parameters_is_refused() -> None:
@@ -1120,18 +1125,73 @@ def test_something_that_walks_as_json_and_has_none_is_still_refused() -> None:
         endpoint.call("send", [range(3)])
 
 
-def test_a_decimal_parameter_is_refused_and_not_rounded() -> None:
+@pytest.mark.parametrize(
+    ("amount", "written"),
+    [
+        # more digits than a float holds: its repr is 0.12345678901234568
+        (Decimal("0.123456789012345678"), b"0.123456789012345678"),
+        # positional, and never str()'s 1E-8 and 1E+1: Core reads an
+        # integer argument with std::from_chars, which stops at the E
+        (Decimal("1E-8"), b"0.00000001"),
+        (Decimal("1E+1"), b"10"),
+        (Decimal("-0.10"), b"-0.10"),
+    ],
+)
+def test_a_decimal_parameter_is_written_digit_for_digit(
+    amount: Decimal, written: bytes
+) -> None:
     """An amount does not become binary floating point on the way out.
 
-    Which is the whole policy: json carries no exact decimal, so a
-    Decimal cannot be sent as one -- and rounding it through `float`
-    silently is how a payment becomes a different payment. What the
-    method documents is what goes: satoshis as an int, or the string
-    Core accepts for the field.
+    json's number is decimal text and Core parses an amount from that text,
+    so the Decimal's own digits are what is sent -- neither rounded through
+    `float` nor quoted into a string, which an integer argument refuses.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BtcRpcTypeError, match="Decimal rpc parameter"):
-        endpoint.call("sendtoaddress", ["bc1qexample", Decimal("0.1")])
+    endpoint.call("sendtoaddress", ["bc1qexample", amount])
+    assert recording(endpoint).body.endswith(
+        b', "params": ["bc1qexample", ' + written + b"]}"
+    )
+
+
+def test_call_raw_writes_a_decimal_parameter_as_a_json_number() -> None:
+    """`call_raw` builds its request through the same writer as `call`."""
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    endpoint.call_raw("sendtoaddress", ["bc1qexample", Decimal("0.1")])
+    assert recording(endpoint).body.endswith(b', "params": ["bc1qexample", 0.1]}')
+
+
+@pytest.mark.parametrize("number", ["NaN", "sNaN", "Infinity", "-Infinity"])
+def test_a_non_finite_decimal_is_not_a_json_number(number: str) -> None:
+    """The Decimal spellings of what json has no number for, refused alike."""
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BtcRpcValueError, match="not a json number in the rpc params"):
+        endpoint.call("sendtoaddress", ["bc1qexample", Decimal(number)])
+    assert recording(endpoint).requests == []
+
+
+@pytest.mark.parametrize("number", ["1E+5000", "1E-5000"])
+def test_a_decimal_too_long_to_write_positionally(number: str) -> None:
+    """The exponent is held to the limit `json.dumps` holds an int's digits to.
+
+    Both signs, positional notation spending a digit per unit of either:
+    zeros after the digits for one and before them for the other.
+    """
+    endpoint = client()
+    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+        endpoint.call("sendtoaddress", ["bc1qexample", Decimal(number)])
+    assert recording(endpoint).requests == []
+
+
+def test_no_digit_limit_leaves_a_decimal_unbounded() -> None:
+    """`sys.set_int_max_str_digits(0)` lifts the limit, for a Decimal too."""
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    limit = sys.get_int_max_str_digits()
+    sys.set_int_max_str_digits(0)
+    try:
+        endpoint.call("sendtoaddress", ["bc1qexample", Decimal("1E+5000")])
+    finally:
+        sys.set_int_max_str_digits(limit)
+    assert recording(endpoint).body.endswith(b", 1" + b"0" * 5000 + b"]}")
 
 
 def test_a_parameter_json_cannot_carry_at_all() -> None:
@@ -1658,61 +1718,76 @@ def test_a_number_too_long_for_this_interpreter_to_write() -> None:
 
 
 class Shifty(dict):  # type: ignore[type-arg]
-    """A mapping that becomes a NaN while it is being read the first time.
+    """A mapping whose every reading after the first answers `later`.
 
-    The finite value is what the reader is answered with, and the storage is
-    a NaN by the time that answer is returned. So whichever way an
-    interpreter writes the request afterwards, it writes the NaN: CPython's
-    json encoder calls `items()` a second time, pypy's serializes the dict's
-    own storage without calling it at all, and the storage is what was
-    changed.
+    The walk over the parameters is the first reader and the writer of the
+    request the second, so what the walk checked is not what the writer
+    finds: the caller's objects are free to change in between --
+    deliberately here, and in a threaded caller by accident.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, first: dict[Any, Any], later: dict[Any, Any]) -> None:
+        super().__init__(first)
+        self.later = later
         self.reads = 0
 
     @override
     def items(self) -> Any:
-        """Answer this reading's value, having spoiled the next one."""
+        """Answer the mapping as it stands on the first reading only."""
         self.reads += 1
-        answer = list(super().items())
-        self["amount"] = float("nan")
-        return answer
+        if self.reads == 1:
+            return list(super().items())
+        return list(self.later.items())
 
 
-def test_a_parameter_that_is_not_what_the_walk_saw() -> None:
-    """`allow_nan=False` is not made redundant by the walk before it.
+@pytest.mark.parametrize("spoiled", [float("nan"), Decimal("NaN")])
+def test_a_parameter_that_is_not_what_the_walk_saw(spoiled: object) -> None:
+    """The writer refuses a non-finite number the walk before it never saw.
 
-    The walk reads the caller's own objects, and those objects are free to
-    change: `params` accepts any `Mapping`, only the outermost one is copied
-    by `dict(params)`, and a nested one is read by `_assert_json_params` and
-    then written by the encoder. So a value can be finite while it is being
-    checked and `NaN` while it is being written -- deliberately here, and in
-    a threaded caller by accident.
+    `params` accepts any `Mapping`, only the outermost one is copied by
+    `dict(params)`, and a nested one is read by `_assert_json_params` and
+    then again by `_request_json`. So a value can be finite while it is
+    being checked and `NaN` while it is being written, and the writer's own
+    refusal -- `allow_nan=False` for a float, `_decimal_json`'s for a
+    Decimal -- is what keeps it from reaching the node.
 
-    `allow_nan=False` is what catches that, and it catches it before the
-    request is built: the assertion on the transport is the half that
-    matters, since a `NaN` amount that reaches a node is a request nobody
-    wrote. Without this test the flag reads as a second opinion the walk
-    already gave, and a mutation of it survives the suite -- which is what
-    it did until this test existed.
-
-    `Shifty` spoils its own storage while it is being read, which is what
-    makes this one test rather than one per interpreter: CPython's encoder
-    calls `items()` a second time and pypy's serializes the storage without
-    calling it at all, and both of those are the NaN. The reading count is
-    asserted as one or two for that reason -- it is the interpreters'
-    difference, and not this guard's.
+    The assertion on the transport is the half that matters, since a `NaN`
+    amount that reaches a node is a request nobody wrote. Without this
+    test the writer's refusal reads as a second opinion the walk already
+    gave, and a mutation of it survives the suite.
     """
-    shifty = Shifty(amount=1.0)
+    shifty = Shifty({"amount": 1.0}, {"amount": spoiled})
     endpoint = client((200, recorded_body("getblockcount.json")))
     with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
         endpoint.call("sendmany", [shifty])
 
     # the transport was never called: no request was recorded
     assert recording(endpoint).requests == []
-    assert shifty.reads in (1, 2)
+    assert shifty.reads == 2
+
+
+def test_a_name_that_is_not_what_the_walk_saw() -> None:
+    """A name that stopped being a string is refused, not rewritten as one.
+
+    `json.dumps` would write `1` as the name `"1"`, which is the rewrite
+    the walk refuses a non-string name to prevent.
+    """
+    shifty = Shifty({"amount": 1.0}, {1: 1.0})
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BtcRpcTypeError, match="non-string rpc parameter name: 1"):
+        endpoint.call("sendmany", [shifty])
+    assert recording(endpoint).requests == []
+
+
+@pytest.mark.parametrize("method", ["call", "call_raw"])
+def test_a_structure_that_came_to_contain_itself(method: str) -> None:
+    """A cycle the walk did not see is the writer's RecursionError, refused."""
+    shifty = Shifty({"amount": 1.0}, {})
+    shifty.later = {"itself": shifty}
+    endpoint = client()
+    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+        getattr(endpoint, method)("sendmany", [shifty])
+    assert recording(endpoint).requests == []
 
 
 def test_a_number_too_long_for_this_interpreter_to_read() -> None:
@@ -2305,9 +2380,7 @@ def test_call_batch_refuses_invalid_params_naming_its_position() -> None:
     """The same params validation `call` applies, per member."""
     endpoint = client()
     with pytest.raises(BtcRpcTypeError, match="call_batch member 1"):
-        endpoint.call_batch(
-            [("getblockcount", None), ("send", [{"amount": Decimal("0.1")}])]
-        )
+        endpoint.call_batch([("getblockcount", None), ("send", [{"amount": b"\x01"}])])
 
 
 def test_call_batch_refuses_a_non_finite_parameter_naming_its_position() -> None:
@@ -2491,6 +2564,29 @@ def test_call_batch_a_number_too_long_for_this_interpreter_to_write() -> None:
     assert recording(endpoint).requests == []
 
 
+def test_call_batch_writes_a_decimal_parameter_as_a_json_number() -> None:
+    """Each member's params go through the same writer as `call`'s."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        return 200, json.dumps(
+            [{"jsonrpc": "2.0", "id": ids[0], "result": TX_ID}]
+        ).encode()
+
+    endpoint = batch_client(builder)
+    endpoint.call_batch([("sendtoaddress", ["bc1qexample", Decimal("0.1")])])
+    assert recording(endpoint).body.endswith(b', "params": ["bc1qexample", 0.1]}]')
+
+
+def test_call_batch_a_structure_that_came_to_contain_itself() -> None:
+    """The writer's RecursionError on a cycle the walk did not see, refused."""
+    shifty = Shifty({"amount": 1.0}, {})
+    shifty.later = {"itself": shifty}
+    endpoint = client()
+    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+        endpoint.call_batch([("sendmany", [shifty])])
+    assert recording(endpoint).requests == []
+
+
 def test_call_raw_sends_the_2_0_marker_by_default() -> None:
     """The default is `call`'s own, and reaches the node the same way."""
     endpoint = client((200, recorded_body("getblockcount.json")))
@@ -2598,8 +2694,8 @@ def test_call_raw_refuses_a_jsonrpc_marker_that_is_not_a_string_or_none(
 def test_call_raw_validates_params_like_call() -> None:
     """The same params validation `call` applies, whatever `jsonrpc` is."""
     endpoint = client()
-    with pytest.raises(BtcRpcTypeError, match="Decimal rpc parameter"):
-        endpoint.call_raw("send", [{"amount": Decimal("0.1")}])
+    with pytest.raises(BtcRpcTypeError, match="not a json value"):
+        endpoint.call_raw("send", [{"amount": b"\x01"}])
 
 
 def test_call_raw_the_clients_timeout_reaches_the_transport() -> None:

@@ -197,10 +197,10 @@ where the two variants part ways from each other as well as from this
 one: python-bitcoinrpc's `EncodeDecimal` rounds a `Decimal` parameter
 through `float` before sending it (`float(round(o, 8))`); Core's copy
 stringifies it instead (`serialization_fallback`'s `str(o)`), which
-survives the round trip but silently turns the parameter from a number
-into a string. Both are silent either way; this client refuses a
-`Decimal` parameter outright, naming what to send instead — an int of
-satoshis, or the string the method itself documents.
+keeps the digits but turns the parameter from a number into a string: an
+amount argument accepts it and an integer one refuses it. This client
+writes a `Decimal` parameter as the JSON number it is, digit for digit:
+a number, the type both kinds of argument accept.
 
 ## Timeouts
 

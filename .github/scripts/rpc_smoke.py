@@ -620,11 +620,16 @@ def generate_chain(
     block_id = client.call("generatetoaddress", [1, foreign])[0]
     foreign_coinbase = client.call("getblock", [block_id, 1])["tx"][0]
 
-    # the amount goes out as a string, which Core reads as an amount and
-    # json carries exactly: `call` refuses a Decimal rather than rounding
-    # it through float, and a float is the thing being avoided
-    tx_id = wallet.call("sendtoaddress", [mine_to, "1.25"])
-    client.call("generatetoaddress", [1, foreign])
+    # a Decimal goes out as the json number it is, digit for digit: Core
+    # parses the amount from that text, and an integer argument -- the
+    # block count below -- takes the number where it refuses a string
+    amount = Decimal("1.25")
+    tx_id = wallet.call("sendtoaddress", [mine_to, amount])
+    values = [
+        out["value"] for out in client.call("getrawtransaction", [tx_id, 1])["vout"]
+    ]
+    check(amount in values, f"a Decimal amount is sent exactly: {amount} in {values}")
+    client.call("generatetoaddress", [Decimal(1), foreign])
     return MATURITY_HEIGHT + 2, tx_id, foreign_coinbase
 
 
