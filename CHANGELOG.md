@@ -198,6 +198,12 @@ It refused a 4xx or 5xx body over `max_body_size`, so a legacy 1.1 rpc error
 became a `FetchError` with no status; the body is now truncated, as
 `http_request` reads `urlopen_transport`'s `HTTPError` (closes #544).
 
+### The codeql aggregate re-reads a lagging row and judges `analyze`'s result
+
+The listing is read again, three times at most, while an `analyze` row is
+unfinished (issue btclib-org/.github#1416), and an `analyze` result other than
+`success` or `skipped` fails the step on its own (issue btclib-org/.github#1424).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
