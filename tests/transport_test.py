@@ -161,6 +161,15 @@ class FakeResponse:
         self._returned_eof = not chunk
         return chunk
 
+    def isclosed(self) -> bool:
+        """Return whether a read has reached the end of the body.
+
+        What `http.client.HTTPResponse.isclosed` answers for a body its
+        `Content-Length` delimits: it closes the response once a read takes
+        the last octet the header announced.
+        """
+        return self._offset >= len(self._body)
+
 
 def test_urlopen_transport_reads_status_and_body(
     monkeypatch: pytest.MonkeyPatch,
@@ -1782,6 +1791,66 @@ def test_the_session_transport_refuses_a_limit_that_is_no_size() -> None:
         transport(Request(URL, method="GET"), DEFAULT_TIMEOUT, max_body_size=-1)
 
     assert connection.requests == []
+
+
+def test_session_transport_truncates_an_oversized_error_body() -> None:
+    """A 4xx/5xx body is cut to MAX_ERROR_BODY_SIZE, not refused.
+
+    A legacy 1.1 rpc error under HTTP 500, larger than the call's
+    max_body_size, still comes back with its status and its body, bounded
+    the way http_request bounds the body of urlopen_transport's HTTPError.
+    """
+    payload = b"e" * (MAX_ERROR_BODY_SIZE + 50)
+    connection = FakeConnection(
+        FakeResponse(500, payload, content_length=str(len(payload)))
+    )
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
+    request = Request(URL, method="POST", data=b"{}")
+
+    status, body = transport(request, DEFAULT_TIMEOUT, max_body_size=100)
+
+    assert status == 500
+    assert body == payload[:MAX_ERROR_BODY_SIZE]
+
+
+def test_a_connection_left_inside_a_cut_error_body_is_not_kept(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The rest of a cut body is still due, so the next call opens its own.
+
+    The probe answers alive, as it does while that rest is still in
+    flight: kept, the connection would carry the next request in full and
+    hand its `getresponse()` the leftovers of this one.
+    """
+    _patch_reuse_probe(monkeypatch, dead=False)
+    payload = b"e" * (MAX_ERROR_BODY_SIZE + 50)
+    first = FakeConnection(FakeResponse(500, payload, content_length=str(len(payload))))
+    second = FakeConnection(FakeResponse(200, b"b"))
+    transport = SessionTransport(connection_factory=_connection_factory(first, second))
+    request = Request(URL, method="POST", data=b"{}")
+
+    assert transport(request, DEFAULT_TIMEOUT)[0] == 500
+    assert first.closed is True
+
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"b")
+    assert len(first.requests) == 1
+    assert len(second.requests) == 1
+
+
+def test_an_error_body_read_to_its_end_keeps_the_connection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An rpc error under HTTP 500 costs no reconnect when it was read whole."""
+    _patch_reuse_probe(monkeypatch, dead=False)
+    error = b'{"result": null, "error": {"code": -5}, "id": 1}'
+    connection = FakeConnection(FakeResponse(500, error), FakeResponse(200, b"b"))
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
+    request = Request(URL, method="POST", data=b"{}")
+
+    assert transport(request, DEFAULT_TIMEOUT) == (500, error)
+    assert transport(request, DEFAULT_TIMEOUT) == (200, b"b")
+    assert len(connection.requests) == 2
+    assert connection.closed is False
 
 
 def test_the_session_transport_deadline_bounds_a_dripping_reply(

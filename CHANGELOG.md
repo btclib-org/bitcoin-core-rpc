@@ -192,6 +192,12 @@ The aggregate accepts `analyze`'s lagging rows (issue btclib-org/.github#1395),
 signatures and SHA pinning are read back (issue btclib-org/.github#1409), and
 `pre-commit` is an ecosystem left unused (issue btclib-org/.github#1391).
 
+### `SessionTransport` cuts an error body to `MAX_ERROR_BODY_SIZE`
+
+It refused a 4xx or 5xx body over `max_body_size`, so a legacy 1.1 rpc error
+became a `FetchError` with no status; the body is now truncated, as
+`http_request` reads `urlopen_transport`'s `HTTPError` (closes #544).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
