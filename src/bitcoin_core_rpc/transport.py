@@ -369,9 +369,9 @@ def urlopen_transport(
     bytes go back as they arrived, and `http_request` is where the
     failures become the exceptions above.
 
-    Bounded, and this is the only place a bound can be incremental: the
-    limit is a keyword with a default, so this function still *is* an
-    `HttpTransport`. A transport of someone else's returns bytes it has
+    Bounded while reading, the limit being a keyword with a default, so
+    this function still *is* an `HttpTransport` -- `SessionTransport` takes
+    it the same way. A transport of someone else's returns bytes it has
     already read, so all `http_request` can do for those is refuse to pass
     an oversized body on.
 
@@ -471,15 +471,18 @@ def http_request(
     # the error body -- the only part of such an exchange this module reads
     deadline = monotonic() + timeout
     try:
-        # the limit reaches the read itself for the transport of this
-        # module, which is the only one it can reach: a caller's has
-        # nowhere in two arguments to be told one. Identity and not a
-        # subclass check because there is one such function, and it is the
-        # default this module passes on
+        # the limit reaches the read itself for the two transports of this
+        # module, each taking it as a keyword beside the two arguments of an
+        # `HttpTransport`: a caller's own has nowhere in those two to be told
+        # one. `urlopen_transport` by identity, there being one such
+        # function, and `SessionTransport` by type, it being a class a
+        # caller builds instances of
         if transport is urlopen_transport:
             status, body = urlopen_transport(
                 request, timeout, max_body_size=max_body_size
             )
+        elif isinstance(transport, SessionTransport):
+            status, body = transport(request, timeout, max_body_size=max_body_size)
         else:
             status, body = transport(request, timeout)
     except HTTPError as e:
@@ -530,7 +533,7 @@ def http_request(
     if status >= _CLIENT_ERROR:
         return status, body[:MAX_ERROR_BODY_SIZE]
 
-    # the transport of this module has already stopped reading at the
+    # the transports of this module have already stopped reading at the
     # limit; a caller's own has not, and cannot be made to, so this is
     # what is left to promise for one: an oversized answer goes no further
     if len(body) > max_body_size:
@@ -769,13 +772,10 @@ class SessionTransport:
     def __init__(
         self,
         *,
-        max_body_size: int = DEFAULT_MAX_BODY_SIZE,
         connection_factory: Callable[
             [str, str, int, float], _Connection
         ] = _new_connection,
     ) -> None:
-        _assert_valid_max_body_size(max_body_size)
-        self._max_body_size = max_body_size
         self._connection_factory = connection_factory
         self._connections: dict[tuple[str, str, int], _Connection] = {}
         self._lock = Lock()
@@ -849,14 +849,26 @@ class SessionTransport:
         self._connections[key] = connection
         return response
 
-    def __call__(self, request: Request, timeout: float) -> tuple[int, bytes]:
+    def __call__(
+        self,
+        request: Request,
+        timeout: float,
+        *,
+        max_body_size: int = DEFAULT_MAX_BODY_SIZE,
+    ) -> tuple[int, bytes]:
         """Send `request` over the connection kept for its host and port.
 
         Opens one where none is kept yet, reconnects once where writing
         to the kept one fails, and answers the status and the bounded
         body -- an `HttpTransport`, like `urlopen_transport`.
+
+        `max_body_size` bounds this one answer. A keyword with a default,
+        as `urlopen_transport`'s is, so this is still an `HttpTransport`;
+        `http_request` passes each call's own. Checked before anything is
+        sent, so an invalid limit costs no request.
         """
         _assert_valid_timeout(timeout, "http timeout")
+        _assert_valid_max_body_size(max_body_size)
         parts = urlsplit(request.full_url)
         if parts.scheme not in _SCHEMES:
             err_msg = f"invalid url scheme: '{parts.scheme}' instead of http(s)"
@@ -893,7 +905,7 @@ class SessionTransport:
 
             try:
                 body_bytes = _read_bounded(
-                    response, self._max_body_size, request.full_url, deadline
+                    response, max_body_size, request.full_url, deadline
                 )
             except BaseException:
                 # A status line did arrive -- the class docstring's line

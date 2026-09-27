@@ -1702,13 +1702,11 @@ def test_a_failure_once_the_request_is_on_the_wire_is_not_re_sent() -> None:
     request again.
     """
     connection = FakeConnection(FakeResponse(200, b"z" * 10))
-    transport = SessionTransport(
-        max_body_size=5, connection_factory=_connection_factory(connection)
-    )
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
     request = Request(URL, method="GET")
 
     with pytest.raises(FetchError, match="larger than the max_body_size of 5"):
-        transport(request, DEFAULT_TIMEOUT)
+        transport(request, DEFAULT_TIMEOUT, max_body_size=5)
 
     assert len(connection.requests) == 1
     assert connection.closed is True
@@ -1723,14 +1721,59 @@ def test_the_max_body_size_bounds_what_the_session_transport_holds(
     connection = FakeConnection(
         FakeResponse(200, b"a" * limit), FakeResponse(200, b"a" * (limit + 1))
     )
-    transport = SessionTransport(
-        max_body_size=limit, connection_factory=_connection_factory(connection)
-    )
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
     request = Request(URL, method="GET")
 
-    assert transport(request, DEFAULT_TIMEOUT) == (200, b"a" * limit)
+    assert transport(request, DEFAULT_TIMEOUT, max_body_size=limit) == (
+        200,
+        b"a" * limit,
+    )
     with pytest.raises(FetchError, match=f"larger than the max_body_size of {limit}"):
-        transport(request, DEFAULT_TIMEOUT)
+        transport(request, DEFAULT_TIMEOUT, max_body_size=limit)
+
+
+def test_http_request_hands_a_tighter_limit_to_the_session_transport_read() -> None:
+    """The read stops at the call's limit, not after a whole default's worth.
+
+    "larger than" is `_read_bounded`'s refusal and "response of" is the one
+    `http_request` makes of bytes already held, so the message says which
+    of the two refused; the one read asked for no more than the limit and
+    the octet past it.
+    """
+    response = FakeResponse(200, b"a" * 40)
+    transport = SessionTransport(
+        connection_factory=_connection_factory(FakeConnection(response))
+    )
+
+    with pytest.raises(FetchError, match="larger than the max_body_size of 39"):
+        http_request(URL, max_body_size=39, transport=transport)
+
+    assert response.reads == [40]
+
+
+def test_http_request_hands_a_wider_limit_to_the_session_transport_read() -> None:
+    """An answer over the default is read whole when the call allows it."""
+    body = b"a" * (DEFAULT_MAX_BODY_SIZE + 1)
+    response = FakeResponse(200, body, content_length=str(len(body)))
+    transport = SessionTransport(
+        connection_factory=_connection_factory(FakeConnection(response))
+    )
+
+    assert http_request(URL, max_body_size=len(body), transport=transport) == (
+        200,
+        body,
+    )
+
+
+def test_the_session_transport_refuses_a_limit_that_is_no_size() -> None:
+    """Checked before anything is sent, as `urlopen_transport` checks it."""
+    connection = FakeConnection(FakeResponse(200, b""))
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
+
+    with pytest.raises(BtcRpcValueError, match="negative max_body_size: -1"):
+        transport(Request(URL, method="GET"), DEFAULT_TIMEOUT, max_body_size=-1)
+
+    assert connection.requests == []
 
 
 def test_the_session_transport_deadline_bounds_a_dripping_reply(
@@ -1744,9 +1787,7 @@ def test_the_session_transport_deadline_bounds_a_dripping_reply(
     """
     response = FakeResponse(200, b"z" * 100, chunk_size=1)
     connection = FakeConnection(response)
-    transport = SessionTransport(
-        max_body_size=100, connection_factory=_connection_factory(connection)
-    )
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
     # one extra reading over `_read_bounded`'s own three (0.0 for the
     # deadline, 0.5 inside it, 9.0 past it): `_time_left` reads the clock
     # once more, connecting the fresh connection before any of that
@@ -1754,7 +1795,7 @@ def test_the_session_transport_deadline_bounds_a_dripping_reply(
     request = Request(URL, method="GET")
 
     with pytest.raises(FetchError, match="still arriving when the timeout expired"):
-        transport(request, 1.0)
+        transport(request, 1.0, max_body_size=100)
 
     assert response.reads == [101]
     assert connection.closed is True

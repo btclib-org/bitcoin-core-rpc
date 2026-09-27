@@ -21,6 +21,10 @@ connection closes after the request was written: that is a `FetchError`
 like any other failure of the exchange, and a caller that wants an
 idempotent call retried on it writes that retry.
 
+`SessionTransport(max_body_size=...)` is a `TypeError`: the limit is each
+call's own `max_body_size`, which now reaches the session's read as it
+reaches the default transport's.
+
 ## v2026.9.24
 
 Nothing to act on: the module is the one v2026.9.3 shipped, and its
