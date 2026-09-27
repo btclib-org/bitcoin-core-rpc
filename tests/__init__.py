@@ -24,10 +24,12 @@ and not of this suite.
 That is a claim about the clients and not about the package: sockets are
 opened here, by `rpc_smoke_test.py`, which binds and listens on a loopback
 port of its own in order to test the port probe `.github/scripts/rpc_smoke.py`
-uses. Nothing leaves the machine and nothing needs a node, which is what
-the sentence above is for. Section 7's convention is the stricter "the
-suite opens no socket", and tests/README.md's declaration is where this
-suite says it does not keep that one, and why.
+uses, and by `transport_test.py`, which tests the transports and their
+reuse probe against loopback peers of its own. Nothing leaves the machine
+and nothing needs a node, which is what the sentence above is for.
+Section 7's convention is the stricter "the suite opens no socket", and
+tests/README.md's declaration is where this suite says it does not keep
+that one, and why.
 
 The recorded bodies are what bitcoind sends, byte for byte, newline
 included; `_data/README.md` says where each came from.

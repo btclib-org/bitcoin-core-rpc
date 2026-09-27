@@ -90,7 +90,6 @@ import time
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import closing, contextmanager
 from decimal import Decimal
-from http.client import HTTPConnection
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -108,6 +107,7 @@ from bitcoin_core_rpc import (
     cookie_auth,
     http_request,
 )
+from bitcoin_core_rpc.transport import _DeadlineHTTPConnection, _new_connection
 
 # every chain `_CHAIN_FROM_NETWORK` names, each with the rpc port and the
 # datadir subdirectory Core gives it. Spelled out rather than read out of
@@ -831,8 +831,8 @@ def check_assert_chain(
 class ConnectionCounter:
     """A `SessionTransport` connection factory that counts what it opens.
 
-    `http.client.HTTPConnection` alone, which is what the transport opens
-    for an `http` url and the only scheme a local node here is reached by.
+    What it opens is the transport's own default, `_new_connection`, so the
+    node is reached over the connection a caller of `SessionTransport` gets.
     """
 
     def __init__(self) -> None:
@@ -840,11 +840,10 @@ class ConnectionCounter:
 
     def __call__(
         self, scheme: str, host: str, port: int, timeout: float
-    ) -> HTTPConnection:
+    ) -> _DeadlineHTTPConnection:
         """Return a new connection, counting it."""
-        del scheme  # always http here
         self.opened += 1
-        return HTTPConnection(host, port, timeout=timeout)
+        return _new_connection(scheme, host, port, timeout)
 
 
 def check_session(

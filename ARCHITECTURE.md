@@ -24,10 +24,10 @@ contributor is bound by.
 
 ## The transport layer
 
-`transport.py`'s `http_request` and `urlopen_transport` are the only
-functions here that open a socket, and they map everything below an
-HTTP status onto `FetchError`: what a status *means* is `client.py`'s
-question, never the transport's. `HttpTransport` — a callable taking the
+`transport.py` is the only module here that opens a socket, and
+`http_request` maps everything below an HTTP status onto `FetchError`:
+what a status *means* is `client.py`'s question, never the
+transport's. `HttpTransport` — a callable taking the
 built request and a timeout, answering with the status and the body —
 is the public seam a caller's own transport implements, and
 `urlopen_transport` is the default. `_read_bounded` is what every
@@ -35,7 +35,11 @@ transport built here reads a reply through: a deadline taken once,
 before the exchange starts, and a loop of bounded chunks rather than one
 blocking read, so a body larger than `max_body_size` or slower than
 `timeout` is refused instead of held in memory or waited out
-indefinitely.
+indefinitely. Beneath it, the connections both transports open —
+`_DeadlineHTTPConnection` and its TLS subclass — hold everything before
+the body to that deadline as well: the name lookup, each connect
+attempt, the handshake, every send, and every recv of the status line
+and the headers, each given what is left of it.
 
 `SessionTransport` is the alternative transport, one connection kept per
 `(scheme, host, port)` and reused across calls rather than one socket

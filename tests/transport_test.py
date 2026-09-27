@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import select
 import socket
+from array import array
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from http.client import (
     BadStatusLine,
     HTTPConnection,
@@ -27,8 +28,10 @@ from http.client import (
     RemoteDisconnected,
 )
 from io import BytesIO
+from threading import Event, Thread
+from time import monotonic
 from types import SimpleNamespace, TracebackType
-from typing import Any, Self
+from typing import Any, ClassVar, Self, cast
 from urllib.error import HTTPError, URLError
 from urllib.request import (
     HTTPHandler,
@@ -1266,6 +1269,10 @@ class FakeConnection:
         self._on_request = on_request
         self.sock: _FakeSocket | None = None
         self.timeout: float | None = None
+        # what `SessionTransport` sets before a request, and what each
+        # request found set, in order
+        self.deadline = 0.0
+        self.deadlines: list[float] = []
         self.closed = False
         self.requests: list[tuple[str, str, Any, Any]] = []
 
@@ -1276,6 +1283,7 @@ class FakeConnection:
         if self._on_request is not None:
             self._on_request()
         self.requests.append((method, url, body, headers))
+        self.deadlines.append(self.deadline)
         turn = self._turns.pop(0)
         if isinstance(turn, _RequestFails):
             raise turn.error
@@ -1886,10 +1894,11 @@ def test_the_default_connection_factory_picks_the_class_by_scheme() -> None:
     stays as hermetic as the rest of the suite.
     """
     plain = transport_module._new_connection("http", "127.0.0.1", 8332, 5.0)
+    assert type(plain) is transport_module._DeadlineHTTPConnection
     assert isinstance(plain, HTTPConnection)
-    assert not isinstance(plain, HTTPSConnection)
 
     secure = transport_module._new_connection("https", "127.0.0.1", 443, 5.0)
+    assert type(secure) is transport_module._DeadlineHTTPSConnection
     assert isinstance(secure, HTTPSConnection)
 
 
@@ -1949,3 +1958,345 @@ def test_the_whole_exchange_is_serialized_under_one_lock() -> None:
 
     assert seen["locked"] is True
     assert transport._lock.locked() is False
+
+
+# --- The deadline below the response: lookup, connect, send, headers ---
+
+
+@contextmanager
+def _peer(serve: Callable[[socket.socket, Event], None]) -> Iterator[str]:
+    """Yield the url of a loopback peer answering one connection with `serve`.
+
+    A peer of the test's own on 127.0.0.1, reaching no network: `serve` is
+    handed the accepted connection and an `Event` set when the test is
+    done with it, and runs on a thread of its own until then.
+    """
+    server = socket.create_server(("127.0.0.1", 0))
+    done = Event()
+
+    def accept() -> None:
+        with suppress(OSError):
+            connection, _ = server.accept()
+            with connection:
+                serve(connection, done)
+
+    peer = Thread(target=accept, daemon=True)
+    peer.start()
+    try:
+        yield f"http://127.0.0.1:{server.getsockname()[1]}/"
+    finally:
+        done.set()
+        server.close()
+        peer.join()
+
+
+def _drip_headers(connection: socket.socket, done: Event) -> None:
+    """Answer a status line, then one octet of a header every millisecond.
+
+    For ten seconds at least, and then close: `http.client` reads an
+    unfinished header line up to 64 KiB long, so without a deadline the
+    call waits out the drip and, once the peer closes, answers a 200.
+    """
+    connection.recv(65536)
+    connection.sendall(b"HTTP/1.1 200 OK\r\nX-Drip: ")
+    drips = iter(range(10_000))
+    with suppress(OSError):
+        while not done.wait(0.001) and next(drips, None) is not None:
+            connection.sendall(b"a")
+
+
+@pytest.mark.parametrize("session", [False, True])
+def test_a_peer_dripping_headers_is_held_to_the_deadline(
+    monkeypatch: pytest.MonkeyPatch, *, session: bool
+) -> None:
+    """Every recv of the headers is given what is left, and none resets it.
+
+    A socket timeout spent per recv is what a peer sending an octet just
+    inside it keeps renewing, and the headers arrive before `_read_bounded`
+    has anything to check. The clock advances once per reading instead of
+    with time, so what ends the call is how many operations it made -- a
+    few dozen, the drip being endless for as long as they take.
+    """
+    monkeypatch.setattr(transport_module, "monotonic", _increasing_clock())
+    with (
+        _peer(_drip_headers) as url,
+        SessionTransport() as session_transport,
+        pytest.raises(FetchError, match="timed out"),
+    ):
+        transport = session_transport if session else urlopen_transport
+        http_request(url, timeout=50.0, transport=transport)
+
+
+def test_a_tls_handshake_is_held_to_the_deadline() -> None:
+    """The `https` connection urllib opens hands the handshake what is left.
+
+    A listening socket that never accepts still completes the TCP connect,
+    from the backlog, and then answers no ClientHello: the handshake is
+    what waits, and the timeout is what ends it.
+    """
+    with socket.create_server(("127.0.0.1", 0)) as silent:
+        url = f"https://127.0.0.1:{silent.getsockname()[1]}/"
+        with pytest.raises(FetchError, match="timed out"):
+            http_request(url, timeout=0.2)
+
+
+class _TrickleSocket:
+    """A socket taking `take` octets per `send` at most, remembering each.
+
+    What each send was offered and each timeout it was given are kept, as
+    are the octets taken.
+    """
+
+    def __init__(self, take: int) -> None:
+        self.take = take
+        self.timeouts: list[float] = []
+        self.offered: list[int] = []
+        self.sent = bytearray()
+
+    def settimeout(self, timeout: float) -> None:
+        """Record the timeout this send is given."""
+        self.timeouts.append(timeout)
+
+    def send(self, data: memoryview) -> int:
+        """Take the first `take` octets of `data` and nothing more."""
+        self.offered.append(data.nbytes)
+        taken = data[: self.take]
+        self.sent += taken
+        return taken.nbytes
+
+
+def _trickle_sendall(
+    monkeypatch: pytest.MonkeyPatch, data: Any, deadline: float, take: int = 1
+) -> _TrickleSocket:
+    """Send `data` through a `_DeadlineSocket` over a `_TrickleSocket`.
+
+    The clock reads 0.0, 1.0, 2.0 and on, one reading per send.
+    """
+    monkeypatch.setattr(transport_module, "monotonic", _increasing_clock())
+    trickle = _TrickleSocket(take)
+    sock = transport_module._DeadlineSocket(
+        cast("socket.socket", trickle),
+        lambda: transport_module._seconds_left(deadline),
+    )
+    sock.sendall(data)
+    return trickle
+
+
+def test_each_send_is_given_what_is_left(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A peer taking a request one octet at a time renews nothing."""
+    trickle = _trickle_sendall(monkeypatch, b"abc", deadline=10.0)
+    assert trickle.sent == b"abc"
+    assert trickle.timeouts == [10.0, 9.0, 8.0]
+
+
+def test_a_send_past_the_deadline_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    """What is left of the request once the deadline passes is not sent."""
+    with pytest.raises(TimeoutError, match="timed out"):
+        _trickle_sendall(monkeypatch, b"abcdef", deadline=3.0)
+
+
+def test_each_send_is_offered_a_chunk_at_most(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Never the rest of a large body, which PyPy's `send` pays for whole."""
+    chunk = transport_module._SEND_CHUNK
+    data = bytes(2 * chunk + 1)
+    trickle = _trickle_sendall(monkeypatch, data, deadline=10.0, take=chunk)
+    assert trickle.offered == [chunk, chunk, 1]
+    assert trickle.sent == data
+
+
+def test_a_body_of_wider_items_is_sent_as_its_octets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A buffer whose items are not octets is counted in octets, not items.
+
+    `send` answers octets, so slicing the view it was given by that answer
+    has to slice octets too.
+    """
+    body = array("i", [1, 2])
+    trickle = _trickle_sendall(monkeypatch, body, deadline=100.0)
+    assert trickle.sent == body.tobytes()
+
+
+class _AttemptSocket:
+    """A socket whose `connect` raises what the test scripted, or succeeds."""
+
+    attempts: ClassVar[list[_AttemptSocket]] = []
+    errors: ClassVar[list[OSError | None]] = []
+
+    def __init__(self, *args: object) -> None:
+        self.timeouts: list[float] = []
+        self.closed = False
+        self.error = _AttemptSocket.errors.pop(0)
+        _AttemptSocket.attempts.append(self)
+
+    def settimeout(self, timeout: float) -> None:
+        """Record the timeout this attempt is given."""
+        self.timeouts.append(timeout)
+
+    def connect(self, address: object) -> None:
+        """Raise the scripted error, if there is one."""
+        if self.error is not None:
+            raise self.error
+
+    def close(self) -> None:
+        """Record that the failed attempt's socket was not left open."""
+        self.closed = True
+
+
+def test_each_connect_attempt_is_given_what_is_left(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Not the whole timeout per address, as `socket.create_connection` does.
+
+    Two addresses, the first refusing: the second is given what the first
+    left, and the socket it connects is given what is left after that, for
+    the TLS handshake that may follow.
+    """
+    info = (socket.AF_INET, socket.SOCK_STREAM, 0, "", ("127.0.0.1", 8332))
+    monkeypatch.setattr(transport_module, "_resolve", lambda *args: [info, info])
+    monkeypatch.setattr(transport_module, "socket", _AttemptSocket)
+    monkeypatch.setattr(_AttemptSocket, "attempts", [])
+    monkeypatch.setattr(_AttemptSocket, "errors", [ConnectionRefusedError(), None])
+    monkeypatch.setattr(transport_module, "monotonic", _increasing_clock())
+
+    connected = transport_module._connect("node", 8332, 10.0)
+
+    first, second = _AttemptSocket.attempts
+    assert first.timeouts == [10.0]
+    assert first.closed is True
+    assert cast("object", connected) is second
+    assert second.timeouts == [9.0, 8.0]
+    assert second.closed is False
+
+
+def test_a_connect_with_no_time_left_is_not_attempted() -> None:
+    """The deadline already past, each address raises before connecting."""
+    with pytest.raises(TimeoutError, match="timed out"):
+        transport_module._connect("127.0.0.1", 8332, 0.0)
+
+
+def _fake_getaddrinfo(
+    look_up: Callable[[], list[tuple[Any, ...]]],
+) -> Callable[..., list[tuple[Any, ...]]]:
+    """Return a `getaddrinfo` finding no address, then answering `look_up`."""
+
+    def fake(host: str, port: int, **kwargs: int) -> list[tuple[Any, ...]]:
+        if kwargs.get("flags", 0) & socket.AI_NUMERICHOST:
+            raise socket.gaierror(socket.EAI_NONAME, "not an address")
+        return look_up()
+
+    return fake
+
+
+def test_a_name_is_looked_up_on_a_thread_of_its_own(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A host name is not an address, so the resolver is asked for it."""
+    info = (socket.AF_INET, socket.SOCK_STREAM, 0, "", ("192.0.2.1", 8332))
+    monkeypatch.setattr(
+        transport_module, "getaddrinfo", _fake_getaddrinfo(lambda: [info])
+    )
+
+    deadline = monotonic() + DEFAULT_TIMEOUT
+    assert transport_module._resolve("node", 8332, deadline) == [info]
+
+
+def test_a_failed_lookup_raises_what_the_resolver_raised(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The thread hands its exception over, and the caller raises it."""
+
+    def no_such_host() -> list[tuple[Any, ...]]:
+        raise socket.gaierror(socket.EAI_NONAME, "no such host")
+
+    monkeypatch.setattr(
+        transport_module, "getaddrinfo", _fake_getaddrinfo(no_such_host)
+    )
+
+    deadline = monotonic() + DEFAULT_TIMEOUT
+    with pytest.raises(socket.gaierror, match="no such host"):
+        transport_module._resolve("node", 8332, deadline)
+
+
+def test_a_lookup_is_waited_for_no_longer_than_the_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A resolver that does not answer is left answering, and the call raises.
+
+    The lookup here answers only once the test has its result, so nothing
+    but the deadline can end the wait.
+    """
+    released = Event()
+
+    def unanswered() -> list[tuple[Any, ...]]:
+        released.wait()
+        return []
+
+    monkeypatch.setattr(transport_module, "getaddrinfo", _fake_getaddrinfo(unanswered))
+    try:
+        with pytest.raises(TimeoutError, match="timed out resolving node"):
+            transport_module._resolve("node", 8332, monotonic() + 0.05)
+    finally:
+        released.set()
+
+
+def test_the_session_transport_hands_each_call_its_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Set on the connection before each request, fresh, kept or reconnected.
+
+    A kept connection would otherwise hold the deadline of the call that
+    opened it, which passed with that call.
+    """
+    _patch_reuse_probe(monkeypatch, dead=False)
+    kept = FakeConnection(
+        FakeResponse(200, b"first"),
+        FakeResponse(200, b"second"),
+        _RequestFails(BrokenPipeError("gone")),
+    )
+    reconnected = FakeConnection(FakeResponse(200, b"third"))
+    transport = SessionTransport(
+        connection_factory=_connection_factory(kept, reconnected)
+    )
+    now = [100.0]
+    monkeypatch.setattr(transport_module, "monotonic", lambda: now[0])
+    request = Request(URL, method="GET")
+
+    for reading in (100.0, 200.0, 300.0):
+        now[0] = reading
+        transport(request, 10.0)
+
+    assert kept.deadlines == [110.0, 210.0, 310.0]
+    assert reconnected.deadlines == [310.0]
+
+
+def _answer_every_request(connection: socket.socket, done: Event) -> None:
+    """Answer each request with a 200 whose body is more than one read."""
+    pending = b""
+    with suppress(OSError):
+        while chunk := connection.recv(65536):
+            pending += chunk
+            while b"\r\n\r\n" in pending:
+                _, pending = pending.split(b"\r\n\r\n", 1)
+                body = b"z" * (2 * _READ_CHUNK)
+                head = f"HTTP/1.1 200 OK\r\nContent-Length: {len(body)}\r\n\r\n"
+                connection.sendall(head.encode() + body)
+
+
+@pytest.mark.parametrize("session", [False, True])
+def test_a_whole_exchange_runs_over_the_deadline_connections(*, session: bool) -> None:
+    """The answer arrives through them, and a kept one is used again.
+
+    urllib closes its handle on the socket once the headers are in, and
+    the body is read afterwards: the stream the response reads keeps the
+    descriptor open, as `http.client`'s own does. The peer accepts one
+    connection, so a session's second call is answered only over the
+    connection its first one kept.
+    """
+    with _peer(_answer_every_request) as url, SessionTransport() as kept:
+        transport = kept if session else urlopen_transport
+        for _ in range(2 if session else 1):
+            status, body = http_request(url, timeout=5.0, transport=transport)
+            assert (status, len(body)) == (200, 2 * _READ_CHUNK)

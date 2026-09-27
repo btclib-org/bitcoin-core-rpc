@@ -7,7 +7,8 @@
 Everything below an HTTP status is mapped onto `FetchError` here, and
 nothing above it is: what a status *means* is `client.py`'s question, not
 this module's. `urlopen_transport` and `SessionTransport` are the two
-things here that open a socket; nothing else in this module does.
+things here that open a socket, both through `_connect`; nothing else in
+this module does.
 """
 
 from __future__ import annotations
@@ -21,13 +22,22 @@ from http.client import (
     HTTPMessage,
     HTTPSConnection,
 )
+from io import BufferedReader, RawIOBase
 from math import isfinite
-from threading import Lock
+from socket import AI_NUMERICHOST, SOCK_STREAM, gaierror, getaddrinfo, socket
+from threading import Lock, Thread
 from time import monotonic
 from typing import IO, Any, Protocol, Self
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
-from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+from urllib.request import (
+    HTTPHandler,
+    HTTPRedirectHandler,
+    HTTPSHandler,
+    ProxyHandler,
+    Request,
+    build_opener,
+)
 
 from bitcoin_core_rpc.errors import BtcRpcTypeError, BtcRpcValueError, FetchError
 
@@ -98,8 +108,9 @@ and does all four:
 DEFAULT_TIMEOUT = 30.0
 """The seconds a call may take, unless `timeout` or `request_timeout` says.
 
-For the default transport it bounds the whole exchange rather than each
-socket operation, so a peer that keeps sending cannot outlast it. A reply
+For both transports of this module it bounds the whole exchange rather
+than each socket operation -- name resolution, connect, send, status line,
+headers and body -- so a peer that keeps sending cannot outlast it. A reply
 large enough to take longer than this to arrive is one of the cases for
 `request_timeout`, along with the methods that legitimately run long.
 """
@@ -136,6 +147,10 @@ bounds at all. Those are ordinary calls, so the refusal names
 # piece costs one more loop per piece and holds what it is about to read;
 # `test_a_read_asks_for_no_more_than_a_chunk` keeps it fixed
 _READ_CHUNK = 64 * 1024
+
+# how much one send of a request offers the socket, `_DeadlineSocket.sendall`
+# saying why there is a bound at all
+_SEND_CHUNK = 64 * 1024
 
 # where a status stops being an answer and becomes a diagnosis: urlopen
 # raises HTTPError from 400 up, so this is the same line drawn for a
@@ -189,6 +204,241 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 
+# The deadline below the response, where `_read_bounded` cannot reach.
+# `http.client` spends a socket timeout per operation: every recv of the
+# status line and of each header waits up to the full timeout again, so a
+# peer dripping headers holds the call as long as it keeps dripping --
+# and `http.client` accepts a hundred header lines of 64 KiB each before
+# it refuses any. The connections both transports here open hold every
+# step to one deadline instead: the lookup, each connect attempt, the TLS
+# handshake, every send and every recv, each given what is left of it.
+
+
+def _seconds_left(deadline: float) -> float:
+    """Return what is left of `deadline` for one socket operation.
+
+    Raising the `TimeoutError` a socket raises when its own timeout
+    expires, so a deadline passing between two operations and one passing
+    during an operation reach the caller as the same exception. Never a
+    timeout of zero or less for the socket: zero would make it
+    non-blocking, and a negative one is a `ValueError`.
+    """
+    remaining = deadline - monotonic()
+    if remaining <= 0:
+        raise TimeoutError("timed out")
+    return remaining
+
+
+def _resolve(host: str, port: int, deadline: float) -> list[tuple[Any, ...]]:
+    """Return `getaddrinfo`'s answer for `host`, waited for until `deadline`.
+
+    No socket timeout reaches name resolution: `getaddrinfo` is the
+    system resolver's call, and it takes as long as that resolver's own
+    configuration allows, whatever the caller asked for. So the lookup
+    runs in a daemon thread, and the call waits for it only until the
+    deadline. A resolver that has not answered by then leaves that thread
+    blocked in it until the resolver's own timeout ends the lookup, the
+    call having raised already; the thread holds nothing but the lookup,
+    and being a daemon it does not keep the process from exiting.
+
+    An address is asked for with `AI_NUMERICHOST` first, which consults
+    no resolver, so an endpoint written as an address starts no thread.
+    """
+    with suppress(gaierror):
+        return getaddrinfo(host, port, type=SOCK_STREAM, flags=AI_NUMERICHOST)
+
+    answer: list[list[tuple[Any, ...]] | Exception] = []
+
+    def look_up() -> None:
+        # whatever the lookup raises is handed to the waiting thread and
+        # raised there, as it would have been without this thread: a
+        # `gaierror`, or the `UnicodeError` an unencodable host name is
+        try:
+            answer.append(getaddrinfo(host, port, type=SOCK_STREAM))
+        except Exception as e:  # noqa: BLE001
+            answer.append(e)
+
+    lookup = Thread(target=look_up, name=f"getaddrinfo {host}", daemon=True)
+    lookup.start()
+    lookup.join(_seconds_left(deadline))
+    if not answer:
+        raise TimeoutError(f"timed out resolving {host}")
+    if isinstance(answer[0], Exception):
+        raise answer[0]
+    return answer[0]
+
+
+def _connect(host: str, port: int, deadline: float) -> socket:
+    """Return a socket connected to `host`, every step held to `deadline`.
+
+    `socket.create_connection`, which `http.client` calls otherwise,
+    gives each address the resolver answers the whole timeout, so a host
+    with two addresses that both drop the SYN is waited for twice. Each
+    attempt here is given what is left instead. The socket comes back
+    with its timeout set to what is left once connected, and that is the
+    bound on a TLS handshake over it: CPython's `ssl` reads a socket's
+    timeout as one deadline over the whole handshake, not one per read.
+    """
+    error: OSError = OSError(f"no address for {host}")
+    for family, kind, protocol, _, address in _resolve(host, port, deadline):
+        sock = socket(family, kind, protocol)
+        try:
+            sock.settimeout(_seconds_left(deadline))
+            sock.connect(address)
+            sock.settimeout(_seconds_left(deadline))
+        except OSError as e:
+            sock.close()
+            error = e
+        else:
+            return sock
+    raise error
+
+
+class _DeadlineReader(RawIOBase):
+    """The raw stream a response reads through, one recv per deadline check.
+
+    Over the socket's own unbuffered `makefile`, so the socket counts this
+    stream as open exactly as it counts the one `http.client` would have
+    made: urllib closes the socket once the status and headers are in,
+    and the descriptor stays open for as long as the response reads.
+    """
+
+    def __init__(
+        self, sock: socket, raw: RawIOBase, seconds_left: Callable[[], float]
+    ) -> None:
+        super().__init__()
+        self._sock = sock
+        self._raw = raw
+        self._seconds_left = seconds_left
+
+    def readable(self) -> bool:  # type: ignore[explicit-override]
+        """Answer True: this stream is the reading half of a socket."""
+        return True
+
+    # `Any` and not the buffer protocol: typeshed's name for it is private,
+    # and `collections.abc.Buffer` is 3.12's
+    def readinto(self, buffer: Any) -> int | None:  # type: ignore[explicit-override]
+        """Read one recv into `buffer`, having given it what is left."""
+        self._sock.settimeout(self._seconds_left())
+        return self._raw.readinto(buffer)
+
+    def close(self) -> None:  # type: ignore[explicit-override]
+        """Close the socket's stream beneath, and this one."""
+        self._raw.close()
+        super().close()
+
+
+class _DeadlineSocket:
+    """A connected socket whose every send and recv is given what is left.
+
+    What `http.client` holds as the connection's `sock`: it sends through
+    `sendall` and reads a response through `makefile`, and those two are
+    the ones answered here. Everything else it or `SessionTransport` asks
+    of a socket -- `close`, `settimeout`, the `fileno` a readability probe
+    registers -- goes to the socket itself.
+    """
+
+    def __init__(self, sock: socket, seconds_left: Callable[[], float]) -> None:
+        self._sock = sock
+        self._seconds_left = seconds_left
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._sock, name)
+
+    def sendall(self, data: Any) -> None:
+        """Send all of `data`, each send given what is left of the deadline.
+
+        One `send` at a time rather than `socket.sendall` under one
+        timeout: `SSLSocket.sendall` is a loop of sends each given the
+        whole timeout, and so is PyPy's plain `socket.sendall`, so a peer
+        reading slowly would reset it with every piece it takes.
+
+        Each send is offered `_SEND_CHUNK` at most. A `send` on PyPy costs
+        time in proportion to the buffer it is handed, not to what the
+        socket takes of it, so offering the rest of a large body every
+        time makes the whole send quadratic in its size. For the same
+        reason a view is cast to octets only where its items are not
+        octets already: slicing a cast view is what costs, on PyPy, and
+        the request `http.client` sends is `bytes`.
+        """
+        view = memoryview(data)
+        if view.nbytes != len(view):
+            view = view.cast("B")
+        while view:
+            self._sock.settimeout(self._seconds_left())
+            view = view[self._sock.send(view[:_SEND_CHUNK]) :]
+
+    def makefile(self, _mode: str) -> BufferedReader:
+        """Return the stream a response reads, `http.client` asking for "rb"."""
+        raw = self._sock.makefile("rb", buffering=0)
+        return BufferedReader(_DeadlineReader(self._sock, raw, self._seconds_left))
+
+
+class _DeadlineHTTPConnection(HTTPConnection):
+    """An `HTTPConnection` holding every socket operation to `deadline`.
+
+    `deadline` is taken from `timeout` when the connection is built, which
+    urllib does for every request and `SessionTransport` for every new
+    connection, and `SessionTransport` then sets it to each call's own
+    before sending, over a new connection and a kept one alike.
+    """
+
+    def __init__(
+        self,
+        host: str,
+        port: int | None = None,
+        *,
+        timeout: float = DEFAULT_TIMEOUT,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(host, port, timeout=timeout, **kwargs)
+        self.deadline = monotonic() + timeout
+        # `http.client`'s own seam for how a connection's socket is made,
+        # the one attribute `connect()` calls for it, here and in
+        # `HTTPSConnection`, which wraps the answer in TLS
+        self._create_connection = self._connect
+
+    def _connect(
+        self, address: tuple[str, int], _timeout: object, _source: object = None
+    ) -> socket:
+        # the timeout is replaced by the deadline, and a source address is
+        # something nothing here sets: neither urllib nor `_new_connection`
+        # passes one
+        return _connect(*address, self.deadline)
+
+    def _seconds_left(self) -> float:
+        return _seconds_left(self.deadline)
+
+    def connect(self) -> None:  # type: ignore[explicit-override]
+        """Connect, then hold every later send and recv to the deadline."""
+        super().connect()
+        self.sock = _DeadlineSocket(self.sock, self._seconds_left)
+
+
+class _DeadlineHTTPSConnection(_DeadlineHTTPConnection, HTTPSConnection):
+    """The same, over TLS: the handshake is `_connect`'s, the rest is ours."""
+
+
+class _DeadlineHTTPHandler(HTTPHandler):
+    """urllib's `http` handler, opening a `_DeadlineHTTPConnection`."""
+
+    def do_open(  # type: ignore[explicit-override]
+        self, http_class: Any, req: Request, **http_conn_args: Any
+    ) -> Any:
+        """Open `req` over a connection held to its deadline."""
+        return super().do_open(_DeadlineHTTPConnection, req, **http_conn_args)
+
+
+class _DeadlineHTTPSHandler(HTTPSHandler):
+    """urllib's `https` handler, opening a `_DeadlineHTTPSConnection`."""
+
+    def do_open(  # type: ignore[explicit-override]
+        self, http_class: Any, req: Request, **http_conn_args: Any
+    ) -> Any:
+        """Open `req` over a connection held to its deadline."""
+        return super().do_open(_DeadlineHTTPSConnection, req, **http_conn_args)
+
+
 # The one opener this module does its I/O with, and what it is missing is
 # the point: urllib's default `HTTPRedirectHandler`, which follows a 30x
 # before any of this module sees a response. Three things it does that no
@@ -232,7 +482,13 @@ class _NoRedirect(HTTPRedirectHandler):
 # `build_opener` and not `install_opener`: the default opener is process
 # wide, and a library that replaced it would decide this for every other
 # user of `urlopen` in the program
-_OPENER = build_opener(_NoRedirect, ProxyHandler({}))
+#
+# The two handlers after those are urllib's own for `http` and `https`,
+# replacing the defaults of their classes the same way, and opening the
+# connections above that hold the exchange to its deadline
+_OPENER = build_opener(
+    _NoRedirect, ProxyHandler({}), _DeadlineHTTPHandler, _DeadlineHTTPSHandler
+)
 
 
 def _assert_valid_timeout(timeout: float, what: str) -> None:
@@ -307,7 +563,9 @@ def _read_bounded(
     cannot be: that one is per recv, so a peer sending an octet just inside
     it resets it with every packet and the limit is never reached. Checked
     before each read, so the wait is the deadline plus the one recv in
-    flight when it passes.
+    flight when it passes -- a recv that, over a connection either
+    transport here opened, is itself given only what is left of the
+    deadline.
 
     The accumulator is one `bytearray` grown with `extend`, not a `list` of
     chunks joined at the end: a list holds every chunk as its own object
@@ -364,8 +622,8 @@ def urlopen_transport(
 ) -> tuple[int, bytes]:
     """Perform the request with urllib, reading a bounded response.
 
-    The default `HttpTransport`, and the only function here that opens a
-    socket. It maps nothing and interprets nothing: the status and the
+    The default `HttpTransport`, and one of the two things here that open
+    a socket. It maps nothing and interprets nothing: the status and the
     bytes go back as they arrived, and `http_request` is where the
     failures become the exceptions above.
 
@@ -379,8 +637,10 @@ def urlopen_transport(
     arrives as is the `HTTPError` any other non-2xx status does.
 
     `timeout` bounds the exchange and not each socket operation: the
-    deadline is taken before the connect, so a peer that drips a body one
-    octet at a time cannot hold this call open past it.
+    connection urllib builds for the request takes its deadline from it
+    before it connects, and gives every step of the exchange what is left
+    of that -- so a peer that drips headers or a body one octet at a time
+    cannot hold this call open past it.
 
     The scheme, the timeout and the limit are checked here and not only
     where `http_request` already checks them, for the reason that function
@@ -569,13 +829,14 @@ class _Connection(Protocol):
     """The subset of `http.client.HTTPConnection` `SessionTransport` drives.
 
     A `Protocol` and not that class itself, so a test's fake stands in
-    without inheriting a class whose constructor already reaches for a
-    default `socket.getaddrinfo` on some platforms -- `connect()` runs
-    lazily, on the first `request()`, which is what lets a fake answer for
-    this whole interface without ever opening a real socket.
+    without inheriting anything of it: a fake answers for this whole
+    interface without ever opening a real socket.
     """
 
     sock: Any
+    # the `monotonic()` reading every socket operation is held to, set by
+    # `SessionTransport` before each call it makes over the connection
+    deadline: float
     # `float | None`, matching `HTTPConnection.timeout`'s own stub: it
     # takes `_GLOBAL_DEFAULT_TIMEOUT`, typed as `None`, for "the socket
     # module's default" -- a value this transport never assigns, always
@@ -607,16 +868,20 @@ class _Connection(Protocol):
         """Close the socket, discarding whatever this connection held."""
 
 
-def _new_connection(scheme: str, host: str, port: int, timeout: float) -> _Connection:
+def _new_connection(
+    scheme: str, host: str, port: int, timeout: float
+) -> _DeadlineHTTPConnection:
     """Build the `http.client` connection `SessionTransport` defaults to.
 
-    `HTTPSConnection` for `https`, `HTTPConnection` otherwise -- the same
-    split urllib's own opener makes through its scheme-keyed handlers.
-    `timeout` is what `HTTPConnection.connect()` reads to set the new
-    socket's, the one number `SessionTransport` also measures its
-    `_read_bounded` deadline from.
+    `_DeadlineHTTPSConnection` for `https`, `_DeadlineHTTPConnection`
+    otherwise -- the same connections, split the same way by scheme, that
+    urllib's handlers open for `urlopen_transport`. `timeout` is what the
+    connection's first deadline is taken from; `SessionTransport` sets the
+    call's own over it before anything is sent.
     """
-    connection_class = HTTPSConnection if scheme == "https" else HTTPConnection
+    connection_class = (
+        _DeadlineHTTPSConnection if scheme == "https" else _DeadlineHTTPConnection
+    )
     return connection_class(host, port, timeout=timeout)
 
 
@@ -683,7 +948,9 @@ class SessionTransport:
     `urlopen_transport`: `max_body_size` bounds what one answer holds in
     memory, and `timeout` is a deadline over the whole exchange -- connect
     or reuse, send, and read -- taken as one `monotonic()` reading before
-    any of the three, and it is what `_read_bounded` reads the response
+    any of the three. The connection is given it as its `deadline`, which
+    every lookup, connect, send and recv over the connection `_new_connection`
+    builds is held to, and it is what `_read_bounded` reads the response
     against, the same bounded, chunked read `urlopen_transport` uses. No
     redirect is followed: `http.client` does not follow one on its own,
     so a 30x already arrives as the status and body of any other
@@ -827,9 +1094,12 @@ class SessionTransport:
         if connection is None:
             connection = self._connection_factory(*key, _time_left(deadline, url))
         else:
+            # what a connection that reads no `deadline` is held to instead,
+            # one socket operation at a time
             remaining = _time_left(deadline, url)
             connection.timeout = remaining
             connection.sock.settimeout(remaining)
+        connection.deadline = deadline
 
         try:
             try:
@@ -839,6 +1109,7 @@ class SessionTransport:
                     raise
                 connection.close()
                 connection = self._connection_factory(*key, _time_left(deadline, url))
+                connection.deadline = deadline
                 connection.request(method, path, body=body, headers=headers)
             response = connection.getresponse()
         except BaseException:
