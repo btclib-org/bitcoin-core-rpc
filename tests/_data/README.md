@@ -25,7 +25,7 @@ without `-txindex`, verbatim, including the trailing sentence
 Nothing here was invented; nothing here was captured either, and a node's
 answer is what settles a disagreement.
 `.github/workflows/integration-bitcoind.yml` is where that question is
-asked of two live bitcoind versions.
+asked of live bitcoind versions, its `versions` job choosing which.
 
 ## What they carry is chain data, and it verifies itself
 

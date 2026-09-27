@@ -683,8 +683,8 @@ accommodated by it.
 
 `--chain` is the other mode, one node at a time and no chain generated on
 it: it starts a node of `main`, `test`, `testnet4` or `signet` with no peer
-reachable at all, and checks only that Core still accepts `-chain=<name>`
-and reports it back:
+reachable at all, and checks only that Core still accepts `-chain=<name>`,
+reports it back, and passes `assert_chain` for it:
 
 ```shell
 uv run --locked --no-default-groups \

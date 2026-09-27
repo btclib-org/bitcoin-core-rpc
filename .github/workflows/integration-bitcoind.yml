@@ -2,22 +2,19 @@
 name: integration-bitcoind
 
 # The one claim the suite cannot make. Every reply under tests/_data is
-# Core's own and the suite classifies all of them without opening a socket,
-# which is the right shape for a test suite -- but a recording is the thing
-# being classified, so nothing in it says that a live bitcoind still
-# answers this way. This workflow asks live nodes instead, as many
-# majors as the trigger calls for, and
-# .github/scripts/rpc_smoke.py is the whole of what it asks: the reply
-# shapes read off the wire before the client reads them, the cookie the
-# node wrote, the /wallet/<name> endpoint of a node with two wallets, the
-# chain answers against a regtest chain the script generates, so the
-# expected height is arithmetic rather than a recording, and -rest against
-# that same chain, which tests/ has no live node to ask about either.
+# written from Core's source and the suite classifies all of them without
+# opening a socket, which is the right shape for a test suite -- but the
+# fixture is the thing being classified, so nothing in it says that a
+# live bitcoind answers this way. This workflow asks live nodes instead,
+# as many majors as the trigger calls for, and
+# .github/scripts/rpc_smoke.py is the whole of what it asks, its
+# docstring listing what and why.
 #
 # Five more cells ask a narrower question about the five chains Core
 # names: with only regtest a chain this workflow can grow, `--chain`
 # starts a node of each with no peer reachable at all, and checks only that
-# Core still accepts `-chain=<name>` and echoes it back -- one Core version
+# Core still accepts `-chain=<name>`, echoes it back, and passes
+# `assert_chain` for it -- one Core version
 # rather than every one, since that spelling has not moved across a
 # supported major yet.
 #
@@ -27,10 +24,9 @@ name: integration-bitcoind
 # where the pins are, and it is a job rather than two literals in a matrix
 # because a digest belongs in one place.
 #
-# It gates a merge on a cost that is measured rather than assumed: every
-# cell here finishes in 12 to 24 seconds, the download of bitcoind
-# included, and the cells run concurrently. What a whole run costs today
-# is in the run log rather than in this comment:
+# It gates a merge on a cost that is measured rather than assumed, the
+# cells running concurrently. What a whole run costs today is in the run
+# log rather than in this comment:
 #
 #     gh run list --workflow=integration-bitcoind.yml --limit 1
 #

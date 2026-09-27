@@ -11,21 +11,18 @@ and everything `smoke` calls in turn all talk to a real
 `BitcoinCoreRpcClient` backed by a real bitcoind, which is the one thing
 this script exists to have -- a mock of it would be testing that the mock
 agrees with itself. `.github/workflows/integration-bitcoind.yml` is
-where that half is exercised, against Core itself, on a schedule and
-before a release; it is not duplicated here.
+where that half is exercised, against Core itself; it is not duplicated
+here.
 
-What is covered is the half with no node behind it: `check`, the plain
-predicate every other function calls; `port_is_free`, a socket check;
-`rest_outpoint`, the string `check_rest` builds a `/getutxos` path from;
-`check_legacy_reply` and `check_v2_reply`, which read a status and a
-plain `dict` -- exactly the shape `probe` hands them, but built here by
-hand rather than read off a wire; `check_cookie`, which is file
-parsing (`cookie_auth` reads a path, no client passed to it at all);
-`print_log_tail`; and the policy `wait_for_rpc` applies to what it
-catches, a stub raising the failure a node would and no node needed to
-tell a status that clears from one that does not. `main`'s argument
-parsing is covered by its own failure modes, which is what does not need
-`--bitcoind` to be real.
+What is covered is the half with no node behind it: every function of the
+script carrying no `pragma: no cover`, each handed here what it would be
+handed there -- `check_legacy_reply` and `check_v2_reply` a status and a
+plain `dict`, exactly the shape `probe` hands them but built by hand
+rather than read off a wire. Beside those, the policy `wait_for_rpc`
+applies to what it catches, a stub raising the failure a node would and
+no node needed to tell a status that clears from one that does not; and
+`main`'s argument parsing, by its own failure modes, which is what does
+not need `--bitcoind` to be real.
 
 The script is loaded by path, `.github/scripts` being no package.
 """
@@ -163,6 +160,19 @@ def test_rest_outpoint_is_the_txid_and_the_vout_joined_by_a_hyphen(
 ) -> None:
     """The `<txid>-<vout>` shape `/rest/getutxos` names one outpoint with."""
     assert smoke.rest_outpoint("f4184fc5", 0) == "f4184fc5-0"
+
+
+def test_connection_counter_counts_each_connection_it_builds(
+    smoke: ModuleType,
+) -> None:
+    """Each call is a new connection, unconnected, to that host and port."""
+    connections = smoke.ConnectionCounter()
+    first = connections("http", "127.0.0.1", 18443, 5.0)
+    second = connections("http", "127.0.0.1", 18443, 5.0)
+    assert connections.opened == 2
+    assert first is not second
+    assert (first.host, first.port, first.timeout) == ("127.0.0.1", 18443, 5.0)
+    assert first.sock is None
 
 
 @pytest.mark.parametrize("rpc_error", [False, True])

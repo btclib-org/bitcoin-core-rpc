@@ -5,29 +5,43 @@
 """The one claim recorded replies cannot make: a live node answers this way.
 
 `tests/` exercises the whole of the request building, the status
-handling and the error mapping against replies recorded from Core, and
-opens no socket doing it. What it cannot establish is that Core sends
-those replies -- the recording *is* the thing being classified -- so this
-script starts a bitcoind of a stated version, on a regtest chain it
-generates itself, and asks it every question the client answers.
+handling and the error mapping against replies written from Core's
+source rather than captured from a node -- `tests/_data/README.md` names
+the source -- and opens no socket doing it. What it cannot establish is
+that Core sends those replies -- the fixture *is* the thing being
+classified -- so this script starts a bitcoind of a stated version, on a
+regtest chain it generates itself, and puts to it the checks `smoke`
+calls, each `check_*` function's docstring saying what it asks.
 
-What it proves, and why each item is here rather than in the suite:
+Among them, the ones a fixture is least able to settle:
 
 - the protocol version the node speaks, read off the wire. The reply to
   a request carrying the 2.0 marker is inspected before the client
   classifies it, because the shapes `_legacy_result` and `_v2_result`
-  read are exactly what a recording asserts without evidence: no
+  read are exactly what a fixture asserts without evidence: no
   `jsonrpc` member and an rpc error under an HTTP 500 for 1.1, the marker
   echoed and an rpc error under a 200 for 2.0;
 - a result and an error under that version, and then the same two through
   `call`, which is the client's classification of what was just read raw;
+- the same two asked through `call_raw` with no marker at all, which a
+  node from v28 on still answers in 1.1: without it, the 1.1 shape would
+  be read off v27 alone;
+- `call_batch`, one member that succeeds and one that fails in one HTTP
+  200 -- 1.1 members on v27, 2.0 on every later version -- with the
+  failing member's `RpcError` at its own position, beside the other's
+  result;
+- `assert_chain` against the node's own `getblockchaininfo`, accepting
+  the chain the node is on and refusing another;
+- `SessionTransport`, several calls on the one connection it keeps, and
+  one more after the node closed that connection for idleness under
+  `-rpcservertimeout`, a close no fixture can hold;
 - the cookie file the node wrote, at the path Core's layout puts it, one
   ascii line with a colon in it;
 - the `/wallet/<name>` endpoint of a node with two wallets loaded, which
   is the case where the endpoint is load-bearing: with two of them the
   node refuses a wallet method that names neither;
 - the chain answers against a chain generated here, so the expected
-  height is arithmetic rather than a recording, and the serializations
+  height is arithmetic rather than a fixture, and the serializations
   fetched are checked against the node's own decoding of them;
 - `-rest`, against the same chain: `.bin` compared byte for byte with
   the rpc client's own serialization, `.json` read for the field that
@@ -41,27 +55,26 @@ answers 1.1 and the current release answers 2.0, and a node that stopped
 doing so has to fail this rather than be accommodated by it.
 
 `--chain` is the other mode, and takes any of the five chains Core names:
-what it starts is a node with no peer reachable at all, and the one thing
-it checks is that Core still accepts `-chain=<name>` and echoes the same
-name back in `getblockchaininfo`, at height 0, nothing downloaded. Four of
-the five are not chains this script can grow the way it grows regtest;
-regtest is here too so that its row of the port table is checked where it
-is read rather than only in passing, on the way to `--protocol`'s own
-question.
+what it starts is a node with no peer reachable at all, and what it
+checks is that Core still accepts `-chain=<name>` and echoes the same
+name back in `getblockchaininfo`, at height 0, nothing downloaded, and
+that `assert_chain` accepts that name -- on signet, the magic of the
+default signet's challenge with it. Four of the five are not chains this
+script can grow the way it grows regtest; regtest is here too so that its
+row of the port table is checked where it is read rather than only in
+passing, on the way to `--protocol`'s own question.
 
 Run it against a node of your own with `--bitcoind`; CONTRIBUTING.md
 carries the command, and `.github/workflows/integration-bitcoind.yml`
 the download that verifies which binary it is.
 
-`tests/rpc_smoke_test.py` covers every function with no client behind it
--- `check`, `port_is_free`, `rest_outpoint`, `check_legacy_reply`,
-`check_v2_reply`, `check_cookie` and `print_log_tail`, plus `main`'s own
-argument parsing -- and, with a stub in place of the client,
-`wait_for_rpc`'s retry policy: which failures end the wait and which it
-retries.
+`tests/rpc_smoke_test.py` covers every function here with no client
+behind it, `main`'s own argument parsing, and -- with a stub in place of
+the client -- `wait_for_rpc`'s retry policy: which failures end the wait
+and which it retries.
 Everything else here -- `wait_for_rpc`'s own success path included --
 carries `pragma: no cover`: it takes a real `BitcoinCoreRpcClient`
-talking to a real node, and mocking that node would be the recording
+talking to a real node, and mocking that node would be the fixture
 this script exists to not trust. That half is
 `integration-bitcoind.yml`'s to monitor, against Core itself.
 """
@@ -77,6 +90,7 @@ import time
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import closing, contextmanager
 from decimal import Decimal
+from http.client import HTTPConnection
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -85,9 +99,12 @@ from bitcoin_core_rpc import (
     COOKIE_USER,
     BitcoinCoreRestClient,
     BitcoinCoreRpcClient,
+    BtcRpcValueError,
     FetchError,
     HttpError,
+    RpcChannel,
     RpcError,
+    SessionTransport,
     cookie_auth,
     http_request,
 )
@@ -169,6 +186,20 @@ STARTUP_POLL = 0.25
 # time here, and a constant is what makes the echo check readable
 PROBE_ID = "btclib-smoke-probe"
 
+# the node's `-rpcservertimeout`, in seconds, instead of Core's default of
+# 30: how long it keeps an idle connection open before closing it, which
+# is the close `check_session` waits out. It bounds a connection's
+# silence, not a call's execution -- a call the node is still working on
+# is not cut off by it -- so no other check here can trip it
+RPC_SERVER_TIMEOUT = 2
+# how long `check_session` leaves its connection idle: past the timeout
+# with a margin, libevent's timer firing late on a loaded runner rather
+# than early
+IDLE_WAIT = RPC_SERVER_TIMEOUT + 3
+# the calls `check_session` makes before the idle wait: more than one, so
+# that the connection they share is one the transport kept
+SESSION_CALLS = 3
+
 # what is printed of the node's own log when a check fails: enough to
 # carry a refused bind or a wallet error, not the whole of a debug.log
 LOG_TAIL_LINES = 40
@@ -211,8 +242,10 @@ def node(
     cookie are the node's defaults, which is what makes `from_chain` and
     `cookie_auth` checkable at all. `-txindex` so `getrawtransaction`
     answers for a transaction no wallet of this node knows, `-rest=1` so
-    the interface `check_rest` asks is there to ask, and `-listen=0`
-    because a smoke test has no peers.
+    the interface `check_rest` asks is there to ask, `-listen=0`
+    because a smoke test has no peers, and `-rpcservertimeout` so that
+    the idle close `check_session` waits for comes in seconds rather than
+    in Core's default half minute.
     """
     if not port_is_free(RPC_PORT):
         err_msg = f"something is already listening on {CHAIN} rpc port {RPC_PORT}:"
@@ -226,6 +259,7 @@ def node(
         "-rest=1",
         "-listen=0",
         f"-fallbackfee={FALLBACK_FEE}",
+        f"-rpcservertimeout={RPC_SERVER_TIMEOUT}",
         # the node's own log stays in its datadir, where `print_log_tail`
         # reads it when a check fails: on the console it interleaves with
         # the checks, and what a green run is worth reading for is the
@@ -355,7 +389,7 @@ def probe(
     The same request `call` builds, the 2.0 marker included, sent through
     the same transport -- and then neither classified nor validated, which
     is the point: what the checks below read is the shape of the reply
-    itself, which is the thing every recorded fixture asserts.
+    itself, which is the thing every fixture asserts.
     """
     body = json.dumps(
         {"jsonrpc": "2.0", "id": PROBE_ID, "method": method, "params": list(params)}
@@ -422,7 +456,7 @@ def check_protocol(
 
     A result and an error under the version the node speaks: the minimum,
     because the error path is where the two versions disagree and the one a
-    recording can least be trusted about. The `call` half is the client
+    fixture can least be trusted about. The `call` half is the client
     classifying the very replies just read.
     """
     check_reply = check_legacy_reply if protocol == "1.1" else check_v2_reply
@@ -521,13 +555,19 @@ def check_named_params(
     An array read positionally and an object read by name, plus Core's
     `args` convention -- an object carrying the leading positional values
     under one key. All three name the genesis block here, which is the one
-    hash a regtest chain has before anything is generated.
+    hash a regtest chain has before anything is generated. `RpcChannel`
+    asks it once more, its keyword arguments being the named form: what a
+    node adds is that a name the channel passes on is the one Core reads.
     """
     genesis = client.call("getblockhash", [0])
     check(len(genesis) == 64, f"positional params: block 0 is {genesis}")
     check(client.call("getblockhash", {"height": 0}) == genesis, "named params")
     check(
         client.call("getblockhash", {"args": [0]}) == genesis, "Core's args convention"
+    )
+    check(
+        RpcChannel(client).getblockhash(height=0) == genesis,
+        "RpcChannel's keyword arguments reach the node as named params",
     )
 
 
@@ -718,6 +758,122 @@ def check_rest(
         raise SmokeError("rest tx.json answered for an id that names no transaction")
 
 
+def check_unmarked_request(
+    client: BitcoinCoreRpcClient, unknown_tx_id: str
+) -> None:  # pragma: no cover -- the reply shapes only a live node produces
+    """Read the reply to a request with no `jsonrpc` member, through `call_raw`.
+
+    `probe` sends the 2.0 marker, so on any node from v28 on it reads the
+    2.0 shape alone. A request without the marker is still answered in
+    1.1 there -- `JSONRPCRequest::parse` in Core's `src/rpc/request.cpp`
+    defaults to the legacy version -- and `call_raw(..., jsonrpc=None)`
+    is the request that asks for it, on every version the matrix pins.
+    """
+    status, reply = client.call_raw("getblockcount", jsonrpc=None)
+    check_legacy_reply(status, reply, rpc_error=False)
+    status, reply = client.call_raw("getrawtransaction", [unknown_tx_id], jsonrpc=None)
+    check_legacy_reply(status, reply, rpc_error=True)
+
+
+def check_batch(
+    client: BitcoinCoreRpcClient, height: int, unknown_tx_id: str
+) -> None:  # pragma: no cover -- a batch reply only a live node produces
+    """Check `call_batch` against one member that succeeds and one that fails.
+
+    Core answers a batch with an HTTP 200 whatever its members hold, and
+    each member in the version its own request asked for -- except on
+    v27, which knows no marker and answers every member in 1.1, the
+    error member with both `result` and `error`. That member has to come
+    back as its `RpcError`, at its own position, beside the other's result.
+    """
+    answers = client.call_batch(
+        [("getblockcount", None), ("getrawtransaction", [unknown_tx_id])]
+    )
+    check(
+        answers[0] == height, f"call_batch answers the member that succeeds: {height}"
+    )
+    error = answers[1]
+    check(
+        isinstance(error, RpcError) and error.code == -5,
+        "call_batch answers the member that fails with its RpcError -5",
+    )
+
+
+def chain_is_accepted(
+    client: BitcoinCoreRpcClient, chain: str
+) -> bool:  # pragma: no cover -- it asks a node which chain it is on
+    """Say whether `assert_chain` accepts `chain` for the node reached."""
+    try:
+        client.assert_chain(chain)
+    except BtcRpcValueError:
+        return False
+    return True
+
+
+def check_assert_chain(
+    client: BitcoinCoreRpcClient,
+) -> None:  # pragma: no cover -- it asks a node which chain it is on
+    """Check `assert_chain` against the node's own `getblockchaininfo`.
+
+    Both ways: the chain the node is on is accepted, and one it is not on
+    is refused, which is the answer a client pointed at the wrong node has
+    to get.
+    """
+    check(chain_is_accepted(client, CHAIN), f"assert_chain accepts {CHAIN}")
+    check(not chain_is_accepted(client, "main"), "assert_chain refuses main")
+
+
+class ConnectionCounter:
+    """A `SessionTransport` connection factory that counts what it opens.
+
+    `http.client.HTTPConnection` alone, which is what the transport opens
+    for an `http` url and the only scheme a local node here is reached by.
+    """
+
+    def __init__(self) -> None:
+        self.opened = 0
+
+    def __call__(
+        self, scheme: str, host: str, port: int, timeout: float
+    ) -> HTTPConnection:
+        """Return a new connection, counting it."""
+        del scheme  # always http here
+        self.opened += 1
+        return HTTPConnection(host, port, timeout=timeout)
+
+
+def check_session(
+    client: BitcoinCoreRpcClient,
+) -> None:  # pragma: no cover -- a connection a live node keeps and then closes
+    """Check `SessionTransport` against a node's keep-alive and its idle close.
+
+    Several calls first, which have to share one connection: a node that
+    closed after each reply would make the transport open one per call.
+    Then the connection is left idle past `-rpcservertimeout`, which the
+    node answers by closing it, and the next call has to be answered all
+    the same, over a connection opened in its place.
+    """
+    connections = ConnectionCounter()
+    with SessionTransport(connection_factory=connections) as transport:
+        session = BitcoinCoreRpcClient(
+            client.url, cookie_path=client.cookie_path, transport=transport
+        )
+        heights = {session.call("getblockcount") for _ in range(SESSION_CALLS)}
+        check(
+            connections.opened == 1,
+            f"SessionTransport carries {SESSION_CALLS} calls on one connection",
+        )
+        time.sleep(IDLE_WAIT)
+        check(
+            session.call("getblockcount") in heights,
+            f"a call after {IDLE_WAIT} s idle is answered",
+        )
+        check(
+            connections.opened == 2,
+            "the node closed the idle connection and the transport opened another",
+        )
+
+
 def check_version(
     client: BitcoinCoreRpcClient, core_version: str
 ) -> None:  # pragma: no cover -- only a node reports its subversion
@@ -735,21 +891,26 @@ def check_version(
 def smoke(
     bitcoind: Path, datadir: Path, core_version: str, protocol: str
 ) -> None:  # pragma: no cover -- the whole --protocol run against a node
-    """Ask a node of a stated version every question the client answers."""
+    """Ask a node of a stated version what the module docstring lists."""
     with node(bitcoind, datadir) as client:
         check_version(client, core_version)
         check_cookie(datadir / DATADIR_SUBDIR / ".cookie")
         check_credentials_refused(client)
         check_named_params(client)
+        check_assert_chain(client)
         height, tx_id, foreign_coinbase = generate_chain(client)
         # after the chain, so that the unknown transaction id is unknown to
         # a node with an index and blocks in it: the id is the tip hash,
         # which is a valid 32-byte id and no transaction of any chain
         unknown_tx_id = client.call("getbestblockhash")
         check_protocol(client, protocol, unknown_tx_id)
+        check_unmarked_request(client, unknown_tx_id)
+        check_batch(client, height, unknown_tx_id)
         check_wallet_endpoint(client)
         check_chain_answers(client, height, tx_id, foreign_coinbase)
         check_rest(client, height, tx_id, foreign_coinbase)
+        # last, the idle wait being the one pause in the run
+        check_session(client)
 
 
 def smoke_chain(
@@ -771,6 +932,9 @@ def smoke_chain(
         info = client.call("getblockchaininfo")
         check(info["chain"] == chain, f"the node reports its chain as {chain}")
         check(info["blocks"] == 0, "no block beyond genesis: nothing was downloaded")
+        # on signet this also compares the magic the node's reported
+        # challenge derives with the default signet's
+        check(chain_is_accepted(client, chain), f"assert_chain accepts {chain}")
 
 
 def print_log_tail(datadir: Path, subdir: str) -> None:

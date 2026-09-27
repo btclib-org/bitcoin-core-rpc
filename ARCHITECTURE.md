@@ -39,10 +39,10 @@ indefinitely.
 
 `SessionTransport` is the alternative transport, one connection kept per
 `(scheme, host, port)` and reused across calls rather than one socket
-per call: a probe before every reuse, and one reconnect where the probe
-cannot see the drop, are what let it do that without ever re-sending a
-request the node may already be executing — its own docstring is the
-argument in full.
+per call: a probe before every reuse, and one reconnect where the write
+fails, are what let it do that without ever re-sending a request the
+node may already be executing — its own docstring is the argument in
+full.
 
 Three things a caller cannot get from `HttpTransport`'s own two
 arguments, and what `http_request` and `urlopen_transport` each do about
@@ -116,20 +116,19 @@ shell probing for a dunder does not turn into an rpc call of that name.
 
 `tests/__init__.py`'s `Recorded` is the transport a test passes wherever
 a client's call has to answer with something: it answers from bytes
-committed under `tests/_data`, recorded from Core itself, and opens no
-socket. That is what keeps the suite hermetic and fast, and it is also a
-boundary: a recording proves the client reads the shape Core is *known*
-to have sent, not that a live node still sends it.
+committed under `tests/_data`, written from Core's source rather than
+captured from a node, and opens no socket. That is what keeps the suite
+hermetic and fast, and it is also a boundary: a fixture proves the
+client reads the shape Core's source says it sends, not that a live node
+sends it.
 
 `.github/scripts/rpc_smoke.py` is the other half. Its `--protocol` mode
-starts a real bitcoind on a regtest chain it generates itself, and asks
-it every question the client answers — the protocol version read off
-the wire before the client classifies it, the cookie file at the path
-Core's own layout puts it, the `/wallet/<name>` endpoint of a node with
-two wallets loaded, and `-rest` against the same chain. Its `--chain`
-mode starts a node of any of Core's five chains with no peer reachable
-at all and checks only that Core still accepts `-chain=<name>` and
-echoes it back. Neither mode lets the node reach the network:
+starts a real bitcoind on a regtest chain it generates itself and puts
+to it what a fixture cannot settle, the script's own docstring listing
+what and why. Its `--chain` mode starts a node of any of Core's five
+chains with no peer reachable at all and checks only that Core still
+accepts `-chain=<name>`, echoes it back, and passes `assert_chain` for
+it. Neither mode lets the node reach the network:
 `-listen=0` throughout, and `-connect=0 -dnsseed=0` besides for
 `--chain`, regtest alone shipping no seed to connect to or look up.
 `.github/workflows/integration-bitcoind.yml` runs it against as many
