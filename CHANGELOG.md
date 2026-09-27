@@ -135,6 +135,12 @@ Both point a contributor at the organization's one copy of each, in
 An issue filed from a review may now say the fix where one is known;
 the filing bar stands as it was (issue btclib-org/.github#1378).
 
+### `call_batch` refuses a malformed batch and reply with its own errors
+
+A json array or object as a reply `id` is a `FetchError`, a generator a batch,
+and a member that is no pair or a str or non-iterable `calls` is a
+`BtcRpcTypeError`, `None` and `""` included (closes #546) (closes #547).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

@@ -2396,6 +2396,57 @@ def test_call_batch_two_replies_sharing_an_id_is_the_whole_exchanges_failure() -
         endpoint.call_batch([("a", None), ("b", None)])
 
 
+@pytest.mark.parametrize("reply_id", [[1], {"a": 1}])
+def test_call_batch_a_reply_id_no_dict_can_key_is_one_nobody_sent(
+    reply_id: object,
+) -> None:
+    """An array or an object as a reply's id is a FetchError, not TypeError."""
+
+    def builder(_ids: list[str]) -> tuple[int, bytes]:
+        reply = [{"jsonrpc": "2.0", "id": reply_id, "result": 1}]
+        return 200, json.dumps(reply).encode()
+
+    endpoint = batch_client(builder)
+    with pytest.raises(FetchError, match="nobody sent"):
+        endpoint.call_batch([("getblockcount", None)])
+
+
+def test_call_batch_reads_a_generator_of_calls_once() -> None:
+    """Every member a generator yields is sent, and answered in its order."""
+
+    def builder(ids: list[str]) -> tuple[int, bytes]:
+        reply = [
+            {"jsonrpc": "2.0", "id": request_id, "result": index}
+            for index, request_id in enumerate(ids)
+        ]
+        return 200, json.dumps(reply).encode()
+
+    endpoint = batch_client(builder)
+    calls = ((method, None) for method in ("a", "b"))
+    assert endpoint.call_batch(calls) == [0, 1]
+    assert [member["method"] for member in sent_members(endpoint)] == ["a", "b"]
+
+
+@pytest.mark.parametrize("calls", ["gb", b"gb", 7, "", None])
+def test_call_batch_refuses_calls_that_is_no_iterable_of_pairs(calls: object) -> None:
+    """A str, empty or not, is never a batch; an int or None is no iterable."""
+    endpoint = client()
+    with pytest.raises(BtcRpcTypeError, match="call_batch calls is a"):
+        endpoint.call_batch(calls)  # type: ignore[arg-type]
+    assert recording(endpoint).requests == []
+
+
+@pytest.mark.parametrize("member", [("getblockcount",), ("a", None, 1), "gb", None])
+def test_call_batch_refuses_a_member_that_is_no_pair_naming_its_position(
+    member: object,
+) -> None:
+    """A str of two characters is no pair either."""
+    endpoint = client()
+    with pytest.raises(BtcRpcTypeError, match="call_batch member 1: .* not a"):
+        endpoint.call_batch([("getblockcount", None), member])  # type: ignore[list-item]
+    assert recording(endpoint).requests == []
+
+
 def test_call_batch_the_clients_timeout_reaches_the_transport() -> None:
     """`request_timeout` bounds the one exchange, as `call`'s own does."""
 

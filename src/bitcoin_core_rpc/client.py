@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import json
 from base64 import b64encode
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from decimal import Decimal, DecimalException
 from math import isfinite
 from os import PathLike
@@ -557,6 +557,42 @@ def _v2_result(
     return reply["result"]
 
 
+def _batch_pairs(calls: Any) -> list[tuple[Any, Any]]:
+    """Return `calls` read once as `(method, params)` pairs, or refuse it.
+
+    Read once and kept, so a generator is as good a `calls` as a list:
+    the ids, the request and the results are all built from what this
+    returns. A str, bytes or bytearray is iterable and is never a batch,
+    and a member is a pair only as a sequence of two -- a str of two
+    characters being no pair either, for the reason `_params_member`
+    refuses one as params.
+    """
+    if isinstance(calls, (str, bytes, bytearray)):
+        err_msg = f"call_batch calls is a {type(calls).__name__} and not"
+        err_msg += " an iterable of (method, params) pairs"
+        raise BtcRpcTypeError(err_msg)
+    try:
+        members = iter(calls)
+    except TypeError as e:
+        err_msg = f"call_batch calls is a {type(calls).__name__} and not"
+        err_msg += " an iterable of (method, params) pairs"
+        raise BtcRpcTypeError(err_msg) from e
+    pairs: list[tuple[Any, Any]] = []
+    for index, member in enumerate(members):
+        shape = f"a {type(member).__name__}"
+        if isinstance(member, Sequence) and not isinstance(
+            member, (str, bytes, bytearray)
+        ):
+            if len(member) == 2:
+                pairs.append((member[0], member[1]))
+                continue
+            shape += f" of length {len(member)}"
+        err_msg = f"call_batch member {index}: {shape} and not a (method, params)"
+        err_msg += " pair"
+        raise BtcRpcTypeError(err_msg)
+    return pairs
+
+
 def _batch_member_request(
     index: int, method: Any, params: Any, request_id: str
 ) -> dict[str, Any]:
@@ -589,7 +625,7 @@ def _batch_member_request(
 
 def _correlated_batch_replies(
     where: str, request_ids: Sequence[str], replies: Sequence[Any]
-) -> dict[Any, Mapping[str, Any]]:
+) -> dict[str, Mapping[str, Any]]:
     """Return each batch reply keyed by the id of the member it answers.
 
     JSON-RPC 2.0 section 6 lets a batch answer in any order, matched by
@@ -604,31 +640,34 @@ def _correlated_batch_replies(
     are a node that did not read the batch it was sent; and a request
     with no reply among them is `len(replies)` disagreeing with the
     batch that was sent, whatever the count says.
+
+    Every id in `request_ids` is a string, so a reply's id of any other
+    type is one nobody sent -- an array or an object included, which is
+    refused as that rather than reaching a lookup that cannot hash it.
     """
     if len(replies) != len(request_ids):
         err_msg = f"{where}: {len(replies)} replies for {len(request_ids)} requests"
         raise FetchError(err_msg)
-    by_id: dict[Any, Mapping[str, Any]] = {}
+    sent_ids = set(request_ids)
+    by_id: dict[str, Mapping[str, Any]] = {}
     for reply in replies:
         if not isinstance(reply, Mapping):
             err_msg = f"{where}: a batch reply member that is not a json"
             err_msg += f" object, but a {type(reply).__name__}"
             raise FetchError(err_msg)
         reply_id = reply.get("id")
+        if not isinstance(reply_id, str) or reply_id not in sent_ids:
+            err_msg = f"{where}: a reply answering id {reply_id!r}, which nobody sent"
+            raise FetchError(err_msg)
         if reply_id in by_id:
             err_msg = f"{where}: two replies answering the same id {reply_id!r}"
             raise FetchError(err_msg)
         by_id[reply_id] = reply
-    sent_ids = set(request_ids)
-    unsent = [reply_id for reply_id in by_id if reply_id not in sent_ids]
-    if unsent:
-        err_msg = f"{where}: a reply answering id {unsent[0]!r}, which nobody sent"
-        raise FetchError(err_msg)
-    # every reply's id is distinct (checked above) and sent (checked just
-    # above this), and there are as many replies as requests (checked at
-    # the top): a set of N distinct members of a set of N is that set, so
-    # every request's id is a key of `by_id` by construction and no
-    # further check names one that is not
+    # every reply's id is sent and distinct (both checked in the loop), and
+    # there are as many replies as requests (checked at the top): a set of
+    # N distinct members of a set of N is that set, so every request's id
+    # is a key of `by_id` by construction and no further check names one
+    # that is not
     return by_id
 
 
@@ -1131,22 +1170,25 @@ class BitcoinCoreRpcClient:
 
     def call_batch(
         self,
-        calls: Sequence[tuple[str, Sequence[Any] | Mapping[str, Any] | None]],
+        calls: Iterable[tuple[str, Sequence[Any] | Mapping[str, Any] | None]],
         *,
         request_timeout: float | None = None,
         max_body_size: int = DEFAULT_MAX_BODY_SIZE,
     ) -> list[Any]:
         """Invoke several rpc methods in one HTTP request.
 
-        `calls` is a sequence of `(method, params)` pairs, one per member,
-        `params` shaped exactly as `call`'s own -- a sequence for the
-        positional form, a mapping for the named one, `None` for no
-        parameters at all. Each member is built the way `call` builds its
-        one request: the 2.0 marker, an id of its own from the same
-        source `call` draws from, and the same params validation -- a
-        member that fails it is refused before anything is sent, naming
-        its position in `calls` rather than a position in a request Core
-        never sees.
+        `calls` is an iterable of `(method, params)` pairs, one per member,
+        read once, so a generator serves as well as a list; `params` is
+        shaped exactly as `call`'s own -- a sequence for the positional
+        form, a mapping for the named one, `None` for no parameters at
+        all. Each member is built the way `call` builds its one request:
+        the 2.0 marker, an id of its own from the same source `call` draws
+        from, and the same params validation -- a member that fails it is
+        refused before anything is sent, naming its position in `calls`
+        rather than a position in a request Core never sees. A member
+        that is not a sequence of two is refused the same way, with
+        `BtcRpcTypeError`, and so is a `calls` that is a str or is not
+        iterable at all.
 
         The answer is a list aligned with `calls` rather than with
         whatever order the array came back in: position i holds member
@@ -1172,22 +1214,24 @@ class BitcoinCoreRpcClient:
         them -- widen either the way a single large `call` would ask you
         to, and for the same reason.
 
-        An empty `calls` is refused with `BtcRpcValueError`: JSON-RPC 2.0
-        section 6 has no shape for a batch of zero requests, its own rule
+        A `calls` yielding no pair is refused with `BtcRpcValueError`, where
+        an empty str is one of the `BtcRpcTypeError` refusals above: JSON-RPC
+        2.0 section 6 has no shape for a batch of zero requests, its own rule
         being that the server's answer to an invalid batch is a single
         reply object rather than the array this method promises.
         """
-        if not calls:
+        pairs = _batch_pairs(calls)
+        if not pairs:
             err_msg = "call_batch with no members: JSON-RPC 2.0 section 6 has"
             err_msg += " no shape for an empty batch"
             raise BtcRpcValueError(err_msg)
         timeout = self.timeout if request_timeout is None else request_timeout
         _assert_valid_timeout(timeout, "rpc request_timeout")
-        request_ids = [_rpc_id() for _ in calls]
+        request_ids = [_rpc_id() for _ in pairs]
         members = [
             _batch_member_request(index, method, params, request_id)
             for index, ((method, params), request_id) in enumerate(
-                zip(calls, request_ids, strict=True)
+                zip(pairs, request_ids, strict=True)
             )
         ]
         try:
@@ -1217,7 +1261,7 @@ class BitcoinCoreRpcClient:
         by_id = _correlated_batch_replies(where, request_ids, replies)
         results: list[Any] = []
         for index, ((method, _params), request_id) in enumerate(
-            zip(calls, request_ids, strict=True)
+            zip(pairs, request_ids, strict=True)
         ):
             member_where = f"{method} at {self.url} (call_batch member {index})"
             try:
