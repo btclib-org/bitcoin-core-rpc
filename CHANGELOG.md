@@ -186,6 +186,12 @@ A peer dripping headers held a call open under either transport; the call now
 waits for no lookup, connect, handshake, send or recv past the deadline, which
 a `connection_factory`'s connection is typed to carry (closes #542).
 
+### `codeql.yml`, `REPOSITORY.md` and `dependabot.yml` follow sections 10 and 11
+
+The aggregate accepts `analyze`'s lagging rows (issue btclib-org/.github#1395),
+signatures and SHA pinning are read back (issue btclib-org/.github#1409), and
+`pre-commit` is an ecosystem left unused (issue btclib-org/.github#1391).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

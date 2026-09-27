@@ -231,7 +231,7 @@ that has not been tested, and testing it means deadlocking `main` to find
 out — which is the argument for the order above, not against it.
 
 **PATCH that sub-endpoint, never PUT the whole protection object**: a
-partial PUT drops the signatures and the rest. Repeat `strict: true` in
+partial PUT drops the reviews and the rest. Repeat `strict: true` in
 the body, which replaces the object rather than merging into it.
 
 Renaming a required check is the one change that cannot be made in a pull
@@ -343,7 +343,7 @@ gh api repos/btclib-org/bitcoin-core-rpc --jq '.default_branch'
 
 Everything reaches it through a pull request: the checks above with
 `strict`, an approving review,
-`dismiss_stale_reviews`, **required signatures**, linear history, no force
+`dismiss_stale_reviews`, linear history, no force
 pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
 
@@ -363,6 +363,16 @@ Required signatures cost the maintainer nothing for the same reason
 nothing here pushes to `main` directly: the only thing writing to it is a
 merge GitHub performs itself, and GitHub signs those with its web-flow
 key.
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
+  --jq '.required_signatures.enabled'
+# false
+```
+
+Classic protection's own copy of the signature rule is off, the
+`main-integrity` ruleset being what requires signatures on `main`: [the
+standard states that value for every repository][s11-branch].
 
 `strict` means a pull request merges only from a head up to date with
 `main`, so landing one asks the next to update and re-run. That is a queue
@@ -636,6 +646,17 @@ of override this repository did. Establishing which would mean moving
 the organization default to `write` and back, which is not worth doing
 for the answer.
 
+## Allowed actions and SHA pinning
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc/actions/permissions \
+  --jq '{allowed_actions, sha_pinning_required}'
+# {"allowed_actions":"all","sha_pinning_required":true}
+```
+
+`sha_pinning_required` is set at the organization level: [section 11 of
+the standard has the reasons for both fields][s11-tokens].
+
 ## Publishing
 
 **Publishing waits for an approval**: the `pypi` and `testpypi`
@@ -908,3 +929,6 @@ one day arrives with the section that uses it. The webhook list answers
 empty as well and is recorded anyway: *Read the Docs* above is about
 what that particular zero means, and *A switch this repository does not
 set* about the variable store's.
+
+[s11-branch]: https://github.com/btclib-org/.github#branch-protection-and-rulesets
+[s11-tokens]: https://github.com/btclib-org/.github#tokens-publishing-scanning
