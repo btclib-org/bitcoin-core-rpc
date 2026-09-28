@@ -39,6 +39,8 @@ entries is a reading of the file rather than a command.
 
 ## v2026.10 (work in progress, not released yet)
 
+## v2026.9.29
+
 ### `notice-rgx`'s comment drops the hook this tree carries none of
 
 - The comment cited a `language: script` hook this tree carries none of; it

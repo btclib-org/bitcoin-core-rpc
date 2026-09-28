@@ -12,6 +12,8 @@ in this file — read it before upgrading, rather than a digit.
 
 ## v2026.10 (work in progress, not released yet)
 
+## v2026.9.29
+
 Python 3.10 is no longer supported: `requires-python` is `>=3.11`. On 3.10
 an installer resolves to v2026.9.24, the last release that runs there;
 staying current means moving to 3.11 or later.
