@@ -260,7 +260,13 @@ def _resolve(host: str, port: int, deadline: float) -> list[tuple[Any, ...]]:
 
     lookup = Thread(target=look_up, name=f"getaddrinfo {host}", daemon=True)
     lookup.start()
-    lookup.join(_seconds_left(deadline))
+    # `_seconds_left` itself would raise a bare "timed out" here if the
+    # deadline is already gone by this line -- reached before `.join()`
+    # ever runs on a slow enough thread start -- masking the message
+    # below with one naming no host. `join` takes zero or a negative
+    # timeout as "don't wait", so clamping keeps that message the one
+    # answer given the deadline, however it was already spent.
+    lookup.join(max(0.0, deadline - monotonic()))
     if not answer:
         raise TimeoutError(f"timed out resolving {host}")
     if isinstance(answer[0], Exception):
