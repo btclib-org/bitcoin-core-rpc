@@ -51,6 +51,12 @@ entries is a reading of the file rather than a command.
   btclib-org/.github#1438): a floor below the pin admits a `uv` older
   than the one Dependabot writes `uv.lock` with.
 
+### `pypi-install.yml` installs the version the release published
+
+- **The install names `bitcoin-core-rpc==<version>` from the tag `release.yml`
+  passes** (issue btclib-org/.github#1456): a bare name let a lagging
+  index serve the release before it.
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
