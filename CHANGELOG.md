@@ -39,6 +39,12 @@ entries is a reading of the file rather than a command.
 
 ## v2026.10 (work in progress, not released yet)
 
+### `_resolve` names the host it timed out on, even out of time before the join
+
+- `_seconds_left`, called inside `Thread.join`, raised a bare "timed out"
+  masking the "timed out resolving `$host`" message whenever the
+  deadline was already spent before `.join()` ran (issue #564).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of

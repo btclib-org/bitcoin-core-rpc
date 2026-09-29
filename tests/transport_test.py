@@ -2311,6 +2311,30 @@ def test_a_lookup_is_waited_for_no_longer_than_the_deadline(
         released.set()
 
 
+def test_a_lookup_already_out_of_time_still_names_the_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The deadline spent before the thread is even joined still names the host.
+
+    Regression for issue #564: `_seconds_left` used inside `Thread.join`
+    raised a bare "timed out" here whenever the deadline was already gone
+    by the time it was read -- before `.join()` ever ran -- silently
+    dropping which host that timeout was for.
+    """
+    released = Event()
+
+    def unanswered() -> list[tuple[Any, ...]]:
+        released.wait()
+        return []
+
+    monkeypatch.setattr(transport_module, "getaddrinfo", _fake_getaddrinfo(unanswered))
+    try:
+        with pytest.raises(TimeoutError, match="timed out resolving node"):
+            transport_module._resolve("node", 8332, monotonic() - 1.0)
+    finally:
+        released.set()
+
+
 def test_the_session_transport_hands_each_call_its_deadline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
