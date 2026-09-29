@@ -45,6 +45,12 @@ entries is a reading of the file rather than a command.
   masking the "timed out resolving `$host`" message whenever the
   deadline was already spent before `.join()` ran (issue #564).
 
+### `[tool.uv] required-version` follows the `uv` `dependabot-core` bundles to `0.12.19`
+
+- **`required-version` reads `>=0.12.19`, not `>=0.12.17`** (issue
+  btclib-org/.github#1438): a floor below the pin admits a `uv` older
+  than the one Dependabot writes `uv.lock` with.
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
