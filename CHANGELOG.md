@@ -98,7 +98,7 @@ entries is a reading of the file rather than a command.
 - **`SECURITY.md` says a report is acknowledged within 7 days**, and a
   fix or a published advisory within 90 (issue btclib-org/.github#1460).
 
-### `ASSURANCE_CASE.md` says which installs the lock governs
+### `ASSURANCE_CASE.md` states the lock and the reply's numbers correctly
 
 - **The assurance case names which commands resolve outside `uv.lock`, and
   says floats become `Decimal` while integers remain `int`** (closes #582).
