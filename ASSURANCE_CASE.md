@@ -100,10 +100,11 @@ while the caller is still looking at the line that supplied it, not
 deferred to the first call.
 
 **The node's reply.** `_parsed_json_body` decodes it through one parser,
-`json.loads` with every number a `Decimal` and every non-finite constant
-refused, never `eval` and never a decoder that executes anything the
-reply carries. `_reply_object` refuses a body that is not a json object,
-`_id_error` refuses one whose `id` does not match the request just sent,
+`json.loads` with every floating-point token a `Decimal`, every integer
+token an `int`, and every non-finite constant refused, never `eval` and
+never a decoder that executes anything the reply carries.
+`_reply_object` refuses a body that is not a json object, `_id_error`
+refuses one whose `id` does not match the request just sent,
 and `_discriminate` refuses a `jsonrpc` marker that is neither absent
 nor `"2.0"`. None of it is trusted as an answer until every one of those
 holds.
@@ -223,9 +224,12 @@ exposed to, and what counters each.
 - **Supply chain.** SECURITY.md's *Supported versions* describes the
   attestations and the bill of materials this package publishes.
   `uv.lock` pins every dependency of the development environment, and
-  CONTRIBUTING.md's *The environment and the gates* states that every
-  job installs with `--locked`. Every third-party GitHub Action is
-  pinned to a commit sha; `actionlint` and `zizmor` run as hooks in
-  `.pre-commit-config.yaml`. What a live node's own binary is checked
+  every workflow command run in that environment passes `--locked`.
+  Resolved outside it are the build backend of `uv build`, the
+  `--no-project` and `uvx` helpers, the install smoke tests, the
+  pre-commit hook environments, and `deps-latest.yml` and
+  `deps-oldest.yml`, which re-lock on purpose. Every third-party GitHub
+  Action is pinned to a commit sha; `actionlint` and `zizmor` run as hooks
+  in `.pre-commit-config.yaml`. What a live node's own binary is checked
   against before this client is asked to talk to it is
   ARCHITECTURE.md's *What proves it, and what a live node adds*.

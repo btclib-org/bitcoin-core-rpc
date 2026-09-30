@@ -103,6 +103,10 @@ entries is a reading of the file rather than a command.
 - **The dependency census reads every `.py` file of the package,
   `__init__.py` included, and requires `[project].dependencies` to be
   empty** (closes #581).
+### `ASSURANCE_CASE.md` states the lock and the reply's numbers correctly
+
+- **The assurance case names which commands resolve outside `uv.lock`, and
+  says floats become `Decimal` while integers remain `int`** (closes #582).
 
 ## v2026.9.29
 
