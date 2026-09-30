@@ -109,6 +109,12 @@ entries is a reading of the file rather than a command.
   `__init__.py` included, and requires `[project].dependencies` to be
   empty** (closes #581).
 
+### Docs say a reply integer decodes as an `int`
+
+- **`README.md`, `docs/source/migrating.md` and docstrings in
+  `client.py` say a floating-point number decodes as a `Decimal` and an
+  integer as an `int`**, as `_parsed_json_body` does (closes #589).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
