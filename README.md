@@ -147,9 +147,10 @@ block = client.call("getblock", {"blockhash": block_id, "verbosity": 2})
 ```
 
 Amounts need not travel as binary floating point in either direction: a
-number in the reply decodes as a `Decimal`, and a `Decimal` parameter is
-written as the JSON number it is, digit for digit, which Core parses as an
-amount in BTC exactly. A `float` parameter is written as its shortest
+floating-point number in the reply (a fraction or an exponent) decodes as a
+`Decimal`, an integer as an `int`, and a `Decimal` parameter is written as
+the JSON number it is, digit for digit, which Core parses as an amount in
+BTC exactly. A `float` parameter is written as its shortest
 `repr`, so pass an amount as a `Decimal`.
 
 ```python

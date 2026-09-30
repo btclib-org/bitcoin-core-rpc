@@ -191,16 +191,17 @@ trap beside this: a refused connection is a plain `OSError` on both
 
 ## Amounts
 
-A reply's numbers decode as `Decimal` on every side alike — `parse_float`
-reads the same way in `authproxy.py` and in this client. Requests are
-where the two variants part ways from each other as well as from this
-one: python-bitcoinrpc's `EncodeDecimal` rounds a `Decimal` parameter
-through `float` before sending it (`float(round(o, 8))`); Core's copy
-stringifies it instead (`serialization_fallback`'s `str(o)`), which
-keeps the digits but turns the parameter from a number into a string: an
-amount argument accepts it and an integer one refuses it. This client
-writes a `Decimal` parameter as the JSON number it is, digit for digit:
-a number, the type both kinds of argument accept.
+A reply's floating-point numbers decode as `Decimal` and its integers as `int`
+on every side alike — both `authproxy.py` files pass
+`parse_float=decimal.Decimal` to `json.loads` and nothing for integers, and this
+client reads the same way. Requests are where the two variants part ways from
+each other as well as from this one: python-bitcoinrpc's `EncodeDecimal` rounds
+a `Decimal` parameter through `float` before sending it (`float(round(o, 8))`);
+Core's copy stringifies it instead (`serialization_fallback`'s `str(o)`), which
+keeps the digits but turns the parameter from a number into a string: an amount
+argument accepts it and an integer one refuses it. This client writes a
+`Decimal` parameter as the JSON number it is, digit for digit: a number, the
+type both kinds of argument accept.
 
 ## Timeouts
 

@@ -426,13 +426,13 @@ def _parsed_json_body(where: str, status: int, payload: bytes) -> Any:
 
     The parsing half of `_reply_object`, split out so `_batch_reply_array`
     and `call_raw` share it rather than repeating it: every caller reads
-    the body the same way this far -- the same `Decimal` numbers, the
-    same three refused constants, the same non-200 outranking a body that
-    will not parse -- and what differs is whether anything is asked of
-    the shape once parsing succeeds, which is each caller's own question
-    and not this function's. `call_raw` asks nothing of it at all: the
-    envelope is the caller's own question there, an object, an array or a
-    bare scalar alike.
+    the body the same way this far -- the same `Decimal` floats and `int`
+    integers, the same three refused constants, the same non-200
+    outranking a body that will not parse -- and what differs is whether
+    anything is asked of the shape once parsing succeeds, which is each
+    caller's own question and not this function's. `call_raw` asks
+    nothing of it at all: the envelope is the caller's own question there,
+    an object, an array or a bare scalar alike.
 
     One rule for every body that is not readable json, whichever way it
     is not: none of them can be a *correlated* answer, so on a non-200
@@ -1155,12 +1155,12 @@ class BitcoinCoreRpcClient:
         mixing the two would have to decide which of them owns the name.
 
         Amounts need not travel as binary floating point in either
-        direction: a number in the reply decodes as a Decimal, and a
-        Decimal parameter is written as the json number it is, digit for
-        digit, which Core parses as an amount exactly. A `float` is written
-        as its shortest `repr`, and the Decimal is what makes the digits
-        the caller's. `NaN` and `Infinity` are refused both ways, json
-        having no numbers for them.
+        direction: a floating-point number in the reply decodes as a
+        Decimal, an integer as an int, and a Decimal parameter is written
+        as the json number it is, digit for digit, which Core parses as an
+        amount exactly. A `float` is written as its shortest `repr`, and
+        the Decimal is what makes the digits the caller's. `NaN` and
+        `Infinity` are refused both ways, json having no numbers for them.
 
         `request_timeout` is this call's, defaulting to the client's, and
         for the default transport it bounds the whole exchange -- the
@@ -1601,9 +1601,10 @@ class BitcoinCoreRestClient:
         `/tx/<txid>.json`, `/getutxos/<outpoint>.json` are Core's own
         shapes for it. The body is read exactly as `call_raw` reads its
         own envelope, through the same `_parsed_json_body`: a `Decimal`
-        for every number, the three constants json has no number for
-        refused, and nothing about the parsed value's own shape asked --
-        an object, an array, or a bare scalar all come back as parsed.
+        for every floating-point number, an `int` for every integer, the
+        three constants json has no number for refused, and nothing about
+        the parsed value's own shape asked -- an object, an array, or a bare
+        scalar all come back as parsed.
 
         `HttpError` for a status that is not 200, checked before the body
         is parsed rather than left to `_parsed_json_body`'s own parse
