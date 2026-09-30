@@ -121,6 +121,12 @@ entries is a reading of the file rather than a command.
   btclib-org/.github's `reusable-audit.yml`, and both publish jobs wait for
   its success (issue btclib-org/.github#1466).
 
+### `generate_sbom.py` is btclib-org/.github's
+
+- **The `dist` job writes the bill of materials with btclib-org/.github's
+  `generate_sbom.py`**, served from `main`, and the tree keeps no copy of it
+  (issue btclib-org/.github#1478).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
