@@ -63,6 +63,12 @@ entries is a reading of the file rather than a command.
   btclib-org/.github#1362): *The issue tracker* says so, and links the
   organization-wide search for the open ones.
 
+### The OpenSSF Baseline badge
+
+- **`README.md`'s badge row ends with the OpenSSF Baseline badge**,
+  beside the Best Practices badge, which section 2 of the organization
+  standard admits (issue btclib-org/.github#1460).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of

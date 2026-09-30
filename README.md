@@ -49,6 +49,7 @@ says how the choice is enforced.
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/btclib-org/bitcoin-core-rpc/badge)](https://scorecard.dev/viewer/?uri=github.com/btclib-org/bitcoin-core-rpc)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14815/badge)](https://www.bestpractices.dev/projects/14815)
+[![OpenSSF Baseline](https://www.bestpractices.dev/projects/14815/baseline)](https://www.bestpractices.dev/projects/14815)
 
 Nothing but the standard library behind it, fully annotated and shipping
 `py.typed`. `BitcoinCoreRpcClient` invokes any one rpc method a node has,
