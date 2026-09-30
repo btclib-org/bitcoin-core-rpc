@@ -8,8 +8,8 @@ Everything else in the suite runs with the package installed, which is
 exactly the arrangement that cannot tell these three properties from ones
 that merely happen to hold today. `errors.py`, `chains.py`, `transport.py`
 and `client.py` are what defines the public surface; `__init__.py` is the
-facade that only re-exports it, so it is read for `__all__` and not
-walked for definitions of its own.
+facade that only re-exports it, so it is read for `__all__` and imports,
+and not walked for definitions of its own.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from __future__ import annotations
 import ast
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -29,12 +30,15 @@ import bitcoin_core_rpc
 _MODULE_ORDER = ("errors", "chains", "transport", "client")
 
 
-def _source_paths() -> tuple[Path, ...]:
-    """Return the path of every module that defines the public surface."""
+def _package_dir() -> Path:
     init_path = bitcoin_core_rpc.__file__
     assert init_path is not None
-    package = Path(init_path).parent
-    return tuple(package / f"{name}.py" for name in _MODULE_ORDER)
+    return Path(init_path).parent
+
+
+def _source_paths() -> tuple[Path, ...]:
+    """Return the path of every module that defines the public surface."""
+    return tuple(_package_dir() / f"{name}.py" for name in _MODULE_ORDER)
 
 
 def _documented_names(source: str) -> set[str]:
@@ -198,15 +202,16 @@ def test_every_public_name_is_exported() -> None:
 
 
 def test_the_package_imports_only_the_standard_library() -> None:
-    """No module of the package takes a dependency outside itself.
+    """The package imports only the standard library and requires nothing.
 
     A module importing another module of this same package is not a
     dependency -- `_MODULE_ORDER` is the order that makes such an import
-    acyclic -- so a root of `bitcoin_core_rpc` is excluded here and
-    checked on its own below, against the order rather than against the
-    standard library.
+    acyclic -- so a root of `bitcoin_core_rpc` is excluded here. The
+    modules of that order are checked against it below. A requirement in
+    `[project].dependencies` ships whether or not a module imports it, so
+    the list is read too.
     """
-    for path in _source_paths():
+    for path in _package_dir().rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         imported_roots = {
             node.module.split(".", 1)[0]
@@ -224,6 +229,11 @@ def test_the_package_imports_only_the_standard_library() -> None:
         assert not outside, (
             f"{path.name} imports {outside}, outside the standard library"
         )
+
+    root = Path(__file__).resolve().parents[1]
+    project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    dependencies = project["project"]["dependencies"]
+    assert dependencies == []
 
 
 def _bitcoin_core_rpc_imports(tree: ast.Module) -> set[str]:
