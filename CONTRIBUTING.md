@@ -420,7 +420,10 @@ materials into `sbom/` and not `dist/`, an index taking distribution
 files and the publish jobs handing it that artifact whole;
 `release.yml`'s `attest` job signs the document beside the two files, and
 its timestamp is that same `SOURCE_DATE_EPOCH`, so a rebuild from the tag
-answers with the same bytes there too. The
+answers with the same bytes there too, until `main` changes what
+`generate_sbom.py` writes. `generate_sbom.py` is btclib-org/.github's,
+served from `main`, and reads this tree from the working directory, so
+the commands fetch it first. The
 distribution files are uploaded before anything below installs a package:
 installing a dependency executes its code, and a compromised one must not
 reach a `dist/` that still has to be handed on:
@@ -430,7 +433,12 @@ export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
 uv build
 uv run --no-project --python 3.15 .github/scripts/normalize_sdist.py dist/
 sha256sum dist/*
-uv run --no-project --python 3.15 .github/scripts/generate_sbom.py dist/ sbom/
+served=$(mktemp -d)
+git clone --depth 1 --filter=blob:none --sparse \
+    https://github.com/btclib-org/.github "$served"
+git -C "$served" sparse-checkout set .github/scripts
+uv run --no-project --python 3.15 \
+    "$served"/.github/scripts/generate_sbom.py dist/ sbom/
 uv run --locked --only-group check twine check --strict dist/*
 uv run --locked --only-group check check-wheel-contents dist/*.whl
 uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
