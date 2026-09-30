@@ -563,6 +563,11 @@ filterwarnings = ["error"]
 # came from -- is still spell checked, being prose about the data and not
 # the data
 skip = "*/_data/*.json,.secrets.baseline,uv.lock"
+# `intoto` is in-toto's own spelling, in the bundle's name
+# `<tag>.intoto.jsonl`. RELEASING.md writes it in fenced commands, outside
+# the backticks `ignore-regex` below hides, and the dictionary offers
+# "into" for it, which --write-changes applies
+ignore-words-list = "intoto"
 # a misspelling written on purpose goes in backticks, and that is a
 # convention of this repository rather than a preference: prose that
 # documents a spell checker has to name what it catches. codespell has no
@@ -609,6 +614,11 @@ extend-exclude = [
 # being the length of the shortest possible base58 address; the trailing =
 # covers base64 padding, and no English word comes close
 extend-ignore-re = ['[0-9A-Za-z+/]{26,}={0,2}']
+
+[tool.typos.default.extend-words]
+# `intoto` in the bundle's name `<tag>.intoto.jsonl`, as for codespell above:
+# typos' dictionary offers "into" for it too
+intoto = "intoto"
 
 [tool.typos.type.verbatim]
 # the backtick convention of [tool.codespell] above, honoured on the files

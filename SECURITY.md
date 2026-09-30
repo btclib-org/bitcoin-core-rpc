@@ -74,8 +74,9 @@ repository is accepted. Neither path verifies a release the other
 signed. The PEP 740 attestations on PyPI name `release.yml`, the job
 that uploads there being its own rather than a called workflow's. The
 signed statement for the GitHub release is attached to it as well, as
-`<tag>.attestation.jsonl`, so `--bundle <tag>.attestation.jsonl` runs the
-same check reading it from disk instead of asking GitHub for it. One
+`<tag>.intoto.jsonl`, or as `<tag>.attestation.jsonl` on a release that
+carries that name instead, so `--bundle <that file>` runs the same check
+reading it from disk instead of asking GitHub for it. One
 attestation covers the wheel, the sdist and the bill of materials; the
 bundle is that attestation and is not among its subjects.
 

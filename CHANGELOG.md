@@ -75,6 +75,12 @@ entries is a reading of the file rather than a command.
   `install_published_release.py`, which retries only while the installer says
   the pin is not resolvable** (issue btclib-org/.github#1458).
 
+### The release's attestation bundle is attached as `*.intoto.jsonl`
+
+- **`RELEASING.md`'s commands and `SECURITY.md`'s verification name the bundle
+  `<tag>.intoto.jsonl`** (issue btclib-org/.github#1468):
+  `reusable-github-release.yml` attaches it under that name.
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
