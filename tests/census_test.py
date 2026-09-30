@@ -30,12 +30,15 @@ import bitcoin_core_rpc
 _MODULE_ORDER = ("errors", "chains", "transport", "client")
 
 
-def _source_paths() -> tuple[Path, ...]:
-    """Return the path of every module that defines the public surface."""
+def _package_dir() -> Path:
     init_path = bitcoin_core_rpc.__file__
     assert init_path is not None
-    package = Path(init_path).parent
-    return tuple(package / f"{name}.py" for name in _MODULE_ORDER)
+    return Path(init_path).parent
+
+
+def _source_paths() -> tuple[Path, ...]:
+    """Return the path of every module that defines the public surface."""
+    return tuple(_package_dir() / f"{name}.py" for name in _MODULE_ORDER)
 
 
 def _documented_names(source: str) -> set[str]:
@@ -199,18 +202,16 @@ def test_every_public_name_is_exported() -> None:
 
 
 def test_the_package_imports_only_the_standard_library() -> None:
-    """No module or package metadata takes a dependency outside itself.
+    """The package imports only the standard library and requires nothing.
 
     A module importing another module of this same package is not a
     dependency -- `_MODULE_ORDER` is the order that makes such an import
-    acyclic -- so a root of `bitcoin_core_rpc` is excluded here and
-    checked on its own below, against the order rather than against the
-    standard library.
+    acyclic -- so a root of `bitcoin_core_rpc` is excluded here. The
+    modules of that order are checked against it below. A requirement in
+    `[project].dependencies` ships whether or not a module imports it, so
+    the list is read too.
     """
-    init_path = bitcoin_core_rpc.__file__
-    assert init_path is not None
-    package = Path(init_path).parent
-    for path in package.rglob("*.py"):
+    for path in _package_dir().rglob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         imported_roots = {
             node.module.split(".", 1)[0]

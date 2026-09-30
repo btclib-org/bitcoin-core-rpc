@@ -100,8 +100,9 @@ entries is a reading of the file rather than a command.
 
 ### The dependency census reads the whole package
 
-- **The zero-dependency gate scans every package Python file, including
-  `__init__.py`, and holds `[project].dependencies` empty** (closes #581).
+- **The dependency census reads every `.py` file of the package,
+  `__init__.py` included, and requires `[project].dependencies` to be
+  empty** (closes #581).
 
 ## v2026.9.29
 
