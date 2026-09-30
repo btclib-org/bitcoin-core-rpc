@@ -8,11 +8,14 @@ name: deps-latest
 # Nothing else covers this. This project has no runtime dependency at all,
 # so what drifts is entirely the tooling: the dependency groups declare no
 # version, the whole of pytest, mypy, coverage and twine lives in uv.lock,
-# and every command in every other workflow passes --locked -- what CI runs
-# is the resolution someone locked, not the one PyPI holds today. uv.lock
-# moves on a weekly dependabot pull request, so a break upstream surfaces a
-# week or more later, inside a pull request that has to be reviewed anyway,
-# with its cause one entry in a diff of many.
+# and every command the other workflows run in the project environment
+# passes --locked -- what CI runs there is the resolution someone locked,
+# not the one PyPI holds today. ASSURANCE_CASE.md's Supply chain paragraph
+# lists what resolves outside that environment.
+#
+# uv.lock moves on a weekly dependabot pull request, so a break upstream
+# surfaces a week or more later, inside a pull request that has to be
+# reviewed anyway, with its cause one entry in a diff of many.
 #
 # The obvious alternative, dropping --locked from test.yml and resolving
 # afresh on every run, is what this workflow exists instead of: a pull
