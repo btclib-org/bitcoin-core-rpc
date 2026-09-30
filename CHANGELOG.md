@@ -98,6 +98,11 @@ entries is a reading of the file rather than a command.
 - **`SECURITY.md` says a report is acknowledged within 7 days**, and a
   fix or a published advisory within 90 (issue btclib-org/.github#1460).
 
+### The dependency census reads the whole package
+
+- **The zero-dependency gate scans every package Python file, including
+  `__init__.py`, and holds `[project].dependencies` empty** (closes #581).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
