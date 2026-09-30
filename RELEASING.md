@@ -601,7 +601,7 @@ result.
    `author` is the cheap second question: `github-actions` is the workflow
    having cut it, any other login a release recreated by hand. Its notes
    are the tag's section of RELEASE_NOTES.md, and the distribution files are
-   attached, `<tag>.attestation.jsonl` and the bill of materials beside
+   attached, `<tag>.intoto.jsonl` and the bill of materials beside
    them. A run that logs
    `RELEASE_NOTES.md has no v<version> section` generated the notes from the
    merged pull requests instead — the fallback `version-check` exists to make
@@ -641,7 +641,7 @@ result.
    gh attestation verify "$wheel" --repo "$repo" \
      --signer-workflow "$signer" &&
    gh attestation verify "$wheel" --repo "$repo" \
-     --signer-workflow "$signer" --bundle "v${version:?}.attestation.jsonl"
+     --signer-workflow "$signer" --bundle "v${version:?}.intoto.jsonl"
    ```
 
    the first asks the attestations API for the signed statement, the
@@ -899,9 +899,9 @@ reading a mismatch as tampering:
     /^## / && found {exit}
     found {print}
   ' > notes.md &&
-  cp attestation/attestation.jsonl "v${version:?}.attestation.jsonl" &&
+  cp attestation/attestation.jsonl "v${version:?}.intoto.jsonl" &&
   gh release create "v${version:?}" dist/* sbom/* \
-    "v${version:?}.attestation.jsonl" \
+    "v${version:?}.intoto.jsonl" \
     --title "v${version:?}" --notes-file notes.md
   ```
 
