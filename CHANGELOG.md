@@ -115,6 +115,12 @@ entries is a reading of the file rather than a command.
   `client.py` say a floating-point number decodes as a `Decimal` and an
   integer as an `int`**, as `_parsed_json_body` does (closes #589).
 
+### `release.yml` audits the lock before it publishes
+
+- **The `audit` job runs `uv audit` over what the wheel declares**, by calling
+  btclib-org/.github's `reusable-audit.yml`, and both publish jobs wait for
+  its success (issue btclib-org/.github#1466).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
