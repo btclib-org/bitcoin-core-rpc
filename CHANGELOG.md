@@ -87,6 +87,12 @@ entries is a reading of the file rather than a command.
   `btclib-org/.github`,** which reads the jobs listing again up to a
   deadline (issue btclib-org/.github#1463).
 
+### `generate_sbom.py` carries a not-affected list into the bill of materials
+
+- **`generate_sbom.py` reads `.github/vex.toml`**, where the tree lists the
+  vulnerabilities its release is not affected by, into the document's
+  `vulnerabilities`; no list, no key (issue btclib-org/.github#1469).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
