@@ -68,7 +68,16 @@ extensions = [
 
 # python alone: this module imports nothing else, so there is no second
 # inventory for an annotation of its public API to resolve against
-intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", (None, "_inventories/python.inv")),
+}
+# `_inventories/python.inv` is a copy of Python 3.14's inventory and no
+# cache: sphinx reads it only when `docs.python.org` fails, so a live site
+# always wins. It is the Wayback Machine's capture of 2026-08-28,
+# https://web.archive.org/web/20260828181213id_/https://docs.python.org/3/objects.inv
+# To refresh it, run this from the repository root and rewrite the version
+# and source above:
+# curl -fsSL -o docs/source/_inventories/python.inv https://docs.python.org/3/objects.inv
 
 source_suffix = [".rst", ".md"]
 
