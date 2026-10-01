@@ -167,6 +167,11 @@ that records it (issue btclib-org/.github#1362).
   fails** (issue btclib-org/.github#1508), so an outage of that site no
   longer fails the `-n -W` docs build.
 
+### `public-api` is red for a break `RELEASE_NOTES.md` does not name
+
+`release.yml` and `RELEASING.md` say that a red `public-api` means
+`RELEASE_NOTES.md` misses a name (issue btclib-org/.github#1517).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
