@@ -138,6 +138,12 @@ entries is a reading of the file rather than a command.
 - **`REPOSITORY.md` reads `lint / Dependency review` back with the other
   required checks** (issue btclib-org/.github#1465).
 
+### `[tool.uv] required-version` is `>=0.12.18`
+
+- **`required-version` reads `>=0.12.18`, not `>=0.12.19`** (issue
+  btclib-org/.github#1482): the Dependabot service refused `0.12.19` with
+  `tool_version_not_supported`.
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
