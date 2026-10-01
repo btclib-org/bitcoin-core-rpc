@@ -103,7 +103,7 @@ calls `reusable-docs.yml`, whose own job is still named
 `docs / Build the documentation`; `lint.yml`'s `lint` job calls
 `reusable-lint.yml` the same way, whose own job is still named
 `Lint and type-check`, producing `lint / Lint and type-check`
-(issue btclib-org/.github#35); its other job, `Dependency review`, produces
+(issue btclib-org/.github#35); its `Dependency review` job produces
 `lint / Dependency review`.
 
 `codeql: every job passed` is not among them, and it is a name this rule
