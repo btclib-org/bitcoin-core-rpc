@@ -74,6 +74,7 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 | `integration: every job passed` | `integration-bitcoind.yml`, over its cells |
 | `docs / Build the documentation` | `docs.yml`, calling `reusable-docs.yml` |
 | `lint / Lint and type-check` | `lint.yml`, calling `reusable-lint.yml` |
+| `lint / Dependency review` | `lint.yml`, calling `reusable-lint.yml` |
 
 The last row is whichever context was added most recently, that endpoint
 appending rather than sorting — so the tail of this table moves whenever a
@@ -102,7 +103,8 @@ calls `reusable-docs.yml`, whose own job is still named
 `docs / Build the documentation`; `lint.yml`'s `lint` job calls
 `reusable-lint.yml` the same way, whose own job is still named
 `Lint and type-check`, producing `lint / Lint and type-check`
-(issue btclib-org/.github#35).
+(issue btclib-org/.github#35); its other job, `Dependency review`, produces
+`lint / Dependency review`.
 
 `codeql: every job passed` is not among them, and it is a name this rule
 could take: `codeql.yml` runs on a pull request, so the aggregate reports
@@ -249,7 +251,8 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
  "checks": [{"context": "test: every job passed", "app_id": 15368},
             {"context": "integration: every job passed", "app_id": 15368},
             {"context": "docs / Build the documentation", "app_id": 15368},
-            {"context": "lint / Lint and type-check", "app_id": 15368}]}
+            {"context": "lint / Lint and type-check", "app_id": 15368},
+            {"context": "lint / Dependency review", "app_id": 15368}]}
 JSON
 ```
 
