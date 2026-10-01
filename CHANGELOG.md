@@ -155,6 +155,12 @@ that records it (issue btclib-org/.github#1362).
   trailer** (issue btclib-org/.github#1467): *Pull requests* says how
   to add it.
 
+### The primary-checkout section uses one form for the checkout
+
+- **The section writes the checkout as `"${checkout:?}"` throughout, says
+  what `<scratchpad>` is and names the pull** (issue
+  btclib-org/.github#1500).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
