@@ -127,6 +127,12 @@ entries is a reading of the file rather than a command.
   `generate_sbom.py`**, served from `main`, and the tree keeps no copy of it
   (issue btclib-org/.github#1478).
 
+### `CLAUDE.md` carries the shared primary-checkout section again
+
+- **`CLAUDE.md` carries the shared primary-checkout section byte for byte,
+  names the aggregates that fail on a draft, and shortens the model
+  section** (issue btclib-org/.github#1494).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
