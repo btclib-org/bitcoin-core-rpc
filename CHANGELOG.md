@@ -144,6 +144,11 @@ entries is a reading of the file rather than a command.
   btclib-org/.github#1482): the Dependabot service refused `0.12.19` with
   `tool_version_not_supported`.
 
+### `SECURITY.md` names the latest security review
+
+`SECURITY.md` gives the date of the latest security review and links the issue
+that records it (issue btclib-org/.github#1362).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
