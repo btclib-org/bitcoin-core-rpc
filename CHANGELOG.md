@@ -133,6 +133,11 @@ entries is a reading of the file rather than a command.
   names the aggregates that fail on a draft, and shortens the model
   section** (issue btclib-org/.github#1494).
 
+### `Dependency review` is a required check
+
+- **`REPOSITORY.md` reads `lint / Dependency review` back with the other
+  required checks** (issue btclib-org/.github#1465).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
