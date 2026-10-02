@@ -179,14 +179,13 @@ jobs:
       [public-api, audit, test, lint, docs, ubuntu, macos, windows, integration]
     # public-api stays a need for the ordering -- its reading arrives
     # before the upload rather than beside it -- and not for its result:
-    # it exits 1 on any break in the public surface since the last tag,
-    # which is what a cycle with breaking changes produces by design, and
-    # a bare `needs` refuses to start this job when any listed job failed
-    # or was skipped. `always()` is what opts back in, and the `.result`
-    # checks beside it are what keep every other listed job the gate it
-    # is. Section 12 of the organization standard has the rule;
-    # github-release's comment below is this tree's account of the same
-    # refusal, behind a skipped job rather than a failed one
+    # it exits 1 on a break in the public surface that RELEASE_NOTES.md
+    # does not name, and a bare `needs` refuses to start this job when any
+    # listed job failed or was skipped. `always()` is what opts back in,
+    # and the `.result` checks beside it are what keep every other listed
+    # job the gate it is. Section 12 of the organization standard has the
+    # rule; github-release's comment below is this tree's account of the
+    # same refusal, behind a skipped job rather than a failed one
     if: >-
       always() && github.event_name == 'workflow_dispatch' &&
       github.repository == 'btclib-org/bitcoin-core-rpc' &&
