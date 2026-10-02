@@ -410,31 +410,26 @@ types nothing after `pytest`:
 uv run --locked --no-default-groups --group test pytest
 ```
 
-`test.yml`, the `dist` job — build the distribution files, check them
-and install one. This is the one build there is (issue btclib-org/btclib#1166):
-`release.yml`'s `test` job calls this workflow, so a tag runs the very
-same job, and its own `publish-testpypi` and `publish-pypi` jobs download
-the `dist` artifact this job uploads rather than building a second copy
-— so what the checks below judge is what an index ends up serving, byte
-for byte. The export and the `normalize_sdist.py` run are what put the
-commit's own second into every member of the sdist — `uv_build` writes
-`0` there and ignores `SOURCE_DATE_EPOCH`, so the archive is the
-normalizer's output rather than the backend's and a job without that
-step would publish, and attest, other bytes; `normalize_sdist.py`'s
-docstring has the measurement. `sha256sum` after them is the digest a
-rebuild from the tag is compared against, per RELEASING.md's "Rebuild a
-release from its tag". `generate_sbom.py` writes the CycloneDX bill of
-materials into `sbom/` and not `dist/`, an index taking distribution
-files and the publish jobs handing it that artifact whole;
-`release.yml`'s `attest` job signs the document beside the two files, and
-its timestamp is that same `SOURCE_DATE_EPOCH`, so a rebuild from the tag
-answers with the same bytes there too, until `main` changes what
-`generate_sbom.py` writes. `generate_sbom.py` is btclib-org/.github's,
-served from `main`, and reads this tree from the working directory, so
-the commands fetch it first. The
-distribution files are uploaded before anything below installs a package:
-installing a dependency executes its code, and a compromised one must not
-reach a `dist/` that still has to be handed on:
+`test.yml`, the `dist` job — check the distribution files and install
+one. A pull request builds its own files here. `release.yml`'s `test` job
+calls this workflow with `use-signed-dist`, and the job then checks the
+files `reusable-build.yml` built, signed and uploaded instead, which the
+publish jobs download — so what the checks below judge is what an index
+ends up serving, byte for byte. The export and the `normalize_sdist.py`
+run are what put the commit's own second into every member of the sdist —
+`uv_build` writes `0` there and ignores `SOURCE_DATE_EPOCH`, so the
+archive is the normalizer's output rather than the backend's;
+`normalize_sdist.py`'s docstring has the measurement. `sha256sum` after
+them is the digest a rebuild from the tag is compared against, per
+RELEASING.md's "Rebuild a release from its tag". `generate_sbom.py` writes
+the CycloneDX bill of materials into `sbom/` and not `dist/`, an index
+taking distribution files and the publish jobs handing it that artifact
+whole; `reusable-build.yml`'s `attest` job signs the document beside the
+two files on a release, and its timestamp is that same
+`SOURCE_DATE_EPOCH`, so a rebuild from the tag answers with the same
+bytes there too, until `main` changes what `generate_sbom.py` writes.
+`generate_sbom.py` is btclib-org/.github's, served from `main`, and reads
+this tree from the working directory, so the commands fetch it first:
 
 ```shell
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
@@ -452,10 +447,9 @@ uv run --locked --only-group check check-wheel-contents dist/*.whl
 uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
 ```
 
-A rehearsal (`workflow_dispatch`) runs one command ahead of the block
-above, which the tag path skips: `.github/actions/dev-version` rewrites
-`pyproject.toml`'s version with the suffix `release.yml`'s
-`version-check` job computed and re-locks, so that `uv build` above
+A rehearsal's build, in `reusable-build.yml`, first runs
+`.github/actions/dev-version`, which rewrites `pyproject.toml`'s version
+with the suffix `version-check` computed and re-locks, so that `uv build`
 ships a version TestPyPI has not already seen. None of the three checks
 mind — what they judge is metadata syntax, README rendering and metadata
 quality, none of which the suffix changes.

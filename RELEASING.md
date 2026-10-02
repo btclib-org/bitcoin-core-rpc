@@ -101,14 +101,15 @@ one, and TestPyPI's rehearsal does the same there.
    index is uploaded to without one of them approving that run;
    `publish-pypi` and `publish-testpypi` are the only holders of
    `id-token: write` that carry one of these two environments, and this
-   is the gate in front of them. `attest` holds `id-token: write` too,
-   for its own Sigstore exchange, but no environment of its own — what
-   gates it instead is `needs: [publish-pypi, publish-testpypi]`, so it
-   never runs before one of the two reviewed jobs already has. `pypi` is
-   additionally restricted to `v*` tags, which is the only ref its job
-   runs on anyway — the restriction is what makes that true of the
-   environment and not just of an `if:` in a file a pull request could
-   change.
+   is the gate in front of them. The `attest` job of
+   `btclib-org/.github`'s `reusable-build.yml`, which `release.yml`'s
+   `build` job calls, holds `id-token: write` too, for its own Sigstore
+   exchange, and no environment: it signs the distribution files before
+   either reviewed job starts, and signs only files whose digests the
+   build job printed. `pypi` is additionally restricted to `v*` tags,
+   which is the only ref its job runs on anyway — the restriction is
+   what makes that true of the environment and not just of an `if:` in a
+   file a pull request could change.
 
    Self-review stays allowed: `prevent_self_review` is false on both
    environments, so whoever pushed the tag may approve its run without
@@ -118,15 +119,12 @@ one, and TestPyPI's rehearsal does the same there.
 ## Rehearse on TestPyPI
 
 A rehearsal runs the identical pipeline — lint gate, test matrix, the
-`dist` job's build, its packaging checks (twine, check-wheel-contents,
-pyroma) and its wheel smoke test — and publishes the very files those
-checks passed to
+`build` job's build and signature, the `dist` job's packaging checks
+(twine, check-wheel-contents, pyroma) and its wheel smoke test — and
+publishes the very files those checks passed to
 [TestPyPI](https://test.pypi.org/project/bitcoin-core-rpc/) instead of
-PyPI (issue btclib-org/btclib#1166: the `dist` job used to build its own
-copy while a separate `build` job in `release.yml` built a second one
-and ran the same three checks on it again (issue #155); that job no
-longer exists, so what release.yml publishes and what test.yml checked
-are now the same files).
+PyPI, so what `release.yml` publishes and what `test.yml` checked are
+the same files (issue btclib-org/btclib#1166).
 
 **What it answers is whether the publish path still works**, so it earns
 its run when that path or what travels it has moved: `release.yml` or a
@@ -173,14 +171,15 @@ the tag exercises the first.
      print(bitcoin_core_rpc.DEFAULT_TIMEOUT)"
    ```
 
-1. Check that the `attest` job is green. It signs a rehearsal's files too,
-   which is what it is here for: the release path attests after PyPI has
-   the distribution files and the tag can no longer be moved, so a
-   permission or an API that only works on release day is one this job
-   would find there. What it produces here goes no further than an
-   artifact of the run — no release is cut from a dispatch, so nothing is
-   attached anywhere — and the attestation it records names a `.dev`
-   version nothing resolves.
+1. Check that the `build` job is green. It signs a rehearsal's files too,
+   which is what it is here for: a permission or an API that only works
+   on release day is one this job would find there. The signature is made
+   before the `testpypi` approval, so the rehearsal's certificate can be
+   read without approving anything. What it produces goes no further than
+   an artifact of the run — no release is cut from a dispatch — and the
+   attestation it records names a `.dev` version nothing resolves, and a
+   branch as its source ref, so the `--source-ref` of *Verify the
+   provenance of an asset* refuses it.
 
 ## A live node has already been asked
 
@@ -637,11 +636,13 @@ result.
    gh release download "v${version:?}" --repo btclib-org/bitcoin-core-rpc &&
    wheel=bitcoin_core_rpc-${version:?}-py3-none-any.whl &&
    repo=btclib-org/bitcoin-core-rpc &&
-   signer=btclib-org/.github/.github/workflows/reusable-attest.yml &&
+   workflows=btclib-org/.github/.github/workflows &&
+   signer=$workflows/reusable-build.yml@refs/heads/main &&
    gh attestation verify "$wheel" --repo "$repo" \
-     --signer-workflow "$signer" &&
+     --signer-workflow "$signer" --source-ref "refs/tags/v${version:?}" &&
    gh attestation verify "$wheel" --repo "$repo" \
-     --signer-workflow "$signer" --bundle "v${version:?}.intoto.jsonl"
+     --signer-workflow "$signer" --source-ref "refs/tags/v${version:?}" \
+     --bundle "v${version:?}.intoto.jsonl"
    ```
 
    the first asks the attestations API for the signed statement, the
@@ -653,14 +654,19 @@ result.
 
    `--signer-workflow` is the flag that makes the check say *which*
    workflow signed: without it a valid attestation from any workflow in
-   the repository passes. `signer` names the workflow that signed: from
-   v2026.9.24 on that is the organization's `reusable-attest.yml`, which
-   `release.yml`'s `attest` job calls — an attestation made inside a
-   called workflow names the callee, not the caller, while `--repo`
-   still names this repository as the source. Through v2026.9.3 the
-   signer was `release.yml` itself, so for one of those releases
-   `signer` is `"$repo/.github/workflows/release.yml"`; neither path
-   verifies a release the other signed. Neither form is offline on its
+   the repository passes. `signer` names the workflow that signed, the
+   organization's `reusable-build.yml`, which `release.yml`'s `build` job
+   calls: an attestation made inside a called workflow names the callee,
+   not the caller, while `--repo` still names this repository as the source.
+   `--source-ref` names the tag, which is what stops a rehearsal
+   dispatched from a branch from verifying as this release. A release
+   from v2026.9.24 on, made before this repository called
+   `reusable-build.yml`, was signed by `reusable-attest.yml`, and
+   verifies with that workflow as the signer
+   and no `--source-ref`. Through v2026.9.3 the signer was `release.yml`
+   itself, so for one of those releases
+   `signer` is `"$repo/.github/workflows/release.yml"`; no path verifies
+   a release another signed. Neither form is offline on its
    own — the Sigstore trusted root comes over the network unless
    `gh attestation trusted-root > trusted_root.jsonl` fetched it earlier
    and `--custom-trusted-root` points at it.
@@ -687,9 +693,9 @@ result.
 
 ## Rebuild a release from its tag
 
-test.yml's `dist` job exports `SOURCE_DATE_EPOCH` from the commit date
-and normalizes the sdist, so a rebuild of a released tag is the same
-bytes as what was published — that job's own upload is what
+`reusable-build.yml`'s `build` job exports `SOURCE_DATE_EPOCH` from the
+commit date and normalizes the sdist, so a rebuild of a released tag is
+the same bytes as what was published — that job's own upload is what
 `publish-pypi` publishes, unchanged, so "what was published" and "what
 that job built" are the same files (issue btclib-org/btclib#1166).
 Anyone can check that, and the check is one command short of the
@@ -713,12 +719,14 @@ cd /tmp/bitcoin-core-rpc-rebuild &&
 python=$(grep -Ev '^[[:space:]]*(#|$)' .python-version) &&
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) &&
 repo=btclib-org/bitcoin-core-rpc &&
-signer=btclib-org/.github/.github/workflows/reusable-attest.yml &&
+workflows=btclib-org/.github/.github/workflows &&
+signer=$workflows/reusable-build.yml@refs/heads/main &&
+tag="v${version:?}" &&
 wheels=$(mktemp -d) &&
 gh release download "v${version:?}" --repo "$repo" --dir "$wheels" \
   --pattern '*.whl' &&
 gh attestation verify "$wheels"/*.whl \
-  --repo "$repo" --signer-workflow "$signer" &&
+  --repo "$repo" --signer-workflow "$signer" --source-ref "refs/tags/$tag" &&
 uv_version=$(unzip -p "$wheels"/*.whl '*.dist-info/WHEEL' |
   sed -n 's/^Generator: uv //p') &&
 [[ $uv_version =~ ^[0-9]+([.][0-9]+)*$ ]] &&
@@ -732,19 +740,21 @@ git -C "$served" sparse-checkout set .github/scripts &&
 uv run --no-project --python "$python" \
   "$served"/.github/scripts/generate_sbom.py dist/ sbom/ &&
 gh attestation verify "dist/bitcoin_core_rpc-${version:?}.tar.gz" \
-  --repo "$repo" --signer-workflow "$signer" &&
+  --repo "$repo" --signer-workflow "$signer" --source-ref "refs/tags/$tag" &&
 gh attestation verify "dist/bitcoin_core_rpc-${version:?}-py3-none-any.whl" \
-  --repo "$repo" --signer-workflow "$signer" &&
+  --repo "$repo" --signer-workflow "$signer" --source-ref "refs/tags/$tag" &&
 gh attestation verify "sbom/bitcoin_core_rpc-${version:?}.cdx.json" \
-  --repo "$repo" --signer-workflow "$signer"
+  --repo "$repo" --signer-workflow "$signer" --source-ref "refs/tags/$tag"
 ```
 
 `signer` is the workflow that signed the tag's attestation, which is
-`reusable-attest.yml` from v2026.9.24 on, and for those tags
-`--signer-workflow` is required: without it the command refuses the
-release. A tag through v2026.9.3 was signed by `release.yml` itself, and
-for one of those `signer` is `"$repo/.github/workflows/release.yml"`,
-the flag there only narrowing what passes. Each path verifies only the
+`reusable-build.yml`, and `--signer-workflow` is required: without it the
+command refuses the release. A tag from v2026.9.24 on, made before this
+repository called `reusable-build.yml`, was signed by
+`reusable-attest.yml`, with no `--source-ref`. A tag through v2026.9.3
+was signed by `release.yml` itself, and for one of those `signer` is
+`"$repo/.github/workflows/release.yml"`, the flag there only narrowing
+what passes. Each path verifies only the
 releases its own workflow signed.
 
 `python` is the interpreter the tag's own `.python-version` pins, its
@@ -864,17 +874,13 @@ reading a mismatch as tampering:
   --failed` reaches a job the run marks *failed*, so it is worth trying
   first here and is not an option there at all.
 
-- `github-release` shows **`skipped`** rather than failed, though both of
-  its needs — `publish-pypi` and `attest` — report `success`. The run's own
-  conclusion is `success` and no release exists, which is why the step
-  above asks `gh release view` rather than reading the run. What produces
-  it is a job the release path does not depend on and cannot see:
-  `publish-testpypi` is skipped on a tag, `attest` needs it, and a job
-  standing behind a skipped ancestor is skipped in turn unless its own
-  condition opts out with `always()` — which `attest` does for itself and
-  cannot do on behalf of what needs `attest`. Every job that crosses a
-  skip has to say `always()`, so the answer is an explicit `if` on the job
-  that shows the symptom, not on the one that caused it. Recovery is by
+- `github-release` shows **`skipped`** while `publish-pypi` and `build`
+  both report `success`. That is a defect in `release.yml`'s `needs:` or
+  `if:`: a job behind a skipped ancestor is skipped unless its own `if:`
+  opens with `always()`, so the fix is an explicit `if` on the job that
+  shows the symptom. The run's conclusion is `success` and no release
+  exists, which is why the step above asks `gh release view` rather than
+  reading the run. Recovery is by
   hand: `gh run rerun --job` refuses a skipped job outright (`cannot be
   rerun`), unlike a failed one. Re-running the whole workflow is not the
   fix either: `publish-pypi` would attempt the upload a second time, and
