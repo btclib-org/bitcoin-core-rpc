@@ -12,6 +12,12 @@ in this file — read it before upgrading, rather than a digit.
 
 ## v2026.10 (work in progress, not released yet)
 
+- **Verifying a release's attestation names a new signer and the tag.**
+  `gh attestation verify` takes
+  `--signer-workflow btclib-org/.github/.github/workflows/reusable-build.yml@refs/heads/main`
+  and `--source-ref refs/tags/v<version>`; SECURITY.md has the command.
+  SECURITY.md names the signer of an earlier release.
+
 ## v2026.9.29
 
 Python 3.10 is no longer supported: `requires-python` is `>=3.11`. On 3.10

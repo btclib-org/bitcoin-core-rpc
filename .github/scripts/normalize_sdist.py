@@ -16,12 +16,12 @@ coming out of `uv build --sdist` and measurable with
 
 answers with one digest per artefact across the two directories. So
 rewriting `mtime` is where this step changes the published bytes.
-`test.yml`'s `dist` job exports `SOURCE_DATE_EPOCH` from the commit date
-and runs this script over the build, and the archive it hands on carries
-a different sha256 from the one `uv build` wrote, on any commit whose
-timestamp is not `0`. That archive is what the index serves and what the
-attestation vouches for, so this step decides those bytes rather than
-standing as insurance over a backend that already writes them.
+`reusable-build.yml`'s `build` job exports `SOURCE_DATE_EPOCH` from the
+commit date and runs this script over the build, and the archive it hands
+on carries a different sha256 from the one `uv build` wrote, on any
+commit whose timestamp is not `0`. That archive is what the index serves
+and what the attestation vouches for, so this step decides those bytes
+rather than standing as insurance over a backend that already writes them.
 
 What running it on the other fields buys is that they stay this
 repository's answer whatever a future `uv_build` writes there, the same

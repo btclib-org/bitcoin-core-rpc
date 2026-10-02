@@ -172,6 +172,11 @@ that records it (issue btclib-org/.github#1362).
 `release.yml` and `RELEASING.md` say that a red `public-api` means
 `RELEASE_NOTES.md` misses a name (issue btclib-org/.github#1517).
 
+### The release's attestation is signed by `reusable-build.yml`, at SLSA Build L3
+
+`release.yml` calls `reusable-build.yml`, which signs the files before the
+publish jobs wait for approval (issue btclib-org/.github#1506).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of

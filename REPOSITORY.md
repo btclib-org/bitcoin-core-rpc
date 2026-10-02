@@ -542,11 +542,13 @@ mapping, or a quoted key or value — is outside that answer.
 
 `release.yml` takes `contents: write` on `github-release`, and
 `id-token: write` on `publish-pypi` and `publish-testpypi`, the OIDC
-token that lets each index trust the workflow itself, with
-`attestations: write` beside it on `attest`. `claude-review.yml` takes
-`pull-requests: write` to post a review or a reply and `id-token: write`
-for the token its action mints at startup, on its one `claude-review`
-job. `codeql.yml`'s `analyze` and `scorecard.yml`'s `analysis` take
+token that lets each index trust the workflow itself. `build`, the job
+that calls `reusable-build.yml`, takes `id-token: write` and
+`attestations: write` for the callee's `attest` job.
+`claude-review.yml` takes `pull-requests: write` to post a review or a
+reply and `id-token: write` for the token its action mints at startup, on
+its one `claude-review` job. `codeql.yml`'s `analyze` and
+`scorecard.yml`'s `analysis` take
 `security-events: write` to file a SARIF as code-scanning alerts, and
 `analysis` takes `id-token: write` besides, for the transparency-log
 entry its published score rests on. The workflow-level
@@ -577,18 +579,20 @@ the two need not behave alike (btclib-org/.github#912).
 
 One elevation per job is the shape most jobs keep: the job that signs
 the distribution files writes no release, the job that writes the
-release holds no OIDC token, and neither builds anything.
+release holds no OIDC token, and inside
+`reusable-build.yml` the job that signs builds nothing.
 
 Three jobs are the exception, each declaring two elevations rather than
 one, and the reason for every pair already sits where it is declared:
 `claude-review.yml`'s `claude-review`, and `scorecard.yml`'s
-`analysis`, are named above. `release.yml`'s `attest` holds `id-token:
+`analysis`, are named above. `release.yml`'s `build` holds `id-token:
 write` with `attestations: write` besides — the pair its own block
 already explains, rather than repeated here.
 
 Artifact attestations are free on public repositories on every current
 plan, and unavailable on a private one outside Enterprise Cloud — so
-making this repository private would break `attest` and nothing else.
+making this repository private would break `build`, and with it every
+publish.
 
 ### The value above is pinned here, not inherited
 
