@@ -177,6 +177,12 @@ that records it (issue btclib-org/.github#1362).
 `release.yml` calls `reusable-build.yml`, which signs the files before the
 publish jobs wait for approval (issue btclib-org/.github#1506).
 
+### `CONTRIBUTING.md` says the maintainer self-merges while the bot review is off
+
+*The review* says no ack of record exists while `claude-review.yml` is off,
+and that a local review of a named sha, by a reviewer other than the author,
+stands in (issue btclib-org/.github#1527).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
