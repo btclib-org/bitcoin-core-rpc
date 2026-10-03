@@ -205,6 +205,18 @@ setting section 11 of the standard states (issue btclib-org/.github#1540).
 *The review* says the ack of record is a bot's, so the criterion
 `two_person_review` is unmet (issue btclib-org/.github#452).
 
+### The bypass is for emergencies, in `CONTRIBUTING.md` and this tree's prose
+
+`CONTRIBUTING.md` and `REVIEWING.md` say every pull request, the maintainer's
+included, lands with an approving review from somebody other than its author;
+the bypass is for emergencies (issue btclib-org/.github#1362).
+
+### Earlier entries on how a pull request lands
+
+Entries above that have the maintainer landing without another person's approval
+describe the rule before issue btclib-org/.github#1362 (issue
+btclib-org/.github#1569).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of

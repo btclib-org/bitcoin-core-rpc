@@ -352,13 +352,10 @@ Everything reaches it through a pull request: the checks above with
 pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
 
-That last one is what carries the review. A review cannot be satisfied by
-its author, GitHub not allowing self-approval, so on a solo-maintainer
-repository the rule as written stops every pull request the maintainer
-opens, and the bypass is what lets one merge at all. The trade is the
-review's other half: it is there for a contributor's pull request, where
-there *is* somebody else to ask, and for the bots', which nobody
-self-approves either.
+A review cannot be satisfied by its author, GitHub not allowing
+self-approval, so somebody other than the author approves every pull
+request, the maintainer's included. The maintainer's bypass is used only
+in an emergency ([ISS 1362][i1362]).
 
 The required checks are the half that holds regardless, because they are
 earned by the tree rather than granted: a bypass is a decision somebody
@@ -474,15 +471,14 @@ the squash body is the only place it survives one commit standing for all
 of them.
 
 That setting is what the button writes, and the button is what lands
-every pull request here: auto-merge presses it once the review and the
+every pull request here: auto-merge presses it once the approval and the
 checks are in. There is no second landing. The `main-self-merge` bypass
-is in `pull_request` mode, so it excuses the approving review a
-solo-maintainer repository cannot produce and excuses nothing else — a
-direct push to `main` is refused for everyone, the holder included — and
-the ruleset names `squash` as the only merge method it will accept,
-stating the constraint where the rule is rather than only in the setting
-above. *Tag protection* above already gives the reason the id has to be
-read off the list rather than named directly:
+is in `pull_request` mode, so it excuses the approving review and
+nothing else — a direct push to `main` is refused for everyone, the
+holder included — and the ruleset names `squash` as the only merge
+method it will accept, stating the constraint where the rule is rather
+than only in the setting above. *Tag protection* above already gives the
+reason the id has to be read off the list rather than named directly:
 
 ```shell
 id=$(gh api repos/btclib-org/bitcoin-core-rpc/rulesets \
@@ -954,3 +950,4 @@ set* about the variable store's.
 [s11-branch]: https://github.com/btclib-org/.github#branch-protection-and-rulesets
 [s11-sigs]: https://github.com/btclib-org/.github#signatures
 [s11-tokens]: https://github.com/btclib-org/.github#tokens-publishing-scanning
+[i1362]: https://github.com/btclib-org/.github/issues/1362#issuecomment-5969383609
