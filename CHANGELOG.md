@@ -194,6 +194,12 @@ built package (issue btclib-org/.github#1538).
 `REPOSITORY.md` reads `web_commit_signoff_required` back, the organization
 setting section 11 of the standard states (issue btclib-org/.github#1540).
 
+### The `Sign-off` check is required
+
+`CONTRIBUTING.md`'s shared half says a pull request whose commits lack the
+`Signed-off-by:` trailer cannot merge, and `REPOSITORY.md` lists
+`lint / Sign-off` among the required checks (issue btclib-org/.github#1550).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
