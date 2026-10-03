@@ -200,6 +200,11 @@ setting section 11 of the standard states (issue btclib-org/.github#1540).
 `Signed-off-by:` trailer cannot merge, and `REPOSITORY.md` lists
 `lint / Sign-off` among the required checks (issue btclib-org/.github#1550).
 
+### `CONTRIBUTING.md` says the maintainer lands through the bypass
+
+*The review* says the ack of record is a bot's, so the criterion
+`two_person_review` is unmet (issue btclib-org/.github#452).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
