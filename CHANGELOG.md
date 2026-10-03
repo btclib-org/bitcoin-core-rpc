@@ -205,6 +205,11 @@ setting section 11 of the standard states (issue btclib-org/.github#1540).
 *The review* says the ack of record is a bot's, so the criterion
 `two_person_review` is unmet (issue btclib-org/.github#452).
 
+### The bypass is for emergencies, in `CONTRIBUTING.md` and this tree's prose
+
+Every pull request, the maintainer's included, lands with an owner's
+approval; the bypass is the emergency path (issue btclib-org/.github#1362).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of

@@ -374,28 +374,16 @@ result.
    lands.
 
    "Squash and merge" is the only method either the repository setting
-   or the ruleset accepts, and auto-merge presses it once the review and
-   the checks are in. Branch protection requires an approving review
-   and GitHub does not let an author approve their own, which on a
-   solo-maintainer repository would stop every merge — the
-   `main-self-merge` bypass in `pull_request` mode is what answers that,
-   and only that. There is no second landing to choose between: a direct
-   push to `main` is refused for everyone.
+   or the ruleset accepts, and auto-merge presses it once the approval
+   and the checks are in. Branch protection requires an approving review
+   and GitHub does not let an author approve their own, so an owner other
+   than the author approves the release pull request like any other.
+   There is no second landing to choose between: a direct push to `main`
+   is refused for everyone.
 
-   `gh pr merge <n> --squash` alone can still refuse this pull request —
-   `the base branch policy prohibits the merge` — the way it did on
-   btclib-secp256k1's own v0.8.0.4 (btclib-org/btclib-secp256k1#288): a
-   solo-maintainer repository never clears `REVIEW_REQUIRED`, so gh's
-   client-side mergeable check declines before it asks the server at
-   all, and `--auto` only waits longer for the same review that will not
-   arrive. `--admin` is the flag that clears it — the pair
-   REPOSITORY.md's "Branch protection" describes, `enforce_admins`
-   `false` together with holding `admin` — and it is the one to reach
-   for first: measured directly on a sibling organization repository
-   across four pull requests, each landing from `BLOCKED` and
-   `REVIEW_REQUIRED` with a verified signature. Name the release
-   commit's title and body explicitly when using it — `gh pr merge <n>
-   --squash --admin --body-file <path> --subject <title>` — rather
+   Once it is approved, name the release commit's title and body
+   explicitly — `gh pr merge <n> --squash --match-head-commit <head>
+   --body-file <path> --subject <title>` — rather
    than leave them to `squash_merge_commit_message`'s repository
    default, `COMMIT_MESSAGES` here: this repository's own release pull
    requests have so far landed as a single commit each (#143, #108), so
@@ -405,8 +393,21 @@ result.
    and two retitles, never one commit, and its own RELEASING.md needed
    this the first time a release carried more than a single change.
 
+   The `main-self-merge` bypass in `pull_request` mode is used only in
+   an emergency. Without an approval `gh pr merge <n> --squash` refuses —
+   `the base branch policy prohibits the merge` — the way it did on
+   btclib-secp256k1's own v0.8.0.4 (btclib-org/btclib-secp256k1#288):
+   gh's client-side mergeable check declines on `REVIEW_REQUIRED` before
+   it asks the server at all, and `--auto` only waits longer for the
+   review. `--admin` added to the command above is the flag that clears
+   it — the pair REPOSITORY.md's "Branch protection" describes,
+   `enforce_admins` `false` together with holding `admin` — measured
+   directly on a sibling organization repository across four pull
+   requests, each landing from `BLOCKED` and `REVIEW_REQUIRED` with a
+   verified signature.
+
    `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
-   merge_method=squash` is the fallback for when `--admin` is
+   merge_method=squash` is the emergency fallback for when `--admin` is
    unavailable, and needs `commit_title` and `commit_message` passed the
    same way for the same reason. It is what landed btclib-secp256k1's
    0.8.0.4 clean — but only because that branch carried a single commit,
