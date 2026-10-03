@@ -216,6 +216,7 @@ the bypass is for emergencies (issue btclib-org/.github#1362).
 Entries above that have the maintainer landing without another person's approval
 describe the rule before issue btclib-org/.github#1362 (issue
 btclib-org/.github#1569).
+
 ### `REPOSITORY.md` reads the review switch as the organization's
 
 `CLAUDE_REVIEW_ENABLED` is set on the organization, so this file records only

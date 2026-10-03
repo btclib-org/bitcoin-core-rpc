@@ -930,8 +930,7 @@ done
 An empty answer there records no decision, so whichever of them is used
 one day arrives with the section that uses it. The webhook list answers
 empty as well and is recorded anyway: *Read the Docs* above is about
-what that particular zero means, and *A switch this repository does not
-set* about the variable store's.
+what that particular zero means.
 
 [s11-branch]: https://github.com/btclib-org/.github#branch-protection-and-rulesets
 [s11-sigs]: https://github.com/btclib-org/.github#signatures
