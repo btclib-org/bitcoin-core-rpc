@@ -353,7 +353,7 @@ pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
 
 A review cannot be satisfied by its author, GitHub not allowing
-self-approval, so an owner other than the author approves every pull
+self-approval, so somebody other than the author approves every pull
 request, the maintainer's included. The maintainer's bypass is used only
 in an emergency ([ISS 1362][i1362]).
 

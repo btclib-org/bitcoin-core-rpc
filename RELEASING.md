@@ -376,7 +376,7 @@ result.
    "Squash and merge" is the only method either the repository setting
    or the ruleset accepts, and auto-merge presses it once the approval
    and the checks are in. Branch protection requires an approving review
-   and GitHub does not let an author approve their own, so an owner other
+   and GitHub does not let an author approve their own, so somebody other
    than the author approves the release pull request like any other.
    There is no second landing to choose between: a direct push to `main`
    is refused for everyone.
