@@ -189,6 +189,11 @@ stands in (issue btclib-org/.github#1527).
 `--locked`, bar the jobs that re-lock on purpose or install a published or
 built package (issue btclib-org/.github#1538).
 
+### `REPOSITORY.md` reads back the web sign-off setting
+
+`REPOSITORY.md` reads `web_commit_signoff_required` back, the organization
+setting section 11 of the standard states (issue btclib-org/.github#1540).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
