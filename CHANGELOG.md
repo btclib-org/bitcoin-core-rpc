@@ -183,6 +183,12 @@ publish jobs wait for approval (issue btclib-org/.github#1506).
 and that a local review of a named sha, by a reviewer other than the author,
 stands in (issue btclib-org/.github#1527).
 
+### `dependabot.yml` does not say that every workflow passes `--locked`
+
+`.github/dependabot.yml` says the workflows install from `uv.lock` with
+`--locked`, bar the jobs that re-lock on purpose or install a published or
+built package (issue btclib-org/.github#1538).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of
