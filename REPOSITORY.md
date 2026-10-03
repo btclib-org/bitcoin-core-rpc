@@ -664,6 +664,18 @@ gh api repos/btclib-org/bitcoin-core-rpc/actions/permissions \
 `sha_pinning_required` is set at the organization level: [section 11 of
 the standard has the reasons for both fields][s11-tokens].
 
+## Sign-off on web commits
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc --jq .web_commit_signoff_required
+# true
+gh api orgs/btclib-org --jq .web_commit_signoff_required
+# true
+```
+
+Set at the organization level, [for the reason section 11
+gives][s11-sigs].
+
 ## Publishing
 
 **Publishing waits for an approval**: the `pypi` and `testpypi`
@@ -867,8 +879,8 @@ back with a call of its own.
 
 **A switch no section of the standard states a rule for stays out.**
 `allow_forking`, `allow_update_branch`, `has_discussions`,
-`has_downloads`, `is_template` and `web_commit_signoff_required` are in
-that document and no section above reads any of them back. Against the
+`has_downloads` and `is_template` are in that document and no section
+above reads any of them back. Against the
 standard's own `README.md`, `grep -c allow_forking` answers `0` where
 `grep -c 'default branch'` does not, which is what makes the first an
 absence rather than a file that was not read. Recording them would grow
@@ -938,4 +950,5 @@ what that particular zero means, and *A switch this repository does not
 set* about the variable store's.
 
 [s11-branch]: https://github.com/btclib-org/.github#branch-protection-and-rulesets
+[s11-sigs]: https://github.com/btclib-org/.github#signatures
 [s11-tokens]: https://github.com/btclib-org/.github#tokens-publishing-scanning
