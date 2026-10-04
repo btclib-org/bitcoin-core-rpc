@@ -586,9 +586,13 @@ alike, exit 1 either way — not a fix.
 
 `lint.yml`, `test.yml`, `docs.yml` and `integration-bitcoind.yml` produce the
 required checks, and `REPOSITORY.md` reads the rule back from the
-endpoint rather than restating it. So a diff does not reach a review
-without having passed them or passing them beside it on the same sha,
-which is the reliance `REVIEWING.md` provides for.
+endpoint rather than restating it.
+
+The checks gate a merge only when the landing waits for them. Auto-merge
+waits for them. A merge with `--admin` waits for nothing, the approval and
+the checks alike, and cancels the pull request's runs still in progress.
+The push to `main` runs some of them again, never `lint / Sign-off` or
+`lint / Dependency review`.
 
 | workflow | when | what it varies |
 | --- | --- | --- |
