@@ -38,7 +38,7 @@ from pathlib import Path
 from secrets import token_hex
 from sys import get_int_max_str_digits
 from typing import Any
-from urllib.parse import quote, urlsplit
+from urllib.parse import SplitResult, quote, urlsplit
 
 from bitcoin_core_rpc.chains import (
     cookie_auth,
@@ -111,6 +111,23 @@ def _rpc_id() -> str:
     return f"btcrpc-{token_hex(_RPC_ID_BYTES)}"
 
 
+def _split_url(url: str) -> SplitResult | None:
+    """Return the url split, or None where `urlsplit` refuses it."""
+    try:
+        return urlsplit(url)
+    except ValueError:
+        return None
+
+
+def _has_valid_port(split: SplitResult) -> bool:
+    """Say whether the port, parsed on access and not before, is one."""
+    try:
+        _ = split.port
+    except ValueError:
+        return False
+    return True
+
+
 def _checked_url(url: str, *, kind: str = "rpc") -> str:
     """Return the endpoint url, having refused what is not one.
 
@@ -121,14 +138,24 @@ def _checked_url(url: str, *, kind: str = "rpc") -> str:
 
     `kind` names the caller in every message: `"rpc"`, the default, for
     `BitcoinCoreRpcClient`, and `"rest"` for `BitcoinCoreRestClient`,
-    whose constructor takes no credentials at all -- the default is what
-    keeps every message this function raised before `kind` existed
-    reading exactly as it did.
+    whose constructor takes no credentials at all.
+
+    No message repeats the url or any part of it, the scheme included:
+    a typo such as `http:alice:secret@host` or `alice:secret@host` parses
+    with the credentials as the path or the scheme, and an exception
+    reaches logs and tracebacks.
     """
-    split = urlsplit(url)
-    if split.scheme not in _SCHEMES:
-        err_msg = f"invalid {kind} url scheme: '{split.scheme}' instead of http(s)"
+    if any(c.isspace() or not c.isprintable() for c in url):
+        err_msg = f"whitespace or a control character in the {kind} url"
         raise BtcRpcValueError(err_msg)
+    # the two ValueErrors of `_split_url` and `_has_valid_port` quote the
+    # netloc and the port text, so the refusal is raised outside their
+    # handlers: inside, they would stay as its `__context__`
+    split = _split_url(url)
+    if split is None:
+        raise BtcRpcValueError(f"malformed {kind} url")
+    if split.scheme not in _SCHEMES:
+        raise BtcRpcValueError(f"invalid {kind} url scheme: expected http(s)")
     if split.username is not None or split.password is not None:
         if kind == "rpc":
             err_msg = "credentials in the rpc url:"
@@ -138,21 +165,18 @@ def _checked_url(url: str, *, kind: str = "rpc") -> str:
             err_msg += " -rest authenticates nobody who reaches it"
         raise BtcRpcValueError(err_msg)
     if not split.hostname:
-        raise BtcRpcValueError(f"no host in the {kind} url: {url}")
+        raise BtcRpcValueError(f"no host in the {kind} url")
     if split.query or split.fragment:
-        err_msg = f"query or fragment in the {kind} url: {url} -- "
+        err_msg = f"query or fragment in the {kind} url -- "
         err_msg += (
             "an rpc endpoint is a path, and the call is the body"
             if kind == "rpc"
             else "a rest endpoint is a path, and nothing here reads a query"
         )
         raise BtcRpcValueError(err_msg)
-    try:
-        # the port is parsed on access and not before, so this is what
-        # refuses `http://node:https` here rather than at the first call
-        _ = split.port
-    except ValueError as e:
-        raise BtcRpcValueError(f"invalid port in the {kind} url: {url}") from e
+    # this is what refuses `http://node:https` here, not at the first call
+    if not _has_valid_port(split):
+        raise BtcRpcValueError(f"invalid port in the {kind} url")
     return url
 
 
@@ -330,7 +354,9 @@ def _decimal_json(number: Decimal) -> str:
 
 
 def _json_number(token: str) -> Decimal:
-    """Return the Decimal a json number is, having refused a non-finite one.
+    """Return the Decimal a json number is, having refused two kinds.
+
+    A non-finite one, and one whose exponent is past the digit limit.
 
     `Decimal(token)` is built in whatever decimal context the *caller* is
     running under, and that context decides whether an exponent the
@@ -343,13 +369,21 @@ def _json_number(token: str) -> Decimal:
     for the `DecimalException` normalization to catch. So the value is
     checked rather than the exception waited for.
 
-    Size is deliberately not the question: a finite number is an answer
-    however large, which is what lets pypy's decimal build exponents
-    libmpdec declines to.
+    The exponent is bounded as `_decimal_json` bounds it, by
+    `sys.get_int_max_str_digits`, 0 meaning no bound: `1e1000000` is a
+    quick `Decimal` to build and a million digits to write out or to turn
+    into an `int`. The bound is checked on the token's
+    value, so it holds on pypy, whose decimal builds exponents libmpdec
+    declines to, as on CPython.
     """
     number = Decimal(token)
     if not number.is_finite():
         raise FetchError(f"not a json number in the reply: {token}")
+    limit = get_int_max_str_digits()
+    if limit and abs(number.adjusted()) > limit:
+        err_msg = f"a json number in the reply whose exponent {number.adjusted()}"
+        err_msg += f" is beyond sys.get_int_max_str_digits ({limit})"
+        raise FetchError(err_msg)
     return number
 
 
@@ -451,10 +485,10 @@ def _parsed_json_body(where: str, status: int, payload: bytes) -> Any:
             payload, parse_float=_json_number, parse_constant=_refuse_constant
         )
     except FetchError as e:
-        # one of this module's own two refusals of a number: the three
-        # non-numbers Python decodes by default, through `_refuse_constant`,
-        # or a `Decimal` that came back non-finite because the caller's
-        # context does not trap that, through `_json_number`. Each names
+        # one of this module's own refusals of a number: a non-number
+        # through `_refuse_constant`, or through `_json_number` a `Decimal`
+        # that is non-finite, because the caller's context does not trap
+        # that, or whose exponent is past the digit limit. Each names
         # what it saw, so under a 200 it is re-raised as it stands -- `raise
         # _unreadable(...) from e` would hand back this very object and make
         # the exception its own `__cause__`, which anything walking that

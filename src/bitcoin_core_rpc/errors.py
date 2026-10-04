@@ -222,6 +222,11 @@ class RpcError(FetchError):
     error a node sends; a method that starts sending one, or a proxy
     adding its own, would otherwise have it dropped here, which is the
     one place it cannot be recovered from.
+
+    `args[0]` is the text as it arrived, the node's message included.
+    `str()` writes each non-printable character of it as an escape, so a
+    message carrying a newline or an ESC cannot forge a log line or drive
+    a terminal.
     """
 
     def __init__(self, message: str, code: int, data: Any = None) -> None:
@@ -232,7 +237,11 @@ class RpcError(FetchError):
     # no @override: typing has it from 3.12, the floor here is 3.11, and
     # this file takes nothing outside the standard library
     def __str__(self) -> str:  # type: ignore[explicit-override]
-        return f"{self.args[0]} (rpc error code {self.code})"
+        text = "".join(
+            c if c.isprintable() else c.encode("unicode_escape").decode()
+            for c in self.args[0]
+        )
+        return f"{text} (rpc error code {self.code})"
 
 
 class CookieNotFoundError(FetchError):

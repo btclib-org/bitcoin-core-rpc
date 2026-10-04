@@ -88,9 +88,10 @@ vulnerabilities* section, in full.
 
 **The caller and the public API.** Every constructor and every call
 validates its own arguments before anything is built from them: a url's
-scheme, its embedded credentials, its query and its port
-(`_checked_url`); a credential's type and the colon it must not contain;
-a timeout that is a positive, finite number of seconds
+scheme, its embedded credentials, its query, its port and any
+whitespace or control character in it (`_checked_url`), none of whose
+refusals repeats the url; a credential's type and the colon it must not
+contain; a timeout that is a positive, finite number of seconds
 (`_assert_valid_timeout`); a body limit that is a non-negative integer
 (`_assert_valid_max_body_size`); and a parameter structure walked for
 what json cannot carry — a non-finite number, `bytes`, a container
@@ -101,13 +102,17 @@ deferred to the first call.
 
 **The node's reply.** `_parsed_json_body` decodes it through one parser,
 `json.loads` with every floating-point token a `Decimal`, every integer
-token an `int`, and every non-finite constant refused, never `eval` and
+token an `int`, every non-finite constant refused and every number whose
+exponent is past `sys.get_int_max_str_digits` refused (unless that
+limit is 0), never `eval` and
 never a decoder that executes anything the reply carries.
 `_reply_object` refuses a body that is not a json object, `_id_error`
 refuses one whose `id` does not match the request just sent,
 and `_discriminate` refuses a `jsonrpc` marker that is neither absent
 nor `"2.0"`. None of it is trusted as an answer until every one of those
-holds.
+holds. `str()` of an `RpcError` writes the non-printable characters of the
+node's message as escapes, so a reply cannot forge a log line or drive a
+terminal.
 
 **The network path.** Only `http` and `https` reach a built request
 (`_SCHEMES`); no proxy is taken from the environment, `ProxyHandler({})`

@@ -33,6 +33,7 @@ import json
 import pickle
 import re
 import sys
+import traceback
 from base64 import b64decode
 from collections.abc import Callable
 from decimal import Decimal, InvalidOperation, localcontext
@@ -114,6 +115,22 @@ class Echoing(Recorded):
         """Answer the next scripted reply, with this request's id in it."""
         status, body = super().__call__(request, timeout)
         return status, echoed(body, asked_id(request))
+
+
+def answering_with(result: str) -> BitcoinCoreRpcClient:
+    """Return a client whose node answers `result`, written as it is here.
+
+    `Echoing` parses the body to put the id in it, which a number the
+    default parser cannot read would defeat.
+    """
+
+    def transport(request: Request, timeout: float) -> tuple[int, bytes]:
+        body = f'{{"jsonrpc":"2.0","result":{result},"id":"{asked_id(request)}"}}'
+        return 200, body.encode()
+
+    return BitcoinCoreRpcClient(
+        URL, user=RPC_USER, password=RPC_PASSWORD, transport=transport
+    )
 
 
 def client(
@@ -749,6 +766,10 @@ def test_the_url_carries_no_network_and_no_registry() -> None:
         ("file:///etc/passwd", "invalid rpc url scheme"),
         ("127.0.0.1:8332", "invalid rpc url scheme"),
         ("http://", "no host in the rpc url"),
+        ("http://[::1/", "malformed rpc url"),
+        ("http://127.0.0.1:8332/a b", "whitespace or a control character"),
+        ("http://127.0.0.1:8332/a\x00b", "whitespace or a control character"),
+        ("http://127.0.0.1:8332/a\nb", "whitespace or a control character"),
         ("http://127.0.0.1:8332?wallet=hot", "query or fragment in the rpc url"),
         ("http://127.0.0.1:8332#wallet", "query or fragment in the rpc url"),
         ("http://127.0.0.1:https", "invalid port in the rpc url"),
@@ -764,6 +785,50 @@ def test_an_endpoint_that_is_not_one_is_refused_at_construction(
     """
     with pytest.raises(BtcRpcValueError, match=match):
         BitcoinCoreRpcClient(url, user=RPC_USER, password=RPC_PASSWORD)
+
+
+# urls written with credentials in a form that does not parse as
+# credentials: each refusal must not repeat them, in its message or in the
+# traceback the exception would be printed with
+_LOGIN = f"{RPC_USER}:{RPC_PASSWORD}"
+_URLS_WITH_A_LOGIN_TYPO = [
+    f"http:{_LOGIN}@h:1",
+    f"http:/{_LOGIN}@h",
+    f"http:///{_LOGIN}@h",
+    f"http:\\\\{_LOGIN}@h",
+    f"{_LOGIN}@h:1",
+    f"http://h/?x={_LOGIN}@",
+    f"http://h/#{_LOGIN}@",
+    f"http://[{_LOGIN}@h/",
+    f"http://h:{RPC_PASSWORD}",
+    f"http://h/a b/{_LOGIN}@",
+]
+
+
+def _refusal_text(exc: BaseException) -> str:
+    """Everything printing the exception would print: chain included."""
+    return "".join(traceback.format_exception(exc))
+
+
+def _assert_no_login(exc: BaseException) -> None:
+    """Assert the login is in no printed traceback and no chained exception."""
+    assert RPC_PASSWORD not in _refusal_text(exc)
+    assert RPC_USER not in _refusal_text(exc)
+    assert exc.__cause__ is None
+    assert exc.__context__ is None
+
+
+@pytest.mark.parametrize("url", _URLS_WITH_A_LOGIN_TYPO)
+def test_a_refused_rpc_url_is_not_repeated(url: str) -> None:
+    """A url is refused without the credentials it may carry.
+
+    `urlsplit` takes `http:user:password@host` for a path and
+    `user:password@host` for a scheme, so none of the checks that name
+    credentials sees them, and a message repeating the url would.
+    """
+    with pytest.raises(BtcRpcValueError) as exc:
+        BitcoinCoreRpcClient(url, user=RPC_USER, password=RPC_PASSWORD)
+    _assert_no_login(exc.value)
 
 
 @pytest.mark.parametrize(
@@ -1364,6 +1429,27 @@ def test_an_rpc_error_object_is_an_rpc_error_with_the_code() -> None:
     assert "-txindex" in str(exc.value)
 
 
+def test_an_rpc_error_message_is_not_rendered_raw() -> None:
+    """A node's text with a newline or an ESC is escaped in `str()`.
+
+    Raw, it forges a log line or drives the terminal it is printed to.
+    `args[0]` keeps the text as it arrived.
+    """
+    message = "bad\nERROR forged line \x1b[2J\u2028 and é stays"
+    error = RpcError(f"getbalance: {message}", -1)
+    said = str(error)
+    assert said == (
+        "getbalance: bad\\nERROR forged line \\x1b[2J\\u2028 and é stays"
+        " (rpc error code -1)"
+    )
+    assert error.args[0] == f"getbalance: {message}"
+    body = {"jsonrpc": "2.0", "error": {"code": -1, "message": message}}
+    with pytest.raises(RpcError) as exc:
+        client((200, json.dumps(body).encode())).call("getbalance")
+    assert str(exc.value).endswith(said.removeprefix("getbalance: "))
+    assert exc.value.args[0] == f"getbalance at {URL}: {message}"
+
+
 def test_rpc_error_code_names_the_refusal() -> None:
     """`RPCErrorCode(exc.code)` is the caller's own line for the name."""
     body = recorded_body("getrawtransaction_error.json")
@@ -1567,9 +1653,9 @@ def _decimal_represents(number: str) -> bool:
     a function: CPython's `decimal` is libmpdec, whose exponent is bounded
     by MAX_EMAX, and pypy's is the pure-Python implementation, which parses
     the exponent as an int and builds the number. So a reply carrying
-    `1e999999999999999999999999999` is unreadable on one and an ordinary
-    amount on the other -- measured rather than assumed, after the pypy
-    cells of the matrix said so.
+    `1e999999999999999999999999999` is unreadable on one and refused by
+    the exponent bound on the other -- measured rather than assumed, after
+    the pypy cells of the matrix said so.
 
     Every trap is cleared, which is what makes this one question rather than
     two: an implementation that cannot represent the number *raises* under
@@ -1815,7 +1901,7 @@ def test_a_reply_nested_too_deeply_to_parse() -> None:
 
 @pytest.mark.skipif(
     _decimal_represents(_HUGE_EXPONENT_NUMBER),
-    reason="this interpreter's decimal builds that exponent, so the reply reads",
+    reason="this interpreter's decimal builds that exponent, so the bound refuses it",
 )
 def test_a_number_the_exact_decimal_parser_will_not_build() -> None:
     """`1e999999999999999999999999999` is json, and no Decimal on libmpdec.
@@ -1828,11 +1914,10 @@ def test_a_number_the_exact_decimal_parser_will_not_build() -> None:
     promise this client makes about a reply it cannot read.
 
     Skipped where the interpreter builds the number instead, which is pypy:
-    there the reply is readable and this body is an amount, so there is no
-    unreadable reply left to make a FetchError of. The normalization in
-    `_reply_object` costs nothing on such an interpreter and is what a shared
-    source file has to do -- `DecimalException` is raised by one of the two
-    implementations of the same standard module.
+    there the exponent bound refuses the reply with another message. The
+    normalization in `_reply_object` costs nothing on such an interpreter and
+    is what a shared source file has to do -- `DecimalException` is raised
+    by one of the two implementations of the same standard module.
 
     `verbatim` and not `client`: `Echoing` reads the body to put this
     request's id in it, and reading it is what cannot be done -- with the
@@ -1867,10 +1952,7 @@ def test_a_non_finite_decimal_is_refused_whatever_the_caller_traps(
     forever, past a refusal this module documents, with no exception raised
     anywhere to normalize.
 
-    So the number is checked and not the exception waited for, and the check
-    is `is_finite` rather than a bound on the exponent: a finite value is an
-    answer however large, which is what leaves pypy's decimal free to build
-    what libmpdec will not.
+    So the number is checked and not the exception waited for.
 
     The status keeps its precedence either way, which is the second half of
     the parametrization.
@@ -1885,6 +1967,38 @@ def test_a_non_finite_decimal_is_refused_whatever_the_caller_traps(
         assert exc.value.status == status
     else:
         assert "not a json number in the reply" in str(exc.value)
+
+
+@pytest.mark.parametrize("status", [200, 503])
+def test_a_number_with_an_exponent_past_the_digit_limit_is_refused(
+    status: int,
+) -> None:
+    """`1e1000000` is a quick `Decimal` and a million digits to use.
+
+    The bound is `_decimal_json`'s, `sys.get_int_max_str_digits`, and
+    holds on every interpreter. The status keeps its precedence.
+    """
+    limit = sys.get_int_max_str_digits()
+    assert limit  # the default; a run with the limit lifted tests nothing here
+    for exponent in (f"1e{limit + 1}", f"1e-{limit + 1}"):
+        body = b'{"jsonrpc":"2.0","result":' + exponent.encode() + b',"id":"x"}'
+        with pytest.raises(FetchError) as exc:
+            verbatim((status, body)).call("getbalance")
+        if status == 200:
+            assert "exponent" in str(exc.value)
+        else:
+            assert isinstance(exc.value, HttpError)
+    assert answering_with(f"1e{limit}").call("getbalance") == Decimal(f"1e{limit}")
+
+
+def test_no_digit_limit_leaves_a_reply_number_unbounded() -> None:
+    """`sys.set_int_max_str_digits(0)` lifts the limit, for a reply too."""
+    limit = sys.get_int_max_str_digits()
+    sys.set_int_max_str_digits(0)
+    try:
+        assert answering_with("1e1000000").call("getbalance") == Decimal("1e1000000")
+    finally:
+        sys.set_int_max_str_digits(limit)
 
 
 def test_a_json_body_that_is_not_a_reply_object() -> None:
@@ -2821,6 +2935,8 @@ def test_rest_a_transport_that_is_not_callable_is_refused() -> None:
         ("ftp://127.0.0.1:8332", "invalid rest url scheme"),
         ("127.0.0.1:8332", "invalid rest url scheme"),
         ("http://", "no host in the rest url"),
+        ("http://[::1/", "malformed rest url"),
+        ("http://127.0.0.1:8332/a b", "whitespace or a control character"),
         ("http://127.0.0.1:8332?wallet=hot", "query or fragment in the rest url"),
         ("http://127.0.0.1:8332#wallet", "query or fragment in the rest url"),
         ("http://127.0.0.1:https", "invalid port in the rest url"),
@@ -2832,6 +2948,14 @@ def test_a_rest_endpoint_that_is_not_one_is_refused_at_construction(
     """The same checks the rpc client's url gets, `kind="rest"`'s messages."""
     with pytest.raises(BtcRpcValueError, match=match):
         BitcoinCoreRestClient(url)
+
+
+@pytest.mark.parametrize("url", _URLS_WITH_A_LOGIN_TYPO)
+def test_a_refused_rest_url_is_not_repeated(url: str) -> None:
+    """The rest client's refusals leave the url out as the rpc client's do."""
+    with pytest.raises(BtcRpcValueError) as exc:
+        BitcoinCoreRestClient(url)
+    _assert_no_login(exc.value)
 
 
 def test_credentials_in_a_rest_url_are_refused_and_told_it_takes_none() -> None:
