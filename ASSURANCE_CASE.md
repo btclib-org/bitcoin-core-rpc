@@ -92,7 +92,9 @@ scheme, its embedded credentials, its query, its port and any
 whitespace or control character in it (`_checked_url`), none of whose
 refusals repeats the url; a credential's type and the colon it must not
 contain; a timeout that is a positive, finite number of seconds
-(`_assert_valid_timeout`); a body limit that is a non-negative integer
+(`_assert_valid_timeout`); header names that are tokens and values free
+of CR, LF, NUL and any character latin-1 cannot encode
+(`_assert_valid_headers`); a body limit that is a non-negative integer
 (`_assert_valid_max_body_size`); and a parameter structure walked for
 what json cannot carry — a non-finite number, `bytes`, a container
 reached from inside itself, one nested past a stated depth — before the
@@ -140,7 +142,12 @@ refused without repeating the url that carried them.
 once at import for the module-level `DEFAULT_DATADIR`, and again at
 every `from_chain` call that derives a cookie path because the caller
 supplied neither a credential nor a `cookie_path` of its own. Nothing
-else in the package reads an environment variable.
+else in the package reads an environment variable itself. The TLS
+context is built by `_tls_context` and not by
+`ssl.create_default_context`, which would open the file `SSLKEYLOGFILE`
+names and write the session keys to it; the system trust store it loads is
+OpenSSL's, which `SSL_CERT_FILE` and `SSL_CERT_DIR` choose, and
+SECURITY.md lists that as a limitation.
 
 ## Secure design principles
 

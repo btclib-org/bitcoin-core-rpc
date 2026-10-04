@@ -37,6 +37,7 @@ included; `_data/README.md` says where each came from.
 
 from __future__ import annotations
 
+import traceback
 from pathlib import Path
 from urllib.request import Request
 
@@ -49,6 +50,44 @@ TX_ID = "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16"
 # a segwit transaction in it
 TIP_HEIGHT = 481824
 TIP_ID = "0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893"
+
+
+# the rpc credentials every test here passes. Named once rather than
+# written at each call, which is what keeps the string out of a
+# `password=` argument: the two secret scanners read a literal there as a
+# credential, and they are right to -- a real one belongs in neither
+RPC_USER = "rpcuser"
+RPC_PASSWORD = "rpcpassword"  # ruff: ignore[S105]  # pragma: allowlist secret
+
+# urls written with credentials in a form that does not parse as
+# credentials: each refusal must not repeat them, in its message or in the
+# traceback the exception would be printed with
+LOGIN = f"{RPC_USER}:{RPC_PASSWORD}"
+URLS_WITH_A_LOGIN_TYPO = [
+    f"http:{LOGIN}@h:1",
+    f"http:/{LOGIN}@h",
+    f"http:///{LOGIN}@h",
+    f"http:\\\\{LOGIN}@h",
+    f"{LOGIN}@h:1",
+    f"http://h/?x={LOGIN}@",
+    f"http://h/#{LOGIN}@",
+    f"http://[{LOGIN}@h/",
+    f"http://h:{RPC_PASSWORD}",
+    f"http://h/a b/{LOGIN}@",
+]
+
+
+def refusal_text(exc: BaseException) -> str:
+    """Everything printing the exception would print: chain included."""
+    return "".join(traceback.format_exception(exc))
+
+
+def assert_no_login(exc: BaseException) -> None:
+    """Assert the login is in no printed traceback and no chained exception."""
+    assert RPC_PASSWORD not in refusal_text(exc)
+    assert RPC_USER not in refusal_text(exc)
+    assert exc.__cause__ is None
+    assert exc.__context__ is None
 
 
 def recorded_body(name: str) -> bytes:

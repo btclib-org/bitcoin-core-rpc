@@ -33,7 +33,6 @@ import json
 import pickle
 import re
 import sys
-import traceback
 from base64 import b64decode
 from collections.abc import Callable
 from decimal import Decimal, InvalidOperation, localcontext
@@ -63,20 +62,23 @@ from bitcoin_core_rpc import (
     RPCErrorCode,
     default_datadir,
 )
-from tests import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
+from tests import (
+    RPC_PASSWORD,
+    RPC_USER,
+    TIP_HEIGHT,
+    TIP_ID,
+    TX_ID,
+    URLS_WITH_A_LOGIN_TYPO,
+    Recorded,
+    assert_no_login,
+    recorded_body,
+)
 
 # the shape bitcoind writes: the fixed user, a colon, and 32 random bytes
 # in hex. This one is not random and is the credential of nothing -- the
 # point is the parsing, and a real cookie would be a secret in a
 # repository
 COOKIE_LINE = f"{COOKIE_USER}:" + "ab" * 32
-
-# the rpc credentials every test here passes. Named once rather than
-# written at each call, which is what keeps the string out of a
-# `password=` argument: the two secret scanners read a literal there as a
-# credential, and they are right to -- a real one belongs in neither
-RPC_USER = "rpcuser"
-RPC_PASSWORD = "rpcpassword"  # ruff: ignore[S105]  # pragma: allowlist secret
 
 # the endpoint the tests build against, written once. A url is required,
 # there being no chain here to derive one from -- `from_chain` is what
@@ -787,38 +789,7 @@ def test_an_endpoint_that_is_not_one_is_refused_at_construction(
         BitcoinCoreRpcClient(url, user=RPC_USER, password=RPC_PASSWORD)
 
 
-# urls written with credentials in a form that does not parse as
-# credentials: each refusal must not repeat them, in its message or in the
-# traceback the exception would be printed with
-_LOGIN = f"{RPC_USER}:{RPC_PASSWORD}"
-_URLS_WITH_A_LOGIN_TYPO = [
-    f"http:{_LOGIN}@h:1",
-    f"http:/{_LOGIN}@h",
-    f"http:///{_LOGIN}@h",
-    f"http:\\\\{_LOGIN}@h",
-    f"{_LOGIN}@h:1",
-    f"http://h/?x={_LOGIN}@",
-    f"http://h/#{_LOGIN}@",
-    f"http://[{_LOGIN}@h/",
-    f"http://h:{RPC_PASSWORD}",
-    f"http://h/a b/{_LOGIN}@",
-]
-
-
-def _refusal_text(exc: BaseException) -> str:
-    """Everything printing the exception would print: chain included."""
-    return "".join(traceback.format_exception(exc))
-
-
-def _assert_no_login(exc: BaseException) -> None:
-    """Assert the login is in no printed traceback and no chained exception."""
-    assert RPC_PASSWORD not in _refusal_text(exc)
-    assert RPC_USER not in _refusal_text(exc)
-    assert exc.__cause__ is None
-    assert exc.__context__ is None
-
-
-@pytest.mark.parametrize("url", _URLS_WITH_A_LOGIN_TYPO)
+@pytest.mark.parametrize("url", URLS_WITH_A_LOGIN_TYPO)
 def test_a_refused_rpc_url_is_not_repeated(url: str) -> None:
     """A url is refused without the credentials it may carry.
 
@@ -828,7 +799,7 @@ def test_a_refused_rpc_url_is_not_repeated(url: str) -> None:
     """
     with pytest.raises(BtcRpcValueError) as exc:
         BitcoinCoreRpcClient(url, user=RPC_USER, password=RPC_PASSWORD)
-    _assert_no_login(exc.value)
+    assert_no_login(exc.value)
 
 
 @pytest.mark.parametrize(
@@ -2950,12 +2921,12 @@ def test_a_rest_endpoint_that_is_not_one_is_refused_at_construction(
         BitcoinCoreRestClient(url)
 
 
-@pytest.mark.parametrize("url", _URLS_WITH_A_LOGIN_TYPO)
+@pytest.mark.parametrize("url", URLS_WITH_A_LOGIN_TYPO)
 def test_a_refused_rest_url_is_not_repeated(url: str) -> None:
     """The rest client's refusals leave the url out as the rpc client's do."""
     with pytest.raises(BtcRpcValueError) as exc:
         BitcoinCoreRestClient(url)
-    _assert_no_login(exc.value)
+    assert_no_login(exc.value)
 
 
 def test_credentials_in_a_rest_url_are_refused_and_told_it_takes_none() -> None:

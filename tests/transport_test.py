@@ -12,8 +12,12 @@ asked.
 
 from __future__ import annotations
 
+import os
 import select
 import socket
+import ssl
+import subprocess
+import sys
 from array import array
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
@@ -28,6 +32,7 @@ from http.client import (
     RemoteDisconnected,
 )
 from io import BytesIO
+from pathlib import Path
 from threading import Event, Thread
 from time import monotonic
 from types import SimpleNamespace, TracebackType
@@ -59,7 +64,14 @@ from bitcoin_core_rpc.transport import (
     http_request,
     urlopen_transport,
 )
-from tests import Recorded
+from tests import (
+    LOGIN,
+    RPC_PASSWORD,
+    URLS_WITH_A_LOGIN_TYPO,
+    Recorded,
+    assert_no_login,
+    refusal_text,
+)
 
 URL = "http://127.0.0.1:8332"
 # where a 30x would send the request, and the host that must receive
@@ -853,7 +865,7 @@ def test_the_transport_opens_nothing_but_http_and_https(
     with pytest.raises(BtcRpcValueError, match="invalid url scheme"):
         # the scheme this builds a request for is the subject of the test,
         # which is what S310 asks about and what the refusal answers
-        urlopen_transport(Request(url), DEFAULT_TIMEOUT)  # noqa: S310
+        urlopen_transport(Request(url), DEFAULT_TIMEOUT)  # ruff: ignore[S310]
     assert opener.requests == []
 
 
@@ -1953,6 +1965,238 @@ def test_the_session_transport_refuses_an_unparsable_port() -> None:
     transport = SessionTransport()
     with pytest.raises(BtcRpcValueError, match="invalid port in url"):
         transport(Request("http://127.0.0.1:abc/"), DEFAULT_TIMEOUT)
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("X", "a\r\nInjected: 1"),
+        ("X", "a\nb"),
+        ("X", "a\rb"),
+        ("X", "a\0b"),
+        ("X", "calf\u20ac"),
+        ("X\r\nInjected", "1"),
+        ("X: y", "1"),
+        ("X Y", "1"),
+        ("", "1"),
+    ],
+)
+def test_a_header_that_would_split_the_request_is_refused(
+    name: str, value: str
+) -> None:
+    """A CR, LF or NUL in a value, and a name that is no token, are refused."""
+    transport = Recorded((200, b"never reached"))
+    with pytest.raises(BtcRpcValueError, match="invalid header"):
+        http_request(URL, headers={name: value}, transport=transport)
+    assert transport.requests == []
+
+
+def test_a_refused_header_value_is_not_echoed() -> None:
+    """The value may be a credential."""
+    with pytest.raises(BtcRpcValueError) as excinfo:
+        http_request(
+            URL,
+            headers={"Authorization": "Basic hunter2\r\nX: y"},
+            transport=Recorded((200, b"")),
+        )
+    assert "hunter2" not in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "headers", [{1: "a"}, {"X": 1}, {"X": None}, {b"X": "a"}, {"X": b"a"}]
+)
+def test_a_header_that_is_no_string_is_refused(headers: dict[Any, Any]) -> None:
+    """The name and the value are both strings."""
+    transport = Recorded((200, b"never reached"))
+    with pytest.raises(BtcRpcTypeError, match="non-string header"):
+        http_request(URL, headers=headers, transport=transport)
+    assert transport.requests == []
+
+
+def test_an_ordinary_header_is_sent() -> None:
+    """A token name and a value with spaces and a tab pass."""
+    transport = Recorded((200, b"{}"))
+    http_request(
+        URL, headers={"X-Custom_1.a": "a b\tc", "Accept": ""}, transport=transport
+    )
+    assert transport.request.get_header("X-custom_1.a") == "a b\tc"
+
+
+def _the_whole_chain(error: BaseException) -> str:
+    """Return the traceback text and every exception it can reach."""
+    text = refusal_text(error)
+    link: BaseException | None = error
+    while link is not None:
+        text += repr(link.args)
+        link = link.__cause__ or link.__context__
+    return text
+
+
+def _via_session(url: str) -> None:
+    SessionTransport()(Request(url), DEFAULT_TIMEOUT)  # ruff: ignore[S310]
+
+
+def _via_urlopen(url: str) -> None:
+    urlopen_transport(Request(url), DEFAULT_TIMEOUT)  # ruff: ignore[S310]
+
+
+def _via_http_request(url: str) -> None:
+    http_request(url, timeout=DEFAULT_TIMEOUT)
+
+
+# A query and a fragment are the client's refusal and not a transport's: a
+# url with one and a host is a request, which would resolve `h`. urllib's
+# own `Request` refuses an unclosed bracket, so a caller never reaches a
+# transport that takes one with that url.
+_USABLE = [url for url in URLS_WITH_A_LOGIN_TYPO if "?" not in url and "#" not in url]
+# a login written correctly is refused too, which the typos above never reach
+_USABLE.append(f"http://{LOGIN}@127.0.0.1:1/")
+_REQUESTABLE = [url for url in _USABLE if "[" not in url]
+
+
+@pytest.mark.parametrize(
+    ("send", "url"),
+    [(_via_http_request, url) for url in _USABLE]
+    + [(send, url) for send in (_via_session, _via_urlopen) for url in _REQUESTABLE],
+)
+def test_a_url_that_cannot_be_used_is_never_repeated(
+    send: Callable[[str], None], url: str
+) -> None:
+    """Neither the message, the traceback nor the chain holds the password."""
+    with pytest.raises(BtcRpcValueError) as excinfo:
+        send(url)
+    assert RPC_PASSWORD not in _the_whole_chain(excinfo.value)
+    assert_no_login(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    ("url", "where"),
+    [
+        ("http://127.0.0.1:8332/wallet/w?q=1", "http://127.0.0.1:8332"),
+        ("https://Example.com/x", "https://example.com"),
+        ("http://[::1]:8332/w", "http://[::1]:8332"),
+    ],
+)
+def test_an_error_names_the_host_in_the_form_it_was_written(
+    url: str, where: str
+) -> None:
+    """The name an error uses brackets an IPv6 host, as a url does."""
+    assert transport_module._split_url(url)[3] == where
+
+
+def test_an_error_names_the_host_and_not_the_rest_of_the_url() -> None:
+    """`no answer from` keeps `scheme://host:port`, the path and query going."""
+    with pytest.raises(FetchError, match=r"no answer from http://127\.0\.0\.1:1:") as e:
+        http_request("http://127.0.0.1:1/wallet/w?q=PW", timeout=2)
+    assert "PW" not in str(e.value)
+    assert "wallet" not in str(e.value)
+
+
+def test_nothing_this_package_loads_opens_the_tls_key_log(tmp_path: Path) -> None:
+    """A fresh process: the opener is built once, at import."""
+    key_log = tmp_path / "keys.log"
+    code = (
+        "from bitcoin_core_rpc import BitcoinCoreRpcClient\n"
+        "from bitcoin_core_rpc import transport\n"
+        "transport._new_connection('https', 'localhost', 443, 5.0)\n"
+        "transport.SessionTransport()\n"
+        "BitcoinCoreRpcClient('https://localhost:8332', user='u', password='p')\n"
+    )
+    env = {**os.environ, "SSLKEYLOGFILE": str(key_log)}
+    subprocess.run([sys.executable, "-c", code], check=True, env=env)  # noqa: S603
+    assert not key_log.exists()
+
+
+def test_the_tls_key_log_is_off_whatever_the_environment_says(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`SSLKEYLOGFILE` reaches no connection this module builds.
+
+    Setting `keylog_filename` creates the file, so the control, a standard
+    library connection, shows the variable is honoured and what that
+    leaves behind. The control's file stays open: Windows refuses to
+    remove it.
+    """
+    monkeypatch.setenv("SSLKEYLOGFILE", str(tmp_path / "control.log"))
+    control = HTTPSConnection("127.0.0.1", 443)
+    assert control._context.keylog_filename == str(tmp_path / "control.log")  # type: ignore[attr-defined]
+    assert (tmp_path / "control.log").exists()
+
+    key_log = tmp_path / "keys.log"
+    monkeypatch.setenv("SSLKEYLOGFILE", str(key_log))
+    direct = transport_module._DeadlineHTTPSConnection("127.0.0.1", 443, timeout=5.0)
+    session = transport_module._new_connection("https", "127.0.0.1", 443, 5.0)
+    for connection in (direct, session):
+        assert connection._context.keylog_filename is None  # type: ignore[attr-defined]
+    assert not key_log.exists()
+
+
+def test_the_tls_context_is_looked_up_when_a_connection_is_built(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """What a program installs over `ssl.SSLContext` after import is used."""
+    original = ssl.SSLContext
+    built: list[int] = []
+
+    def installed(protocol: int) -> ssl.SSLContext:
+        built.append(protocol)
+        return original(protocol)
+
+    # `ssl.py` names its own `SSLContext` in the setters of the one it
+    # defines, so replacing the attribute of the real module would break
+    # it. The module as this one sees it is what is replaced.
+    stand_in = SimpleNamespace(**{**vars(ssl), "SSLContext": installed})
+    monkeypatch.setattr(transport_module, "ssl", stand_in)
+    transport_module._tls_context()
+    transport_module._new_connection("https", "127.0.0.1", 443, 5.0)
+    assert built == [ssl.PROTOCOL_TLS_CLIENT] * 2
+
+
+def test_a_replaced_default_https_context_is_not_consulted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`ssl._create_unverified_context` as the default does not disable it."""
+    monkeypatch.setattr(
+        ssl,
+        "_create_default_https_context",
+        ssl._create_unverified_context,  # ruff: ignore[S323]
+    )
+    connection = transport_module._new_connection("https", "127.0.0.1", 443, 5.0)
+    assert connection._context.verify_mode == ssl.CERT_REQUIRED  # type: ignore[attr-defined]
+    # the handler's own, unused context is not what a request goes over
+    opened: list[object] = []
+
+    class Spy(transport_module._DeadlineHTTPSConnection):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
+            opened.append(self._context)  # type: ignore[attr-defined]
+
+    monkeypatch.setattr(transport_module, "_DeadlineHTTPSConnection", Spy)
+    handler = transport_module._DeadlineHTTPSHandler()
+    unverified = ssl._create_unverified_context()  # ruff: ignore[S323]
+    request = Request("https://127.0.0.1:1/")
+    request.timeout = 0.5  # what the opener sets
+    with suppress(URLError):
+        handler.do_open(object, request, context=unverified)
+    assert opened
+    assert opened[0] is not unverified
+
+
+def test_the_tls_context_verifies_as_the_default_one_does(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The context built here verifies as the default one does."""
+    monkeypatch.delenv("SSLKEYLOGFILE", raising=False)
+    ours = transport_module._tls_context()
+    default = ssl.create_default_context()
+    assert ours.verify_mode == ssl.CERT_REQUIRED
+    assert ours.check_hostname
+    assert ours.minimum_version == default.minimum_version
+    assert ours.options == default.options
+    assert ours.verify_flags & default.verify_flags == default.verify_flags
+    assert ours.verify_flags & ssl.VERIFY_X509_STRICT
+    assert ours.verify_flags & ssl.VERIFY_X509_PARTIAL_CHAIN
+    assert ours.cert_store_stats() == default.cert_store_stats()
 
 
 def test_the_default_connection_factory_picks_the_class_by_scheme() -> None:

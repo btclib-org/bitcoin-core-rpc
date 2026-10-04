@@ -26,10 +26,32 @@ in this file — read it before upgrading, rather than a digit.
 - **`str()` of an `RpcError` writes non-printable characters of the node's
   message as escapes (issue #577).** Read `args[0]` for the text as it
   arrived.
-
 - **A `cookie_path` that is not a regular file is a `FetchError`**, a
   pipe that would deliver a cookie included (issue #579): point it at a
   file.
+- **The TLS key log is never written (issue #580).** `SSLKEYLOGFILE` is
+  ignored by both transports. `SSL_CERT_FILE` and `SSL_CERT_DIR` still
+  choose the trust store. A program that replaces
+  `ssl._create_default_https_context` to turn verification off finds it
+  ignored: verification stays on, and such a caller passes a `transport`
+  of its own, as does one that must not honour the two variables. On
+  Python 3.11 and 3.12 a server certificate OpenSSL judges malformed
+  (`VERIFY_X509_STRICT`) is refused, as on 3.13 and later; a node behind
+  such a certificate needs the certificate replaced.
+- **A malformed header or url is a `BtcRpcValueError` (issue #578).**
+  `http_request` refuses a header name that is not a token and a value
+  with a CR, LF, NUL or a character latin-1 cannot encode; the client
+  refuses a url with whitespace, control characters or a malformed IPv6
+  host when it is built. Both are `BtcRpcValueError`, a `ValueError`, so a
+  caller catching the `ValueError` `http.client` raised for a header needs
+  no change.
+- **The transports do not repeat a malformed url (issue #616).**
+  `http_request`, `urlopen_transport` and `SessionTransport` refuse a url
+  with whitespace or a control character, no host, a port that is no
+  number, or a login, as `BtcRpcValueError`, and an error names
+  `scheme://host[:port]` and not the path or query. A caller that read the
+  full url from a `FetchError` reads the host there and keeps its own copy
+  of the rest. A credential goes in an `Authorization` header.
 
 ## v2026.9.29
 
