@@ -357,9 +357,12 @@ self-approval, so somebody other than the author approves every pull
 request, the maintainer's included. The maintainer's bypass is used only
 in an emergency ([ISS 1362][i1362]).
 
-The required checks are the half that holds regardless, because they are
-earned by the tree rather than granted: a bypass is a decision somebody
-makes on a pull request in front of them, where a green gate is not.
+The required checks gate a merge only when the landing waits for them.
+Auto-merge (`gh pr merge --auto`) waits for them. A merge with `--admin`
+waits for nothing, the approval, the checks and `strict` alike, because
+`enforce_admins` is off. It also cancels the pull request's runs still in
+progress. The push to `main` runs some of them again, never `lint / Sign-off`
+or `lint / Dependency review`.
 
 Required signatures cost the maintainer nothing for the same reason
 nothing here pushes to `main` directly: the only thing writing to it is a
@@ -376,10 +379,10 @@ Classic protection's own copy of the signature rule is off, the
 `main-integrity` ruleset being what requires signatures on `main`: [the
 standard states that value for every repository][s11-branch].
 
-`strict` means a pull request merges only from a head up to date with
-`main`, so landing one asks the next to update and re-run. That is a queue
-rather than a cost at this traffic, and it is one `PATCH` away if it stops
-being.
+`strict` means a pull request that waits for the checks merges only from a
+head up to date with `main`, so landing one asks the next to update and
+re-run. That is a queue rather than a cost at this traffic, and it is one
+`PATCH` away if it stops being.
 
 Dependabot, its security updates and pre-commit.ci all open pull requests
 here, none of them naming a target branch: what they get is the default
@@ -472,10 +475,12 @@ of them.
 
 That setting is what the button writes, and the button is what lands
 every pull request here: auto-merge presses it once the approval and the
-checks are in. There is no second landing. The `main-self-merge` bypass
-is in `pull_request` mode, so it excuses the approving review and
-nothing else — a direct push to `main` is refused for everyone, the
-holder included — and the ruleset names `squash` as the only merge
+checks are in, and `--admin` presses it at once. There is no second
+landing. The `main-self-merge` bypass is in `pull_request` mode: it excuses
+that ruleset on a pull request's merge and nowhere else, so a direct push to
+`main` is refused for everyone, the holder included. What lets
+`--admin` skip the checks and `strict` too is `enforce_admins` off in the
+classic protection above. The ruleset names `squash` as the only merge
 method it will accept, stating the constraint where the rule is rather
 than only in the setting above. *Tag protection* above already gives the
 reason the id has to be read off the list rather than named directly:

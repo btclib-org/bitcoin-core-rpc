@@ -45,6 +45,12 @@ entries is a reading of the file rather than a command.
 job on a release stop where the `dist` they download differs from the digests
 `reusable-build.yml` outputs (issue #584).
 
+### The required checks gate a merge only when the landing waits
+
+- **`REPOSITORY.md`, `CONTRIBUTING.md` and `RELEASING.md` say a merge with
+  `--admin` waits for neither the approval nor the checks** (closes #583):
+  `enforce_admins` is off, and auto-merge is the landing that waits for them.
+
 ## v2026.10.4
 
 ### `_resolve` names the host it timed out on, even out of time before the join

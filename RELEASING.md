@@ -403,8 +403,9 @@ result.
    gh's client-side mergeable check declines on `REVIEW_REQUIRED` before
    it asks the server at all, and `--auto` only waits longer for the
    review. `--admin` added to the command above is the flag that clears
-   it — the pair REPOSITORY.md's "Branch protection" describes,
-   `enforce_admins` `false` together with holding `admin` — measured
+   it, and waits for no check either — the pair REPOSITORY.md's "Branch
+   protection" describes, `enforce_admins` `false` together with holding
+   `admin` — measured
    directly on a sibling organization repository across four pull
    requests, each landing from `BLOCKED` and `REVIEW_REQUIRED` with a
    verified signature.
