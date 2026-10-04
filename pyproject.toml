@@ -473,7 +473,6 @@ package = ["src/bitcoin_core_rpc"]
 # workflows and the scripts they call need no entry here
 git-only = [
     ".claude/",
-    ".gitattributes",
     ".gitignore",
     ".vscode/",
     "COPYRIGHT",
