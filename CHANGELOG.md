@@ -68,6 +68,12 @@ because uv can answer from a cached index and miss a version just published
 required checks too, and `REVIEWING.md`'s "hold the merge" excepts it
 (issue btclib-org/.github#1597).
 
+### `check-changelog` refuses an entry added to an older release
+
+A `###` heading under a release older than the newest, absent from the file
+at the merge base with `origin/main`, is refused
+(issue btclib-org/.github#1614).
+
 ## v2026.10.4
 
 ### `_resolve` names the host it timed out on, even out of time before the join
