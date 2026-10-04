@@ -123,11 +123,11 @@ each of the three is what keeps it from reaching a different one.
 
 **The cookie file.** Read fresh at every call rather than held —
 bitcoind rewrites it at every restart — through `chains.cookie_auth`:
-opened, read to one octet past a bound, decoded as ascii, and refused as
-a `FetchError` naming the path for anything that is not one line with a
-colon in it. A file that is simply absent is `CookieNotFoundError`,
-which says the node is not running rather than that something is wrong
-with the file.
+opened without blocking and refused unless a regular file, read to one
+octet past a bound, decoded as ascii, and refused as a `FetchError`
+naming the path for anything that is not one line with a colon in it. A
+file that is simply absent is `CookieNotFoundError`, which says the node
+is not running rather than that something is wrong with the file.
 
 **The credential in memory.** `BitcoinCoreRpcClient` defines no
 `__repr__`: a generated one prints every field, which would put the

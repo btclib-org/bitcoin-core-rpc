@@ -245,6 +245,12 @@ btclib-org/.github#1560).
   `\x1b`** (closes #577), so it cannot forge a log line. `args[0]` keeps
   the text as it arrived.
 
+### A cookie path that is not a regular file is refused
+
+- **A FIFO, a pipe, a device or a directory at `cookie_path` is a
+  `FetchError`.** A FIFO with no writer blocked the call for good,
+  outside its timeout (closes #579).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of

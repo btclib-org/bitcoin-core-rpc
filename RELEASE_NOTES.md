@@ -27,6 +27,10 @@ in this file — read it before upgrading, rather than a digit.
   message as escapes (issue #577).** Read `args[0]` for the text as it
   arrived.
 
+- **A `cookie_path` that is not a regular file is a `FetchError`**, a
+  pipe that would deliver a cookie included (issue #579): point it at a
+  file.
+
 ## v2026.9.29
 
 Python 3.10 is no longer supported: `requires-python` is `>=3.11`. On 3.10
