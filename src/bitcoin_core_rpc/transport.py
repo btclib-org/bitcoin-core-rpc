@@ -603,10 +603,10 @@ def _split_url(url: str) -> tuple[str, str, int | None, str]:
     A url that cannot be used is refused without repeating it, and so is
     its scheme: for `alice:secret@host` the scheme is `alice`, and a url
     with a port that is not a number carries the password in that slot.
-    A url with a login, whitespace or a control character is refused too,
-    which is `client.py`'s own rule. The
-    name an error may use is `scheme://host[:port]`, built from the parts
-    that were checked.
+    A url with a login, whitespace, a control character or a non-ASCII
+    character is refused too, which is `client.py`'s own rule. The name an
+    error may use is `scheme://host[:port]`, built from the parts that were
+    checked.
 
     The refusal is raised outside the `except` and from nothing, so that
     neither `__cause__` nor `__context__` keeps what `urlsplit` or
@@ -616,6 +616,8 @@ def _split_url(url: str) -> tuple[str, str, int | None, str]:
         # `http.client` quotes the url in its own refusal of these
         err_msg = "invalid url: whitespace or a control character"
         raise BtcRpcValueError(err_msg)
+    if not url.isascii():
+        raise BtcRpcValueError("invalid url: non-ASCII character")
     problem = ""
     scheme = host = ""
     port = None
