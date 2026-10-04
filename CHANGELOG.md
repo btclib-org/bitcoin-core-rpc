@@ -24,10 +24,9 @@ where a claim in those notes can be checked.
 [std]: https://github.com/btclib-org/.github
 
 Neither file states how many entries it holds: a stated number is a line
-every open branch has to edit, and the two files carry a union merge
-driver that would keep both sides' numbers. Naming a command that counts
-them is the rejected alternative, and what rejects it is the shape of
-this file: a `###` heading names one entry, and a theme several entries
+every open branch has to edit. Naming a command that counts them is the
+rejected alternative, and what rejects it is the shape of this file: a
+`###` heading names one entry, and a theme several entries
 share wherever the file already carried such a heading — section 9 of
 [the organization standard][std] rules against writing them and
 *Nothing already written is rewritten* keeps the ones that are there. A
@@ -50,6 +49,24 @@ job on a release stop where the `dist` they download differs from the digests
 - **`REPOSITORY.md`, `CONTRIBUTING.md` and `RELEASING.md` say a merge with
   `--admin` waits for neither the approval nor the checks** (closes #583):
   `enforce_admins` is off, and auto-merge is the landing that waits for them.
+
+### The forms set a type, and the history files lose `merge=union`
+
+Each form sets an issue type, no kind label (issue btclib-org/.github#1584);
+the history files have no merge driver (issue btclib-org/.github#1582);
+a release reviews the bestpractices.dev answers (issue btclib-org/.github#1589).
+
+### The post-release install refreshes the index
+
+RELEASING.md installs the release with `--refresh-package bitcoin-core-rpc`,
+because uv can answer from a cached index and miss a version just published
+(issue btclib-org/.github#1595).
+
+### `--admin` waits for no required check
+
+`CONTRIBUTING.md`'s emergency paragraph says `--admin` skips the
+required checks too, and `REVIEWING.md`'s "hold the merge" excepts it
+(issue btclib-org/.github#1597).
 
 ## v2026.10.4
 
