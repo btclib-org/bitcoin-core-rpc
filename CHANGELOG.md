@@ -253,7 +253,7 @@ btclib-org/.github#1560).
 
 ### The TLS key log is off
 
-Both transports build their TLS context, since `ssl.create_default_context`
+Both transports build their own TLS context, since `ssl.create_default_context`
 writes the session keys to the file `SSLKEYLOGFILE` names (closes #580); a
 replaced `ssl._create_default_https_context` is not consulted.
 
@@ -273,6 +273,12 @@ an error names `scheme://host[:port]` only (closes #616).
 
 The context sets `VERIFY_X509_STRICT` and `VERIFY_X509_PARTIAL_CHAIN`, which
 CPython 3.13 sets and 3.11 and 3.12 do not (issue #580).
+
+### A url with a non-ASCII character is refused
+
+The client, `http_request` and the two transports refuse it, a host included,
+not failing in `http.client` with a `UnicodeEncodeError` that holds the request
+line. Write the host in ASCII, `xn--bcher-kva.example` (closes #619).
 
 ## v2026.9.29
 

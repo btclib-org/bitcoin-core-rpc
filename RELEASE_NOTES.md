@@ -52,6 +52,10 @@ in this file — read it before upgrading, rather than a digit.
   `scheme://host[:port]` and not the path or query. A caller that read the
   full url from a `FetchError` reads the host there and keeps its own copy
   of the rest. A credential goes in an `Authorization` header.
+- **A url with a non-ASCII character is a `BtcRpcValueError` (issue
+  #619).** The client, `http_request` and the two transports refuse it, a host
+  included: write an internationalized host in its ASCII form, for
+  example `xn--bcher-kva.example` for `bücher.example`.
 
 ## v2026.9.29
 

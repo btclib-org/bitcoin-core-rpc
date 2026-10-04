@@ -61,7 +61,8 @@ RPC_PASSWORD = "rpcpassword"  # ruff: ignore[S105]  # pragma: allowlist secret
 
 # urls written with credentials in a form that does not parse as
 # credentials: each refusal must not repeat them, in its message or in the
-# traceback the exception would be printed with
+# traceback the exception would be printed with. The last is no typo: an
+# internationalized host, refused like any non-ASCII url
 LOGIN = f"{RPC_USER}:{RPC_PASSWORD}"
 URLS_WITH_A_LOGIN_TYPO = [
     f"http:{LOGIN}@h:1",
@@ -74,12 +75,19 @@ URLS_WITH_A_LOGIN_TYPO = [
     f"http://[{LOGIN}@h/",
     f"http://h:{RPC_PASSWORD}",
     f"http://h/a b/{LOGIN}@",
+    f"http://h/\u00e9/{LOGIN}@",
+    "http://b\u00fccher.example/",
 ]
 
 
 def refusal_text(exc: BaseException) -> str:
-    """Everything printing the exception would print: chain included."""
-    return "".join(traceback.format_exception(exc))
+    """Everything printing the exception would print, and every `args`."""
+    text = "".join(traceback.format_exception(exc))
+    link: BaseException | None = exc
+    while link is not None:
+        text += repr(link.args)
+        link = link.__cause__ or link.__context__
+    return text
 
 
 def assert_no_login(exc: BaseException) -> None:

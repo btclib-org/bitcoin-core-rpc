@@ -148,6 +148,10 @@ def _checked_url(url: str, *, kind: str = "rpc") -> str:
     if any(c.isspace() or not c.isprintable() for c in url):
         err_msg = f"whitespace or a control character in the {kind} url"
         raise BtcRpcValueError(err_msg)
+    # `http.client` encodes the request line as ASCII and fails on anything
+    # else with a `UnicodeEncodeError` whose `args` keep the whole line
+    if not url.isascii():
+        raise BtcRpcValueError(f"non-ASCII character in the {kind} url")
     # the two ValueErrors of `_split_url` and `_has_valid_port` quote the
     # netloc and the port text, so the refusal is raised outside their
     # handlers: inside, they would stay as its `__context__`
