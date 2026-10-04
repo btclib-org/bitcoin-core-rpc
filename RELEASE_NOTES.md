@@ -10,13 +10,16 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
-## v2026.10 (work in progress, not released yet)
+## v2026.11 (work in progress, not released yet)
+
+## v2026.10.4
 
 - **Verifying a release's attestation names a new signer and the tag.**
   `gh attestation verify` takes
   `--signer-workflow btclib-org/.github/.github/workflows/reusable-build.yml@refs/heads/main`
   and `--source-ref refs/tags/v<version>`; SECURITY.md has the command.
-  SECURITY.md names the signer of an earlier release.
+  SECURITY.md names the signer of an earlier release. The bundle is
+  attached as `v<version>.intoto.jsonl`, not `v<version>.attestation.jsonl`.
 - **A url the client refuses is no longer repeated in the message
   (issue #575).** Upgrade; a caller matching on the refusal text sees no
   url, and `expected http(s)` where the scheme was named.
