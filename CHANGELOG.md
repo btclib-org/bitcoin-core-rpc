@@ -37,7 +37,9 @@ theme. Section 9 also lets an entry making a single claim have a
 paragraph for a body, which no bullet pattern reaches. Counting the
 entries is a reading of the file rather than a command.
 
-## v2026.10 (work in progress, not released yet)
+## v2026.11 (work in progress, not released yet)
+
+## v2026.10.4
 
 ### `_resolve` names the host it timed out on, even out of time before the join
 
@@ -279,6 +281,11 @@ CPython 3.13 sets and 3.11 and 3.12 do not (issue #580).
 The client, `http_request` and the two transports refuse it, a host included,
 not failing in `http.client` with a `UnicodeEncodeError` that holds the request
 line. Write the host in ASCII, `xn--bcher-kva.example` (closes #619).
+
+### The fix for issue #564 above shipped in v2026.9.29
+
+The v2026.9.29 tag names 7cf5ddb, the commit after that release's own, so
+that release carries the fix; its entry sits in this section.
 
 ## v2026.9.29
 
