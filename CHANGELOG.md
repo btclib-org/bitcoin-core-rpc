@@ -223,6 +223,28 @@ btclib-org/.github#1569).
 that the repository's own variable store is empty (issue
 btclib-org/.github#1560).
 
+### `_checked_url`'s refusals leave the url out
+
+- **No refusal repeats the url or the scheme** (closes #575): `http:user:pw@host`
+  parses with the credentials as the path, `user:pw@host` as the scheme.
+
+### `_checked_url` refuses what `urlsplit` cannot split and what holds whitespace
+
+- **Such a url is a `BtcRpcValueError` at construction** (issue #578): it
+  was a bare `ValueError` for `http://[user:pw@host/`, a failure at the
+  first call for `http://host/a b`.
+
+### A reply number whose exponent is past `sys.get_int_max_str_digits` is refused
+
+- **`1e1000000` raises `FetchError`** (closes #576), the bound
+  `_decimal_json` applies to a parameter; a limit of 0 lifts it for both.
+
+### An `RpcError`'s `str()` escapes the node's non-printable characters
+
+- **A newline or an ESC in the node's message is written as `\n` or
+  `\x1b`** (closes #577), so it cannot forge a log line. `args[0]` keeps
+  the text as it arrived.
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of

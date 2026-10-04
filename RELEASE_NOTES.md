@@ -17,6 +17,15 @@ in this file — read it before upgrading, rather than a digit.
   `--signer-workflow btclib-org/.github/.github/workflows/reusable-build.yml@refs/heads/main`
   and `--source-ref refs/tags/v<version>`; SECURITY.md has the command.
   SECURITY.md names the signer of an earlier release.
+- **A url the client refuses is no longer repeated in the message
+  (issue #575).** Upgrade; a caller matching on the refusal text sees no
+  url, and `expected http(s)` where the scheme was named.
+- **A reply number with an exponent past `sys.get_int_max_str_digits` is a
+  `FetchError` (issue #576).** Raise the limit with
+  `sys.set_int_max_str_digits` if a node legitimately sends one; 0 lifts it.
+- **`str()` of an `RpcError` writes non-printable characters of the node's
+  message as escapes (issue #577).** Read `args[0]` for the text as it
+  arrived.
 
 ## v2026.9.29
 
