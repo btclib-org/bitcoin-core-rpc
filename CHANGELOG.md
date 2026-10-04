@@ -39,6 +39,12 @@ entries is a reading of the file rather than a command.
 
 ## v2026.11 (work in progress, not released yet)
 
+### The release publishes the files the build job built
+
+`publish-testpypi`, `publish-pypi`, `github-release` and `test.yml`'s `dist`
+job on a release stop where the `dist` they download differs from the digests
+`reusable-build.yml` outputs (issue #584).
+
 ## v2026.10.4
 
 ### `_resolve` names the host it timed out on, even out of time before the join

@@ -350,10 +350,10 @@ source-exclude = [
     "/docs/build",
     # the test modules whose subject is not in the archive. `.github`
     # is not shipped -- it is on check-sdist's own default ignore list --
-    # and each of these reads it: every one but the last loads a script
-    # out of `.github/scripts` by path, `.github/scripts` being no
-    # package, and the last reads the interpreter matrices out of
-    # `.github/workflows`.
+    # and each of these reads it: every one but the last two loads a
+    # script out of `.github/scripts` by path, `.github/scripts` being no
+    # package, and the last two read the interpreter matrices and the
+    # release jobs out of `.github/workflows`.
     # Shipped, they are a `FileNotFoundError` and a failed assertion rather
     # than a test, so a downstream packager building from the sdist and
     # running the suite -- which is what a distribution build does -- reads
@@ -363,6 +363,7 @@ source-exclude = [
     "/tests/normalize_sdist_test.py",
     "/tests/check_api_page_test.py",
     "/tests/interpreters_test.py",
+    "/tests/release_digests_test.py",
     # the same reasoning once more, reaching outside the sdist through
     # `.git` rather than through `.github`: this one asks `git ls-files`
     # which tracked paths lie under the trees the shape entries below
