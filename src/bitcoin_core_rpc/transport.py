@@ -13,7 +13,9 @@ this module does.
 
 from __future__ import annotations
 
+import re
 import select
+import ssl
 from collections.abc import Callable, Mapping
 from contextlib import suppress
 from http.client import (
@@ -421,8 +423,46 @@ class _DeadlineHTTPConnection(HTTPConnection):
         self.sock = _DeadlineSocket(self.sock, self._seconds_left)
 
 
+def _tls_context() -> ssl.SSLContext:
+    """Return the TLS context every connection of this module uses.
+
+    `ssl.create_default_context` points the key log at `SSLKEYLOGFILE`
+    when that is set, and opening the file is part of setting it, so
+    clearing the attribute afterwards still leaves the file created. The
+    context is therefore built here, without that call: certificates and
+    host name verified, the strict and partial-chain flags that
+    CPython 3.13 sets and the older versions do not, and the system's
+    trust store. OpenSSL's `SSL_CERT_FILE` and `SSL_CERT_DIR` still choose
+    that store, as SECURITY.md says. ALPN and post-handshake
+    authentication are what `http.client` adds to a default context.
+
+    Built for each connection, with `ssl.SSLContext` looked up now rather
+    than at import, so that what a program installs over it after import
+    (`truststore.inject_into_ssl()`) is what is built. A replaced
+    `ssl._create_default_https_context`, which is how a program turns
+    verification off for every `http.client` user, is not consulted.
+    """
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.verify_mode = ssl.CERT_REQUIRED
+    context.check_hostname = True
+    context.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN | ssl.VERIFY_X509_STRICT
+    context.load_default_certs()
+    context.set_alpn_protocols(["http/1.1"])
+    context.post_handshake_auth = True
+    return context
+
+
 class _DeadlineHTTPSConnection(_DeadlineHTTPConnection, HTTPSConnection):
-    """The same, over TLS: the handshake is `_connect`'s, the rest is ours."""
+    """The same, over TLS: the handshake is `_connect`'s, the rest is ours.
+
+    The context is `_tls_context`'s, built for each connection, and none
+    passed in is used. A caller who wants other trust, or a key log, passes
+    a `transport` of its own.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs["context"] = _tls_context()
+        super().__init__(*args, **kwargs)
 
 
 class _DeadlineHTTPHandler(HTTPHandler):
@@ -436,12 +476,22 @@ class _DeadlineHTTPHandler(HTTPHandler):
 
 
 class _DeadlineHTTPSHandler(HTTPSHandler):
-    """urllib's `https` handler, opening a `_DeadlineHTTPSConnection`."""
+    """urllib's `https` handler, opening a `_DeadlineHTTPSConnection`.
+
+    Given a context that is never used rather than none: with none,
+    `HTTPSHandler` builds `http.client`'s default context, which opens the
+    file `SSLKEYLOGFILE` names when `_OPENER` is built, at import. The
+    connection builds the one it uses.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(context=ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT))
 
     def do_open(  # type: ignore[explicit-override]
         self, http_class: Any, req: Request, **http_conn_args: Any
     ) -> Any:
         """Open `req` over a connection held to its deadline."""
+        http_conn_args.pop("context", None)
         return super().do_open(_DeadlineHTTPSConnection, req, **http_conn_args)
 
 
@@ -513,6 +563,86 @@ def _assert_valid_timeout(timeout: float, what: str) -> None:
         raise BtcRpcTypeError(f"non-numeric {what}: {timeout!r}")
     if not isfinite(timeout) or timeout <= 0:
         raise BtcRpcValueError(f"{what} is not a positive number of seconds: {timeout}")
+
+
+# an RFC 9110 token: what a header name may be made of
+_HEADER_NAME = re.compile(r"[!#$%&'*+\-.^_`|~0-9A-Za-z]+")
+
+
+def _is_latin_1(text: str) -> bool:
+    """Return whether `text` encodes as latin-1, which `http.client` sends."""
+    try:
+        text.encode("latin-1")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+def _assert_valid_headers(headers: Mapping[Any, Any]) -> None:
+    """Refuse a header that would split or garble the request.
+
+    A CR or LF in a value ends the header line and lets the rest be
+    another header, or the start of a body; a NUL is no part of a field
+    value either. `http.client` sends latin-1, so a character it cannot
+    encode fails there with a bare `UnicodeEncodeError`. It refuses a CR
+    or an LF itself, but with a bare `ValueError`, and a name it accepts
+    is wider than a token. The value is not echoed: it may be a credential.
+    """
+    for name, value in headers.items():
+        if not isinstance(name, str) or not isinstance(value, str):
+            raise BtcRpcTypeError(f"non-string header: {name!r}")
+        if not _HEADER_NAME.fullmatch(name):
+            raise BtcRpcValueError(f"invalid header name: {name!r}")
+        if any(c in value for c in "\r\n\0") or not _is_latin_1(value):
+            raise BtcRpcValueError(f"invalid header value for {name!r}")
+
+
+def _split_url(url: str) -> tuple[str, str, int | None, str]:
+    """Return an `http(s)` url's scheme, host, port and its name in an error.
+
+    A url that cannot be used is refused without repeating it, and so is
+    its scheme: for `alice:secret@host` the scheme is `alice`, and a url
+    with a port that is not a number carries the password in that slot.
+    A url with a login, whitespace or a control character is refused too,
+    which is `client.py`'s own rule. The
+    name an error may use is `scheme://host[:port]`, built from the parts
+    that were checked.
+
+    The refusal is raised outside the `except` and from nothing, so that
+    neither `__cause__` nor `__context__` keeps what `urlsplit` or
+    `http.client` said about the url.
+    """
+    if any(c.isspace() or not c.isprintable() for c in url):
+        # `http.client` quotes the url in its own refusal of these
+        err_msg = "invalid url: whitespace or a control character"
+        raise BtcRpcValueError(err_msg)
+    problem = ""
+    scheme = host = ""
+    port = None
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        problem = "invalid url: it does not parse"
+    else:
+        scheme = parts.scheme
+        try:
+            # a property: an unparsable port raises only once asked for
+            port = parts.port
+        except ValueError:
+            problem = "invalid port in url"
+        if scheme not in _SCHEMES:
+            problem = "invalid url scheme: not http(s)"
+        elif parts.hostname is None:
+            problem = "no host in url"
+        elif parts.username is not None or parts.password is not None:
+            problem = "invalid url: it carries a login"
+        else:
+            host = parts.hostname
+    if problem:
+        raise BtcRpcValueError(problem) from None
+    shown = f"[{host}]" if ":" in host else host
+    where = f"{scheme}://{shown}" + (f":{port}" if port else "")
+    return scheme, host, port, where
 
 
 def _assert_valid_max_body_size(max_body_size: int) -> None:
@@ -659,16 +789,14 @@ def urlopen_transport(
     """
     _assert_valid_timeout(timeout, "http timeout")
     _assert_valid_max_body_size(max_body_size)
-    scheme = urlsplit(request.full_url).scheme
-    if scheme not in _SCHEMES:
-        raise BtcRpcValueError(f"invalid url scheme: '{scheme}' instead of http(s)")
+    *_, where = _split_url(request.full_url)
 
     deadline = monotonic() + timeout
     # so what reaches the opener is http or https, whoever built the
-    # request: the three lines above are what says so here, and a redirect
+    # request: `_split_url` above is what says so here, and a redirect
     # cannot introduce a second url
     with _OPENER.open(request, timeout=timeout) as response:
-        body = _read_bounded(response, max_body_size, request.full_url, deadline)
+        body = _read_bounded(response, max_body_size, where, deadline)
         return response.status, body
 
 
@@ -703,6 +831,15 @@ def http_request(
     in time by `timeout`, the same deadline the answer is read against: a
     drip is a drip whichever status precedes it.
 
+    A header name that is not an RFC 9110 token, and a value holding a CR,
+    an LF, a NUL or a character latin-1 cannot encode, are refused as
+    `BtcRpcValueError` before the request is built, and a name or a value
+    that is not a string as `BtcRpcTypeError`.
+
+    A url that is not `http(s)`, has no host, a port that is no number, or a
+    login is refused as `BtcRpcValueError` without repeating it: no message
+    of this module carries a url beyond `scheme://host[:port]`.
+
     `timeout` is checked here and not only where `BitcoinCoreRpcClient`
     already does, because this function is public on its own: a caller
     reaching it directly with a transport of their own would otherwise
@@ -711,13 +848,12 @@ def http_request(
     """
     _assert_valid_max_body_size(max_body_size)
     _assert_valid_timeout(timeout, "http timeout")
+    _assert_valid_headers(headers or {})
 
-    scheme = urlsplit(url).scheme
-    if scheme not in _SCHEMES:
-        raise BtcRpcValueError(f"invalid url scheme: '{scheme}' instead of http(s)")
+    *_, where = _split_url(url)
 
-    # S310 asks what scheme this url can carry, and the answer is the three
-    # lines above: nothing but http and https reaches a Request.
+    # S310 asks what scheme this url can carry, and the answer is
+    # `_split_url` above: nothing but http and https reaches a Request.
     #
     # `data is not None` and not the truth of it: `data=b""` is a body a
     # caller passed, so the request is the POST they asked for. urllib draws
@@ -762,7 +898,7 @@ def http_request(
         try:
             try:
                 return e.code, _read_bounded(
-                    e, MAX_ERROR_BODY_SIZE, url, deadline, truncate=True
+                    e, MAX_ERROR_BODY_SIZE, where, deadline, truncate=True
                 )
             except (OSError, HTTPException, FetchError):
                 # the body of the failure failed too -- a connection dropped
@@ -790,7 +926,7 @@ def http_request(
         # read rather than from the connect, so nothing above catches them,
         # and this function promises that everything below the status is a
         # FetchError
-        raise FetchError(f"no answer from {url}: {e}") from e
+        raise FetchError(f"no answer from {where}: {e}") from e
 
     # a failure, whether it arrived as an exception above or as a status
     # from a transport that catches its own: the body is a diagnostic and
@@ -803,7 +939,7 @@ def http_request(
     # limit; a caller's own has not, and cannot be made to, so this is
     # what is left to promise for one: an oversized answer goes no further
     if len(body) > max_body_size:
-        err_msg = f"{url}: response of {len(body)} bytes,"
+        err_msg = f"{where}: response of {len(body)} bytes,"
         err_msg += f" more than the max_body_size of {max_body_size}"
         raise FetchError(err_msg)
     return status, body
@@ -1152,22 +1288,8 @@ class SessionTransport:
         """
         _assert_valid_timeout(timeout, "http timeout")
         _assert_valid_max_body_size(max_body_size)
-        parts = urlsplit(request.full_url)
-        if parts.scheme not in _SCHEMES:
-            err_msg = f"invalid url scheme: '{parts.scheme}' instead of http(s)"
-            raise BtcRpcValueError(err_msg)
-        if parts.hostname is None:
-            raise BtcRpcValueError(f"no host in url: {request.full_url!r}")
-        try:
-            # `.port` is a property, not a stored field: unlike the scheme
-            # and the host, an unparsable one -- "http://host:abc/" --
-            # raises a bare `ValueError` out of `urlsplit` itself only
-            # once asked for, which is here and not before
-            port = parts.port or (443 if parts.scheme == "https" else 80)
-        except ValueError as e:
-            err_msg = f"invalid port in url: {request.full_url!r}"
-            raise BtcRpcValueError(err_msg) from e
-        key = (parts.scheme, parts.hostname, port)
+        scheme, host, port, where = _split_url(request.full_url)
+        key = (scheme, host, port or (443 if scheme == "https" else 80))
         method = request.get_method()
         path = request.selector
         headers = dict(request.unredirected_hdrs)
@@ -1183,7 +1305,7 @@ class SessionTransport:
                 body=body,
                 headers=headers,
                 deadline=deadline,
-                url=request.full_url,
+                url=where,
             )
 
             try:
@@ -1198,7 +1320,7 @@ class SessionTransport:
                     body_bytes = _read_bounded(
                         response,
                         MAX_ERROR_BODY_SIZE,
-                        request.full_url,
+                        where,
                         deadline,
                         truncate=True,
                     )
@@ -1212,9 +1334,7 @@ class SessionTransport:
                 else:
                     # a success read stops only at the end of the body or
                     # by raising, so reaching here is reaching the end
-                    body_bytes = _read_bounded(
-                        response, max_body_size, request.full_url, deadline
-                    )
+                    body_bytes = _read_bounded(response, max_body_size, where, deadline)
                     read_to_the_end = True
             except BaseException:
                 # A status line did arrive -- the class docstring's line

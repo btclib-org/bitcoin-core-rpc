@@ -251,6 +251,29 @@ btclib-org/.github#1560).
   `FetchError`.** A FIFO with no writer blocked the call for good,
   outside its timeout (closes #579).
 
+### The TLS key log is off
+
+Both transports build their TLS context, since `ssl.create_default_context`
+writes the session keys to the file `SSLKEYLOGFILE` names (closes #580); a
+replaced `ssl._create_default_https_context` is not consulted.
+
+### `http_request` refuses a header that would split the request
+
+A header name that is no RFC 9110 token, or a value with a CR, an LF, a NUL or
+a character latin-1 cannot encode, is a `BtcRpcValueError`, and a non-string
+one a `BtcRpcTypeError` (closes #578).
+
+### The transports do not repeat a url they refuse
+
+A url with whitespace or a control character, a scheme other than `http(s)`, no
+host, a port that is no number, or a login is refused without being repeated;
+an error names `scheme://host[:port]` only (closes #616).
+
+### The TLS context is strict on Python 3.11 and 3.12
+
+The context sets `VERIFY_X509_STRICT` and `VERIFY_X509_PARTIAL_CHAIN`, which
+CPython 3.13 sets and 3.11 and 3.12 do not (issue #580).
+
 ## v2026.9.29
 
 ### `notice-rgx`'s comment drops the hook this tree carries none of

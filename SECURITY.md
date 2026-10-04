@@ -120,6 +120,12 @@ These are known and inherent.
     meanwhile. `cookie_path` is the mitigation that exists — the file is
     read at each call rather than held, so the credential lives for the
     duration of one call and the node rotates it at every restart.
+- **`SSL_CERT_FILE` and `SSL_CERT_DIR` choose the trust store of an
+    `https` connection.** The TLS context loads the system's default
+    certificates, which OpenSSL reads from those two variables when they
+    are set, so whoever controls this process's environment chooses which
+    authorities it trusts. A deployment that must not depend on the
+    environment passes a `transport` of its own.
 - **A caller's own `transport` is outside all of this.** It does its own
     I/O, so what it holds in memory, whether it follows a redirect and
     where it sends the `Authorization` header are its author's to answer
