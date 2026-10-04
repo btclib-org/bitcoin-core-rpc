@@ -13,6 +13,8 @@ connection.
 
 from __future__ import annotations
 
+import os
+import stat
 import sys
 from hashlib import sha256
 from os import PathLike, environ
@@ -425,6 +427,13 @@ def cookie_path_from_chain(
 # report a missing colon afterwards
 _MAX_COOKIE_SIZE = 4096
 
+# `O_NONBLOCK` lets the open of a FIFO return without a writer on the
+# other end, to be refused as the non-regular file it is. Windows has
+# neither the flag nor FIFOs, and opens in text mode without `O_BINARY`
+_COOKIE_OPEN_FLAGS = (
+    os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
+)
+
 
 def cookie_auth(cookie_path: Path) -> str:
     """Return the `user:password` bitcoind wrote in its cookie file.
@@ -435,6 +444,9 @@ def cookie_auth(cookie_path: Path) -> str:
     later would otherwise answer 401 for the rest of the process, the
     node having been restarted in between, and the cost is one small
     local read against an HTTP round trip.
+
+    A regular file only: a FIFO or a device at the path can block the
+    read, with no deadline to end it.
 
     Ascii, one line and a bounded read, because a path that is not a
     cookie file is the ordinary mistake here and a credential is the one
@@ -448,18 +460,34 @@ def cookie_auth(cookie_path: Path) -> str:
     something is at the path and it is not a cookie.
     """
     try:
-        with cookie_path.open("rb") as file:
+        fd = os.open(cookie_path, _COOKIE_OPEN_FLAGS)
+        # the descriptor is judged, not the path: a path checked and then
+        # opened can be swapped in between. `fdopen` takes it over only
+        # once it is known to be a regular file, so every other way out
+        # closes it here
+        try:
+            regular = stat.S_ISREG(os.fstat(fd).st_mode)
+        except OSError:
+            os.close(fd)
+            raise
+        if not regular:
+            os.close(fd)
+            err_msg = f"unreadable rpc cookie file {cookie_path}:"
+            err_msg += " not a regular file"
+            raise FetchError(err_msg)
+        with os.fdopen(fd, "rb") as file:
             raw = file.read(_MAX_COOKIE_SIZE + 1)
     except FileNotFoundError as e:
         err_msg = f"no rpc cookie file {cookie_path}: bitcoind writes one"
         err_msg += " while it runs with its rpc server enabled"
         raise CookieNotFoundError(err_msg) from e
     except OSError as e:
-        # every other way the open fails is a file to look at: a directory
-        # at the path, a mode that excludes this user, a datadir that is no
-        # directory. `FileNotFoundError` alone above, and not `ENOTDIR`
-        # with it -- a path component that is a file is a datadir the
-        # caller configured wrong, which the node starting does not fix
+        # every other way the open fails is a file to look at: a mode that
+        # excludes this user, a datadir that is no directory, a directory
+        # at the path on Windows (POSIX opens one, and the check refuses
+        # it). `FileNotFoundError` alone above, and not `ENOTDIR` with it
+        # -- a path component that is a file is a datadir the caller
+        # configured wrong, which the node starting does not fix
         raise FetchError(f"unreadable rpc cookie file {cookie_path}: {e}") from e
     if len(raw) > _MAX_COOKIE_SIZE:
         err_msg = f"oversized rpc cookie file {cookie_path}:"

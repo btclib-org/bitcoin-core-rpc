@@ -13,10 +13,12 @@ module rather than being part of it.
 
 from __future__ import annotations
 
+import os
 import re
 import sys
+import threading
 from hashlib import sha256
-from io import BytesIO
+from io import BufferedReader, FileIO
 from pathlib import Path
 from typing import Any, get_args
 
@@ -267,6 +269,77 @@ def test_a_cookie_path_that_cannot_be_opened_is_not_a_missing_one(
     assert not isinstance(raised.value, CookieNotFoundError)
 
 
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="no FIFOs on this platform")
+def test_a_cookie_path_that_is_a_fifo_is_refused_without_blocking(
+    tmp_path: Path,
+) -> None:
+    """A FIFO at the path is refused at once, with no writer to end a read."""
+    fifo = tmp_path / ".cookie"
+    os.mkfifo(fifo)
+    outcome: list[BaseException] = []
+
+    def read() -> None:
+        try:
+            cookie_auth(fifo)
+        except FetchError as e:
+            outcome.append(e)
+
+    thread = threading.Thread(target=read, daemon=True)
+    thread.start()
+    thread.join(5)
+    assert not thread.is_alive(), "cookie_auth blocked on a FIFO"
+    assert len(outcome) == 1
+    assert "not a regular file" in str(outcome[0])
+    assert str(fifo) in str(outcome[0])
+
+
+needs_fd_listing = pytest.mark.skipif(
+    not Path("/dev/fd").is_dir(), reason="no listing of open descriptors"
+)
+
+
+def _open_descriptors() -> int:
+    """Count this process's open descriptors."""
+    return len(list(Path("/dev/fd").iterdir()))
+
+
+@needs_fd_listing
+def test_a_directory_as_cookie_path_leaves_no_descriptor_open(
+    tmp_path: Path,
+) -> None:
+    """A directory is refused as not a regular file, its descriptor closed."""
+    before = _open_descriptors()
+    for _ in range(5):
+        with pytest.raises(FetchError, match="not a regular file"):
+            cookie_auth(tmp_path)
+    assert _open_descriptors() == before
+
+
+@needs_fd_listing
+def test_a_descriptor_that_cannot_be_inspected_is_closed_and_refused(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An fstat failure is the unreadable failure, and leaks nothing."""
+    cookie = tmp_path / ".cookie"
+    cookie.write_text(COOKIE_LINE)
+    before = _open_descriptors()
+
+    def failing_fstat(fd: int) -> os.stat_result:
+        raise OSError("no fstat")
+
+    monkeypatch.setattr(os, "fstat", failing_fstat)
+    with pytest.raises(FetchError, match="unreadable rpc cookie file"):
+        cookie_auth(cookie)
+    assert _open_descriptors() == before
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="no device files at a path")
+def test_a_cookie_path_that_is_a_device_is_refused() -> None:
+    """A device is no cookie file, whatever it would read as."""
+    with pytest.raises(FetchError, match="not a regular file"):
+        cookie_auth(Path(os.devnull))
+
+
 def test_a_cookie_file_without_a_colon_is_not_one(tmp_path: Path) -> None:
     """Refuse a cookie file carrying no colon as malformed."""
     cookie = tmp_path / ".cookie"
@@ -311,30 +384,22 @@ def test_the_cookie_size_boundary_is_4096_bytes(tmp_path: Path, size: int) -> No
 
 
 def test_the_cookie_read_stops_after_the_sentinel_octet(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """Checking the bound reads 4096 bytes and only one byte beyond it."""
+    cookie = tmp_path / ".cookie"
+    cookie.write_text(COOKIE_LINE)
+    reads: list[int | None] = []
 
-    class MeasuredCookie(BytesIO):
-        def __init__(self) -> None:
-            super().__init__(COOKIE_LINE.encode("ascii"))
-            self.reads: list[int | None] = []
-
+    class MeasuredCookie(BufferedReader):
         @override
         def read(self, size: int | None = -1, /) -> bytes:
-            self.reads.append(size)
+            reads.append(size)
             return super().read(size)
 
-    measured = MeasuredCookie()
-
-    def open_cookie(path: Path, mode: str) -> MeasuredCookie:
-        assert path == Path("measured.cookie")
-        assert mode == "rb"
-        return measured
-
-    monkeypatch.setattr(Path, "open", open_cookie)
-    assert cookie_auth(Path("measured.cookie")) == COOKIE_LINE
-    assert measured.reads == [4097]
+    monkeypatch.setattr(os, "fdopen", lambda fd, _mode: MeasuredCookie(FileIO(fd)))
+    assert cookie_auth(cookie) == COOKIE_LINE
+    assert reads == [4097]
 
 
 def test_an_enormous_cookie_file_is_refused_rather_than_held(
