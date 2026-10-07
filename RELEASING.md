@@ -354,8 +354,8 @@ result.
    cannot say has to be written, and what a reader should not have to
    discover at the button belongs there too.
 
-   The section of RELEASE_NOTES.md the first step wrote is what that
-   body is written from.
+   The section of RELEASE_NOTES.md that "Write the release's sections"
+   wrote is what that body is written from.
    Griffe's result and the integration run belong in the body too, each a
    line rather than a screenshot — both are steps nothing else enforces,
    and a pull request that never mentions them reads exactly like one that
