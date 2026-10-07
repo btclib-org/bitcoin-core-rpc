@@ -10,21 +10,19 @@
   }
 -->
 
-An entry for anything a reader would notice, in the group it belongs to:
-what changed, why, and what it cost. That is section 9 of
-[the organization standard][std] and `CONTRIBUTING.md`'s own sentence,
-and it is narrower than "every change" — a comment reworded inside a
-workflow changes nothing a reader of this repository meets, and lands
-without an entry. Where the two readings differ, what decides is whether
-somebody who did not write the change would see it.
+A release's section is written in the release's own pull request, from the
+squash subjects since the previous tag, and no other pull request adds an
+entry (section 9 of [the organization standard][std] and
+`CONTRIBUTING.md`'s *Pull requests*). A section takes what a reader of
+this repository would notice, grouped: what changed, why, and what it cost.
 [RELEASE_NOTES.md](./RELEASE_NOTES.md) has the release notes, which say
 what a user has to act on; this file is the record behind them, and is
 where a claim in those notes can be checked.
 
 [std]: https://github.com/btclib-org/.github
 
-Neither file states how many entries it holds: a stated number is a line
-every open branch has to edit. Naming a command that counts them is the
+Neither file states how many entries it holds: a stated number is one
+more line to edit at every release. Naming a command that counts them is the
 rejected alternative, and what rejects it is the shape of this file: a
 `###` heading names one entry, and a theme several entries
 share wherever the file already carried such a heading — section 9 of

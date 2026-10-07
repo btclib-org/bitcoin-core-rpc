@@ -36,10 +36,10 @@ concurrency:
 
 jobs:
   # the checkout, the ancestry check, the version comparison against the
-  # tag, and the retitling check on RELEASE_NOTES.md and CHANGELOG.md are
-  # btclib-org/.github's, called at @main so a fix there reaches this
-  # tree in one landing (section 10 of its README.md). This tree is
-  # calendar-versioned, so tag-requires-day is left at its default
+  # tag, and the release-notes check on RELEASE_NOTES.md and CHANGELOG.md
+  # are btclib-org/.github's, called at @main so a fix there reaches this
+  # tree in one landing (section 10 of its README.md).
+  # This tree is calendar-versioned, so tag-requires-day is left at its default
   # (true); build below consumes version-suffix, the rehearsal
   # output the called workflow declares (btclib-org/.github#35)
   version-check:
