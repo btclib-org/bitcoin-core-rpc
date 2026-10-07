@@ -200,10 +200,10 @@ Run workflow. CONTRIBUTING.md has the same command for a node of your own.
 
 **A release is a tag on `main`, and everything below that edits a file
 does so on a branch of its own.** Nothing is pushed to `main` directly,
-this release included: the steps that retitle the notes, open the next
-cycle's sections and set the version are one pull request, the one that
-sets the next cycle's version is another, and the tag names the commit
-the first of them left behind.
+this release included: the steps that write the release's sections and
+set the version are one pull request, the one that sets the next cycle's
+version is another, and the tag names the commit the first of them left
+behind.
 
 `deps-latest` is worth dispatching before the tag rather than waiting for
 its cron, because what it answers is cheaper to know before a version is
@@ -250,7 +250,7 @@ result.
    is what landed rather than what is nearly landed.
 
 1. Read the public API against the previous release, before the notes that
-   describe it are declared final. [RELEASE_NOTES.md](./RELEASE_NOTES.md)
+   describe it are written. [RELEASE_NOTES.md](./RELEASE_NOTES.md)
    promises that a breaking change is announced there, the calendar version
    promising nothing, and nothing else reads that promise: the suite judges the
    code, and a reviewer weighs what the prose says rather than what it leaves
@@ -296,27 +296,33 @@ result.
    that matters is green, which is why the step after the approval below
    reads the run job by job rather than as a whole.
 
-1. Retitle the work-in-progress sections of
-   [RELEASE_NOTES.md](./RELEASE_NOTES.md) and [CHANGELOG.md](./CHANGELOG.md) to
-   `## v<version>` — the heading must be the version alone, and the section
-   must not be empty. `release.yml` checks both before anything is built,
-   because a version cannot be unpublished once an index has accepted it.
+1. Write the release's sections. Add `## v<version>`, the heading the
+   tag will carry and the version alone, above the previous release in
+   [CHANGELOG.md](./CHANGELOG.md) and in
+   [RELEASE_NOTES.md](./RELEASE_NOTES.md). A
+   `(work in progress, not released yet)` section still at the top of
+   either file is folded into it and its heading deleted.
 
-   In the same pull request, open the next cycle's section in both files,
-   above the one just retitled — `## v<next YYYY.M> (work in progress, not
-   released yet)`, with nothing under it yet. That section is what the
-   next release's notes are written into, one landed change at a time,
-   and opening it here is what keeps the topmost heading of either file
-   on `main` a work-in-progress heading at every commit. Opening the
-   next cycle in a pull request of its own after this one, ahead of
-   anything else landing, is the rejected alternative: until that pull
-   request lands the topmost section of each file is the release's, so
-   a branch landing in between files its entry under a release it is
-   not in, and nothing reports it, the release commit having touched
-   only the heading. `release.yml`'s check reads the `## v<version>`
-   section alone, so a heading above it is nothing it sees, and it is
-   not what the release publishes: the notes are lifted from the section
-   whose heading is the tag's own.
+   The changelog's section is written from the squash subjects since the
+   previous tag, grouped and shortened:
+
+   ```shell
+   tag=v<previous version>
+   ```
+
+   ```shell
+   git log "${tag:?}"..HEAD --format=%s
+   ```
+
+   The release notes take what a user has to act on, and the griffe
+   output above names what they must not leave out. Neither section may
+   be empty: `release.yml` checks both before anything is built, because
+   a version cannot be unpublished once an index has accepted it.
+
+   A release that breaks the public API is rehearsed from this pull
+   request's branch once the notes are written, as the rehearsal
+   section above dispatches it. Until then, `public-api` reads an
+   older section and reports every break as unnamed.
 
 1. Set the version in `pyproject.toml`, which is the one place it is
    declared, and re-lock so `uv.lock` agrees:
@@ -327,7 +333,7 @@ result.
 
    **If `main` moves while the gates run, throw the branch away and redo
    these edits on top of it — never rebase it, and never merge `main` into
-   it.** Reset onto the new tip, then redo the retitle, the version and
+   it.** Reset onto the new tip, then redo the sections, the version and
    `uv lock`, and gate again:
 
    ```shell
@@ -335,9 +341,8 @@ result.
    git reset --hard origin/main
    ```
 
-   The retitle, the headings it opens and the version are a few lines;
-   what is expensive to reconstruct is the entries, and those are
-   already on `main` in the pull requests that landed them.
+   The sections are written from `git log` of the new tip, and the
+   version is a few lines.
 
 1. Give the release pull request its title and its body, before merging it
    and not after. The title is the version; the body says what the release
@@ -349,12 +354,8 @@ result.
    cannot say has to be written, and what a reader should not have to
    discover at the button belongs there too.
 
-   The section of RELEASE_NOTES.md the retitle step renamed is what that
-   body is written from, and the reason it is filled in one landed change
-   at a time rather than reconstructed from the diff on release day.
-   Check it against
-   `git log v<previous version>..main --oneline` regardless of how current
-   it looks, rather than trust that every line landed when it should have.
+   The section of RELEASE_NOTES.md the first step wrote is what that
+   body is written from.
    Griffe's result and the integration run belong in the body too, each a
    line rather than a screenshot — both are steps nothing else enforces,
    and a pull request that never mentions them reads exactly like one that
@@ -386,9 +387,7 @@ result.
    requests have so far landed as a single commit each (#143, #108), so
    that default and the commit's own message have been the same string,
    but naming them explicitly costs nothing and stops depending on that
-   staying true — btclib-secp256k1's release branch is a version bump
-   and two retitles, never one commit, and its own RELEASING.md needed
-   this the first time a release carried more than a single change.
+   staying true.
 
    The `main-self-merge` bypass in `pull_request` mode is used only in
    an emergency. Without an approval `gh pr merge <n> --squash` refuses —
@@ -696,12 +695,11 @@ result.
    uv lock
    ```
 
-   The two "work in progress" sections are already there, the retitle
-   step above having opened them in the release's own pull request. What
-   stays here is the version, which cannot move earlier with them:
-   `version-check` compares the tag against what `pyproject.toml`
-   declares, so a tree already bumped would offer it the next cycle's
-   month instead of the version being released.
+   The next cycle's version cannot go in the release pull request:
+   `version-check` compares
+   the tag against what `pyproject.toml` declares, so a tree already
+   bumped would offer it the next cycle's month instead of the version
+   being released.
 
 ## Rebuild a release from its tag
 
