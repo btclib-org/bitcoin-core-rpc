@@ -75,6 +75,22 @@ _DATADIR_SUBDIR_FROM_CHAIN = {
 }
 
 
+# a chain or network name longer than this is not quoted in a refusal
+_MAX_NAME_SHOWN = 16
+
+
+def _quoted(name: object) -> str:
+    """Show a name a caller passed only where it is short enough to be a typo.
+
+    It may be a passphrase or a key passed to the wrong argument.
+    """
+    if not isinstance(name, str):
+        return f"a {type(name).__name__}"
+    if len(name) > _MAX_NAME_SHOWN:
+        return "(too long to quote)"
+    return name
+
+
 def rpc_port_from_chain(chain: str) -> int:
     """Return the default rpc port of one of Core's chains.
 
@@ -84,7 +100,7 @@ def rpc_port_from_chain(chain: str) -> int:
     """
     if chain not in _RPC_PORT_FROM_CHAIN:
         known = ", ".join(_RPC_PORT_FROM_CHAIN)
-        raise BtcRpcValueError(f"unknown Core chain: {chain} not in ({known})")
+        raise BtcRpcValueError(f"unknown Core chain: {_quoted(chain)} not in ({known})")
     return _RPC_PORT_FROM_CHAIN[chain]
 
 
@@ -99,7 +115,7 @@ def datadir_subdir_from_chain(chain: str) -> str:
     """
     if chain not in _DATADIR_SUBDIR_FROM_CHAIN:
         known = ", ".join(_DATADIR_SUBDIR_FROM_CHAIN)
-        raise BtcRpcValueError(f"unknown Core chain: {chain} not in ({known})")
+        raise BtcRpcValueError(f"unknown Core chain: {_quoted(chain)} not in ({known})")
     return _DATADIR_SUBDIR_FROM_CHAIN[chain]
 
 
@@ -168,7 +184,7 @@ def chain_from_network(network: str) -> Chain:
     """
     if network not in _CHAIN_FROM_NETWORK:
         known = ", ".join(_CHAIN_FROM_NETWORK)
-        raise BtcRpcValueError(f"unknown network: {network} not in ({known})")
+        raise BtcRpcValueError(f"unknown network: {_quoted(network)} not in ({known})")
     return _CHAIN_FROM_NETWORK[network]
 
 
@@ -179,7 +195,7 @@ def network_from_chain(chain: str) -> Network:
     """
     if chain not in _NETWORK_FROM_CHAIN:
         known = ", ".join(_NETWORK_FROM_CHAIN)
-        raise BtcRpcValueError(f"unknown Core chain: {chain} not in ({known})")
+        raise BtcRpcValueError(f"unknown Core chain: {_quoted(chain)} not in ({known})")
     return _NETWORK_FROM_CHAIN[chain]
 
 
@@ -239,7 +255,7 @@ def magic_from_chain(chain: str) -> bytes:
     """
     if chain not in _MAGIC_FROM_CHAIN:
         known = ", ".join(_MAGIC_FROM_CHAIN)
-        raise BtcRpcValueError(f"unknown Core chain: {chain} not in ({known})")
+        raise BtcRpcValueError(f"unknown Core chain: {_quoted(chain)} not in ({known})")
     return _MAGIC_FROM_CHAIN[chain]
 
 
@@ -271,7 +287,8 @@ def magic_from_signet_challenge(challenge: str | bytes | bytearray) -> bytes:
     else:
         # unreachable under the annotation above, which is not a promise
         # a caller that skips type checking keeps
-        err_msg = f"signet challenge that is no script: {challenge!r}"  # type: ignore[unreachable]
+        err_msg = "signet challenge that is no script, but a"  # type: ignore[unreachable]
+        err_msg += f" {type(challenge).__name__}"
         raise BtcRpcTypeError(err_msg)
     if not script:
         raise BtcRpcValueError("empty signet challenge")
@@ -495,8 +512,12 @@ def cookie_auth(cookie_path: Path) -> str:
         raise FetchError(err_msg)
     try:
         line = raw.decode("ascii").strip()
-    except UnicodeDecodeError as e:
-        raise FetchError(f"non-ascii rpc cookie file {cookie_path}: {e}") from e
+    except UnicodeDecodeError:
+        line = None
+    if line is None:
+        # outside the `except`, so that nothing chains the decode error,
+        # which holds the file
+        raise FetchError(f"non-ascii rpc cookie file {cookie_path}")
     if "\n" in line or "\r" in line:
         raise FetchError(f"malformed rpc cookie file {cookie_path}: several lines")
     if ":" not in line:

@@ -34,7 +34,7 @@ import pickle
 import re
 import sys
 from base64 import b64decode
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -65,12 +65,15 @@ from bitcoin_core_rpc import (
 from tests import (
     RPC_PASSWORD,
     RPC_USER,
+    SECRET,
     TIP_HEIGHT,
     TIP_ID,
     TX_ID,
     URLS_WITH_A_LOGIN_TYPO,
     Recorded,
+    Shows,
     assert_no_login,
+    assert_no_secret,
     recorded_body,
 )
 
@@ -408,7 +411,7 @@ def test_from_chain_refuses_a_node_on_the_wrong_chain() -> None:
     transport = Echoing((200, reply.encode()))
     with pytest.raises(
         BtcRpcValueError,
-        match="reports chain 'test', not the 'main' this client was built for",
+        match="reports chain 'test', not the main this client was built for",
     ):
         BitcoinCoreRpcClient.from_chain(
             "main",
@@ -474,8 +477,27 @@ def test_assert_chain_is_the_check_from_chain_makes() -> None:
     endpoint.assert_chain("main")
 
     endpoint = client(chaininfo(chain="test"))
-    with pytest.raises(BtcRpcValueError, match="reports chain 'test', not the 'main'"):
+    with pytest.raises(BtcRpcValueError, match="reports chain 'test', not the main"):
         endpoint.assert_chain("main")
+
+
+@pytest.mark.parametrize("secret", [SECRET, SECRET.encode(), Shows()])
+def test_assert_chain_does_not_quote_a_long_chain(secret: Any) -> None:
+    """The chain is the caller's, and may be a key in the wrong argument."""
+    untyped: Any = client(chaininfo(chain="main")).assert_chain
+    with pytest.raises(BtcRpcValueError, match="reports chain 'main', not the") as exc:
+        untyped(secret)
+    assert_no_secret(exc.value)
+    with pytest.raises(BtcRpcValueError, match="a signet_challenge for chain") as exc:
+        untyped(secret, signet_challenge=DEFAULT_SIGNET_CHALLENGE)
+    assert_no_secret(exc.value)
+
+
+def test_assert_chain_quotes_a_short_chain() -> None:
+    """A typo is shown."""
+    endpoint = client(chaininfo(chain="main"))
+    with pytest.raises(BtcRpcValueError, match="not the mainnt this client"):
+        endpoint.assert_chain("mainnt")
 
 
 def test_signet_challenge_is_keyword_only() -> None:
@@ -585,7 +607,7 @@ def test_a_challenge_off_signet_is_refused_before_the_node_is_asked() -> None:
     endpoint = BitcoinCoreRpcClient(
         URL, user=RPC_USER, password=RPC_PASSWORD, transport=refuses
     )
-    with pytest.raises(BtcRpcValueError, match="challenge for chain 'main'"):
+    with pytest.raises(BtcRpcValueError, match="challenge for chain main"):
         endpoint.assert_chain("main", signet_challenge=CUSTOM_CHALLENGE)
 
 
@@ -1147,18 +1169,51 @@ def test_the_parameter_depth_bound_is_inclusive(kind: str) -> None:
         endpoint.call("send", wrap(at_limit))
 
 
-def test_something_that_walks_as_json_and_has_none_is_still_refused() -> None:
-    """The backstop under the walk, reached by a Sequence json cannot write.
+@pytest.mark.parametrize(
+    ("params", "message"),
+    [
+        ([range(3)], "a range at params[0]"),
+        ([1, [2, range(3)]], "a range at params[1][1]"),
+        ({"a": {"b": range(3)}}, 'a range at params["a"]["b"]'),
+        ({"passphrase": b"x"}, 'a bytes at params["passphrase"]'),
+        ({"k" * 20: b"x"}, 'a bytes at params["' + "k" * 16 + '..."]'),
+    ],
+)
+def test_a_refusal_names_the_path_of_the_parameter(params: Any, message: str) -> None:
+    """A `Sequence` with no json, such as `range(3)`, is refused in the walk.
 
-    `range(3)` is a Sequence of three json numbers and has no json of its
-    own, so it passes a walk that checks what a structure contains and
-    fails in the encoder. What the backstop buys is that it fails as a
-    refusal of this module's naming the value, rather than as a TypeError from
-    inside the standard library.
+    The walk knows where the value sits, so every refusal can say.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BtcRpcTypeError, match="not a json value: range"):
-        endpoint.call("send", [range(3)])
+    with pytest.raises(BtcRpcTypeError) as exc:
+        endpoint.call("send", params)
+    assert str(exc.value) == f"rpc parameter that is not a json value: {message}"
+
+
+def test_from_chain_does_not_quote_a_long_name() -> None:
+    """The name of a chain may be a key passed to the wrong argument."""
+    with pytest.raises(BtcRpcValueError) as exc:
+        BitcoinCoreRpcClient.from_chain(SECRET, user=RPC_USER, password=RPC_PASSWORD)
+    assert_no_secret(exc.value)
+
+
+def test_a_non_string_name_in_a_nested_mapping_names_its_path() -> None:
+    """The type of the name and the path it is in, never the name."""
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BtcRpcTypeError) as exc:
+        endpoint.call("send", [{"a": {SECRET.encode(): 1}}])
+    assert str(exc.value) == (
+        'non-string rpc parameter name of type bytes in params[0]["a"]'
+    )
+
+
+def test_a_value_that_is_json_to_the_walk_and_not_to_the_writer() -> None:
+    """The backstop under the walk names a type and no path."""
+    shifty = Shifty({"a": 1}, {"a": range(3)})
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BtcRpcTypeError) as exc:
+        endpoint.call("send", [shifty])
+    assert str(exc.value) == "rpc parameter that is not a json value: a range"
 
 
 @pytest.mark.parametrize(
@@ -1831,7 +1886,9 @@ def test_a_name_that_is_not_what_the_walk_saw() -> None:
     """
     shifty = Shifty({"amount": 1.0}, {1: 1.0})
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BtcRpcTypeError, match="non-string rpc parameter name: 1"):
+    with pytest.raises(
+        BtcRpcTypeError, match="non-string rpc parameter name of type int"
+    ):
         endpoint.call("sendmany", [shifty])
     assert recording(endpoint).requests == []
 
@@ -3052,3 +3109,129 @@ def test_get_json_bounds_the_reply() -> None:
     oversized = b'{"chain":"' + b"x" * 1100 + b'"}'
     with pytest.raises(FetchError, match="more than the max_body_size of 1024"):
         rest_client((200, oversized)).get_json("/chaininfo.json", max_body_size=1024)
+
+
+class _ShowsAsASequence(Shows, Sequence[int]):
+    """A sequence of json numbers with no json of its own, showing `SECRET`."""
+
+    @override
+    def __len__(self) -> int:
+        return 1
+
+    @override
+    def __getitem__(self, index: int | slice) -> Any:
+        if index != 0:
+            raise IndexError(index)
+        return 1
+
+
+_SECRET_PARAMS = [
+    pytest.param(SECRET.encode(), id="bytes"),
+    pytest.param(bytearray(SECRET.encode()), id="bytearray"),
+    pytest.param(Shows(), id="object"),
+    pytest.param(_ShowsAsASequence(), id="sequence"),
+    pytest.param({Shows(): 1}, id="key"),
+    pytest.param({SECRET.encode(): 1}, id="bytes-key"),
+]
+
+
+@pytest.mark.parametrize("secret", _SECRET_PARAMS)
+@pytest.mark.parametrize("nested", [False, True])
+def test_a_refused_parameter_is_named_by_its_type(secret: Any, nested: bool) -> None:
+    """The value may be a passphrase or a key, so no refusal quotes it."""
+    params = [1, [secret]] if nested else [secret]
+    calls: list[Callable[[], object]] = [
+        lambda: client().call("walletpassphrase", params),
+        lambda: client().call_raw("walletpassphrase", params),
+        lambda: client().call_batch([("walletpassphrase", params)]),
+        lambda: RpcChannel(client()).walletpassphrase(*params),
+    ]
+    for call in calls:
+        with pytest.raises(BtcRpcTypeError) as exc:
+            call()
+        assert_no_secret(exc.value)
+
+
+def test_the_secret_objects_show_the_secret() -> None:
+    """The control: each would put `SECRET` in a message that quoted it."""
+    assert repr(Shows()) == SECRET
+    assert repr(_ShowsAsASequence()) == SECRET
+    assert list(_ShowsAsASequence()) == [1]
+    assert len(_ShowsAsASequence()) == 1
+
+
+def test_a_refused_parameter_names_its_type_and_position() -> None:
+    """A caller can find the offender without the value."""
+    with pytest.raises(BtcRpcTypeError) as exc:
+        client().call("send", [1, [2, SECRET.encode()]])
+    assert str(exc.value).endswith("a bytes at params[1][1]")
+    with pytest.raises(BtcRpcTypeError) as exc:
+        client().call("send", {"a": [Shows()]})
+    assert str(exc.value).endswith('a Shows at params["a"][0]')
+    with pytest.raises(BtcRpcTypeError) as exc:
+        client().call_batch([("getblockcount", None), ("send", [SECRET.encode()])])
+    assert "call_batch member 1" in str(exc.value)
+
+
+@pytest.mark.parametrize("secret", [SECRET.encode(), Shows(), [Shows()]])
+def test_a_method_that_is_not_a_string_is_not_quoted(secret: Any) -> None:
+    """The method is a string, and what is passed instead may be anything."""
+    calls: list[Callable[[], object]] = [
+        lambda: client().call(secret),
+        lambda: client().call_raw(secret),
+        lambda: client().call_batch([(secret, None)]),
+    ]
+    for call in calls:
+        with pytest.raises(BtcRpcTypeError) as exc:
+            call()
+        assert_no_secret(exc.value)
+
+
+def test_a_jsonrpc_marker_that_is_not_a_string_is_not_quoted() -> None:
+    """The marker is a string or None; a key may be passed in its place."""
+    with pytest.raises(BtcRpcTypeError) as exc:
+        client().call_raw("getblockcount", jsonrpc=Shows())  # type: ignore[arg-type]
+    assert_no_secret(exc.value)
+
+
+def test_a_wallet_name_that_is_not_a_string_is_not_quoted() -> None:
+    """The name is a string, and what is passed instead may be a key."""
+    untyped: Any = BitcoinCoreRpcClient(
+        URL, user=RPC_USER, password=RPC_PASSWORD
+    ).for_wallet
+    with pytest.raises(BtcRpcTypeError) as exc:
+        untyped(Shows())
+    assert_no_secret(exc.value)
+
+
+@pytest.mark.parametrize("path", [Shows(), SECRET])
+def test_a_refused_rest_path_is_not_quoted(path: Any) -> None:
+    """A path that is no path may be a key passed to the wrong argument."""
+    with pytest.raises((BtcRpcTypeError, BtcRpcValueError)) as exc:
+        rest_client((200, b"\x00")).get_bin(path)
+    assert_no_secret(exc.value)
+
+
+@pytest.mark.parametrize("status", [200, 503])
+@pytest.mark.parametrize("kind", ["call", "call_raw", "call_batch"])
+@pytest.mark.parametrize("body", [b'{"result": "%b\xff"}', b"error: %b"])
+def test_a_reply_that_is_unreadable_is_unchained_and_without_its_text(
+    status: int, kind: str, body: bytes
+) -> None:
+    """A decode or parse error holds the reply, which can echo the request."""
+    body %= SECRET.encode()
+    endpoint = (
+        verbatim((status, body)) if kind == "call_batch" else client((status, body))
+    )
+    with pytest.raises((FetchError, HttpError)) as exc:
+        if kind == "call_batch":
+            endpoint.call_batch([("dumpprivkey", None)])
+        else:
+            getattr(endpoint, kind)("dumpprivkey")
+    assert_no_secret(exc.value)
+    assert exc.value.__cause__ is None
+    assert exc.value.__context__ is None
+    assert "codec" not in str(exc.value)
+    assert "0x" not in str(exc.value)
+    if status == 200:
+        assert "not utf-8" in str(exc.value) or "not json" in str(exc.value)

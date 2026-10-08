@@ -67,9 +67,12 @@ from bitcoin_core_rpc.transport import (
 from tests import (
     LOGIN,
     RPC_PASSWORD,
+    SECRET,
     URLS_WITH_A_LOGIN_TYPO,
     Recorded,
+    Shows,
     assert_no_login,
+    assert_no_secret,
     refusal_text,
 )
 
@@ -1989,6 +1992,30 @@ def test_a_header_that_would_split_the_request_is_refused(
     with pytest.raises(BtcRpcValueError, match="invalid header"):
         http_request(URL, headers={name: value}, transport=transport)
     assert transport.requests == []
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {Shows(): "a"},
+        {"X": Shows()},
+        {b"x": 1},
+        {SECRET + " x": "a"},
+        {SECRET: "a\n"},  # pragma: allowlist secret
+    ],
+)
+def test_a_refused_header_is_not_quoted(headers: dict[Any, Any]) -> None:
+    """A name that is no token, or a value, may be a key in the wrong place."""
+    with pytest.raises((BtcRpcTypeError, BtcRpcValueError)) as exc:
+        http_request(URL, headers=headers, transport=Recorded((200, b"")))
+    assert_no_secret(exc.value)
+
+
+def test_a_timeout_that_is_no_number_is_not_quoted() -> None:
+    """What is passed instead of a number may be a key."""
+    with pytest.raises(BtcRpcTypeError) as exc:
+        http_request(URL, timeout=Shows(), transport=Recorded((200, b"")))  # type: ignore[arg-type]
+    assert_no_secret(exc.value)
 
 
 def test_a_refused_header_value_is_not_echoed() -> None:
