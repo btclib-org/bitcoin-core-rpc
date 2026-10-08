@@ -34,7 +34,7 @@ theme. Section 9 also lets an entry making a single claim have a
 paragraph for a body, which no bullet pattern reaches. Counting the
 entries is a reading of the file rather than a command.
 
-## v2026.11 (work in progress, not released yet)
+## v2026.10.8
 
 ### The release publishes the files the build job built
 
@@ -71,6 +71,17 @@ required checks too, and `REVIEWING.md`'s "hold the merge" excepts it
 A `###` heading under a release older than the newest, absent from the file
 at the merge base with `origin/main`, is refused
 (issue btclib-org/.github#1614).
+
+### Refusals quote less of what a caller passed
+
+RELEASE_NOTES.md's v2026.10.8 has the new messages and what still shows
+(GHSA-cg87-q4qx-qw8p).
+
+### The release steps and the shared docs follow the changelog rule
+
+`RELEASING.md` writes a release's sections at release time (issue
+btclib-org/.github#1623, closes #631, closes #632); `CONTRIBUTING.md` and
+`REVIEWING.md` take the shared halves (issue btclib-org/.github#1620).
 
 ## v2026.10.4
 

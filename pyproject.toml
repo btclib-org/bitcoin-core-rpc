@@ -71,7 +71,7 @@ name = "bitcoin-core-rpc"
 # which string is which -- what this declares between releases, and what a
 # release day adds to it -- is RELEASING.md's "Which version string is
 # which", and release.yml's version-check job is what enforces it
-version = "2026.11"
+version = "2026.10.8"
 description = "A standalone JSON-RPC client against Bitcoin Core"
 readme = "README.md"
 # PEP 639: an SPDX expression, which becomes the `License-Expression`
@@ -464,7 +464,7 @@ package = ["src/bitcoin_core_rpc"]
 # [tool.uv.build-backend] source-exclude names is not repeated here:
 # check-sdist reads that list for the uv backend, so this holds only what
 # no include pattern adds in the first place -- the workspaces of an
-# editor and of an agent, the two files git itself reads, and COPYRIGHT,
+# editor and of an agent, the file git itself reads, and COPYRIGHT,
 # which [tool.uv.build-backend] above says why the sdist does not carry.
 # Patterns are gitignore's, so a directory covers what is under it at any
 # depth.

@@ -10,7 +10,29 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
-## v2026.11 (work in progress, not released yet)
+## v2026.10.8
+
+- **A refusal no longer quotes an rpc parameter of a type JSON cannot carry
+  ([GHSA-cg87-q4qx-qw8p](https://github.com/btclib-org/bitcoin-core-rpc/security/advisories/GHSA-cg87-q4qx-qw8p)).**
+  Every release on PyPI, v2026.8.6 to v2026.10.4, quoted an rpc parameter
+  that is not a JSON value in the error of `call`, and of `call_raw`,
+  `call_batch` and `RpcChannel` where the release has them, so a wallet
+  passphrase or a key passed as `bytes`, or as an object whose `repr` shows
+  it, went wherever the error went. The refusals of a method, a wallet
+  name, a parameter name, the jsonrpc marker, a REST path, a timeout, a
+  signet challenge and a header quoted theirs too. A cookie file that is
+  not ASCII, and a reply that is not UTF-8 or not JSON, chained an error
+  that holds the whole file or reply. Upgrade, and treat a passphrase or
+  key that such an error may have recorded, in a log, a report or a
+  traceback, as exposed.
+
+  A refusal now names a parameter by its type and path, as in
+  `rpc parameter that is not a json value: a bytes at params[0]`. A chain
+  or network name of 16 characters or fewer is still shown, so that a typo
+  stays visible; a longer one reads `(too long to quote)`. A caller that
+  matches on message text finds the value gone, the quote marks gone from
+  the client's chain name in `assert_chain`'s refusals, and no codec detail in a
+  cookie or reply refusal.
 
 ## v2026.10.4
 

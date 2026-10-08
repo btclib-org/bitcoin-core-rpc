@@ -299,9 +299,7 @@ result.
 1. Write the release's sections. Add `## v<version>`, the heading the
    tag will carry and the version alone, above the previous release in
    [CHANGELOG.md](./CHANGELOG.md) and in
-   [RELEASE_NOTES.md](./RELEASE_NOTES.md). A
-   `(work in progress, not released yet)` section still at the top of
-   either file is folded into it and its heading deleted.
+   [RELEASE_NOTES.md](./RELEASE_NOTES.md).
 
    The changelog's section is written from the squash subjects since the
    previous tag, grouped and shortened:
