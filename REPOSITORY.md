@@ -404,14 +404,20 @@ gh api repos/btclib-org/bitcoin-core-rpc/rulesets/"$id" \
 ```
 
 `release.yml` triggers on `push: tags: ["v*"]`, and the `pypi` environment
-is restricted to that pattern, so the tag was the one unattested link in
-an otherwise fully-attested chain — the commit it points at signed,
-`main-integrity` requiring that with no bypass actor, the workflow pinned,
-the upload Trusted Publishing with no long-lived token. RELEASING.md's
-tagging step already produces a signed tag by default (`git tag -s`), so
-the ruleset enforces what the procedure already does rather than changing
-it; what it adds is that an unsigned `v*` tag is refused outright rather
-than merely undocumented (issue #139).
+is restricted to that pattern, so a tag push is what
+releases. The commit it points at is signed, `main-integrity` requiring
+that with no bypass actor, the workflow is pinned, and the upload is
+Trusted Publishing with no long-lived token (issue #139).
+
+A `v*` tag push that brings an unsigned commit is refused. A tag on a
+commit already on `main` is accepted whether it is signed, unsigned or
+lightweight, so the rule does not make a release tag signed
+(btclib-org/.github#1635). That rests on `git tag -s` in the release
+steps and on reading the signature back:
+
+```shell
+gh api repos/<owner>/<repo>/git/tags/<sha> --jq .verification
+```
 
 It carries no `deletion` or `non_fast_forward` rule on purpose:
 RELEASING.md's own recovery path deletes and re-tags a release that
