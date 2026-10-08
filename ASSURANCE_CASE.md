@@ -205,7 +205,9 @@ exposed to, and what counters each.
   paragraphs above state in full.
 - **Generation of an error message containing sensitive information
   (CWE-209).** The same paragraphs: a rejected credential is reported by
-  type, and no `__repr__` renders one that was accepted.
+  type, and no `__repr__` renders one that was accepted. A refused rpc
+  parameter is named by type and position, and an unreadable reply or
+  cookie file is refused without chaining the error that holds it.
 - **URL redirection to an untrusted site (CWE-601) and exposure of a
   resource to the wrong sphere (CWE-668).** A credential built for one
   host reaching a different one through a followed redirect or an

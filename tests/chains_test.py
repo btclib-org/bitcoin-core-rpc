@@ -51,6 +51,7 @@ from bitcoin_core_rpc.errors import (
     CookieNotFoundError,
     FetchError,
 )
+from tests import SECRET, Shows, assert_no_secret
 
 # the shape bitcoind writes: the fixed user, a colon, and 32 random bytes
 # in hex. This one is not random and is the credential of nothing -- the
@@ -365,8 +366,20 @@ def test_a_cookie_file_that_is_not_ascii_is_not_one(tmp_path: Path) -> None:
     """
     cookie = tmp_path / ".cookie"
     cookie.write_bytes(b"\x80\x81:not ascii")
-    with pytest.raises(FetchError, match="non-ascii rpc cookie file"):
+    with pytest.raises(FetchError, match="non-ascii rpc cookie file") as exc:
         cookie_auth(cookie)
+    assert "codec" not in str(exc.value)
+
+
+def test_a_non_ascii_cookie_file_is_not_chained(tmp_path: Path) -> None:
+    """The decode error holds the whole file, so nothing may chain it."""
+    cookie = tmp_path / ".cookie"
+    cookie.write_bytes(SECRET.encode() + b"\x80")
+    with pytest.raises(FetchError) as exc:
+        cookie_auth(cookie)
+    assert_no_secret(exc.value)
+    assert exc.value.__cause__ is None
+    assert exc.value.__context__ is None
 
 
 @pytest.mark.parametrize("size", [4096, 4097])
@@ -527,6 +540,38 @@ def test_the_default_signet_magic_is_derived_and_not_only_copied() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "refuse",
+    [
+        rpc_port_from_chain,
+        datadir_subdir_from_chain,
+        network_from_chain,
+        chain_from_network,
+        magic_from_chain,
+    ],
+)
+def test_a_name_that_is_unknown_is_quoted_only_when_short(refuse: Any) -> None:
+    """A typo is shown; a long name or a non-string is not: it may be a key."""
+    with pytest.raises(BtcRpcValueError, match="unknown .*: mainnt not in") as exc:
+        refuse("mainnt")
+    for passed in (SECRET, Shows(), SECRET.encode()):
+        with pytest.raises(BtcRpcValueError) as exc:
+            refuse(passed)
+        assert_no_secret(exc.value)
+    with pytest.raises(BtcRpcValueError, match="a bytes not in"):
+        refuse(b"x")
+    with pytest.raises(BtcRpcValueError, match=r"\(too long to quote\) not in"):
+        refuse(SECRET)
+
+
+def test_a_challenge_that_is_no_script_is_not_quoted() -> None:
+    """What is passed instead of a script may be a key."""
+    untyped: Any = magic_from_signet_challenge
+    with pytest.raises(BtcRpcTypeError) as exc:
+        untyped(Shows())
+    assert_no_secret(exc.value)
+
+
 def test_a_challenge_is_hex_or_the_bytes_it_spells() -> None:
     """Both spellings of the same script, and nothing else.
 
@@ -542,7 +587,9 @@ def test_a_challenge_is_hex_or_the_bytes_it_spells() -> None:
     assert magic_from_signet_challenge(DEFAULT_SIGNET_CHALLENGE.upper()) == expected
 
     untyped: Any = magic_from_signet_challenge
-    with pytest.raises(BtcRpcTypeError, match="signet challenge that is no script: 71"):
+    with pytest.raises(
+        BtcRpcTypeError, match="signet challenge that is no script, but a int"
+    ):
         untyped(71)
 
 

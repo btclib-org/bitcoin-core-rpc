@@ -41,6 +41,8 @@ import traceback
 from pathlib import Path
 from urllib.request import Request
 
+from typing_extensions import override
+
 _DATA = Path(__file__).parent / "_data"
 
 # transaction 1 of block 170, the recorded answer throughout: the first
@@ -96,6 +98,23 @@ def assert_no_login(exc: BaseException) -> None:
     assert RPC_USER not in refusal_text(exc)
     assert exc.__cause__ is None
     assert exc.__context__ is None
+
+
+# a value a caller must not see echoed: a passphrase, a key, a cookie
+SECRET = "s3cr3t-passphrase"  # ruff: ignore[S105]  # pragma: allowlist secret
+
+
+class Shows:
+    """An object whose repr is `SECRET`, as a key object's can be."""
+
+    @override
+    def __repr__(self) -> str:
+        return SECRET
+
+
+def assert_no_secret(exc: BaseException) -> None:
+    """Assert `SECRET` is in no printed traceback and no chained exception."""
+    assert SECRET not in refusal_text(exc)
 
 
 def recorded_body(name: str) -> bytes:

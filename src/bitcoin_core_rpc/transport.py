@@ -560,7 +560,8 @@ def _assert_valid_timeout(timeout: float, what: str) -> None:
     `request_timeout` the same way before either reaches this module.
     """
     if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
-        raise BtcRpcTypeError(f"non-numeric {what}: {timeout!r}")
+        err_msg = f"non-numeric {what}, but a"
+        raise BtcRpcTypeError(f"{err_msg} {type(timeout).__name__}")
     if not isfinite(timeout) or timeout <= 0:
         raise BtcRpcValueError(f"{what} is not a positive number of seconds: {timeout}")
 
@@ -590,11 +591,13 @@ def _assert_valid_headers(headers: Mapping[Any, Any]) -> None:
     """
     for name, value in headers.items():
         if not isinstance(name, str) or not isinstance(value, str):
-            raise BtcRpcTypeError(f"non-string header: {name!r}")
+            err_msg = "non-string header, a name of type"
+            err_msg += f" {type(name).__name__} and a value of type"
+            raise BtcRpcTypeError(f"{err_msg} {type(value).__name__}")
         if not _HEADER_NAME.fullmatch(name):
-            raise BtcRpcValueError(f"invalid header name: {name!r}")
+            raise BtcRpcValueError("invalid header name")
         if any(c in value for c in "\r\n\0") or not _is_latin_1(value):
-            raise BtcRpcValueError(f"invalid header value for {name!r}")
+            raise BtcRpcValueError("invalid header value")
 
 
 def _split_url(url: str) -> tuple[str, str, int | None, str]:

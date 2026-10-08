@@ -41,6 +41,7 @@ from typing import Any
 from urllib.parse import SplitResult, quote, urlsplit
 
 from bitcoin_core_rpc.chains import (
+    _quoted,
     cookie_auth,
     cookie_path_from_chain,
     default_datadir,
@@ -93,6 +94,9 @@ _RPC_ID_BYTES = 8
 # methods nest a few levels -- the inputs of a psbt, the tree of a
 # descriptor -- so this is not a limit a call arrives at
 _MAX_PARAMS_DEPTH = 100
+
+# a parameter name longer than this is cut where a refusal shows its path
+_MAX_KEY_SHOWN = 16
 
 
 USER_AGENT = "bitcoin-core-rpc"
@@ -218,7 +222,10 @@ def _params_member(params: Sequence[Any] | Mapping[str, Any] | None) -> Any:
 
 
 def _assert_json_params(
-    value: Any, depth: int = 0, enclosing: tuple[int, ...] = ()
+    value: Any,
+    depth: int = 0,
+    enclosing: tuple[int, ...] = (),
+    path: str = "params",
 ) -> None:
     """Refuse a parameter structure json cannot carry, before it is encoded.
 
@@ -237,28 +244,47 @@ def _assert_json_params(
     which is what a cycle is: a container reached from within itself. No
     depth bound tells that from a structure that is merely deep, and no
     bound on a *reply* helps -- these are the caller's own objects.
+
+    A refusal names the type of the value and its `path`, never the value:
+    it may be a passphrase or a key. The path shows the names of the
+    mappings it goes through, which go to the node anyway.
     """
     if depth > _MAX_PARAMS_DEPTH:
         err_msg = f"rpc params nested deeper than the {_MAX_PARAMS_DEPTH} allowed"
         raise BtcRpcValueError(err_msg)
-    if _json_scalar(value):
+    if _json_scalar(value, path):
         return
-    if isinstance(value, Mapping):
+    # only the containers `_request_json` writes: a `range` or a `deque` is
+    # a `Sequence` with no json, refused here where the path is known
+    if isinstance(value, dict):
         _assert_no_cycle(value, enclosing)
         for name, item in value.items():
             if not isinstance(name, str):
-                raise BtcRpcTypeError(f"non-string rpc parameter name: {name!r}")
-            _assert_json_params(item, depth + 1, (*enclosing, id(value)))
+                err_msg = "non-string rpc parameter name of type"
+                raise BtcRpcTypeError(f"{err_msg} {type(name).__name__} in {path}")
+            shown = name[:_MAX_KEY_SHOWN] + "..." * (len(name) > _MAX_KEY_SHOWN)
+            shown = json.dumps(shown)
+            _assert_json_params(
+                item, depth + 1, (*enclosing, id(value)), f"{path}[{shown}]"
+            )
         return
-    if isinstance(value, Sequence):
+    if isinstance(value, (list, tuple)):
         _assert_no_cycle(value, enclosing)
-        for item in value:
-            _assert_json_params(item, depth + 1, (*enclosing, id(value)))
+        for i, item in enumerate(value):
+            _assert_json_params(
+                item, depth + 1, (*enclosing, id(value)), f"{path}[{i}]"
+            )
         return
-    raise BtcRpcTypeError(f"rpc parameter that is not a json value: {value!r}")
+    raise BtcRpcTypeError(_not_json_value(type(value), path))
 
 
-def _json_scalar(value: Any) -> bool:
+def _not_json_value(kind: type, where: str | None = None) -> str:
+    """Say a parameter is no json value, by its type and where it sits."""
+    err_msg = f"rpc parameter that is not a json value: a {kind.__name__}"
+    return err_msg if where is None else f"{err_msg} at {where}"
+
+
+def _json_scalar(value: Any, path: str) -> bool:
     """Say whether a value is a json scalar, refusing two that look like one.
 
     A non-finite number and a `bytes` are each a value a caller has a
@@ -273,7 +299,7 @@ def _json_scalar(value: Any) -> bool:
     if isinstance(value, float) and not isfinite(value):
         raise BtcRpcValueError(f"not a json number in the rpc params: {value}")
     if isinstance(value, (bytes, bytearray)):
-        raise BtcRpcTypeError(f"rpc parameter that is not a json value: {value!r}")
+        raise BtcRpcTypeError(_not_json_value(type(value), path))
     return value is None or isinstance(value, (bool, int, float, str, Decimal))
 
 
@@ -289,11 +315,11 @@ def _refuse_param(value: Any) -> Any:
     The backstop under `_request_json`, which `call`, `call_raw` and
     `call_batch` each write their request with. What keeps it here is that
     `json.dumps` calling this is the alternative to a TypeError from
-    inside the encoder: an object that is a `Sequence` of json values and
-    still has no json -- `range(3)` is one -- passes the walk and arrives
-    here.
+    inside the encoder: an object the walk saw as json and the writer finds
+    is not, the caller having changed it in between, arrives here. It has
+    no path to name.
     """
-    raise BtcRpcTypeError(f"rpc parameter that is not a json value: {value!r}")
+    raise BtcRpcTypeError(_not_json_value(type(value)))
 
 
 def _request_json(value: Any) -> str:
@@ -320,7 +346,8 @@ def _request_json(value: Any) -> str:
         members = []
         for name, item in value.items():
             if not isinstance(name, str):
-                raise BtcRpcTypeError(f"non-string rpc parameter name: {name!r}")
+                err_msg = "non-string rpc parameter name of type"
+                raise BtcRpcTypeError(f"{err_msg} {type(name).__name__}")
             members.append(f"{json.dumps(name)}: {_request_json(item)}")
         return "{" + ", ".join(members) + "}"
     if isinstance(value, (list, tuple)):
@@ -440,22 +467,20 @@ def _rpc_error(where: str, error: Any) -> FetchError:
 def _unreadable(where: str, cause: Exception) -> FetchError:
     """Say what shape a body was, for the 200 where the status says nothing.
 
-    Each shape gets its own sentence, being a different thing to go and
-    look at: not utf-8, nested past the interpreter's stack, not json.
-    Anything else -- a json integer longer than
-    `sys.get_int_max_str_digits` allows, a number whose exponent the
-    decimal module refuses to build, and whatever a later Python adds --
-    is the parser refusing the reply, which is what happened.
+    A reply nested past the interpreter's stack gets its own sentence,
+    being a different thing to go and look at. A reply that is not utf-8
+    or not json never reaches this: `_parsed_json_body` refuses it without
+    chaining the error, which holds the reply. Anything else -- a json
+    integer longer than `sys.get_int_max_str_digits` allows, a number
+    whose exponent the decimal module refuses to build, and whatever a
+    later Python adds -- is the parser refusing the reply, which is what
+    happened.
 
     Only for a 200. Under any other status the shape is not the answer:
     see `_reply_object`, which reaches this only after ruling that out.
     """
-    if isinstance(cause, UnicodeDecodeError):
-        return FetchError(f"{where}: a reply that is not utf-8 ({cause})")
     if isinstance(cause, RecursionError):
         return FetchError(f"{where}: a reply nested too deeply to parse")
-    if isinstance(cause, json.JSONDecodeError):
-        return FetchError(f"{where}: not json ({cause})")
     return FetchError(f"{where}: a reply the json parser refused ({cause})")
 
 
@@ -510,9 +535,21 @@ def _parsed_json_body(where: str, status: int, payload: bytes) -> Any:
         # the decimal module, and an ArithmeticError rather than a
         # ValueError -- so it escaped a promise this module makes about
         # every unreadable reply
-        if status != 200:
-            raise _http_error(where, status) from e
-        raise _unreadable(where, e) from e
+        if isinstance(e, UnicodeDecodeError):
+            shape = "a reply that is not utf-8"
+        elif isinstance(e, json.JSONDecodeError):
+            # its message names a position, never the text
+            shape = f"not json ({e})"
+        else:
+            if status != 200:
+                raise _http_error(where, status) from e
+            raise _unreadable(where, e) from e
+    # raised outside the `except`, so that nothing chains the decode error
+    # or the parse error: each holds the reply, which can be a
+    # `dumpprivkey` answer or an error body echoing the request
+    if status != 200:
+        raise _http_error(where, status)
+    raise FetchError(f"{where}: {shape}")
 
 
 def _reply_object(where: str, status: int, payload: bytes) -> Mapping[str, Any]:
@@ -705,7 +742,8 @@ def _batch_member_request(
     """
     where = f"call_batch member {index}"
     if not isinstance(method, str):
-        raise BtcRpcTypeError(f"{where}: rpc method that is not a string: {method!r}")
+        err_msg = f"{where}: rpc method that is not a string, but a"
+        raise BtcRpcTypeError(f"{err_msg} {type(method).__name__}")
     try:
         params_member = _params_member(params)
         _assert_json_params(params_member)
@@ -1042,7 +1080,8 @@ class BitcoinCoreRpcClient:
             if chain == "signet":
                 expected_magic = magic_from_chain(chain)
         elif chain != "signet":
-            err_msg = f"a signet_challenge for chain {chain!r}, which is no signet"
+            err_msg = f"a signet_challenge for chain {_quoted(chain)},"
+            err_msg += " which is no signet"
             raise BtcRpcValueError(err_msg)
         else:
             expected_magic = magic_from_signet_challenge(signet_challenge)
@@ -1064,7 +1103,7 @@ class BitcoinCoreRpcClient:
             raise FetchError(err_msg)
         if reported != chain:
             err_msg = f"node at {self.url} reports chain {reported!r},"
-            err_msg += f" not the {chain!r} this client was built for"
+            err_msg += f" not the {_quoted(chain)} this client was built for"
             raise BtcRpcValueError(err_msg)
         if expected_magic is None:
             return
@@ -1121,7 +1160,8 @@ class BitcoinCoreRpcClient:
             #
             # Unreachable under `wallet_name: str` above, which is not a
             # promise a caller that skips type checking keeps
-            err_msg = f"rpc wallet name that is not a string: {wallet_name!r}"  # type: ignore[unreachable]
+            err_msg = "rpc wallet name that is not a string, but a"  # type: ignore[unreachable]
+            err_msg += f" {type(wallet_name).__name__}"
             raise BtcRpcTypeError(err_msg)
         # a wallet endpoint takes no second one. `/wallet/hot/wallet/cold`
         # is not a path Core serves, so composing the two fails at the node
@@ -1225,7 +1265,8 @@ class BitcoinCoreRpcClient:
             # walks the caller's params for exactly that reason. An unknown
             # method is a value the node answers for -- that is the point of
             # taking it as an argument -- and a number is not one
-            raise BtcRpcTypeError(f"rpc method that is not a string: {method!r}")
+            err_msg = "rpc method that is not a string, but a"  # type: ignore[unreachable]
+            raise BtcRpcTypeError(f"{err_msg} {type(method).__name__}")
         timeout = self.timeout if request_timeout is None else request_timeout
         _assert_valid_timeout(timeout, "rpc request_timeout")
         params_member = _params_member(params)
@@ -1423,13 +1464,14 @@ class BitcoinCoreRpcClient:
         """
         request_id = _rpc_id()
         if not isinstance(method, str):
-            raise BtcRpcTypeError(f"rpc method that is not a string: {method!r}")
+            err_msg = "rpc method that is not a string, but a"  # type: ignore[unreachable]
+            raise BtcRpcTypeError(f"{err_msg} {type(method).__name__}")
         if jsonrpc is not None and not isinstance(jsonrpc, str):
             # unreachable under `jsonrpc: str | None` above, which is not a
             # promise a caller that skips type checking keeps -- the same
             # shape as the constructor's own `cookie_path` check
             err_msg = "call_raw jsonrpc marker that is neither a string nor None:"  # type: ignore[unreachable]
-            err_msg += f" {jsonrpc!r}"
+            err_msg += f" a {type(jsonrpc).__name__}"
             raise BtcRpcTypeError(err_msg)
         timeout = self.timeout if request_timeout is None else request_timeout
         _assert_valid_timeout(timeout, "rpc request_timeout")
@@ -1473,9 +1515,10 @@ def _rest_url(base_url: str, path: str) -> str:
     construction rather than at the first call.
     """
     if not isinstance(path, str):
-        raise BtcRpcTypeError(f"rest path that is not a string: {path!r}")
+        err_msg = "rest path that is not a string, but a"  # type: ignore[unreachable]
+        raise BtcRpcTypeError(f"{err_msg} {type(path).__name__}")
     if not path.startswith("/"):
-        raise BtcRpcValueError(f"rest path that does not start with '/': {path!r}")
+        raise BtcRpcValueError("rest path that does not start with '/'")
     return f"{base_url.rstrip('/')}/rest{path}"
 
 
