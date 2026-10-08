@@ -75,7 +75,9 @@ _DATADIR_SUBDIR_FROM_CHAIN = {
 }
 
 
-# a chain or network name longer than this is not quoted in a refusal
+# a chain or network name longer than this is not quoted in a refusal: a typo
+# stays visible, but a name of at most this many characters is shown even
+# when it is a misplaced secret
 _MAX_NAME_SHOWN = 16
 
 
