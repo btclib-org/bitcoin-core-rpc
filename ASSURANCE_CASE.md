@@ -208,12 +208,13 @@ exposed to, and what counters each.
   type, and no `__repr__` renders one that was accepted. A refused rpc
   parameter is named by type and position, and an unreadable reply or
   cookie file is refused without chaining the error that holds it.
-  One exposure is kept on purpose, so that a typo stays visible: a chain or
-  network name of at most 16 characters is echoed as passed. A passphrase
-  that short, passed as `chain`, lands in the message
+  A chain or network name of at most `_MAX_NAME_SHOWN` characters
+  (`chains.py`) is echoed as passed, on purpose, so that a typo stays
+  visible: a passphrase that short, passed as `chain`, lands in the message
   ([GHSA-cg87-q4qx-qw8p](https://github.com/btclib-org/bitcoin-core-rpc/security/advisories/GHSA-cg87-q4qx-qw8p)).
-  A refusal's path, which locates the refused value, shows up to 16
-  characters of each parameter name it goes through.
+  A refusal's path, which locates the refused value, shows up to
+  `_MAX_KEY_SHOWN` characters (`client.py`) of each parameter name it goes
+  through.
 - **URL redirection to an untrusted site (CWE-601) and exposure of a
   resource to the wrong sphere (CWE-668).** A credential built for one
   host reaching a different one through a followed redirect or an
