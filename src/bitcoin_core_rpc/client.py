@@ -95,7 +95,9 @@ _RPC_ID_BYTES = 8
 # descriptor -- so this is not a limit a call arrives at
 _MAX_PARAMS_DEPTH = 100
 
-# a parameter name longer than this is cut where a refusal shows its path
+# a parameter name longer than this is cut where a refusal shows its path,
+# which locates the refused value: up to this many characters of each name
+# are shown, even when the name is a misplaced secret
 _MAX_KEY_SHOWN = 16
 
 
