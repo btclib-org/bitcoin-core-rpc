@@ -94,10 +94,8 @@ jobs:
         stated elsewhere, and a rule whose own repository does not keep it
         are the defects the organization's standard names, and they are
         what to look for beside anything specific to this client.
-      # no extra-allowed-tools: the callee's own base set
-      # (mcp__github_inline_comment__create_inline_comment, Bash(gh
-      # pr:*), Read, Grep, Glob) is what a review of this client reaches
-      # for, and nothing beyond it
+      # no extra-allowed-tools: the callee's own allow list is what a
+      # review of this client reaches for, and nothing beyond it
     # named rather than `inherit`: the callee declares one secret, and
     # zizmor's secrets-inherit audit is right that handing it every
     # secret this repository has is more than that one takes
