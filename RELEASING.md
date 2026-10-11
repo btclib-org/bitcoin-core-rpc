@@ -398,41 +398,35 @@ result.
    lands.
 
    "Squash and merge" is the only method either the repository setting
-   or the ruleset accepts, and auto-merge presses it once the approval
-   and the checks are in. Branch protection requires an approving review
-   and GitHub does not let an author approve their own, so somebody other
-   than the author approves the release pull request like any other.
-   There is no second landing to choose between: a direct push to `main`
-   is refused for everyone.
+   or the ruleset accepts. The commands that press it are
+   `CONTRIBUTING.md`'s *Landing it*. A direct push to `main` is refused
+   for everyone.
 
-   Once it is approved, name the release commit's title and body
-   explicitly — `gh pr merge <n> --squash --match-head-commit <head>
-   --body-file <path> --subject <title>` — rather
-   than leave them to `squash_merge_commit_message`'s repository
-   default, `COMMIT_MESSAGES` here: this repository's own release pull
-   requests have so far landed as a single commit each (#143, #108), so
-   that default and the commit's own message have been the same string,
-   but naming them explicitly costs nothing and stops depending on that
-   staying true.
+   Whichever way it lands, name the release commit's title and body explicitly —
+   `gh pr merge <n> --squash --match-head-commit <head> --body-file <path>
+   --subject <title>`, with `--admin` added where it lands through the bypass —
+   rather than leave them to `squash_merge_commit_message`'s repository default,
+   `COMMIT_MESSAGES` here: this repository's own release pull requests have so
+   far landed as a single commit each (#143, #108), so that default and the
+   commit's own message have been the same string, but naming them explicitly
+   costs nothing and stops depending on that staying true.
 
-   The `main-self-merge` bypass in `pull_request` mode is used only in
-   an emergency. Without an approval `gh pr merge <n> --squash` refuses —
-   `the base branch policy prohibits the merge` — the way it did on
-   btclib-secp256k1's own v0.8.0.4 (btclib-org/btclib-secp256k1#288):
-   gh's client-side mergeable check declines on `REVIEW_REQUIRED` before
-   it asks the server at all, and `--auto` only waits longer for the
-   review. `--admin` added to the command above is the flag that clears
-   it, and waits for no check either — the pair REPOSITORY.md's "Branch
-   protection" describes, `enforce_admins` `false` together with holding
-   `admin` — measured
-   directly on a sibling organization repository across four pull
-   requests, each landing from `BLOCKED` and `REVIEW_REQUIRED` with a
-   verified signature.
+   The `main-self-merge` bypass is in `pull_request` mode.
+   btclib-org/.github's `GOVERNANCE.md`, *[How a decision is
+   made](https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md#how-a-decision-is-made)*,
+   says when the maintainer lands through the bypass without an
+   approval. What `gh pr merge` does without an approval, and what
+   `--admin` changes, is `CONTRIBUTING.md`'s *Landing it*. gh refuses on
+   its own side, as on btclib-secp256k1's v0.8.0.4
+   (btclib-org/btclib-secp256k1#288): its client-side mergeable check
+   declines on `REVIEW_REQUIRED` before it asks the server at all, and
+   `--auto` only waits longer for the review.
 
    `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
-   merge_method=squash` is the emergency fallback for when `--admin` is
-   unavailable, and needs `commit_title` and `commit_message` passed the
-   same way for the same reason. It is what landed btclib-secp256k1's
+   merge_method=squash -f sha=<head>` is the fallback for when `--admin`
+   is unavailable. `sha` pins the head as `--match-head-commit` does. It
+   needs `commit_title` and `commit_message` too, for the same reason as
+   `--subject` and `--body-file` above. It is what landed btclib-secp256k1's
    0.8.0.4 clean — but only because that branch carried a single commit,
    so `COMMIT_MESSAGES`'s concatenation and that commit's own message
    were the same string there too; a multi-commit release branch without
