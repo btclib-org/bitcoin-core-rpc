@@ -81,6 +81,9 @@ The last row is whichever context was added most recently, that endpoint
 appending rather than sorting — so the tail of this table moves whenever a
 check is renamed, a rename being a drop and an add.
 
+A merge through the maintainer's bypass waits for none of these checks,
+as `CONTRIBUTING.md`'s *Landing it* says.
+
 **Each row above is a job name, an aggregate, or a called job's name
 joined to its caller's**, and that is a rule rather than an
 inconsistency: a workflow with one job needs no aggregate, the job
@@ -240,9 +243,9 @@ the body, which replaces the object rather than merging into it.
 Renaming a required check is the one change that cannot be made in a pull
 request. The rule names a context by the job's display name, so the pull
 request that renames the job stops producing the old name and never
-produces a check the rule is still waiting for -- and the administrator
-bypass that could merge it anyway is the same bypass this file argues
-against relying on. The rule moves first, against the branch, and then the
+produces a check the rule is still waiting for -- and a merge through the
+maintainer's bypass leaves the rule waiting for a name no job on `main`
+produces any more. The rule moves first, against the branch, and then the
 pull request that renames the job reports the name the rule now wants:
 
 ```shell
@@ -353,16 +356,16 @@ pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
 
 A review cannot be satisfied by its author, GitHub not allowing
-self-approval, so somebody other than the author approves every pull
-request, the maintainer's included. The maintainer's bypass is used only
-in an emergency ([ISS 1362][i1362]).
+self-approval. btclib-org/.github's `GOVERNANCE.md`, [*How a decision is
+made*][governance], says when the maintainer lands through the bypass
+without an approval. The landing commands are `CONTRIBUTING.md`'s
+*Landing it*.
 
-The required checks gate a merge only when the landing waits for them.
-Auto-merge (`gh pr merge --auto`) waits for them. A merge with `--admin`
-waits for nothing, the approval, the checks and `strict` alike, because
-`enforce_admins` is off. It also cancels the pull request's runs still in
-progress. The push to `main` runs some of them again, never `lint / Sign-off`
-or `lint / Dependency review`.
+*Required checks on main* says which checks a merge through the bypass
+does not wait for. A merge with `--admin` skips the approval and `strict`
+too, because `enforce_admins` is off. It also cancels the pull request's
+runs still in progress. The push to `main` runs some of the checks again,
+never `lint / Sign-off` or `lint / Dependency review`.
 
 Required signatures cost the maintainer nothing for the same reason
 nothing here pushes to `main` directly: the only thing writing to it is a
@@ -479,17 +482,16 @@ a `Co-Authored-By` trailer is written in the commits of the branch, and
 the squash body is the only place it survives one commit standing for all
 of them.
 
-That setting is what the button writes, and the button is what lands
-every pull request here: auto-merge presses it once the approval and the
-checks are in, and `--admin` presses it at once. There is no second
-landing. The `main-self-merge` bypass is in `pull_request` mode: it excuses
-that ruleset on a pull request's merge and nowhere else, so a direct push to
-`main` is refused for everyone, the holder included. What lets
-`--admin` skip the checks and `strict` too is `enforce_admins` off in the
-classic protection above. The ruleset names `squash` as the only merge
-method it will accept, stating the constraint where the rule is rather
-than only in the setting above. *Tag protection* above already gives the
-reason the id has to be read off the list rather than named directly:
+That setting is what the button writes, and the button is what lands every pull
+request here: auto-merge presses it once the approval and the checks are in, and
+`--admin` presses it at once. There is no second landing. The `main-self-merge`
+bypass is in `pull_request` mode: it excuses that ruleset on a pull request's
+merge and nowhere else, so a direct push to `main` is refused for everyone, the
+holder included. What `--admin` skips beyond this ruleset is *Branch protection*
+above. The ruleset names `squash` as the only merge method it will accept,
+stating the constraint where the rule is rather than only in the setting above.
+*Tag protection* above already gives the reason the id has to be read off the
+list rather than named directly:
 
 ```shell
 id=$(gh api repos/btclib-org/bitcoin-core-rpc/rulesets \
@@ -946,4 +948,4 @@ what that particular zero means.
 [s11-branch]: https://github.com/btclib-org/.github#branch-protection-and-rulesets
 [s11-sigs]: https://github.com/btclib-org/.github#signatures
 [s11-tokens]: https://github.com/btclib-org/.github#tokens-publishing-scanning
-[i1362]: https://github.com/btclib-org/.github/issues/1362#issuecomment-5969383609
+[governance]: https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md#how-a-decision-is-made
