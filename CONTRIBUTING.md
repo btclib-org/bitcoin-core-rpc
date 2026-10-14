@@ -558,6 +558,7 @@ What a merge through the bypass skips, and what it does to the runs, is
 | `test` | pull request, push | — |
 | `lint`, `docs` | pull request, push | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
+| `api-break` | pull request | — |
 | `bitcoind` | pull request, push | Core's two ends, then 5 chains |
 | `codeql` | pull request, push to main, and weekly | 2 languages |
 | `os-ubuntu` | weekly, a release | 2 ubuntu images × 8 interpreters |
@@ -581,6 +582,9 @@ Those gates run one image on one interpreter: `ubuntu-latest`, and the
 version `.python-version` names. `claude-review` gates nothing: its own
 header says it must not become a required check, a review that gates a
 merge making a model's judgement a branch rule.
+`api-break` gates nothing either: it sets the `api-break` label on a pull
+request that breaks the public API, and its own header says the label is
+advice for a reviewer.
 
 Which day each of the rest runs is section 10 of the organization
 standard, in `btclib-org/.github`, and not this file's to restate — one
