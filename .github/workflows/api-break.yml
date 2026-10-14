@@ -10,14 +10,14 @@ name: api-break
 #
 # Advisory, and it must not become a required check: the label tells a
 # reviewer to look, and the maintainer decides. What stays here is the
-# trigger, the concurrency group, the workflow-level permissions and this
+# trigger, the concurrency group, the permissions, the package and this
 # header. The callee declines a draft, a closed pull request and every
 # event that is not a pull request, which is why `workflow_dispatch` runs
 # it to a skipped job and nothing more.
 #
 # A fork's pull request gets a token that cannot write, so the label is
-# not set there. There is deliberately no `pull_request_target`, which
-# would run a fork's code with write access.
+# not set there. There is no `pull_request_target`: the organization
+# declines it (btclib-org/.github README section 12, `OSPS-BR-01.01`).
 
 on:
   pull_request:
