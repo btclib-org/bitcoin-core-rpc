@@ -237,7 +237,7 @@ that has not been tested, and testing it means deadlocking `main` to find
 out — which is the argument for the order above, not against it.
 
 **PATCH that sub-endpoint, never PUT the whole protection object**: a
-partial PUT drops the reviews and the rest. Repeat `strict: true` in
+partial PUT drops the reviews and the rest. Repeat `strict: false` in
 the body, which replaces the object rather than merging into it.
 
 Renaming a required check is the one change that cannot be made in a pull
@@ -251,7 +251,7 @@ pull request that renames the job reports the name the rule now wants:
 ```shell
 branch=repos/btclib-org/bitcoin-core-rpc/branches/main
 gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
-{"strict": true,
+{"strict": false,
  "checks": [{"context": "test: every job passed", "app_id": 15368},
             {"context": "integration: every job passed", "app_id": 15368},
             {"context": "docs / Build the documentation", "app_id": 15368},
@@ -349,9 +349,8 @@ gh api repos/btclib-org/bitcoin-core-rpc --jq '.default_branch'
 # main
 ```
 
-Everything reaches it through a pull request: the checks above with
-`strict`, an approving review,
-`dismiss_stale_reviews`, linear history, no force
+Everything reaches it through a pull request: the checks above, an
+approving review, `dismiss_stale_reviews`, linear history, no force
 pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
 
@@ -362,8 +361,8 @@ without an approval. The landing commands are `CONTRIBUTING.md`'s
 *Landing it*.
 
 *Required checks on main* says which checks a merge through the bypass
-does not wait for. A merge with `--admin` skips the approval and `strict`
-too, because `enforce_admins` is off. It also cancels the pull request's
+does not wait for. A merge with `--admin` skips the approval too,
+because `enforce_admins` is off. It also cancels the pull request's
 runs still in progress. The push to `main` runs some of the checks again,
 never `lint / Sign-off` or `lint / Dependency review`.
 
@@ -382,10 +381,15 @@ Classic protection's own copy of the signature rule is off, the
 `main-integrity` ruleset being what requires signatures on `main`: [the
 standard states that value for every repository][s11-branch].
 
-`strict` means a pull request that waits for the checks merges only from a
-head up to date with `main`, so landing one asks the next to update and
-re-run. That is a queue rather than a cost at this traffic, and it is one
-`PATCH` away if it stops being.
+`strict` is off: a pull request can merge from a head behind `main`, so a
+landing does not ask the next to update and re-run. [The standard has the
+ground][s11-branch]. Read back:
+
+```shell
+gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
+  --jq '.required_status_checks.strict'
+# false
+```
 
 Dependabot, its security updates and pre-commit.ci all open pull requests
 here, none of them naming a target branch: what they get is the default
