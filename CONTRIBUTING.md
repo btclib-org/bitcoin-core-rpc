@@ -702,4 +702,6 @@ uvx detect-secrets scan --baseline .secrets.baseline
 
 Read the diff before committing it: a new entry is a finding somebody has
 to have looked at, which is the whole point of a baseline over an
-exclusion.
+exclusion. The one exclusion is a filter on a `rev:` line frozen to a sha:
+on a line frozen to a tag, autoupdate rewrites the comment and drops a
+pragma.

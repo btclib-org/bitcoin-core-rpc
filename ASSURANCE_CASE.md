@@ -217,10 +217,9 @@ exposed to, and what counters each.
   through.
   The rule is README section 7's *A refusal carries no secret* in
   [btclib-org/.github](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret).
-  No test here calls `assert_secret_free` yet:
-  [issue 644](https://github.com/btclib-org/bitcoin-core-rpc/issues/644)
-  owes them, and decides whether `RpcError` relays Core's error text, which
-  can quote a key.
+  No test of this client's refusals calls `assert_secret_free` yet:
+  [issue 648](https://github.com/btclib-org/bitcoin-core-rpc/issues/648)
+  owes them.
 - **URL redirection to an untrusted site (CWE-601) and exposure of a
   resource to the wrong sphere (CWE-668).** A credential built for one
   host reaching a different one through a followed redirect or an

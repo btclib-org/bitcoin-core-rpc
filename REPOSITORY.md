@@ -562,7 +562,8 @@ that calls `reusable-build.yml`, takes `id-token: write` and
 `attestations: write` for the callee's `attest` job.
 `claude-review.yml` takes `pull-requests: write` to post a review or a
 reply and `id-token: write` for the token its action mints at startup, on
-its one `claude-review` job. `codeql.yml`'s `analyze` and
+its one `claude-review` job. `api-break.yml` takes `pull-requests: write`
+on its one `api-break` job, to write the `api-break` label. `codeql.yml`'s `analyze` and
 `scorecard.yml`'s `analysis` take
 `security-events: write` to file a SARIF as code-scanning alerts, and
 `analysis` takes `id-token: write` besides, for the transparency-log

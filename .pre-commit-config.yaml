@@ -26,8 +26,7 @@ ci:
   # workflow installs that interpreter and runs the hook
   # (btclib-org/.github#1348).
   #
-  # actionlint-shellcheck runs past pre-commit.ci's time limit, and the
-  # lint workflow runs it
+  # actionlint-shellcheck runs past pre-commit.ci's time limit.
   skip: [mypy, pyroma, uv-lock, actionlint-shellcheck]
 
 repos:
@@ -218,7 +217,10 @@ repos:
         # reviewed rather than excluded from the scan: an exclusion makes a
         # file blind for good, and the difference is not theoretical -- a
         # real credential added to a file that is excluded is not seen
-        # while it is excluded, and is seen now.
+        # while it is excluded, and is seen now. The one exclusion is a
+        # filter in the baseline on a `rev:` line frozen to a sha
+        # (btclib-org/.github#1723): on a line frozen to a tag,
+        # autoupdate rewrites the comment and drops a pragma.
         # CONTRIBUTING.md has the command that regenerates the baseline
         args: [--baseline, .secrets.baseline]
   # a typo in a comment is cosmetic; the same typo in the README is the
