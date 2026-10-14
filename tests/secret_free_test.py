@@ -12,9 +12,10 @@ every planted case has to fail.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
 
 import pytest
+from typing_extensions import override
 
 from .secret_free import assert_secret_free, chained
 
