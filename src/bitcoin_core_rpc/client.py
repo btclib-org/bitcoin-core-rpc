@@ -95,9 +95,9 @@ _RPC_ID_BYTES = 8
 # descriptor -- so this is not a limit a call arrives at
 _MAX_PARAMS_DEPTH = 100
 
-# a parameter name longer than this is cut where a refusal shows its path,
-# which locates the refused value: up to this many characters of each name
-# are shown, even when the name is a misplaced secret
+# a parameter name longer than this is not quoted where a refusal shows its
+# path, which locates the refused value: a name of at most this many
+# characters is shown, even when it is a misplaced secret
 _MAX_KEY_SHOWN = 16
 
 
@@ -249,7 +249,8 @@ def _assert_json_params(
 
     A refusal names the type of the value and its `path`, never the value:
     it may be a passphrase or a key. The path shows the names of the
-    mappings it goes through, which go to the node anyway.
+    mappings it goes through, which go to the node anyway, except a name
+    longer than `_MAX_KEY_SHOWN`, which it replaces with `...`.
     """
     if depth > _MAX_PARAMS_DEPTH:
         err_msg = f"rpc params nested deeper than the {_MAX_PARAMS_DEPTH} allowed"
@@ -264,8 +265,7 @@ def _assert_json_params(
             if not isinstance(name, str):
                 err_msg = "non-string rpc parameter name of type"
                 raise BtcRpcTypeError(f"{err_msg} {type(name).__name__} in {path}")
-            shown = name[:_MAX_KEY_SHOWN] + "..." * (len(name) > _MAX_KEY_SHOWN)
-            shown = json.dumps(shown)
+            shown = json.dumps(name) if len(name) <= _MAX_KEY_SHOWN else "..."
             _assert_json_params(
                 item, depth + 1, (*enclosing, id(value)), f"{path}[{shown}]"
             )
@@ -380,8 +380,8 @@ def _decimal_json(number: Decimal) -> str:
         raise ValueError(f"not a json number: {number}")
     limit = get_int_max_str_digits()
     if limit and abs(number.adjusted()) > limit:
-        err_msg = f"a Decimal whose exponent {number.adjusted()} writes more"
-        err_msg += f" digits than sys.get_int_max_str_digits allows ({limit})"
+        err_msg = "a Decimal whose exponent writes more digits than"
+        err_msg += f" sys.get_int_max_str_digits allows ({limit})"
         raise ValueError(err_msg)
     return format(number, "f")
 
@@ -411,11 +411,11 @@ def _json_number(token: str) -> Decimal:
     """
     number = Decimal(token)
     if not number.is_finite():
-        raise FetchError(f"not a json number in the reply: {token}")
+        raise FetchError("not a json number in the reply")
     limit = get_int_max_str_digits()
     if limit and abs(number.adjusted()) > limit:
-        err_msg = f"a json number in the reply whose exponent {number.adjusted()}"
-        err_msg += f" is beyond sys.get_int_max_str_digits ({limit})"
+        err_msg = "a json number in the reply whose exponent is beyond"
+        err_msg += f" sys.get_int_max_str_digits ({limit})"
         raise FetchError(err_msg)
     return number
 
@@ -519,11 +519,11 @@ def _parsed_json_body(where: str, status: int, payload: bytes) -> Any:
         # one of this module's own refusals of a number: a non-number
         # through `_refuse_constant`, or through `_json_number` a `Decimal`
         # that is non-finite, because the caller's context does not trap
-        # that, or whose exponent is past the digit limit. Each names
-        # what it saw, so under a 200 it is re-raised as it stands -- `raise
-        # _unreadable(...) from e` would hand back this very object and make
-        # the exception its own `__cause__`, which anything walking that
-        # chain follows in a loop
+        # that, or whose exponent is past the digit limit. Each says
+        # what it refused and quotes none of the number, so under a 200 it
+        # is re-raised as it stands -- `raise _unreadable(...) from e` would
+        # hand back this very object and make the exception its own
+        # `__cause__`, which anything walking that chain follows in a loop
         if status == 200:
             raise
         raise _http_error(where, status) from e
@@ -1193,7 +1193,15 @@ class BitcoinCoreRpcClient:
             err_msg += " a node: call for_wallet on the client it was derived"
             err_msg += " from"
             raise BtcRpcValueError(err_msg)
-        url = f"{self.url.rstrip('/')}/wallet/{quote(wallet_name, safe='')}"
+        try:
+            quoted = quote(wallet_name, safe="")
+        except UnicodeEncodeError:
+            quoted = None
+        # raised outside the `except`, so that nothing chains the encode
+        # error, which holds the name
+        if quoted is None:
+            raise BtcRpcValueError("rpc wallet name that utf-8 cannot encode")
+        url = f"{self.url.rstrip('/')}/wallet/{quoted}"
         return type(self)(
             url,
             user=self.user,
@@ -1216,7 +1224,15 @@ class BitcoinCoreRpcClient:
             credential = cookie_auth(self.cookie_path)
         else:
             credential = f"{self.user}:{self._password}"
-        return "Basic " + b64encode(credential.encode()).decode("ascii")
+        try:
+            encoded = credential.encode()
+        except UnicodeEncodeError:
+            encoded = None
+        # raised outside the `except`, so that nothing chains the encode
+        # error, which holds the whole credential
+        if encoded is None:
+            raise BtcRpcValueError("rpc user or password that utf-8 cannot encode")
+        return "Basic " + b64encode(encoded).decode("ascii")
 
     def call(
         self,

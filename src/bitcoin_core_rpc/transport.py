@@ -662,7 +662,7 @@ def _assert_valid_max_body_size(max_body_size: int) -> None:
     intention.
     """
     if not _is_integer(max_body_size):
-        err_msg = f"non-integer max_body_size: {max_body_size}"
+        err_msg = f"non-integer max_body_size, but a {type(max_body_size).__name__}"
         raise BtcRpcTypeError(err_msg)
     if max_body_size < 0:
         raise BtcRpcValueError(f"negative max_body_size: {max_body_size}")

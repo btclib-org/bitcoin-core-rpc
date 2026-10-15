@@ -212,14 +212,27 @@ exposed to, and what counters each.
   (`chains.py`) is echoed as passed, on purpose, so that a typo stays
   visible: a passphrase that short, passed as `chain`, lands in the message
   ([GHSA-cg87-q4qx-qw8p](https://github.com/btclib-org/bitcoin-core-rpc/security/advisories/GHSA-cg87-q4qx-qw8p)).
-  A refusal's path, which locates the refused value, shows up to
-  `_MAX_KEY_SHOWN` characters (`client.py`) of each parameter name it goes
-  through.
+  A refusal's path, which locates the refused value, shows the name of each
+  mapping it goes through only where the name has at most `_MAX_KEY_SHOWN`
+  characters (`client.py`), and `...` for a longer one.
+  An encode error holds the text it failed on, so one that a credential, a
+  wallet name or a cookie path can raise is refused without being chained.
   The rule is README section 7's *A refusal carries no secret* in
   [btclib-org/.github](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret).
-  No test of this client's refusals calls `assert_secret_free` yet:
-  [issue 648](https://github.com/btclib-org/bitcoin-core-rpc/issues/648)
-  owes them.
+  `tests/secret_free_refusals_test.py` feeds a secret to each of these
+  refusals and passes the exception to `assert_secret_free`. It covers a
+  rejected credential, a refused url, rpc parameter, header, timeout or
+  limit, rest path, wallet name, chain or network name and signet
+  challenge, an unreadable reply, an unreadable cookie file and a
+  refusal's path.
+  It does not cover the node's own text: `RpcError`'s message, which
+  [issue 644](https://github.com/btclib-org/bitcoin-core-rpc/issues/644)
+  keeps as Core wrote it, and the `id`, the `jsonrpc` marker and the `error`
+  object that a refusal repeats from a reply.
+  A refusal also shows the rpc method as passed, which the request sends to
+  the node anyway, the path of a cookie file, which an operator has to find,
+  the chain a node reports when it is not the one the client was built for,
+  and a refused number the caller passed.
 - **URL redirection to an untrusted site (CWE-601) and exposure of a
   resource to the wrong sphere (CWE-668).** A credential built for one
   host reaching a different one through a followed redirect or an
