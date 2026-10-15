@@ -1,0 +1,57 @@
+---
+name: api-break
+
+# The `api-break` label on a pull request that breaks the public API:
+# btclib-org/.github's `reusable-api-break.yml`, called at `@main` so a
+# fix there reaches this tree in one landing, and its answer is the label
+# alone (btclib-org/.github#1674). It is the pull-request counterpart of
+# the `public-api` job in release.yml, walking the same package against
+# the pull request's base commit.
+#
+# Advisory, and it must not become a required check: the label tells a
+# reviewer to look, and the maintainer decides. What stays here is the
+# trigger, the concurrency group, the permissions, the package and this
+# header. The callee declines a draft, a closed pull request and every
+# event that is not a pull request, which is why `workflow_dispatch` runs
+# it to a skipped job and nothing more.
+#
+# A fork's pull request gets a token that cannot write, so the label is
+# not set there. There is no `pull_request_target`: the organization
+# declines it (btclib-org/.github README section 12, `OSPS-BR-01.01`).
+
+on:
+  pull_request:
+    # ready_for_review so a pull request marked ready gets the check the
+    # draft condition (the callee's) withheld while it was a draft.
+    # closed too: the group below is at the workflow level, so a closed
+    # run enters it when the run is created and cancels a run still
+    # holding it -- what declines the work on a closed pull request is
+    # the callee's own job-level `if:`
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+  workflow_dispatch:
+
+# least privilege for the GITHUB_TOKEN at the workflow level, elevated on
+# the calling job below
+permissions:
+  contents: read
+
+# named literally rather than through github.workflow, as everywhere
+# else here: in a called workflow that expression is the caller's name.
+# A pull_request run groups by the pull request's number, so a push
+# supersedes the run it overtakes; a dispatch falls back to github.ref
+concurrency:
+  group: api-break-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-break:
+    # a called workflow's own permissions: block can only downgrade,
+    # never restore, what this calling job grants, so the scope the
+    # callee's job asks for is named here too (btclib-org/.github#912)
+    permissions:
+      contents: read
+      pull-requests: write # the label; read-only on a fork
+    uses: btclib-org/.github/.github/workflows/reusable-api-break.yml@main
+    with:
+      # the same package release.yml's public-api job passes
+      package: bitcoin_core_rpc

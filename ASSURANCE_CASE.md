@@ -215,6 +215,11 @@ exposed to, and what counters each.
   A refusal's path, which locates the refused value, shows up to
   `_MAX_KEY_SHOWN` characters (`client.py`) of each parameter name it goes
   through.
+  The rule is README section 7's *A refusal carries no secret* in
+  [btclib-org/.github](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret).
+  No test of this client's refusals calls `assert_secret_free` yet:
+  [issue 648](https://github.com/btclib-org/bitcoin-core-rpc/issues/648)
+  owes them.
 - **URL redirection to an untrusted site (CWE-601) and exposure of a
   resource to the wrong sphere (CWE-668).** A credential built for one
   host reaching a different one through a followed redirect or an
