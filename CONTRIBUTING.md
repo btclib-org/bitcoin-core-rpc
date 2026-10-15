@@ -559,6 +559,7 @@ What a merge through the bypass skips, and what it does to the runs, is
 | `lint`, `docs` | pull request, push | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `api-break` | pull request | — |
+| `verified-signatures` | push to main | — |
 | `bitcoind` | pull request, push | Core's two ends, then 5 chains |
 | `codeql` | pull request, push to main, and weekly | 2 languages |
 | `os-ubuntu` | weekly, a release | 2 ubuntu images × 8 interpreters |
@@ -585,6 +586,9 @@ merge making a model's judgement a branch rule.
 `api-break` gates nothing either: it sets the `api-break` label on a pull
 request that breaks the public API, and its own header says the label is
 advice for a reviewer.
+`verified-signatures.yml` reports after each push to `main` whether every
+commit pushed is `verified`; [the standard's *Signatures*][s-sigs] has the
+rule.
 
 Which day each of the rest runs is section 10 of the organization
 standard, in `btclib-org/.github`, and not this file's to restate — one

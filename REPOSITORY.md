@@ -366,10 +366,11 @@ because `enforce_admins` is off. It also cancels the pull request's
 runs still in progress. The push to `main` runs some of the checks again,
 never `lint / Sign-off` or `lint / Dependency review`.
 
-Required signatures cost the maintainer nothing for the same reason
-nothing here pushes to `main` directly: the only thing writing to it is a
-merge GitHub performs itself, and GitHub signs those with its web-flow
-key.
+No ruleset over `main` requires signatures. Nothing here pushes to `main`
+directly: the only thing writing to it is a merge GitHub performs itself,
+and GitHub signs those with its web-flow key. `verified-signatures.yml`
+checks after each push that every commit pushed is `verified`, and a red
+run is read in the Actions tab; the check is not a required one.
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
@@ -377,9 +378,9 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 # false
 ```
 
-Classic protection's own copy of the signature rule is off, the
-`main-integrity` ruleset being what requires signatures on `main`: [the
-standard states that value for every repository][s11-branch].
+Classic protection's own copy of the signature rule is off. No ruleset over
+`main` carries `required_signatures` either: [the standard states that value
+for every repository][s11-branch].
 
 `strict` is off: a pull request can merge from a head behind `main`, so a
 landing does not ask the next to update and re-run. [The standard has the
@@ -412,9 +413,10 @@ gh api repos/btclib-org/bitcoin-core-rpc/rulesets/"$id" \
 
 `release.yml` triggers on `push: tags: ["v*"]`, and the `pypi` environment
 is restricted to that pattern, so a tag push is what
-releases. The commit it points at is signed, `main-integrity` requiring
-that with no bypass actor, the workflow is pinned, and the upload is
-Trusted Publishing with no long-lived token (issue #139).
+releases. The commit it points at landed as GitHub's signed squash, which
+`verified-signatures.yml` reported on after the push, the workflow is
+pinned, and the upload is Trusted Publishing with no long-lived token
+(issue #139).
 
 A `v*` tag push that brings an unsigned commit is refused. A tag on a
 commit already on `main` is accepted whether it is signed, unsigned or
@@ -509,13 +511,14 @@ gh api repos/btclib-org/bitcoin-core-rpc/rulesets/"$id" \
 The other mode, `always`, permits a direct push as well, and it is not
 used here. What it would buy is a landing that keeps the maintainer's
 own signature on the commit; what it costs is a `main` any local mistake
-can reach. The first half is worth nothing once the branch rule is read
+can reach. The first half is worth nothing once the signature check is read
 as asking for a valid signature rather than for a particular signer,
 which makes GitHub's web-flow key as good as the maintainer's.
 
 `main-integrity` is what the commit answers to either way, and the
-squash GitHub composes answers all four of its rules: it is signed, the
-history stays linear, nothing is rewritten and nothing is deleted.
+squash GitHub composes answers its rules: the history stays linear,
+nothing is rewritten and nothing is deleted. That it is signed is the
+check of `verified-signatures.yml`, not a rule.
 
 Because every landing is one GitHub performs, it reconciles every one of
 them: the pull request reads `MERGED`, its `Closes #N` closes the issue,
