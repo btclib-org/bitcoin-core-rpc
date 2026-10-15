@@ -830,12 +830,9 @@ class BitcoinCoreRpcClient:
     flight, or a caller's transport that is not itself thread-safe --
     that one is the transport's own contract.
 
-    **Basic authentication is cleartext over plain HTTP**, that being
-    what Core's rpc speaks. On loopback, which is what `from_chain`
-    builds, the cleartext is between one process and the node beside it.
-    For a node anywhere else it is on the wire, and rpc credentials
-    authorise every wallet command that node has: an `https` url, or a
-    tunnel, is what keeps them off it.
+    **Basic authentication is cleartext over plain HTTP**, as SECURITY.md
+    says under *Limitations, not vulnerabilities*, which also says what
+    keeps a credential off the wire.
 
     **One connection per call by default**, urllib holding none open:
     every `call` sends `Connection: close` and opens a socket of its own.

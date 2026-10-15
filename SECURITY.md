@@ -114,10 +114,19 @@ has to go and establish it somewhere else.
 These are known and inherent.
 
 - **Basic authentication is cleartext over plain HTTP**, that being what
-    Core's rpc speaks. On loopback the cleartext is between one process
-    and the node beside it. For a node anywhere else it is on the wire,
-    and rpc credentials authorise every wallet command that node has: an
-    `https` url, or a tunnel, is what keeps them off it.
+    Core's rpc speaks. Core
+    [dropped `-rpcssl`](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.12.0.md#rpc-ssl-support-dropped)
+    to remove OpenSSL from the daemon. Its rpc
+    [does not use encryption and has not been hardened to withstand
+    arbitrary Internet traffic](https://github.com/bitcoin/bitcoin/blob/master/doc/JSON-RPC-interface.md#security),
+    so it is not to be exposed to the Internet. This client adds no TLS
+    of its own: the url's scheme decides. On loopback, which is what
+    `from_chain` builds, the cleartext stays between one process and the
+    node beside it. An `https` url gets the certificate and the host name
+    verified. For a node anywhere else over `http`, the cleartext is on
+    the wire, and rpc credentials authorise every wallet command that
+    node has; an `https` url or a tunnel (SSH, stunnel or a VPN) keeps
+    them off it.
 - **A credential handed to this client lives in Python objects**, which
     are immutable and not zeroized: it stays in process memory until
     garbage collection, and may have been copied by the interpreter
