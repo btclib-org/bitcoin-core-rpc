@@ -74,6 +74,10 @@ concurrency:
 
 jobs:
   claude-review:
+    # the callee has no cache step, and `none` keeps it so: a run started
+    # by a comment gets no cache access, which is what actionlint's
+    # cache-call-unrestricted asks for
+    cache-mode: none
     # a called workflow's own permissions: block can only downgrade,
     # never restore, what this calling job grants, so every scope either
     # of the callee's two jobs asks for is named here too, or the run
