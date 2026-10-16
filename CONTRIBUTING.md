@@ -549,8 +549,8 @@ alike, exit 1 either way — not a fix.
 required checks, and `REPOSITORY.md` reads the rule back from the
 endpoint rather than restating it.
 
-What a merge through the bypass skips, and what it does to the runs, is
-`REPOSITORY.md`'s *Required checks on main* and *Branch protection*.
+What a merge through the emergency bypass skips, and what it does to the
+runs, is `REPOSITORY.md`'s *Required checks on main* and *Branch protection*.
 
 | workflow | when | what it varies |
 | --- | --- | --- |
