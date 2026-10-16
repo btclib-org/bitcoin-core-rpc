@@ -24,9 +24,9 @@ on:
     # ready_for_review so a pull request marked ready gets the check the
     # draft condition (the callee's) withheld while it was a draft.
     # closed too: the group below is at the workflow level, so a closed
-    # run enters it when the run is created and cancels a run still
-    # holding it -- what declines the work on a closed pull request is
-    # the callee's own job-level `if:`
+    # run enters it when the run is created: a close cancels a run still
+    # holding it, a merge queues behind it. What declines the work on a
+    # closed pull request is the callee's own job-level `if:`
     types: [opened, reopened, synchronize, ready_for_review, closed]
   workflow_dispatch:
 
@@ -38,10 +38,12 @@ permissions:
 # named literally rather than through github.workflow, as everywhere
 # else here: in a called workflow that expression is the caller's name.
 # A pull_request run groups by the pull request's number, so a push
-# supersedes the run it overtakes; a dispatch falls back to github.ref
+# supersedes the run it overtakes; a dispatch falls back to github.ref.
+# There is no push trigger, so the walk in flight is the only reading a
+# merged pull request gets
 concurrency:
   group: api-break-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ !(github.event.action == 'closed' && github.event.pull_request.merged) }}
 
 jobs:
   api-break:
