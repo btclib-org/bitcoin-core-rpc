@@ -388,10 +388,8 @@ argument that this design meets it.
 ## Security
 
 Basic authentication is cleartext over plain HTTP, that being what Core's
-rpc speaks. On loopback that cleartext is between one process and the node
-beside it; for a node anywhere else it is on the wire, and rpc credentials
-authorise every wallet command that node has. [SECURITY.md](./SECURITY.md)
-carries the rest, and how to report a vulnerability.
+rpc speaks. [SECURITY.md](./SECURITY.md) says what that means for a node
+that is not on loopback, and how to report a vulnerability.
 
 ## Contributing
 
