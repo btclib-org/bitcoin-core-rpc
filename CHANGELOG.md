@@ -34,6 +34,70 @@ theme. Section 9 also lets an entry making a single claim have a
 paragraph for a body, which no bullet pattern reaches. Counting the
 entries is a reading of the file rather than a command.
 
+## v2026.10.17
+
+### SECURITY.md says why the client adds no TLS of its own
+
+Its *Limitations, not vulnerabilities* links Core's reasons and says what
+keeps rpc credentials off the wire; `README.md` and the client's docstring
+point to it (closes #654).
+
+### The bounds on a shown name say why they are there
+
+`_MAX_NAME_SHOWN` and `_MAX_KEY_SHOWN` say that what they let through is
+shown even when it is a misplaced secret, and `ASSURANCE_CASE.md`'s
+CWE-209 bullet names both (GHSA-cg87-q4qx-qw8p).
+
+### The workflows take the organization's actionlint fork and api-break
+
+The kjanat fork lints the workflows, and `api-break.yml` labels a pull
+request that breaks the public API (issue btclib-org/.github#1698, issue
+btclib-org/.github#1674).
+
+### `tests/secret_free` is the organization's copy
+
+Its self-test comes with it (issue btclib-org/.github#1697).
+
+### The review call sets `cache-mode: none`
+
+It answers the finding the ignore in `.github/actionlint.yaml` silenced, and
+that file is deleted (closes #649).
+
+### A merged pull request's closed run of `api-break` queues
+
+It waits behind the walk in flight instead of cancelling it (issue
+btclib-org/.github#1744).
+
+### `claude-review.yml` points at the called workflow's tool list
+
+It no longer copies that list (issue btclib-org/.github#1642).
+
+### `RELEASING.md` runs the dependents' suites before the merge
+
+It also reads the tag's signature back from the API (issue
+btclib-org/.github#1647, issue btclib-org/.github#1660).
+
+### `REPOSITORY.md` says what `tag-integrity` refuses
+
+A `v*` tag push that brings an unsigned commit, not an unsigned tag (issue
+btclib-org/.github#1635).
+
+### The maintainer's bypass is everyday practice
+
+Until the review bot posts under an identity other than the author's
+(issue btclib-org/.github#1695); `REPOSITORY.md` records `strict` off on
+`main` (issue btclib-org/.github#1712).
+
+### `uv.lock` moves to pydantic 2.14.0
+
+Its pydantic-core has cp315 wheels, so the pyroma hook builds nothing
+(issue btclib-org/btclib#2685).
+
+### Dependabot and pre-commit.ci bumps
+
+mypy, ruff, uv-build, coverage, `actions/download-artifact`,
+`actions/upload-artifact` and the pinned hook revisions.
+
 ## v2026.10.8
 
 ### The release publishes the files the build job built
