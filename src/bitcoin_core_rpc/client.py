@@ -297,7 +297,8 @@ def _json_scalar(value: Any, path: str) -> bool:
     `_decimal_json` is how it is written.
     """
     if isinstance(value, Decimal) and not value.is_finite():
-        raise BtcRpcValueError(f"not a json number in the rpc params: {value}")
+        # not quoted: a NaN carries a payload of digits the caller chose
+        raise BtcRpcValueError("not a json number in the rpc params: a Decimal")
     if isinstance(value, float) and not isfinite(value):
         raise BtcRpcValueError(f"not a json number in the rpc params: {value}")
     if isinstance(value, (bytes, bytearray)):
@@ -377,7 +378,8 @@ def _decimal_json(number: Decimal) -> str:
     quick to build and a billion digits to write.
     """
     if not number.is_finite():
-        raise ValueError(f"not a json number: {number}")
+        # not quoted, for the reason `_json_scalar` gives
+        raise ValueError("not a json number: a Decimal")
     limit = get_int_max_str_digits()
     if limit and abs(number.adjusted()) > limit:
         err_msg = "a Decimal whose exponent writes more digits than"

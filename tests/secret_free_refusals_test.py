@@ -52,6 +52,7 @@ from bitcoin_core_rpc import (
     rpc_port_from_chain,
     urlopen_transport,
 )
+from bitcoin_core_rpc.client import _MAX_KEY_SHOWN, _decimal_json
 from tests import Recorded
 from tests.secret_free import assert_secret_free
 
@@ -347,6 +348,19 @@ def test_a_decimal_exponent_over_the_digit_limit_is_not_quoted() -> None:
     refused(lambda: client().call("send", [exponent]))
     refused(lambda: client().call_raw("send", {"a": exponent}))
     refused(lambda: client().call_batch([("send", [exponent])]))
+
+
+def test_a_decimal_nan_is_not_quoted() -> None:
+    """A NaN's payload is digits the caller chose, here a key's."""
+    nan = Decimal("NaN" + str(KEY_INT))
+    refused(lambda: client().call("send", [nan]))
+    refused(lambda: client().call_raw("send", {"a": nan}))
+    refused(lambda: client().call_batch([("send", [nan])]))
+    # the writer's own refusal, which the walk before it makes unreachable
+    # unless the caller's objects change in between
+    with pytest.raises(ValueError, match="not a json number") as exc:
+        _decimal_json(nan)
+    assert_secret_free(exc.value, SECRETS)
 
 
 def test_an_rpc_channel_mixing_its_arguments_is_not_quoted() -> None:
@@ -703,8 +717,8 @@ def test_the_header_is_not_in_a_refusal() -> None:
 # a refusal's path
 
 
-@pytest.mark.parametrize("size", [1, 16])
-def test_a_name_of_at_most_sixteen_characters_is_in_the_path(size: int) -> None:
+@pytest.mark.parametrize("size", [1, _MAX_KEY_SHOWN])
+def test_a_name_of_at_most_max_key_shown_characters_is_in_the_path(size: int) -> None:
     """A name is quoted only where it is short enough to be a name."""
     name = KEY[:size]
     with pytest.raises(BtcRpcTypeError) as exc:
@@ -712,7 +726,7 @@ def test_a_name_of_at_most_sixteen_characters_is_in_the_path(size: int) -> None:
     assert f'at params["{name}"]' in str(exc.value)
 
 
-@pytest.mark.parametrize("size", [17, 18, 64])
+@pytest.mark.parametrize("size", [_MAX_KEY_SHOWN + 1, _MAX_KEY_SHOWN + 2, len(KEY)])
 def test_a_longer_name_is_not_in_the_path(size: int) -> None:
     """A name that could be a key, or hold one, is not shown at all."""
     with pytest.raises(BtcRpcTypeError) as exc:
