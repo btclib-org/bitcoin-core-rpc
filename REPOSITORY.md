@@ -366,11 +366,10 @@ because `enforce_admins` is off. It also cancels the pull request's
 runs still in progress. The push to `main` runs some of the checks again,
 never `lint / Sign-off` or `lint / Dependency review`.
 
-No ruleset over `main` requires signatures. Nothing here pushes to `main`
-directly: the only thing writing to it is a merge GitHub performs itself,
-and GitHub signs those with its web-flow key. `verified-signatures.yml`
-checks after each push that every commit pushed is `verified`, and a red
-run is read in the Actions tab; the check is not a required one.
+Nothing here pushes to `main` directly: the only thing writing to it is a
+merge GitHub performs itself, and GitHub signs those with its web-flow key.
+`verified-signatures.yml` checks after each push that every commit pushed is
+`verified`; its header says why it is not a required check.
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
