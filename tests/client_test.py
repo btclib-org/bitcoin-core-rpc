@@ -1176,7 +1176,8 @@ def test_the_parameter_depth_bound_is_inclusive(kind: str) -> None:
         ([1, [2, range(3)]], "a range at params[1][1]"),
         ({"a": {"b": range(3)}}, 'a range at params["a"]["b"]'),
         ({"passphrase": b"x"}, 'a bytes at params["passphrase"]'),
-        ({"k" * 20: b"x"}, 'a bytes at params["' + "k" * 16 + '..."]'),
+        ({"k" * 16: b"x"}, 'a bytes at params["' + "k" * 16 + '"]'),
+        ({"k" * 17: b"x"}, "a bytes at params[...]"),
     ],
 )
 def test_a_refusal_names_the_path_of_the_parameter(params: Any, message: str) -> None:

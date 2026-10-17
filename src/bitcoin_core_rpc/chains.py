@@ -454,6 +454,28 @@ _COOKIE_OPEN_FLAGS = (
 )
 
 
+def _encodable(cookie_path: Path) -> Path:
+    """Return the path, having refused one `os.open` would not take.
+
+    `os.open` fails on a path the filesystem encoding refuses, such as one
+    with a lone surrogate, with a `UnicodeEncodeError` that holds the whole
+    path, and on an embedded NUL with a bare `ValueError`. The path may be a
+    key passed to the wrong argument. The refusal is raised outside the
+    `except`, so that nothing chains the encode error.
+    """
+    try:
+        os.fsencode(cookie_path)
+    except UnicodeEncodeError:
+        encodable = False
+    else:
+        encodable = "\0" not in str(cookie_path)
+    if not encodable:
+        err_msg = "unreadable rpc cookie file: a path the filesystem encoding"
+        err_msg += " refuses, or one with a NUL"
+        raise FetchError(err_msg)
+    return cookie_path
+
+
 def cookie_auth(cookie_path: Path) -> str:
     """Return the `user:password` bitcoind wrote in its cookie file.
 
@@ -479,7 +501,7 @@ def cookie_auth(cookie_path: Path) -> str:
     something is at the path and it is not a cookie.
     """
     try:
-        fd = os.open(cookie_path, _COOKIE_OPEN_FLAGS)
+        fd = os.open(_encodable(cookie_path), _COOKIE_OPEN_FLAGS)
         # the descriptor is judged, not the path: a path checked and then
         # opened can be swapped in between. `fdopen` takes it over only
         # once it is known to be a regular file, so every other way out
