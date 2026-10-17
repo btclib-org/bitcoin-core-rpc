@@ -404,17 +404,19 @@ result.
 
    Whichever way it lands, name the release commit's title and body explicitly —
    `gh pr merge <n> --squash --match-head-commit <head> --body-file <path>
-   --subject <title>`, with `--admin` added where it lands through the bypass —
+   --subject <title>`, with `--admin` added where it lands through the
+   emergency bypass —
    rather than leave them to `squash_merge_commit_message`'s repository default,
    `COMMIT_MESSAGES` here: this repository's own release pull requests have so
    far landed as a single commit each (#143, #108), so that default and the
    commit's own message have been the same string, but naming them explicitly
    costs nothing and stops depending on that staying true.
 
-   The `main-self-merge` bypass is in `pull_request` mode.
+   `REPOSITORY.md`'s *Branch protection* says why the release pull request
+   needs an approval from somebody other than its author.
    btclib-org/.github's `GOVERNANCE.md`, *[How a decision is
    made](https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md#how-a-decision-is-made)*,
-   says when the maintainer lands through the bypass without an
+   says when the maintainer adds the bypass back to land it without an
    approval. What `gh pr merge` does without an approval, and what
    `--admin` changes, is `CONTRIBUTING.md`'s *Landing it*. gh refuses on
    its own side, as on btclib-secp256k1's v0.8.0.4
