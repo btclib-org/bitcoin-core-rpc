@@ -10,6 +10,15 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
+## v2026.10.17
+
+Nothing to act on: the public API is the one v2026.10.8 shipped, and the
+module differs from it only in comments and a docstring.
+
+SECURITY.md's *Limitations, not vulnerabilities* says why the client adds
+no TLS of its own, and what keeps rpc credentials off the wire for a node
+that is not on loopback.
+
 ## v2026.10.8
 
 - **A refusal no longer quotes an rpc parameter of a type JSON cannot carry
