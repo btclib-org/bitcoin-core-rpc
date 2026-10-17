@@ -412,7 +412,7 @@ result.
    commit's own message have been the same string, but naming them explicitly
    costs nothing and stops depending on that staying true.
 
-   `main-self-merge` has no bypass actor, so the release pull request
+   `REPOSITORY.md`'s *Branch protection* says why the release pull request
    needs an approval from somebody other than its author.
    btclib-org/.github's `GOVERNANCE.md`, *[How a decision is
    made](https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md#how-a-decision-is-made)*,

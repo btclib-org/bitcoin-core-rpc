@@ -362,8 +362,8 @@ needs an approval from somebody other than its author. btclib-org/.github's
 maintainer adds the bypass back, and removes it after the merge. The
 landing commands are `CONTRIBUTING.md`'s *Landing it*.
 
-*Required checks on main* says which checks a merge through the
-emergency bypass does not wait for. A merge with `--admin` skips the
+*Required checks on main* says which checks an administrator's merge
+does not wait for. A merge with `--admin` skips the
 approval too, once the bypass is added back and because `enforce_admins`
 is off. It also cancels the pull request's
 runs still in progress. The push to `main` runs some of the checks again,
@@ -492,8 +492,8 @@ of them.
 That setting is what the button writes, and the button is what lands every pull
 request here: auto-merge presses it once the approval and the checks are in, and
 `--admin` presses it at once, in an emergency. There is no second landing.
-The `main-self-merge` ruleset has no bypass actor; the one the maintainer adds
-in an emergency is in `pull_request` mode: it excuses that ruleset on a pull
+The bypass the maintainer adds to `main-self-merge` in an emergency (*Branch
+protection*) is in `pull_request` mode: it excuses that ruleset on a pull
 request's merge and nowhere else, so a direct push to `main` is refused for
 everyone, the holder included. What `--admin` skips beyond this ruleset is
 *Branch protection* above. The ruleset names `squash` as the only merge
