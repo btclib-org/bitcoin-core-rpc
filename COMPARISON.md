@@ -1,10 +1,11 @@
-# AuthServiceProxy and bitcoin-core-rpc
+# AuthServiceProxy, corepc and bitcoin-core-rpc
 
-What differs between the two clients, row by row, and why three cases —
-dynamic dispatch, batching, a kept connection — are each a decision
-`BitcoinCoreRpcClient` took rather than left to a caller's own code.
-[docs/source/migrating.md](./docs/source/migrating.md) is the
-line-by-line rewrite; this is the case for doing it.
+What differs between AuthServiceProxy and this client, row by row, and
+why three cases — dynamic dispatch, batching, a kept connection — are
+each a decision `BitcoinCoreRpcClient` took rather than left to a
+caller's own code. [corepc](#corepc) compares this client with
+rust-bitcoin's. [docs/source/migrating.md](./docs/source/migrating.md)
+is the line-by-line rewrite; this is the case for doing it.
 
 ## The two clients
 
@@ -55,6 +56,33 @@ The same conversion is what stops the standard library reaching the
 caller at all: `socket.timeout` becoming an alias of `TimeoutError` is a
 change a vendored `AuthServiceProxy` hands to whoever holds the copy, and
 one this client absorbs.
+
+## corepc
+
+**corepc** is rust-bitcoin's client for Bitcoin Core. Its `corepc-client`
+crate calls its `jsonrpc` crate, which sends over its `bitreq` HTTP
+client. The corepc column reads the async `Client`, which
+`client/src/lib.rs` calls the production client, at commit
+[`eca58560`](https://git.rust-bitcoin.org/rust-bitcoin/corepc/commit/eca585605f6fbf79a1c8ce81ce86e2e4205cdf31),
+and each of its cells cites a file and line there. Each bitcoin-core-rpc
+cell names the code that does it. Bitcoin Core's `src/httprpc.cpp` is
+read at commit `7efbdb6437`.
+
+<!-- markdownlint-disable MD013 -->
+
+| | bitcoin-core-rpc | corepc | Why this client differs |
+| --- | --- | --- | --- |
+| Version sent | `"2.0"`, from `call` and `call_batch` | `"2.0"`, `jsonrpc/src/client_async.rs:22` and `:64` | alike |
+| A reply's version and id | no `jsonrpc` member is a 1.1 reply, any other value than `"2.0"` is refused (`_discriminate`), and so is an id other than the one sent (`_legacy_result`, `_v2_result`) | neither is checked: `Client::call` reads the reply with `result()`, `client/src/client_async/mod.rs:140-142`; the `jsonrpc` crate's own `Client::call` checks both, `jsonrpc/src/client_async.rs:136-141` | intended: `_discriminate`'s comment and `_legacy_result`'s docstring say why |
+| Batch | refused: an empty batch (`call_batch`), and a reply count other than the requests', an unknown id or a duplicate id (`_correlated_batch_replies`) | `corepc-client` has no batch call; `jsonrpc`'s `send_batch` refuses an empty batch, more replies than requests, an unknown id and a duplicate id, and answers `None` for a request with no reply, `jsonrpc/src/client_async.rs:89-120` | intended: a request with no reply is refused, as `_correlated_batch_replies`'s docstring says; Core answers every request that has an id, `src/httprpc.cpp:168-170` |
+| Timeout | `DEFAULT_TIMEOUT` per client, `request_timeout` per call, a deadline over the whole exchange | 60 s, set by the constructor, `client/src/client_async/mod.rs:89`; a deadline, `bitreq/src/request.rs:409` | intended: the comment above `DEFAULT_TIMEOUT` gives the reason for its value, and `call`'s docstring the case for a per-call one |
+| Body limit | `DEFAULT_MAX_BODY_SIZE` by default, `max_body_size` per call | 1 GiB, `bitreq`'s default, `bitreq/src/request.rs:126`, which `jsonrpc`'s transport leaves as it is, `jsonrpc/src/http/bitreq_http_async.rs:58-66` | intended: the comment above `DEFAULT_MAX_BODY_SIZE` gives the reason |
+| Non-200 status | under 2.0 always `HttpError` (`_v2_result`); under 1.1 a readable error object first, then the status (`_legacy_result`) | `HttpError` only when the body is not json; a json body is read as the reply, `jsonrpc/src/http/bitreq_http_async.rs:72-83` | intended: under 2.0 Core answers an rpc error with HTTP 200, `src/httprpc.cpp:43-46` and `:122-126`, and `_v2_result`'s docstring says what that buys |
+| Error codes | `RpcError.code` and `.data`; `RPCErrorCode` names Core's codes | code, message and data, `jsonrpc/src/error.rs:120-127`; one code tested by name, `-5` for `is_not_found_error`, `client/src/client_async/error.rs:82-84` | alike in what reaches the caller; `RPCErrorCode` is a lookup on top, as its docstring says |
+| Amounts | `Decimal` both ways (`_json_number`, `_decimal_json`) | `f64` in the reply type, `types/src/v17/blockchain/mod.rs:631`, then `Amount::from_btc`, `types/src/v17/blockchain/into.rs:522` | intended: `call`'s docstring |
+| Cookie | a path, or one `from_chain` derives from the chain and the datadir; read at every call (`cookie_auth`) | a path only, read once by the constructor, `client/src/client_async/mod.rs:60-66` and `:111-112` | intended: `cookie_auth`'s docstring |
+
+<!-- markdownlint-enable MD013 -->
 
 ## Non-goals
 
