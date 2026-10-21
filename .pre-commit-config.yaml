@@ -571,8 +571,8 @@ repos:
   # with write access. --persona=auditor runs on every commit rather than
   # by hand, because this tree measures zero under it. A finding fails
   # it, and is answered by a fix, a narrower grant, a reason on the
-  # grant's own line, or an inline decline with its reason, beside it or,
-  # for self-repository, in the hook's comment below
+  # grant's own line, or an inline decline with its reason beside it
+  # or, for self-repository, cited in the hook's comment below
   # (btclib-org/.github#1164)
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
     # self-repository flags a `uses: ./...` reference and recommends
