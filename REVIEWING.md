@@ -8,7 +8,7 @@ review is not about.
 This is the reviewer's half of [CONTRIBUTING.md](./CONTRIBUTING.md),
 which is the author's. It does not restate the rules a review cites —
 most are in the organization's standard, the rest in that file, in
-REPOSITORY.md and in CLAUDE.md — and a finding names the line that
+REPOSITORY.md and in AGENTS.md — and a finding names the line that
 states them rather than a copy kept here.
 
 **This file is the same in every repository of the organization**, and
@@ -79,8 +79,7 @@ directions:
    child, the author answers it twice and resolves it once.
 1. **The tree at that sha**, checked out and gated. `gh pr checkout <N>`,
    and whatever this repository's `CONTRIBUTING.md` says builds its
-   environment; `CLAUDE.md` has where a checkout may be made and where it
-   may not.
+   environment; `CONTRIBUTING.md` has the worktree procedure.
 
 Read the whole diff before writing the first comment. A comment on line
 5 that line 60 answers costs the author a reply and the reviewer their
@@ -500,24 +499,24 @@ this heading.
 Each of these is a question, and the document that answers it is named
 because that document, and not this one, is where the rule lives.
 
-- Does the diff add **a dependency**? This package exists not to have
-  one: `errors.py`, `chains.py`, `transport.py` and `client.py` import
-  only the standard library and each other, in that order.
-  `tests/census_test.py` is what fails on it, walking the imports of
-  every module with `ast`. `CONTRIBUTING.md`'s *The one constraint*
-  states it.
-- Does a change to the reply path keep **both JSON-RPC dialects** right?
-  Core answers 1.1 by default and 2.0 to a request carrying the marker,
-  and under 1.1 an rpc error arrives as the body of an HTTP 500 — which
-  is why `_legacy_result` and `_v2_result` are two functions and not one
-  with a flag. Folding them is the change to look at hardest, and
-  [ARCHITECTURE.md](./ARCHITECTURE.md)'s *Two JSON-RPC versions, one
-  client* is where the two are described.
-- Does it keep the boundary the layers draw? The transport maps
-  everything below an HTTP status onto `FetchError`; what a status
-  *means* is the client's question and never the transport's.
-- Is the suite still hermetic? `Recorded` in `tests/__init__.py` answers
-  from `tests/_data` and opens no socket, and that — not the absence of
-  a node — is what keeps it so. What a live node answers is
-  `integration-bitcoind.yml`'s question and the command `CONTRIBUTING.md` gives
-  for one of your own.
+- **Does a rule arrive with the reason that chose it, the negative result
+  included?** A rule stated without its argument is one the next reader
+  re-litigates, and the standard's *How to use this file* asks for the
+  argument beside the rule.
+- **Does a claim about the repositories carry the command that
+  re-derives it?** Section 15 is where such a command belongs, and a
+  claim no command answers is the defect this repository files most.
+- **Is a fact stated a second time somewhere it is already stated?** Two
+  wordings are two things to keep true, and the standard's own sections
+  are the first place a second wording appears.
+- **Does the standard keep the rule it states, here?** This repository is
+  governed by `README.md` as much as any other, and the rule it fails is
+  the one nobody thought to apply to the tree holding it.
+- **What paid for the lines a diff adds to `README.md`, and where was it
+  looked for?** The standard's *How to use this file* asks for them
+  where the rule lands, so a deletion in a section the branch was not
+  sent to read is a finding rather than the payment; and a pull request
+  reporting nothing to take names the place it read, which this review
+  reads too, a line to take found there being what the diff owes.
+- **Does a change to `profile/README.md` read as the organization's front
+  page?** It is what github.com/btclib-org renders.
