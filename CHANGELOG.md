@@ -34,6 +34,59 @@ theme. Section 9 also lets an entry making a single claim have a
 paragraph for a body, which no bullet pattern reaches. Counting the
 entries is a reading of the file rather than a command.
 
+## v2026.10.23
+
+### Refusals of a secret input raise the library's errors and quote less
+
+RELEASE_NOTES.md's v2026.10.23 has the new exceptions and messages
+(closes #648).
+
+### `tests/secret_free` takes the organization's grouped-secret check
+
+`assert_secret_free` fails when a refusal's text shows a secret split into
+groups (issue btclib-org/.github#1697).
+
+### A report easy to rediscover is fixed as soon as possible
+
+`SECURITY.md` says so, and publishes its advisory with the fix (issue
+btclib-org/.github#1771).
+
+### `verified-signatures.yml` checks the signatures on `main` after each push
+
+It reports whether every commit pushed is `verified` (issue
+btclib-org/.github#1738).
+
+### The maintainer's bypass is added back only in an emergency
+
+`main-self-merge` has no bypass actor, and `CONTRIBUTING.md` takes the
+organization's shared half (issue btclib-org/.github#1740).
+
+### `AGENTS.md` replaces `CLAUDE.md`
+
+`CONTRIBUTING.md` adds *Worktrees* and lets pull requests land while `main`
+is red (btclib-org/.github#1777); `REVIEWING.md`, `REPOSITORY.md` and
+`.claude/commands/review.md` follow (issue btclib-org/.github#1808).
+
+### The pyroma hook builds no dependency from source
+
+A locked dependency with no wheel for the hook's Python fails the hook
+instead of being built (issue btclib-org/.github#1763).
+
+### `claude-review.yml` declines zizmor's dangerous-triggers on `issue_comment`
+
+The trigger stays, with the ignore on its line and the reason above it
+(issue btclib-org/.github#1813).
+
+### `uv.lock` moves `GitPython`, `aiohttp`, `certifi` and `virtualenv`
+
+`GitPython` 3.2.1, `aiohttp` 3.14.5 (closes #666), `certifi` 2026.10.19 and
+`virtualenv` 21.14.12, past the advisories `uv audit` refuses (issue
+btclib-org/.github#1835, issue btclib-org/.github#1824).
+
+### Dependabot and pre-commit.ci bumps
+
+`astral-sh/setup-uv` and the pinned hook revisions.
+
 ## v2026.10.17
 
 ### SECURITY.md says why the client adds no TLS of its own

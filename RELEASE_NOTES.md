@@ -10,6 +10,24 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
+## v2026.10.23
+
+The refusals below raise different exceptions or say less. A caller that
+catches the old exceptions or matches the old messages has to change:
+
+- **A credential or a wallet name that utf-8 cannot encode raises
+  `BtcRpcValueError`, and a cookie path the filesystem encoding refuses, or
+  one with a NUL, raises `FetchError`.** `auth_header` and `for_wallet`
+  raised a `UnicodeEncodeError` holding the whole text, and `cookie_auth` a
+  `UnicodeEncodeError`, or a `ValueError` for the NUL. Catch the new types.
+- **A refusal names less.** The path of a refused parameter shows `...` for
+  a name over 16 characters, where it showed the first 16. A non-integer
+  `max_body_size` is named by its type. A non-finite `Decimal` parameter
+  reads `not a json number in the rpc params: a Decimal`, without its value.
+  A refused JSON number in a reply, and a `Decimal` parameter past
+  `sys.get_int_max_str_digits`, quote no token and no exponent. Match on the
+  exception type, not on these messages.
+
 ## v2026.10.17
 
 Nothing to act on: the public API is the one v2026.10.8 shipped, and the
