@@ -47,7 +47,7 @@
 # The ceiling is the next minor, which is where uv's versioning policy
 # puts a breaking change, this backend releasing with uv and versioned by
 # it
-requires = ["uv_build>=0.12.0,<0.13"]
+requires = ["uv_build>=0.12.0,<0.14"]
 build-backend = "uv_build"
 
 [project]
@@ -252,7 +252,7 @@ check = [
     # is [build-system]'s own specifier, so the environment satisfies
     # `requires` by construction and the isolated fallback -- which needs
     # an index -- is never asked for
-    "uv_build>=0.12.0,<0.13",
+    "uv_build>=0.12.0,<0.14",
 ]
 docs = ["furo>=2025.12.19", "myst-parser>=4.0.1", "sphinx>=8.1.3"]
 dev = [
