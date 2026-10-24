@@ -63,7 +63,7 @@ one this client absorbs.
 crate calls its `jsonrpc` crate, which sends over its `bitreq` HTTP
 client. The corepc column reads the async `Client`, which
 `client/src/lib.rs` calls the production client, at commit
-[`eca58560`](https://git.rust-bitcoin.org/rust-bitcoin/corepc/commit/eca585605f6fbf79a1c8ce81ce86e2e4205cdf31),
+[`eca58560`](https://github.com/rust-bitcoin/corepc/commit/eca585605f6fbf79a1c8ce81ce86e2e4205cdf31),
 and each of its cells cites a file and line there. Each bitcoin-core-rpc
 cell names the code that does it. Bitcoin Core's `src/httprpc.cpp` is
 read at commit `7efbdb6437`.
