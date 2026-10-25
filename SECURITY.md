@@ -73,34 +73,47 @@ a build provenance attestation of their own, signed in the run that built
 them:
 
 ```shell
-repo=btclib-org/bitcoin-core-rpc
-workflows=btclib-org/.github/.github/workflows
-signer=$workflows/reusable-build.yml
-gh attestation verify bitcoin_core_rpc-<version>-py3-none-any.whl \
-  --repo "$repo" --signer-workflow "$signer" --source-ref refs/tags/v<version>
+signer=btclib-org/.github/.github/workflows/reusable-build.yml
+id=$(gh api repos/btclib-org/bitcoin-core-rpc --jq .id)
+cert='.[].verificationResult.signature.certificate'
 ```
 
-`--signer-workflow` names the workflow that signed. For a release built by
-the organization's `reusable-build.yml`, which `release.yml` calls, that is
-that workflow: an attestation made inside a called workflow names the
-callee as its signer, while `--repo` still names this repository as the
-source. The flag is required rather than a narrowing, the command refusing
-a genuine release without it, and `--source-ref` is what keeps a build of a
-branch from passing as the release. A release from v2026.9.24 on,
-made before this repository called `reusable-build.yml`, was signed by
-`reusable-attest.yml`, named the same way without `--source-ref`.
-Through v2026.9.3 the signer is `release.yml` itself, so
-for those releases `signer` is `"$repo/.github/workflows/release.yml"`,
-and there the flag narrows what passes: without it an attestation from
-any workflow in this repository is accepted. No path verifies a release
-another signed. The PEP 740 attestations on PyPI name `release.yml`, the
-job that uploads there being its own rather than a called workflow's. The
-signed statement for the GitHub release is attached to it as well, as
-`<tag>.intoto.jsonl`, or as `<tag>.attestation.jsonl` on a release that
-carries that name instead, so `--bundle <that file>` runs the same check
-reading it from disk instead of asking GitHub for it. One
-attestation covers the wheel, the sdist and the bill of materials; the
-bundle is that attestation and is not among its subjects.
+```shell
+gh attestation verify <file> --owner btclib-org \
+  --signer-workflow "${signer:?}" \
+  --source-ref refs/tags/v<version> --format json \
+  --jq "${cert:?}.sourceRepositoryIdentifier" | grep -qx "${id:?}"
+```
+
+The exit code is `0` only where a verified attestation names this
+repository. The repository is compared by its id, which a rename keeps:
+`--repo` compares the current name and refuses every release signed
+before a rename.
+
+`<file>` is a distribution file from the release.
+
+`--signer-workflow` names the workflow that signed, and narrows what
+passes to it. For a release built by the organization's
+`reusable-build.yml`, which `release.yml` calls, that is that workflow: an
+attestation made inside a called workflow names the callee as its signer.
+Without the flag, any attestation this repository has passes, including
+one from a workflow it calls in btclib-org/.github. `--source-ref` is
+what keeps a build of a branch from passing as the release. A release
+from v2026.9.24 on, made before this repository called
+`reusable-build.yml`, was signed by `reusable-attest.yml`, named the same
+way without `--source-ref`. From v2026.8.12 through v2026.9.3 the signer
+is `release.yml` itself, so for those releases `signer` is
+`btclib-org/bitcoin-core-rpc/.github/workflows/release.yml`. An earlier
+release carries no build provenance attestation. No path verifies a
+release another signed. The PEP 740 attestations on PyPI name
+`release.yml`, the job that uploads there being its own rather than a
+called workflow's. The signed statement for the GitHub release is
+attached to it as well, as `<tag>.intoto.jsonl`, or as
+`<tag>.attestation.jsonl` on a release that carries that name instead, so
+`--bundle <that file>` runs the same check reading it from disk instead of
+asking GitHub for it. One attestation covers the wheel, the sdist and the
+bill of materials; the bundle is that attestation and is not among its
+subjects.
 
 A CycloneDX 1.6 bill of materials is attached beside them,
 `bitcoin_core_rpc-<version>.cdx.json`: the two files with their SHA-256,
