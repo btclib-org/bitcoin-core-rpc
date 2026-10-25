@@ -26,9 +26,7 @@ propagates to atheris as the finding it is. So does an `AssertionError`,
 which is how this harness reports that the body a bounded read returned is
 not the prefix of `data` the limit allows.
 
-The seed corpus is one reply of each shape: a 2.0 and a 1.1 result, an error
-object of each version, a batch, a `-rest` document, an amount that is a
-decimal, and the `getblockchaininfo` of a signet.
+The seed corpus is `fuzz/corpus/fuzz_reply/`.
 """
 
 from __future__ import annotations

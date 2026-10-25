@@ -12,12 +12,13 @@ and a caller who catches `FetchError` to treat an endpoint's answer as a
 failure has no reason to expect a `KeyError`, an `IndexError` or an
 `ArithmeticError` out of it.
 
-`fuzz/`'s atheris harness asks the same question of these decoders
-for an hour a week, and of the clients and the bounded read as well. This
-asks it on every run, and exhaustively rather than by sampling: each valid
-reply below is cut at every length, and has each octet taken out and each
-of a few structural octets put in at every position. Nothing here is
-random; `pyproject.toml` says why the `test` group has no `hypothesis`.
+`fuzz/`'s atheris harness asks the same question of these decoders, and
+of the clients and the bounded read as well, on the schedule `fuzz.yml`
+sets. This asks it on every run, and exhaustively rather than by
+sampling: each valid reply below is cut at every length, and has each
+octet taken out and each of a few structural octets put in at every
+position. Nothing here is random; `pyproject.toml` says why the `test`
+group has no `hypothesis`.
 
 The inputs after the mutations are the ones a mutation cannot reach: a
 number of more digits than the interpreter converts, an exponent the

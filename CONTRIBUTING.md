@@ -597,7 +597,7 @@ What an administrator's merge skips, and what it does to the runs, is
 | `bitcoind` | weekly | every Core major, then 5 chains on the newest |
 | `links` | weekly | — |
 | `mutation` | weekly | — |
-| `fuzz` | weekly, and by hand before a release | — |
+| `fuzz` | weekly | — |
 | `pypi-install` | weekly, a release | what PyPI serves |
 | `sdist-rebuild` | weekly | the latest release's sdist, rebuilt |
 | `release` | a tag | the workflows it calls |
