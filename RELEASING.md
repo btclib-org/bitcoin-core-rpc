@@ -674,7 +674,7 @@ result.
    wheel=bitcoin_core_rpc-${version:?}-py3-none-any.whl &&
    repo=btclib-org/bitcoin-core-rpc &&
    workflows=btclib-org/.github/.github/workflows &&
-   signer=$workflows/reusable-build.yml@refs/heads/main &&
+   signer=$workflows/reusable-build.yml &&
    gh attestation verify "$wheel" --repo "$repo" \
      --signer-workflow "$signer" --source-ref "refs/tags/v${version:?}" &&
    gh attestation verify "$wheel" --repo "$repo" \
@@ -765,7 +765,7 @@ python=$(grep -Ev '^[[:space:]]*(#|$)' .python-version) &&
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) &&
 repo=btclib-org/bitcoin-core-rpc &&
 workflows=btclib-org/.github/.github/workflows &&
-signer=$workflows/reusable-build.yml@refs/heads/main &&
+signer=$workflows/reusable-build.yml &&
 tag="v${version:?}" &&
 wheels=$(mktemp -d) &&
 gh release download "v${version:?}" --repo "$repo" --dir "$wheels" \

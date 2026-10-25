@@ -2,11 +2,11 @@
 name: api-break
 
 # The `api-break` label on a pull request that breaks the public API:
-# btclib-org/.github's `reusable-api-break.yml`, called at `@main` so a
-# fix there reaches this tree in one landing, and its answer is the label
-# alone (btclib-org/.github#1674). It is the pull-request counterpart of
-# the `public-api` job in release.yml, walking the same package against
-# the pull request's base commit.
+# btclib-org/.github's `reusable-api-break.yml`, called at a tagged commit
+# (section 10 of btclib-org/.github's README.md), and its answer is the label
+# alone (btclib-org/.github#1674). It is the pull-request counterpart of the
+# `public-api` job in release.yml, walking the same package against the pull
+# request's base commit.
 #
 # Advisory, and it must not become a required check: the label tells a
 # reviewer to look, and the maintainer decides. What stays here is the
@@ -53,7 +53,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write # the label; read-only on a fork
-    uses: btclib-org/.github/.github/workflows/reusable-api-break.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-api-break.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       # the same package release.yml's public-api job passes
       package: bitcoin_core_rpc

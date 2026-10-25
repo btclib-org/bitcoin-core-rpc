@@ -9,11 +9,10 @@ name: docs
 # underline left too short by a rename.
 #
 # The build itself, the checkout and the unresolved-link check are
-# btclib-org/.github's: reusable-docs.yml, called at @main so a fix there
-# reaches this tree in one landing (section 10 of its README.md). What
-# stays here is the trigger, the concurrency group and the one thing this
-# tree asks of its own built pages that the standard asks of nobody else
-# (btclib-org/.github#35)
+# btclib-org/.github's: reusable-docs.yml, called at a tagged commit (section 10
+# of btclib-org/.github's README.md). What stays here is the trigger, the
+# concurrency group and the one thing this tree asks of its own built pages that
+# the standard asks of nobody else (btclib-org/.github#35)
 
 on:
   push:
@@ -91,7 +90,7 @@ jobs:
   # github.event.action off this caller's trigger. This tree needs no
   # submodule checked out, so `submodules` is left at its default
   docs:
-    uses: btclib-org/.github/.github/workflows/reusable-docs.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-docs.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       # the one thing this tree asks of its own built pages that no
       # sibling asks of its own: automodule skips a data member with no

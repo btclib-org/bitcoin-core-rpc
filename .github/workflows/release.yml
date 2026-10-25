@@ -35,15 +35,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # the checkout, the ancestry check, the version comparison against the
-  # tag, and the release-notes check on RELEASE_NOTES.md and CHANGELOG.md
-  # are btclib-org/.github's, called at @main so a fix there reaches this
-  # tree in one landing (section 10 of its README.md).
-  # This tree is calendar-versioned, so tag-requires-day is left at its
-  # default (true); build below consumes version-suffix, the rehearsal
-  # output the called workflow declares (btclib-org/.github#35)
+  # the checkout, the ancestry check, the version comparison against the tag,
+  # and the release-notes check on RELEASE_NOTES.md and CHANGELOG.md are
+  # btclib-org/.github's, called at a tagged commit (section 10 of
+  # btclib-org/.github's README.md). This tree is calendar-versioned, so
+  # tag-requires-day is left at its default (true); build below consumes
+  # version-suffix, the rehearsal output the called workflow declares
+  # (btclib-org/.github#35)
   version-check:
-    uses: btclib-org/.github/.github/workflows/reusable-version-check.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-version-check.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
 
   # what the suite cannot ask: did this release take something the last
   # one gave. census_test.py asserts that `__all__` is
@@ -59,38 +59,37 @@ jobs:
   # deciding -- this answer, arriving more often and earlier than it is
   # wanted. Here it arrives once, where RELEASE_NOTES.md is being written.
   #
-  # The checkout, the previous-tag resolution and the griffe comparison
-  # are btclib-org/.github's, called at @main for the same reason as
-  # version-check above. package is bitcoin_core_rpc, this repository's
-  # own name with its hyphens turned to underscores -- a coincidence of
-  # four trees and not a rule, which is why the called workflow's own
-  # input has no default (btclib-org/.github#35)
+  # The checkout, the previous-tag resolution and the griffe comparison are
+  # btclib-org/.github's, called at a tagged commit, as version-check above is.
+  # package is bitcoin_core_rpc, this repository's own name with its hyphens
+  # turned to underscores -- a coincidence of four trees and not a rule, which
+  # is why the called workflow's own input has no default
+  # (btclib-org/.github#35)
   public-api:
-    uses: btclib-org/.github/.github/workflows/reusable-public-api.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-public-api.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       package: bitcoin_core_rpc
 
   # `uv audit` over what the wheel declares, before anything is published:
-  # btclib-org/.github's reusable-audit.yml, called at @main so that the uv
-  # version, the flags and what it refuses are written once. An
-  # advisory or an unreachable service fails it, and the publish jobs
-  # below name it in `needs:` and in their `if:`, `always()` there being
-  # what would otherwise let them run past a red one. The callee asks only
-  # for the `contents: read` this workflow grants, as the calls above do.
-  # github-release does not name it: it runs only after publish-pypi
-  # succeeds
+  # btclib-org/.github's reusable-audit.yml, called at a tagged commit. The uv
+  # version, the flags and what it refuses are written there once. An advisory
+  # or an unreachable service fails it, and the publish jobs below name it in
+  # `needs:` and in their `if:`, `always()` there being what would otherwise let
+  # them run past a red one. The callee asks only for the `contents: read` this
+  # workflow grants, as the calls above do. github-release does not name it: it
+  # runs only after publish-pypi succeeds
   audit:
-    uses: btclib-org/.github/.github/workflows/reusable-audit.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-audit.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
 
-  # the build and its signature: btclib-org/.github's reusable-build.yml,
-  # called at @main (section 10 of its README.md). It builds the
-  # distribution files and the bill of materials, uploads them as `dist`
-  # and `sbom`, and signs them before any publish job waits for its
-  # environment's approval, which is how the signer is a workflow this
-  # tree's own steps cannot alter (SLSA Build L3). It uploads the bundle
-  # as `attestation` for github-release. The version-suffix output is
-  # empty on the tag path, where version-check skips the step that writes
-  # it: a release ships the version the tree declares
+  # the build and its signature: btclib-org/.github's reusable-build.yml, called
+  # at a tagged commit (section 10 of btclib-org/.github's README.md). It builds
+  # the distribution files and the bill of materials, uploads them as `dist` and
+  # `sbom`, and signs them before any publish job waits for its environment's
+  # approval, which is how the signer is a workflow this tree's own steps cannot
+  # alter (SLSA Build L3). It uploads the bundle as `attestation` for
+  # github-release. The version-suffix output is empty on the tag path, where
+  # version-check skips the step that writes it: a release ships the version the
+  # tree declares
   build:
     name: Build and sign the distribution files
     needs: version-check
@@ -103,7 +102,7 @@ jobs:
       contents: read
       id-token: write # the OIDC token the callee's attest job mints
       attestations: write # the build provenance attestation it writes
-    uses: btclib-org/.github/.github/workflows/reusable-build.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-build.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       python: "3.15"
       version-suffix: ${{ needs.version-check.outputs.version-suffix }}
@@ -330,21 +329,19 @@ jobs:
       version: ${{ github.ref_name }}
 
   # the checkout, the three downloads and the release-creation step are
-  # btclib-org/.github's reusable-github-release.yml, called at @main
-  # for the same reason as version-check above. Its own header has the
-  # general reason a caller's if: must open with always() and what a
-  # skip here would cost; three facts it cannot carry, being about this
-  # tree's own graph rather than the callee's: needs: names both jobs
-  # and not build alone, build running in a rehearsal too, so naming it
-  # by itself would cut a release from a dispatch -- and only a job in
-  # needs: can be read through needs.<job>.result, which is what the if:
-  # below asks publish-pypi for; build earns its place in the needs list
-  # by producing the bundle the callee attaches; and a failure elsewhere
-  # in this run -- the published job beside this one, verifying an
-  # install PyPI has already accepted -- cannot bear on whether an
-  # already installable version is announced, which is why the if below
-  # asks about publish-pypi and build alone.
-  # needs: and if: stay the caller's (btclib-org/.github#35)
+  # btclib-org/.github's reusable-github-release.yml, called at a tagged commit,
+  # as version-check above is. Its own header has the general reason a caller's
+  # if: must open with always() and what a skip here would cost; three facts it
+  # cannot carry, being about this tree's own graph rather than the callee's:
+  # needs: names both jobs and not build alone, build running in a rehearsal
+  # too, so naming it by itself would cut a release from a dispatch -- and only
+  # a job in needs: can be read through needs.<job>.result, which is what the
+  # if: below asks publish-pypi for; build earns its place in the needs list by
+  # producing the bundle the callee attaches; and a failure elsewhere in this
+  # run -- the published job beside this one, verifying an install PyPI has
+  # already accepted -- cannot bear on whether an already installable version is
+  # announced, which is why the if below asks about publish-pypi and build
+  # alone. needs: and if: stay the caller's (btclib-org/.github#35)
   github-release:
     needs: [publish-pypi, build]
     if: >-
@@ -356,7 +353,7 @@ jobs:
     # any job starts, as a startup_failure (btclib-org/.github#912)
     permissions:
       contents: write # the callee creates the GitHub release with it
-    uses: btclib-org/.github/.github/workflows/reusable-github-release.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-github-release.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       dist-artifact: dist
       # refuses the files unless their digests are the ones the build job printed
@@ -372,18 +369,17 @@ jobs:
   # answering 200 from 2023, undocumenting two releases before anybody
   # noticed. This is issue #154.
   #
-  # The checkout of the wait script, the read the docs URL check and the
-  # wait itself are btclib-org/.github's, called at @main for the same
-  # reason as version-check above. What stays here is `needs:
-  # version-check` -- a caller job that `uses:` a reusable workflow is
-  # still a job in this tree's own graph -- and `if: github.event_name ==
-  # 'push'`, since a rehearsal is never tagged and has nothing for read
-  # the docs to have built (btclib-org/.github#35). readthedocs-slug is
-  # bitcoin-core-rpc, what this tree's own release.yml passed to
-  # wait_for_readthedocs_build.py before this call existed
+  # The checkout of the wait script, the read the docs URL check and the wait
+  # itself are btclib-org/.github's, called at a tagged commit, as version-check
+  # above is. What stays here is `needs: version-check` -- a caller job that
+  # `uses:` a reusable workflow is still a job in this tree's own graph -- and
+  # `if: github.event_name == 'push'`, since a rehearsal is never tagged and has
+  # nothing for read the docs to have built (btclib-org/.github#35).
+  # readthedocs-slug is bitcoin-core-rpc, what this tree's own release.yml
+  # passed to wait_for_readthedocs_build.py before this call existed
   documented:
     needs: version-check
     if: github.event_name == 'push'
-    uses: btclib-org/.github/.github/workflows/reusable-documented.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-documented.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       readthedocs-slug: bitcoin-core-rpc

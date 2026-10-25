@@ -75,7 +75,7 @@ them:
 ```shell
 repo=btclib-org/bitcoin-core-rpc
 workflows=btclib-org/.github/.github/workflows
-signer=$workflows/reusable-build.yml@refs/heads/main
+signer=$workflows/reusable-build.yml
 gh attestation verify bitcoin_core_rpc-<version>-py3-none-any.whl \
   --repo "$repo" --signer-workflow "$signer" --source-ref refs/tags/v<version>
 ```
