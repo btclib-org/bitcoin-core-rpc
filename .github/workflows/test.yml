@@ -120,14 +120,13 @@ jobs:
   # the gate rather than being read as everything downstream correctly
   # declining nothing to do.
   #
-  # One thing this must not get wrong: the event handling, the
-  # pagination and the decision are btclib-org/.github's own, called at
-  # @main so a fix there reaches this tree in one landing (section 10
-  # of its README.md); what stays here is which files are this tree's
-  # own prose, below (issue btclib-org/.github#35)
+  # One thing this must not get wrong: the event handling, the pagination and
+  # the decision are btclib-org/.github's own, called at a tagged commit
+  # (section 10 of btclib-org/.github's README.md); what stays here is which
+  # files are this tree's own prose, below (issue btclib-org/.github#35)
   changes:
     name: Decide whether the jobs below have anything to check
-    uses: btclib-org/.github/.github/workflows/reusable-changes.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-changes.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     # A job's permissions replace the workflow's rather than adding to
     # them, so contents: read is named here too, alongside
     # pull-requests: read, which the callee's own job needs to list a
