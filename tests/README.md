@@ -94,4 +94,16 @@ validation have nothing standing in for them. `normalize_sdist_test.py`
 tests the sdist normalizer of `.github/scripts` rather than what runs
 while a distribution is built.
 
+## Property tests
+
+Section 7 of the [organization standard][std] owes a property layer to a
+tree that parses what a stranger sends, and says a tree answering it with
+hand-rolled properties declares that here. This one does: `fuzz_test.py`
+is the layer, with no `hypothesis`; `pyproject.toml` says why the `test`
+group has none.
+The domain is the body of a reply, at several statuses. The property is
+that a reader of a reply refuses what it cannot read as a `FetchError`
+and raises nothing else. `fuzz_test.py`'s docstring says which inputs it
+reads; none is random.
+
 [std]: https://github.com/btclib-org/.github/blob/main/README.md

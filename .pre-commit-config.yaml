@@ -10,7 +10,8 @@
 ci:
   # a bot committing to a branch is at odds with the rest of this setup,
   # where no workflow token can write and every action is pinned to a
-  # commit SHA: a failing hook is fixed by its author
+  # commit SHA: a failing hook is fixed by hand, by its author or by an
+  # owner where CONTRIBUTING.md says so
   autofix_prs: false
   # no autoupdate_branch, as dependabot declares no target-branch: the
   # default is the default branch, which is the only branch a change
@@ -79,13 +80,23 @@ repos:
         # lines, the same convention every repository of the organization
         # uses, which keeps the block's own comment true of what renders,
         # so a trailing space anywhere in this tree is an accident
+        #
+        # `fuzz/corpus/` is excluded: a fuzzing seed is the exact bytes of
+        # one reply its harness reads, so an octet added to it or taken off
+        # it makes it a different input, and `identify` reads a seed with
+        # no NUL octet in it as text. The hooks below that rewrite a file
+        # carry the same exclusion; codespell and typos take theirs from
+        # `pyproject.toml`
+        exclude: ^fuzz/corpus/
       - id: end-of-file-fixer
+        exclude: ^fuzz/corpus/
       - id: mixed-line-ending
         # not the default --fix=auto, which normalizes a file to its own
         # most frequent ending: a file entirely in CRLF is consistent by
         # that measure, so it stays, and the LF lines added to it are
         # converted the wrong way. This repository is LF throughout
         args: [--fix=lf]
+        exclude: ^fuzz/corpus/
       - id: check-case-conflict
       # no check-executables-have-shebangs, by check-hooks-apply's own
       # verdict: it selects on types [executable], nothing tracked here
@@ -110,6 +121,7 @@ repos:
       # it buys is that an editor on another platform cannot quietly add
       # three bytes in front of a Python file
       - id: fix-byte-order-marker
+        exclude: ^fuzz/corpus/
       # this one *adds* "# -*- coding: utf-8 -*-" to every Python file.
       # UTF-8 has been the default source encoding since Python 3 and the
       # floor here is 3.11, so it is a dead line per file
@@ -707,6 +719,28 @@ repos:
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
+      # keep .clusterfuzzlite/requirements.txt, which the fuzz container
+      # installs with --require-hashes, in sync with uv.lock: the
+      # package's own runtime dependencies, of which it has none, and the
+      # `fuzz` group, hashes included. After uv-lock, so an --all-files run
+      # exports a re-lock in the same run; a commit staging pyproject.toml
+      # alone exports it on the next attempt, pre-commit having listed the
+      # files before uv-lock rewrote uv.lock. --frozen, the hook's own
+      # default, rather than --locked: uv-lock above is what refuses a
+      # stale lock, and --locked needs the interpreter .python-version
+      # names, where --frozen exports with none -- and the pre-commit.ci
+      # image does not carry it, which is why the ci: block skips uv-lock.
+      # `files:` adds the output itself to the hook's uv.lock, so a hand
+      # edit to it is rewritten too
+      - id: uv-export
+        args:
+          - --frozen
+          - --no-default-groups
+          - --group=fuzz
+          - --no-emit-project
+          - --output-file=.clusterfuzzlite/requirements.txt
+          - --quiet
+        files: ^(uv\.lock|\.clusterfuzzlite/requirements\.txt)$
   # what is tracked and not in the sdist, and what is in the sdist and not
   # tracked, both ways round, against the patterns of
   # [tool.uv.build-backend]. --no-isolation is in the hook's own entry, and

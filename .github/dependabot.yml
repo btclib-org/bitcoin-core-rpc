@@ -1,5 +1,5 @@
 ---
-# two of the three ecosystems this repo has, deliberately: the pre-commit
+# every ecosystem this repo has but one, deliberately: the pre-commit
 # hook revs are left out. Dependabot has a pre-commit ecosystem, and the
 # maintainer decided to keep pre-commit.ci for them instead
 # (btclib-org/.github#1391): its weekly autoupdate, configured in the ci:
@@ -11,10 +11,10 @@
 #
 # every pull request here runs the merge gate -- the suite on one image
 # and the interpreter .python-version pins, the live-node smoke test, the
-# hooks and the documentation build -- so both ecosystems group their
+# hooks and the documentation build -- so each ecosystem groups its
 # updates into a single pull request rather than paying for that once
 # each. os-macos.yml is not in the gate and is not pre-validation either:
-# it holds the lock, so an upgrade never reaches it. Neither declares a
+# it holds the lock, so an upgrade never reaches it. None declares a
 # target-branch: without one dependabot opens against the default branch,
 # which is the only branch a change lands on.
 #
@@ -32,8 +32,9 @@
 # The seven day cooldown is what the interval is really
 # trading against: a compromised release is usually yanked within days.
 # Weekly plus cooldown still means nothing is ever offered before it has
-# been public a week -- it means the offer comes at most a week after
-# that, rather than at most a month. Neither ecosystem tracks anything
+# been public a week, wherever the release can be dated: the docker block
+# says where it cannot. The offer then comes at most a week after that,
+# rather than at most a month. No ecosystem tracks anything
 # security-critical, so nothing here wants to be faster than that
 version: 2
 updates:
@@ -74,6 +75,25 @@ updates:
       day: thursday
     groups:
       dev-tooling:
+        patterns: ["*"]
+    cooldown:
+      default-days: 7
+
+  # .clusterfuzzlite/Dockerfile pins the image fuzz.yml builds in by
+  # digest, which nothing but this moves: without it the pin is frozen at
+  # the image of the day it was written. The cooldown is inert here:
+  # dependabot-core dates a docker tag only on Docker Hub
+  # (registry_tag_release_date, docker/lib/dependabot/docker/
+  # update_checker.rb) and this image is on gcr.io. It is kept so that one
+  # rule holds for every ecosystem, and it takes effect with no edit here
+  # where the registry or dependabot-core changes
+  - package-ecosystem: docker
+    directory: /.clusterfuzzlite
+    schedule:
+      interval: weekly
+      day: thursday
+    groups:
+      base-image:
         patterns: ["*"]
     cooldown:
       default-days: 7
