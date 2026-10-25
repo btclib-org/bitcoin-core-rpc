@@ -1,13 +1,13 @@
 ---
 name: claude-review
 
-# Claude reading a pull request against REVIEWING.md, which is the standard
-# a review here is written against. The prompt, the credential guard, the
-# action, the verdict check and the @claude answer are
-# `btclib-org/.github`'s `reusable-claude-review.yml`, called at `@main` so
-# a fix there reaches this tree in one landing (issue btclib-org/.github#35).
-# What stays here is the trigger, the concurrency group, the
-# workflow-level permissions and this header -- the callee's own says so.
+# Claude reading a pull request against REVIEWING.md, which is the standard a
+# review here is written against. The prompt, the credential guard, the action,
+# the verdict check and the @claude answer are `btclib-org/.github`'s
+# `reusable-claude-review.yml`, called at a tagged commit (section 10 of
+# btclib-org/.github's README.md, issue btclib-org/.github#35). What stays here
+# is the trigger, the concurrency group, the workflow-level permissions and this
+# header -- the callee's own says so.
 #
 # Not a required check, and it must not become one. What it produces is a
 # review of type COMMENT, an opinion for the author to weigh -- REPOSITORY.md's
@@ -93,7 +93,7 @@ jobs:
       contents: read
       pull-requests: write # posting the review, and the reply to a mention
       id-token: write # the OIDC token the action mints at its own startup
-    uses: btclib-org/.github/.github/workflows/reusable-claude-review.yml@main
+    uses: btclib-org/.github/.github/workflows/reusable-claude-review.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
     with:
       # this tree's own paragraph, landing between the verdict paragraph
       # and the instruction not to run the gates -- the callee's one
