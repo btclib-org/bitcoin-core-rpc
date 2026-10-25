@@ -178,8 +178,10 @@ pull_requests = "https://github.com/btclib-org/bitcoin-core-rpc/pulls"
 # by that group's own consumer instead, each already at the locked
 # resolution: lint.yml's `--only-group lint pre-commit run`, the local
 # `mypy` hook's own `--group lint --group test`, mutation.yml's `--group
-# mutation` cosmic-ray session, docs.yml's `--group docs` sphinx-build,
-# and test.yml's `dist` job for check-wheel-contents, pyroma and twine.
+# mutation` cosmic-ray session, the fuzz container's install of what
+# `.clusterfuzzlite/requirements.txt` exports from `--group fuzz`,
+# docs.yml's `--group docs` sphinx-build, and test.yml's `dist` job for
+# check-wheel-contents, pyroma and twine.
 # check-sdist runs as a pre-commit hook out of an environment pre-commit
 # builds from .pre-commit-config.yaml rather than from the group, so the
 # run behind that one floor is the `rev:` that file pins instead, which
@@ -192,20 +194,22 @@ pull_requests = "https://github.com/btclib-org/bitcoin-core-rpc/pulls"
 # ever exercised at all.
 
 # what it takes to develop, build and test this package. hypothesis is
-# absent, unlike in a codec library where the malformed input nobody wrote
-# down is the point. Most of what this module refuses is a shape -- a
-# mapping keyed by an int, a body that is not utf-8, a status -- and the
-# shapes are enumerable, which is what the parametrized cases below
-# `tests/` are.
+# absent. Most of what this module refuses is a shape -- a mapping keyed
+# by an int, a body that is not utf-8, a status -- and the shapes are
+# enumerable, which is what the parametrized cases below `tests/` are.
+# The input nobody wrote down is searched elsewhere: by the atheris
+# harness under `fuzz/`, weekly, and on every run by
+# `tests/fuzz_test.py`, which mutates a valid reply at every position. A
+# generator in this suite would be a third search of that space.
 #
 # `_read_bounded` is the half that reasoning does not cover, and it was
 # measured rather than assumed: its arithmetic is over indices, which is
-# the space a generator searches and a case list does not. What the search
-# would buy here is nothing, for two reasons in the code. The accumulator
-# is one bytearray and the body is decoded once, after the loop, so a
-# chunk boundary falling inside a multibyte character is not a state this
-# module can reach. And a body is cut in two places, both of them reached
-# only under a non-200: `_read_bounded`'s `truncate=True`, and the
+# the space a generator searches and a case list does not. What a
+# generator would buy here is nothing, for two reasons in the code. The
+# accumulator is one bytearray and the body is decoded once, after the
+# loop, so a chunk boundary falling inside a multibyte character is not a
+# state this module can reach. And a body is cut in two places, both of
+# them reached only under a non-200: `_read_bounded`'s `truncate=True`, and the
 # `MAX_ERROR_BODY_SIZE` slice taken where a caller's own transport
 # returned a non-200 without raising, which `_read_bounded` never sees.
 # Under a non-200 `_reply_object` answers every parse failure -- a split
@@ -254,12 +258,19 @@ check = [
     # an index -- is never asked for
     "uv_build>=0.12.0,<0.13",
 ]
+# the build backend .clusterfuzzlite/build.sh installs the package with, in
+# the fuzz container and non-isolated, so that the backend is a hashed
+# entry of .clusterfuzzlite/requirements.txt -- this lock exported --
+# rather than whatever an isolated build resolves off the index.
+# [build-system]'s own specifier, the way `check`'s is
+fuzz = ["uv_build>=0.12.0,<0.13"]
 docs = ["furo>=2025.12.19", "myst-parser>=4.0.1", "sphinx>=8.1.3"]
 dev = [
     { include-group = "test" },
     { include-group = "lint" },
     { include-group = "check" },
     { include-group = "docs" },
+    { include-group = "fuzz" },
     { include-group = "mutation" },
 ]
 
@@ -364,6 +375,9 @@ source-exclude = [
     "/tests/check_api_page_test.py",
     "/tests/interpreters_test.py",
     "/tests/release_digests_test.py",
+    # the same reasoning for `fuzz/`, which is not shipped either: this
+    # one reads the harnesses and the seed corpus beside them
+    "/tests/fuzz_corpus_test.py",
     # the same reasoning once more, reaching outside the sdist through
     # `.git` rather than through `.github`: this one asks `git ls-files`
     # which tracked paths lie under the trees the shape entries below
@@ -464,8 +478,10 @@ package = ["src/bitcoin_core_rpc"]
 # [tool.uv.build-backend] source-exclude names is not repeated here:
 # check-sdist reads that list for the uv backend, so this holds only what
 # no include pattern adds in the first place -- the workspaces of an
-# editor and of an agent, the file git itself reads, and COPYRIGHT,
-# which [tool.uv.build-backend] above says why the sdist does not carry.
+# editor and of an agent, the file git itself reads, COPYRIGHT, which
+# [tool.uv.build-backend] above says why the sdist does not carry, and
+# ClusterFuzzLite's configuration with the harnesses it builds, which
+# fuzz.yml reads and nothing installed from the sdist runs.
 # Patterns are gitignore's, so a directory covers what is under it at any
 # depth.
 #
@@ -473,9 +489,11 @@ package = ["src/bitcoin_core_rpc"]
 # workflows and the scripts they call need no entry here
 git-only = [
     ".claude/",
+    ".clusterfuzzlite/",
     ".gitignore",
     ".vscode/",
     "COPYRIGHT",
+    "fuzz/",
 ]
 
 [tool.pytest.ini_options]
@@ -559,8 +577,10 @@ filterwarnings = ["error"]
 # tests/_data/README.md states. By extension rather than by directory, so
 # that tests/_data/README.md -- which records where each of those files
 # came from -- is still spell checked, being prose about the data and not
-# the data
-skip = "*/_data/*.json,.secrets.baseline,uv.lock"
+# the data. fuzz/corpus/'s seeds are the exact bytes a harness is handed,
+# skipped for the reason .pre-commit-config.yaml's trailing-whitespace
+# hook gives
+skip = "*/_data/*.json,.secrets.baseline,uv.lock,fuzz/corpus/*"
 # `intoto` is in-toto's own spelling, in the bundle's name
 # `<tag>.intoto.jsonl`. RELEASING.md writes it in fenced commands, outside
 # the backticks `ignore-regex` below hides, and the dictionary offers
@@ -600,6 +620,7 @@ extend-exclude = [
     "**/_data/*.json",
     ".secrets.baseline",
     "uv.lock",
+    "fuzz/corpus/**",
 ]
 
 [tool.typos.default]
@@ -980,6 +1001,9 @@ ignore = [
 # directory holds no __init__.py because it is not a package, and adding
 # one to satisfy this rule would make it look like one
 ".github/scripts/*.py" = ["INP001"]
+# ClusterFuzzLite's build.sh hands these to PyInstaller, never to an
+# import, so fuzz/ carries no __init__.py
+"fuzz/*.py" = ["INP001"]
 # sphinx imports this one by its own convention, reading docs/source/ as a
 # configuration directory rather than as a package; same reason
 "docs/source/conf.py" = ["INP001"]

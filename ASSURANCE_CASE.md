@@ -114,7 +114,11 @@ and `_discriminate` refuses a `jsonrpc` marker that is neither absent
 nor `"2.0"`. None of it is trusted as an answer until every one of those
 holds. `str()` of an `RpcError` writes the non-printable characters of the
 node's message as escapes, so a reply cannot forge a log line or drive a
-terminal.
+terminal. A reply is also read as arbitrary bytes by `fuzz/fuzz_reply.py`
+under ClusterFuzzLite (`.github/workflows/fuzz.yml`) and, mutated at every
+position, by `tests/fuzz_test.py`, which asserts that only `FetchError`
+comes out; `tests/fuzz_corpus_test.py` checks that every seed of the corpus
+is still read.
 
 **The network path.** Only `http` and `https` reach a built request
 (`_SCHEMES`); no proxy is taken from the environment, `ProxyHandler({})`

@@ -375,6 +375,9 @@ docs = [
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
+fuzz = [
+    { name = "uv-build" },
+]
 lint = [
     { name = "mypy" },
     { name = "pre-commit" },
@@ -427,6 +430,7 @@ docs = [
     { name = "myst-parser", specifier = ">=4.0.1" },
     { name = "sphinx", specifier = ">=8.1.3" },
 ]
+fuzz = [{ name = "uv-build", specifier = ">=0.12.0,<0.13" }]
 lint = [
     { name = "mypy", specifier = ">=2.3.1" },
     { name = "pre-commit", specifier = ">=4.6.2" },
