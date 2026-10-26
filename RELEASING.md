@@ -696,23 +696,20 @@ result.
    bundle.
 
    `--signer-workflow` is the flag that makes the check say *which*
-   workflow signed; [SECURITY.md](./SECURITY.md)'s *Supported versions*
-   says what passes without it. `signer` names the workflow that signed,
-   the organization's `reusable-build.yml`, which `release.yml`'s `build` job
+   workflow signed. `signer` names the workflow that signed, the
+   organization's `reusable-build.yml`, which `release.yml`'s `build` job
    calls: an attestation made inside a called workflow names the callee,
-   not the caller. `--owner` names the organization, and the check of
-   `sourceRepositoryIdentifier` names this repository by its id, which a
-   rename keeps: `--repo` compares the current name, and refuses every
-   release signed before a rename. The exit code is `0` only where a
-   verified attestation names this repository. `--source-ref` names the
-   tag, which is what stops a rehearsal dispatched from a branch from
-   verifying as this release. A release from v2026.9.24 on, made before
-   this repository called `reusable-build.yml`, was signed by
-   `reusable-attest.yml`, and verifies with that workflow as the signer
-   and no `--source-ref`. From v2026.8.12 through v2026.9.3 the signer
-   was `release.yml` itself, so for one of those releases
-   `signer` is `"$repo/.github/workflows/release.yml"`; no path verifies
-   a release another signed. Neither form is offline on its
+   not the caller. [SECURITY.md](./SECURITY.md)'s *Supported versions*
+   says what passes without `--signer-workflow`, when the exit code is
+   `0`, and why the repository is compared by its id rather than by
+   `--repo`. `--source-ref` names the tag, which is what stops a
+   rehearsal dispatched from a branch from verifying as this release. A
+   release from v2026.9.24 on, made before this repository called
+   `reusable-build.yml`, was signed by `reusable-attest.yml`, and verifies
+   with that workflow as the signer and no `--source-ref`. From v2026.8.12
+   through v2026.9.3 the signer was `release.yml` itself, so for one of
+   those releases `signer` is `"$repo/.github/workflows/release.yml"`; no
+   path verifies a release another signed. Neither form is offline on its
    own — the Sigstore trusted root comes over the network unless
    `gh attestation trusted-root > trusted_root.jsonl` fetched it earlier
    and `--custom-trusted-root` points at it.
