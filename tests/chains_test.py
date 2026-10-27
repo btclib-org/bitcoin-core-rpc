@@ -23,6 +23,8 @@ from pathlib import Path
 from typing import Any, get_args
 
 import pytest
+from btclib.network import NETWORKS
+from btclib.p2p import magic as btclib_magic
 from typing_extensions import override
 
 from bitcoin_core_rpc.chains import (
@@ -538,6 +540,47 @@ def test_the_default_signet_magic_is_derived_and_not_only_copied() -> None:
     assert magic_from_signet_challenge(DEFAULT_SIGNET_CHALLENGE) == magic_from_chain(
         "signet"
     )
+
+
+def test_the_magic_table_is_btclibs() -> None:
+    """The copy `chains.py` keeps, against btclib's on every chain.
+
+    btclib keys its table by the BIP network names, so each chain is
+    looked up there under the name `network_from_chain` gives it.
+    """
+    assert set(NETWORKS) == set(get_args(Network))
+    for chain in get_args(Chain):
+        assert magic_from_chain(chain) == btclib_magic.magic_from_network(
+            network_from_chain(chain)
+        )
+    assert bytes.fromhex(DEFAULT_SIGNET_CHALLENGE) == (
+        btclib_magic.DEFAULT_SIGNET_CHALLENGE
+    )
+
+
+@pytest.mark.parametrize(
+    "script",
+    [
+        bytes.fromhex("51"),
+        bytes.fromhex(DEFAULT_SIGNET_CHALLENGE),
+        # the last length of the one-byte CompactSize form, the first of
+        # the three-byte one, and the longest challenge this module takes
+        bytes(range(252)),
+        bytes(range(1, 254)),
+        bytes(0xFFFF),
+    ],
+    ids=["OP_TRUE", "default", "252", "253", "0xffff"],
+)
+def test_the_signet_derivation_is_btclibs(script: bytes) -> None:
+    """A custom signet's magic as btclib derives it, from hex and from bytes.
+
+    Only a challenge this module takes is compared: btclib also answers
+    for the empty one and for one longer than 0xffff bytes, which this
+    module refuses.
+    """
+    expected = btclib_magic.magic_from_signet_challenge(script)
+    assert magic_from_signet_challenge(script) == expected
+    assert magic_from_signet_challenge(script.hex()) == expected
 
 
 @pytest.mark.parametrize(

@@ -233,6 +233,12 @@ has no entry for.
 # compares against Core, and `magic_from_signet_challenge` reproducing this
 # entry from `DEFAULT_SIGNET_CHALLENGE` is a test rather than an import-time
 # computation nothing would catch being wrong.
+#
+# This table and `magic_from_signet_challenge` below are a copy, kept on
+# purpose: a btclib-org library holds the same two in its p2p package,
+# and importing them would give this package a dependency outside the
+# standard library (CONTRIBUTING.md's *The one constraint*).
+# `tests/chains_test.py` compares the copy with that library's.
 _MAGIC_FROM_CHAIN: dict[str, bytes] = {
     "main": bytes.fromhex("f9beb4d9"),
     "test": bytes.fromhex("0b110907"),

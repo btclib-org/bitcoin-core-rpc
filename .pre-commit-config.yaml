@@ -676,9 +676,9 @@ repos:
   # that publishes the package is allowed -- "btclib-org" in a URL, "The
   # btclib developers" in the copyright line -- because a consumer does
   # care who publishes it; naming the downstream package that depends on
-  # this one is not. btclib-node is a downstream dependent exactly like
-  # btclib itself (its own [project.dependencies] carries a direct
-  # bitcoin-core-rpc entry), so it gets no exception either
+  # this one is not. btclib-node and btclib-wallet are downstream
+  # dependents (each one's [project.dependencies] carries a direct
+  # bitcoin-core-rpc entry), so neither gets an exception
   # (issue #422).
   - repo: local
     hooks:

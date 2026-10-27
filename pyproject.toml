@@ -219,6 +219,12 @@ pull_requests = "https://github.com/btclib-org/bitcoin-core-rpc/pulls"
 # `max_body_size` and one past it, and `tests/transport_test.py` asserts
 # both, in each direction and against a disagreeing `Content-Length`
 test = [
+    # what tests/chains_test.py compares the magic table and the signet
+    # derivation with. 2026.10.24 is the first release holding its own
+    # copy: below it, btclib reads the table from this package and holds
+    # no derivation, so the test would compare this package with itself
+    # or fail on the names it lacks
+    "btclib>=2026.10.24",
     "coverage>=7.16.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
