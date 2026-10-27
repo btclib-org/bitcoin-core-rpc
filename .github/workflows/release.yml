@@ -43,7 +43,7 @@ jobs:
   # version-suffix, the rehearsal output the called workflow declares
   # (btclib-org/.github#35)
   version-check:
-    uses: btclib-org/.github/.github/workflows/reusable-version-check.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
+    uses: btclib-org/.github/.github/workflows/reusable-version-check.yml@eb3b0c28476b98694ab3a3c3a9dce7e8e26ab4f5 # v2026.10.26
 
   # what the suite cannot ask: did this release take something the last
   # one gave. census_test.py asserts that `__all__` is
@@ -66,7 +66,7 @@ jobs:
   # is why the called workflow's own input has no default
   # (btclib-org/.github#35)
   public-api:
-    uses: btclib-org/.github/.github/workflows/reusable-public-api.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
+    uses: btclib-org/.github/.github/workflows/reusable-public-api.yml@eb3b0c28476b98694ab3a3c3a9dce7e8e26ab4f5 # v2026.10.26
     with:
       package: bitcoin_core_rpc
 
@@ -79,7 +79,7 @@ jobs:
   # workflow grants, as the calls above do. github-release does not name it: it
   # runs only after publish-pypi succeeds
   audit:
-    uses: btclib-org/.github/.github/workflows/reusable-audit.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
+    uses: btclib-org/.github/.github/workflows/reusable-audit.yml@eb3b0c28476b98694ab3a3c3a9dce7e8e26ab4f5 # v2026.10.26
 
   # the build and its signature: btclib-org/.github's reusable-build.yml, called
   # at a tagged commit (section 10 of btclib-org/.github's README.md). It builds
@@ -102,7 +102,7 @@ jobs:
       contents: read
       id-token: write # the OIDC token the callee's attest job mints
       attestations: write # the build provenance attestation it writes
-    uses: btclib-org/.github/.github/workflows/reusable-build.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
+    uses: btclib-org/.github/.github/workflows/reusable-build.yml@eb3b0c28476b98694ab3a3c3a9dce7e8e26ab4f5 # v2026.10.26
     with:
       python: "3.15"
       version-suffix: ${{ needs.version-check.outputs.version-suffix }}
@@ -353,7 +353,7 @@ jobs:
     # any job starts, as a startup_failure (btclib-org/.github#912)
     permissions:
       contents: write # the callee creates the GitHub release with it
-    uses: btclib-org/.github/.github/workflows/reusable-github-release.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
+    uses: btclib-org/.github/.github/workflows/reusable-github-release.yml@eb3b0c28476b98694ab3a3c3a9dce7e8e26ab4f5 # v2026.10.26
     with:
       dist-artifact: dist
       # refuses the files unless their digests are the ones the build job printed
@@ -380,6 +380,6 @@ jobs:
   documented:
     needs: version-check
     if: github.event_name == 'push'
-    uses: btclib-org/.github/.github/workflows/reusable-documented.yml@0f5684ab3d7bf310b0d7a2e4dd91a03522f75d67 # v2026.10.25
+    uses: btclib-org/.github/.github/workflows/reusable-documented.yml@eb3b0c28476b98694ab3a3c3a9dce7e8e26ab4f5 # v2026.10.26
     with:
       readthedocs-slug: bitcoin-core-rpc
