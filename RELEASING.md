@@ -673,13 +673,19 @@ result.
    gh release download "v${version:?}" --repo btclib-org/bitcoin-core-rpc &&
    wheel=bitcoin_core_rpc-${version:?}-py3-none-any.whl &&
    repo=btclib-org/bitcoin-core-rpc &&
+   id=$(gh api "repos/$repo" --jq .id) &&
+   cert='.[].verificationResult.signature.certificate' &&
    workflows=btclib-org/.github/.github/workflows &&
    signer=$workflows/reusable-build.yml &&
-   gh attestation verify "$wheel" --repo "$repo" \
-     --signer-workflow "$signer" --source-ref "refs/tags/v${version:?}" &&
-   gh attestation verify "$wheel" --repo "$repo" \
+   gh attestation verify "$wheel" --owner btclib-org \
      --signer-workflow "$signer" --source-ref "refs/tags/v${version:?}" \
-     --bundle "v${version:?}.intoto.jsonl"
+     --format json --jq "${cert:?}.sourceRepositoryIdentifier" |
+     grep -qx "${id:?}" &&
+   gh attestation verify "$wheel" --owner btclib-org \
+     --signer-workflow "$signer" --source-ref "refs/tags/v${version:?}" \
+     --bundle "v${version:?}.intoto.jsonl" \
+     --format json --jq "${cert:?}.sourceRepositoryIdentifier" |
+     grep -qx "${id:?}"
    ```
 
    the first asks the attestations API for the signed statement, the
@@ -689,22 +695,14 @@ result.
    given, so the sdist and the bill of materials verify against the same
    bundle.
 
-   `--signer-workflow` is the flag that makes the check say *which*
-   workflow signed: without it a valid attestation from any workflow in
-   the repository passes. `signer` names the workflow that signed, the
-   organization's `reusable-build.yml`, which `release.yml`'s `build` job
-   calls: an attestation made inside a called workflow names the callee,
-   not the caller, while `--repo` still names this repository as the source.
-   `--source-ref` names the tag, which is what stops a rehearsal
-   dispatched from a branch from verifying as this release. A release
-   from v2026.9.24 on, made before this repository called
-   `reusable-build.yml`, was signed by `reusable-attest.yml`, and
-   verifies with that workflow as the signer
-   and no `--source-ref`. Through v2026.9.3 the signer was `release.yml`
-   itself, so for one of those releases
-   `signer` is `"$repo/.github/workflows/release.yml"`; no path verifies
-   a release another signed. Neither form is offline on its
-   own — the Sigstore trusted root comes over the network unless
+   `signer` names the organization's `reusable-build.yml`. For a release
+   that workflow did not sign, `signer` is the workflow
+   [SECURITY.md](./SECURITY.md)'s *Supported versions* names for that
+   release. That section says why `reusable-build.yml` is the signer,
+   what passes without `--signer-workflow`, what `--source-ref` keeps
+   from passing, when the exit code is `0`, and why the repository is
+   compared by its id rather than by `--repo`. Neither form is offline
+   on its own — the Sigstore trusted root comes over the network unless
    `gh attestation trusted-root > trusted_root.jsonl` fetched it earlier
    and `--custom-trusted-root` points at it.
 
@@ -764,14 +762,18 @@ cd /tmp/bitcoin-core-rpc-rebuild &&
 python=$(grep -Ev '^[[:space:]]*(#|$)' .python-version) &&
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) &&
 repo=btclib-org/bitcoin-core-rpc &&
+id=$(gh api "repos/$repo" --jq .id) &&
+cert='.[].verificationResult.signature.certificate' &&
 workflows=btclib-org/.github/.github/workflows &&
 signer=$workflows/reusable-build.yml &&
 tag="v${version:?}" &&
 wheels=$(mktemp -d) &&
 gh release download "v${version:?}" --repo "$repo" --dir "$wheels" \
   --pattern '*.whl' &&
-gh attestation verify "$wheels"/*.whl \
-  --repo "$repo" --signer-workflow "$signer" --source-ref "refs/tags/$tag" &&
+gh attestation verify "$wheels"/*.whl --owner btclib-org \
+  --signer-workflow "$signer" --source-ref "refs/tags/$tag" \
+  --format json --jq "${cert:?}.sourceRepositoryIdentifier" |
+  grep -qx "${id:?}" &&
 uv_version=$(unzip -p "$wheels"/*.whl '*.dist-info/WHEEL' |
   sed -n 's/^Generator: uv //p') &&
 [[ $uv_version =~ ^[0-9]+([.][0-9]+)*$ ]] &&
@@ -785,22 +787,26 @@ git -C "$served" sparse-checkout set .github/scripts &&
 uv run --no-project --python "$python" \
   "$served"/.github/scripts/generate_sbom.py dist/ sbom/ &&
 gh attestation verify "dist/bitcoin_core_rpc-${version:?}.tar.gz" \
-  --repo "$repo" --signer-workflow "$signer" --source-ref "refs/tags/$tag" &&
+  --owner btclib-org \
+  --signer-workflow "$signer" --source-ref "refs/tags/$tag" \
+  --format json --jq "${cert:?}.sourceRepositoryIdentifier" |
+  grep -qx "${id:?}" &&
 gh attestation verify "dist/bitcoin_core_rpc-${version:?}-py3-none-any.whl" \
-  --repo "$repo" --signer-workflow "$signer" --source-ref "refs/tags/$tag" &&
+  --owner btclib-org \
+  --signer-workflow "$signer" --source-ref "refs/tags/$tag" \
+  --format json --jq "${cert:?}.sourceRepositoryIdentifier" |
+  grep -qx "${id:?}" &&
 gh attestation verify "sbom/bitcoin_core_rpc-${version:?}.cdx.json" \
-  --repo "$repo" --signer-workflow "$signer" --source-ref "refs/tags/$tag"
+  --owner btclib-org \
+  --signer-workflow "$signer" --source-ref "refs/tags/$tag" \
+  --format json --jq "${cert:?}.sourceRepositoryIdentifier" |
+  grep -qx "${id:?}"
 ```
 
-`signer` is the workflow that signed the tag's attestation, which is
-`reusable-build.yml`, and `--signer-workflow` is required: without it the
-command refuses the release. A tag from v2026.9.24 on, made before this
-repository called `reusable-build.yml`, was signed by
-`reusable-attest.yml`, with no `--source-ref`. A tag through v2026.9.3
-was signed by `release.yml` itself, and for one of those `signer` is
-`"$repo/.github/workflows/release.yml"`, the flag there only narrowing
-what passes. Each path verifies only the
-releases its own workflow signed.
+`signer` is the workflow that signed the tag's attestation:
+`reusable-build.yml`, or for a tag that workflow did not sign, the
+workflow [SECURITY.md](./SECURITY.md)'s *Supported versions* names for
+it.
 
 `python` is the interpreter the tag's own `.python-version` pins, its
 comment and blank lines dropped, and not the one `main` pins:
