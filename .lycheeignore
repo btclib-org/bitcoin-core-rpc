@@ -1,0 +1,13 @@
+# URLs the links workflow does not check, each with the reason it cannot
+# be checked. A host that is only slow or throttles is answered by the
+# retries and the --accept of btclib-org/.github's reusable-links.yml
+# instead. lychee reads this file from the directory it runs in, the
+# checkout root, and takes each line that is neither empty nor a comment
+# as a regular expression.
+
+# git.rust-bitcoin.org answers lychee with a 403 page asking it to prove
+# it is human, on GitHub's runners and on a desktop alike, so lychee
+# cannot check a link to it (issues #689 and #704). COMPARISON.md cites
+# corepc pull request 739 there, which github.com/rust-bitcoin/corepc,
+# the repository corepc moved from, does not carry.
+^https://git\.rust-bitcoin\.org/

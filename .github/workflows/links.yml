@@ -27,11 +27,12 @@ on:
   # the escape hatch, and the way to check a branch before merging a
   # documentation change that adds links
   workflow_dispatch:
-  # so a change to this file is checked by the thing it configures.
+  # so a change to this file, or to the root's .lycheeignore, is checked by
+  # the thing it configures.
   # This runs more often than the paths list suggests, and the difference is
   # worth knowing: the filter is evaluated against the pull request's whole
   # diff against its base, not against the push that triggered the run, so
-  # once a pull request touches this file every later push to that branch
+  # once a pull request touches either file every later push to that branch
   # runs it too. Harmless -- it gates nothing -- but it does mean a
   # transient failure shows up on pushes that changed no link at all
   pull_request:
@@ -57,6 +58,7 @@ on:
     types: [opened, reopened, synchronize, ready_for_review, closed]
     paths:
       - .github/workflows/links.yml
+      - .lycheeignore
 
 # least privilege for the GITHUB_TOKEN. lychee is given it for github.com
 # links only, where an unauthenticated runner is rate limited hard enough
