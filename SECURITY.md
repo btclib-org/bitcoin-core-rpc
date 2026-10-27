@@ -101,8 +101,8 @@ one from a workflow it calls in btclib-org/.github. `--source-ref` is
 what keeps a build of a branch from passing as the release. A release
 from v2026.9.24 on, made before this repository called
 `reusable-build.yml`, was signed by `reusable-attest.yml`, named the same
-way without `--source-ref`. From v2026.8.12 through v2026.9.3 the signer
-is `release.yml` itself, so for those releases `signer` is
+way, with the same `--source-ref`. From v2026.8.12 through v2026.9.3 the
+signer is `release.yml` itself, so for those releases `signer` is
 `btclib-org/bitcoin-core-rpc/.github/workflows/release.yml`. An earlier
 release carries no build provenance attestation. No path verifies a
 release another signed. The PEP 740 attestations on PyPI name

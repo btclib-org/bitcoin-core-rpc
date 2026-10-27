@@ -695,22 +695,14 @@ result.
    given, so the sdist and the bill of materials verify against the same
    bundle.
 
-   `--signer-workflow` is the flag that makes the check say *which*
-   workflow signed. `signer` names the workflow that signed, the
-   organization's `reusable-build.yml`, which `release.yml`'s `build` job
-   calls: an attestation made inside a called workflow names the callee,
-   not the caller. [SECURITY.md](./SECURITY.md)'s *Supported versions*
-   says what passes without `--signer-workflow`, when the exit code is
-   `0`, and why the repository is compared by its id rather than by
-   `--repo`. `--source-ref` names the tag, which is what stops a
-   rehearsal dispatched from a branch from verifying as this release. A
-   release from v2026.9.24 on, made before this repository called
-   `reusable-build.yml`, was signed by `reusable-attest.yml`, and verifies
-   with that workflow as the signer and no `--source-ref`. From v2026.8.12
-   through v2026.9.3 the signer was `release.yml` itself, so for one of
-   those releases `signer` is `"$repo/.github/workflows/release.yml"`; no
-   path verifies a release another signed. Neither form is offline on its
-   own — the Sigstore trusted root comes over the network unless
+   `signer` names the organization's `reusable-build.yml`. For a release
+   that workflow did not sign, `signer` is the workflow
+   [SECURITY.md](./SECURITY.md)'s *Supported versions* names for that
+   release. That section says why `reusable-build.yml` is the signer,
+   what passes without `--signer-workflow`, what `--source-ref` keeps
+   from passing, when the exit code is `0`, and why the repository is
+   compared by its id rather than by `--repo`. Neither form is offline
+   on its own — the Sigstore trusted root comes over the network unless
    `gh attestation trusted-root > trusted_root.jsonl` fetched it earlier
    and `--custom-trusted-root` points at it.
 
@@ -811,15 +803,10 @@ gh attestation verify "sbom/bitcoin_core_rpc-${version:?}.cdx.json" \
   grep -qx "${id:?}"
 ```
 
-`signer` is the workflow that signed the tag's attestation, which is
-`reusable-build.yml`; [SECURITY.md](./SECURITY.md)'s *Supported
-versions* says what passes without `--signer-workflow`. A tag
-from v2026.9.24 on, made before this repository called
-`reusable-build.yml`, was signed by `reusable-attest.yml`, with no
-`--source-ref`. A tag from v2026.8.12 through v2026.9.3 was signed by
-`release.yml` itself, and for one of those `signer` is
-`"$repo/.github/workflows/release.yml"`. Each path verifies only the
-releases its own workflow signed.
+`signer` is the workflow that signed the tag's attestation:
+`reusable-build.yml`, or for a tag that workflow did not sign, the
+workflow [SECURITY.md](./SECURITY.md)'s *Supported versions* names for
+it.
 
 `python` is the interpreter the tag's own `.python-version` pins, its
 comment and blank lines dropped, and not the one `main` pins:
