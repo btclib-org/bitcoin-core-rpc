@@ -662,13 +662,9 @@ def test_a_challenge_past_the_one_byte_length_carries_a_two_byte_one() -> None:
 
 
 def test_an_empty_challenge_is_a_signet_core_starts() -> None:
-    """The magic of the signet `-signetchallenge=` starts.
+    """The empty challenge, a signet as `magic_from_signet_challenge` says.
 
-    Core reads `-signetchallenge=` and a bare `-signetchallenge` as the
-    empty script. A v31.1 node started with either reports
-    `"signet_challenge": ""` and logs
-    `Signet derived magic (message start): 1406e058`. That is the length
-    byte `00` alone, hashed.
+    Its magic is the length byte `00` alone, hashed.
     """
     expected = bytes.fromhex("1406e058")
     assert sha256(sha256(b"\x00").digest()).digest()[:4] == expected

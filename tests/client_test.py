@@ -590,10 +590,10 @@ def test_a_challenge_the_node_reports_wrong_is_a_fetch_error() -> None:
 
 
 def test_a_signet_with_an_empty_challenge_is_one_to_compare() -> None:
-    """Core starts a signet with `-signetchallenge=`, and reports `""`.
+    """The empty challenge, a signet as `magic_from_signet_challenge` says.
 
-    So the empty challenge is a signet like any other: the one the caller
-    names passes, and the default one is a disagreement.
+    It is compared like any other: the one the caller names passes, and
+    the default one is a disagreement.
     """
     endpoint = client(chaininfo(chain="signet", signet_challenge=""))
     endpoint.assert_chain("signet", signet_challenge="")
