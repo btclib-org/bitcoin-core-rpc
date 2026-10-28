@@ -532,8 +532,12 @@ question names it.
 - Does it keep the boundary the layers draw? The transport maps
   everything below an HTTP status onto `FetchError`; what a status
   *means* is the client's question and never the transport's.
+  [ARCHITECTURE.md](./ARCHITECTURE.md)'s *The transport layer* states
+  the boundary.
 - Is the suite still hermetic? `Recorded` in `tests/__init__.py` answers
   from `tests/_data` and opens no socket, and that — not the absence of
   a node — is what keeps it so. What a live node answers is
-  `integration-bitcoind.yml`'s question and the command `CONTRIBUTING.md` gives
-  for one of your own.
+  `integration-bitcoind.yml`'s question and the command
+  `CONTRIBUTING.md` gives for one of your own.
+  [ARCHITECTURE.md](./ARCHITECTURE.md)'s *What proves it, and what a
+  live node adds* states both halves.
