@@ -19,10 +19,10 @@ name: integration-bitcoind
 # supported major yet.
 #
 # How many majors the protocol cells ask is the one thing a schedule
-# changes here: the boundary pair before a merge, every supported major on
-# the weekly run. The `versions` job below is where that is decided and
-# where the pins are, and it is a job rather than two literals in a matrix
-# because a digest belongs in one place.
+# changes here: the boundary pair before a merge, every major the versions
+# job lists on the weekly run. The `versions` job below is where that is
+# decided and where the pins are, and it is a job rather than two literals
+# in a matrix because a digest belongs in one place.
 #
 # It gates a merge on a cost that is measured rather than assumed, the
 # cells running concurrently. What a whole run costs today is in the run
