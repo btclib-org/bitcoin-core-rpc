@@ -247,10 +247,8 @@ _MAGIC_FROM_CHAIN: dict[str, bytes] = {
     "regtest": bytes.fromhex("fabfb5da"),
 }
 
-# above which a script's CompactSize length would take five bytes, which
-# `magic_from_signet_challenge` refuses rather than serializes: consensus
-# caps a script at 10000 bytes, so the form cannot arise for a challenge,
-# and refusing is what keeps the two forms below the whole of the encoding
+# above which a script's CompactSize length takes five bytes, a form
+# `magic_from_signet_challenge` does not write and refuses instead
 _MAX_CHALLENGE_LENGTH = 0xFFFF
 
 
@@ -281,9 +279,10 @@ def magic_from_signet_challenge(challenge: str | bytes | bytearray) -> bytes:
     bytes rather than an error: a challenge that arrived as a number would
     otherwise be hashed as a script of that length.
 
-    A challenge no node would accept is refused: Core takes at least one
-    byte, and above two bytes of length prefix the serialization is one
-    this does not write.
+    The empty challenge is a signet too: Core reads `-signetchallenge=`
+    and a bare `-signetchallenge` as the empty script, and such a node
+    uses the magic this returns for `""`. A challenge longer than 0xffff
+    bytes is refused: its length prefix takes a form this does not write.
     """
     if isinstance(challenge, str):
         try:
@@ -298,8 +297,6 @@ def magic_from_signet_challenge(challenge: str | bytes | bytearray) -> bytes:
         err_msg = "signet challenge that is no script, but a"  # type: ignore[unreachable]
         err_msg += f" {type(challenge).__name__}"
         raise BtcRpcTypeError(err_msg)
-    if not script:
-        raise BtcRpcValueError("empty signet challenge")
     if len(script) > _MAX_CHALLENGE_LENGTH:
         err_msg = f"signet challenge of {len(script)} bytes,"
         err_msg += f" more than the {_MAX_CHALLENGE_LENGTH} this serializes"
