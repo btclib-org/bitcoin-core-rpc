@@ -20,6 +20,7 @@ import threading
 from hashlib import sha256
 from io import BufferedReader, FileIO
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, get_args
 
 import pytest
@@ -330,8 +331,11 @@ def test_a_descriptor_that_cannot_be_inspected_is_closed_and_refused(
     def failing_fstat(fd: int) -> os.stat_result:
         raise OSError("no fstat")
 
-    monkeypatch.setattr(os, "fstat", failing_fstat)
-    with pytest.raises(FetchError, match="unreadable rpc cookie file"):
+    # chains.py alone sees the failing fstat: pytest's capture calls
+    # os.fstat too (9.2.0 on), before the patch is undone
+    no_fstat = SimpleNamespace(**{**vars(os), "fstat": failing_fstat})
+    monkeypatch.setattr("bitcoin_core_rpc.chains.os", no_fstat)
+    with pytest.raises(FetchError, match="unreadable rpc cookie file .*: no fstat"):
         cookie_auth(cookie)
     assert _open_descriptors() == before
 
