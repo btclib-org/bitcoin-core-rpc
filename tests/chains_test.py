@@ -565,6 +565,7 @@ def test_the_magic_table_is_btclibs() -> None:
 @pytest.mark.parametrize(
     "script",
     [
+        b"",
         bytes.fromhex("51"),
         bytes.fromhex(DEFAULT_SIGNET_CHALLENGE),
         # the last length of the one-byte CompactSize form, the first of
@@ -573,14 +574,13 @@ def test_the_magic_table_is_btclibs() -> None:
         bytes(range(1, 254)),
         bytes(0xFFFF),
     ],
-    ids=["OP_TRUE", "default", "252", "253", "0xffff"],
+    ids=["empty", "OP_TRUE", "default", "252", "253", "0xffff"],
 )
 def test_the_signet_derivation_is_btclibs(script: bytes) -> None:
     """A custom signet's magic as btclib derives it, from hex and from bytes.
 
     Only a challenge this module takes is compared: btclib also answers
-    for the empty one and for one longer than 0xffff bytes, which this
-    module refuses.
+    for one longer than 0xffff bytes, which this module refuses.
     """
     expected = btclib_magic.magic_from_signet_challenge(script)
     assert magic_from_signet_challenge(script) == expected
@@ -665,18 +665,19 @@ def test_a_challenge_past_the_one_byte_length_carries_a_two_byte_one() -> None:
     )
 
 
-def test_a_challenge_no_node_would_take_is_refused() -> None:
-    """Empty, not hex, or longer than a script can be.
+def test_an_empty_challenge_is_a_signet_core_starts() -> None:
+    """The empty challenge, a signet as `magic_from_signet_challenge` says.
 
-    Core takes at least one byte for `-signetchallenge`, and consensus caps
-    a script at 10000 bytes -- so the CompactSize forms above two bytes
-    cannot arise, and this refuses them rather than writing an encoding no
-    challenge will be serialized with.
+    Its magic is the length byte `00` alone, hashed.
     """
-    with pytest.raises(BtcRpcValueError, match="empty signet challenge"):
-        magic_from_signet_challenge("")
-    with pytest.raises(BtcRpcValueError, match="empty signet challenge"):
-        magic_from_signet_challenge(b"")
+    expected = bytes.fromhex("1406e058")
+    assert sha256(sha256(b"\x00").digest()).digest()[:4] == expected
+    assert magic_from_signet_challenge("") == expected
+    assert magic_from_signet_challenge(b"") == expected
+
+
+def test_a_challenge_that_is_no_hex_or_too_long_is_refused() -> None:
+    """Not hex, or past 0xffff bytes, whose length prefix is not written."""
     with pytest.raises(BtcRpcValueError, match="signet challenge that is no hex"):
         magic_from_signet_challenge("not hex")
     with pytest.raises(BtcRpcValueError, match="more than the 65535 this serializes"):

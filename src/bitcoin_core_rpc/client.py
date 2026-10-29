@@ -1121,7 +1121,7 @@ class BitcoinCoreRpcClient:
             node_magic = magic_from_signet_challenge(challenge)
         except ValueError as e:
             # `BtcRpcValueError` is a ValueError, so this one clause covers
-            # a challenge that is not hex and one no node would have taken:
+            # a challenge that is not hex and one too long to serialize:
             # either way it is the reply that cannot be read, and not the
             # disagreement below
             err_msg = f"getblockchaininfo at {self.url}:"

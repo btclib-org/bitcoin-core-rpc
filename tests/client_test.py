@@ -459,9 +459,8 @@ def chaininfo(**members: object) -> tuple[int, bytes]:
     return 200, reply.encode()
 
 
-# two challenges that are scripts and are nothing else: no node would
-# accept a solution for either. What matters here is that they differ from
-# each other and from the default, which is what a signet is identified by
+# two challenges that differ from each other and from the default, which
+# is what a signet is identified by
 CUSTOM_CHALLENGE = "51"
 OTHER_CHALLENGE = "52"
 
@@ -578,15 +577,29 @@ def test_a_challenge_the_node_reports_wrong_is_a_fetch_error() -> None:
     """Unreadable, and therefore the reply's fault and not the chain's.
 
     `BtcRpcValueError` is reserved for the disagreement, which is the
-    caller's configuration to fix; a challenge that is not hex, or one no
-    node would have taken, is an answer that cannot be interpreted.
+    caller's configuration to fix; a challenge that is not hex, or one too
+    long to serialize, is an answer that cannot be interpreted.
     """
     endpoint = client(chaininfo(chain="signet", signet_challenge="not hex"))
     with pytest.raises(FetchError, match="unreadable signet_challenge"):
         endpoint.assert_chain("signet")
 
-    endpoint = client(chaininfo(chain="signet", signet_challenge=""))
+    endpoint = client(chaininfo(chain="signet", signet_challenge="00" * 0x10000))
     with pytest.raises(FetchError, match="unreadable signet_challenge"):
+        endpoint.assert_chain("signet")
+
+
+def test_a_signet_with_an_empty_challenge_is_one_to_compare() -> None:
+    """The empty challenge, a signet as `magic_from_signet_challenge` says.
+
+    It is compared like any other: the one the caller names passes, and
+    the default one is a disagreement.
+    """
+    endpoint = client(chaininfo(chain="signet", signet_challenge=""))
+    endpoint.assert_chain("signet", signet_challenge="")
+
+    endpoint = client(chaininfo(chain="signet", signet_challenge=""))
+    with pytest.raises(BtcRpcValueError, match="its challenge derives magic 1406e058"):
         endpoint.assert_chain("signet")
 
 
