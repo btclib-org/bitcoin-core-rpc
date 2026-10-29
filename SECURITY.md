@@ -57,6 +57,10 @@ The latest security review is dated 2026-09-30.
 [assurance case](./ASSURANCE_CASE.md), and
 [issue 585](https://github.com/btclib-org/bitcoin-core-rpc/issues/585) records it.
 
+The review's scope is the tree at commit `002e57e0a6d6`.
+[What changed since](https://github.com/btclib-org/bitcoin-core-rpc/compare/002e57e0a6d649b6539499adbb818ad15104c911...main)
+is that commit's comparison with `main`.
+
 ## Supported versions
 
 Only the latest release is supported. A fix is published as a new release,
