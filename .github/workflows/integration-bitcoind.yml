@@ -19,10 +19,10 @@ name: integration-bitcoind
 # supported major yet.
 #
 # How many majors the protocol cells ask is the one thing a schedule
-# changes here: the boundary pair before a merge, every supported major on
-# the weekly run. The `versions` job below is where that is decided and
-# where the pins are, and it is a job rather than two literals in a matrix
-# because a digest belongs in one place.
+# changes here: the boundary pair before a merge, every major the versions
+# job lists on the weekly run. The `versions` job below is where that is
+# decided and where the pins are, and it is a job rather than two literals
+# in a matrix because a digest belongs in one place.
 #
 # It gates a merge on a cost that is measured rather than assumed, the
 # cells running concurrently. What a whole run costs today is in the run
@@ -48,8 +48,8 @@ on:
     branches: [main]
   schedule:
     # Tuesday, hour 05: the grid's slot for what a tree does against
-    # software it does not ship. This is the wide run -- every supported
-    # major against every chain, where a pull request is asked about the
+    # software it does not ship. This is the wide run -- every major the
+    # versions job lists, where a pull request is asked about the
     # compatibility boundary alone.
     # The time is section 10's grid and not this file's to restate.
     # Only the default branch schedules workflows, so on any other branch
@@ -131,7 +131,7 @@ jobs:
   # heard of it still reads the 1.1 reply that comes back, an rpc error
   # under an HTTP 500 included. Nothing else in Core's supported range can
   # demonstrate that. The newest entry is whatever is current, and the
-  # middle ones are every other supported major.
+  # middle ones are the majors between the two.
   #
   # A merge is asked the two ends and the weekly run is asked all of them.
   # The sweep is not the gate's complement but the whole list, the two
@@ -170,7 +170,9 @@ jobs:
             {"core": "30.3", "protocol": "2.0",
              "digest": "4753cd70416c629a2090503e8545a3c05e94a0f5037f8fb97b4c35c6e1afee0e"},
             {"core": "31.1", "protocol": "2.0",
-             "digest": "b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e"}
+             "digest": "b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e"},
+            {"core": "32.1", "protocol": "2.0",
+             "digest": "61545c17c3120fb7412f896d248b11993af04ec8817aad3649c55b2afb044963"}
           ]'
           # the ends by position rather than by version: the list is the
           # order, so adding a major to it needs nothing here changed
@@ -253,10 +255,10 @@ jobs:
       # warm cache fetches it none. Cross-run and cross-pull-request,
       # because a cache written by a run on main is readable from every
       # branch, which is why this workflow also runs on push.
-      # The five cells that want 31.1 race to save one key on a cold run:
-      # the first wins and the others log that it exists, which is not a
-      # failure. Two versions at about 50 MB is what this holds of the
-      # repository's cache budget -- `gh cache list` says how much
+      # The cells that want the newest release race to save one key on a
+      # cold run: the first wins and the others log that they could not
+      # reserve it, which is not a failure. `gh cache list` says how much
+      # of the repository's cache budget the archives hold
       - name: Restore the bitcoind archive
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
