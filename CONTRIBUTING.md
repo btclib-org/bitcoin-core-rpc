@@ -613,7 +613,7 @@ What an administrator's merge skips, and what it does to the runs, is
 | `scorecard` | weekly, push to main | — |
 | `deps-latest` | weekly | 3 images × the floor and the ceiling, upgraded |
 | `deps-oldest` | weekly | the floor interpreter, dependencies at their floors |
-| `bitcoind` | weekly | every Core major, then 5 chains on the newest |
+| `bitcoind` | weekly | every Core major it lists, then 5 chains on the newest |
 | `links` | weekly | — |
 | `mutation` | weekly | — |
 | `fuzz` | weekly | — |
@@ -651,9 +651,10 @@ those cells wait for a runner far longer than they run.
 
 **What the sentinels vary, they vary whole.** `os-ubuntu` runs the images
 and the interpreters the gate does not sweep *and* the cell it does, and
-`bitcoind` runs every Core major including the two it gates on. A matrix
-with the gate's cells cut out of it is one nobody can read the shape of, and
-whoever asked what ran would have to re-derive the hole from the gate.
+`bitcoind` runs every Core major it lists, the two it gates on included. A
+matrix with the gate's cells cut out of it is one nobody can read the shape
+of, and whoever asked what ran would have to re-derive the hole from the
+gate.
 
 `windows-latest` is in `os-windows` rather than on the gate, and the
 platform-conditional branch it answers for is the datadir table in
@@ -747,7 +748,7 @@ datadir, on Core's own rpc port, and leaves nothing behind:
 ```shell
 uv run --locked --no-default-groups \
     python .github/scripts/rpc_smoke.py \
-    --bitcoind /path/to/bitcoind --core-version 31.1 --protocol 2.0
+    --bitcoind /path/to/bitcoind --core-version 31.2 --protocol 2.0
 ```
 
 `--protocol` is asserted rather than derived: what the workflow's matrix
@@ -763,7 +764,7 @@ reports it back, and passes `assert_chain` for it:
 ```shell
 uv run --locked --no-default-groups \
     python .github/scripts/rpc_smoke.py \
-    --bitcoind /path/to/bitcoind --core-version 31.1 --chain testnet4
+    --bitcoind /path/to/bitcoind --core-version 31.2 --chain testnet4
 ```
 
 ### The secrets baseline
