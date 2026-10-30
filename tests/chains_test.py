@@ -24,6 +24,7 @@ from types import SimpleNamespace
 from typing import Any, get_args
 
 import pytest
+from btclib import var_int as btclib_var_int
 from btclib.network import NETWORKS
 from btclib.p2p import magic as btclib_magic
 from typing_extensions import override
@@ -38,6 +39,7 @@ from bitcoin_core_rpc.chains import (
     DEFAULT_SIGNET_CHALLENGE,
     Chain,
     Network,
+    _compact_size,
     chain_from_network,
     cookie_auth,
     cookie_path_from_chain,
@@ -568,20 +570,17 @@ def test_the_magic_table_is_btclibs() -> None:
         b"",
         bytes.fromhex("51"),
         bytes.fromhex(DEFAULT_SIGNET_CHALLENGE),
-        # the last length of the one-byte CompactSize form, the first of
-        # the three-byte one, and the longest challenge this module takes
+        # the last length of the one-byte CompactSize form, the first and
+        # the last of the three-byte one, and the first of the five-byte one
         bytes(range(252)),
         bytes(range(1, 254)),
         bytes(0xFFFF),
+        bytes(0x10000),
     ],
-    ids=["empty", "OP_TRUE", "default", "252", "253", "0xffff"],
+    ids=["empty", "OP_TRUE", "default", "252", "253", "0xffff", "0x10000"],
 )
 def test_the_signet_derivation_is_btclibs(script: bytes) -> None:
-    """A custom signet's magic as btclib derives it, from hex and from bytes.
-
-    Only a challenge this module takes is compared: btclib also answers
-    for one longer than 0xffff bytes, which this module refuses.
-    """
+    """A custom signet's magic as btclib derives it, from hex and from bytes."""
     expected = btclib_magic.magic_from_signet_challenge(script)
     assert magic_from_signet_challenge(script) == expected
     assert magic_from_signet_challenge(script.hex()) == expected
@@ -641,13 +640,13 @@ def test_a_challenge_is_hex_or_the_bytes_it_spells() -> None:
 
 
 def test_a_challenge_past_the_one_byte_length_carries_a_two_byte_one() -> None:
-    """The second CompactSize form, which no real challenge has reached.
+    """The second CompactSize form, `fd` and two bytes.
 
-    A script of 253 bytes and over is serialized `fd` and the length in two
-    little-endian bytes, and the digest is taken over that -- so the prefix
-    is not something the length alone can be substituted for. Computed here
-    rather than recorded: what is being pinned is the serialization, and
-    writing it out is what a recorded digest would hide.
+    A script of 253 to 0xffff bytes is serialized `fd` and the length in
+    two little-endian bytes, and the digest is taken over that -- so the
+    prefix is not something the length alone can be substituted for.
+    Computed here rather than recorded: what is being pinned is the
+    serialization, and writing it out is what a recorded digest would hide.
     """
     script = bytes(range(1, 254))
     assert len(script) == 253
@@ -676,12 +675,43 @@ def test_an_empty_challenge_is_a_signet_core_starts() -> None:
     assert magic_from_signet_challenge(b"") == expected
 
 
-def test_a_challenge_that_is_no_hex_or_too_long_is_refused() -> None:
-    """Not hex, or past 0xffff bytes, whose length prefix is not written."""
+def test_a_challenge_past_0xffff_bytes_derives_the_magic_core_uses() -> None:
+    """The five-byte CompactSize form, against a node that ran it.
+
+    Core v31.1 started with `-signetchallenge` set to `51` repeated 0x10000
+    times, and logged `Signet derived magic (message start): a313ada9`
+    (ISS btclib-org/bitcoin-core-rpc#708).
+    """
+    assert magic_from_signet_challenge("51" * 0x10000) == bytes.fromhex("a313ada9")
+
+
+@pytest.mark.parametrize(
+    ("length", "prefix"),
+    [
+        (0, "00"),
+        (0xFC, "fc"),
+        (0xFD, "fdfd00"),
+        (0xFFFF, "fdffff"),
+        (0x10000, "fe00000100"),
+        (0xFFFFFFFF, "feffffffff"),
+        (0x100000000, "ff0000000001000000"),
+        (0xFFFFFFFFFFFFFFFF, "ffffffffffffffffff"),
+    ],
+)
+def test_the_compact_size_forms_are_cores(length: int, prefix: str) -> None:
+    """Each CompactSize form at both of its ends, written out and as btclib's.
+
+    `WriteCompactSize` in Core's src/serialize.h. The nine-byte form is
+    asked for here rather than through a challenge, which would take 4 GiB.
+    """
+    assert _compact_size(length) == bytes.fromhex(prefix)
+    assert _compact_size(length) == btclib_var_int.serialize(length)
+
+
+def test_a_challenge_that_is_no_hex_is_refused() -> None:
+    """A string is read as hex, and one that is not hex is no script."""
     with pytest.raises(BtcRpcValueError, match="signet challenge that is no hex"):
         magic_from_signet_challenge("not hex")
-    with pytest.raises(BtcRpcValueError, match="more than the 65535 this serializes"):
-        magic_from_signet_challenge(bytes(0x10000))
 
 
 def test_every_chain_with_a_port_has_a_datadir_and_a_name() -> None:

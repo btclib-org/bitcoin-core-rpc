@@ -498,7 +498,7 @@ def test_a_chain_checked_against_a_node_is_not_quoted() -> None:
 
 @pytest.mark.parametrize(
     "challenge",
-    [KEY + "zz", KEY_INT, KEY_BYTES * 3000, KEY * 3000, _ShowsKey()],
+    [KEY + "zz", KEY_INT, _ShowsKey()],
     ids=lambda c: type(c).__name__,
 )
 def test_a_signet_challenge_that_is_refused_is_not_quoted(challenge: Any) -> None:
