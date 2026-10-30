@@ -60,9 +60,12 @@ btclib-org/.github#1870).
 ### `tests/chains_test.py` compares the magic copy with btclib's
 
 btclib joins the `test` group at 2026.10.24, and `chains.py` says why the
-copy stays (issue btclib-org/btclib#2707). The descriptor test fails
-`fstat` for `chains.py` alone, and no longer fails pytest 9.2.0's own
-capture (closes #713).
+copy stays (issue btclib-org/btclib#2707).
+
+### The descriptor test fails `fstat` for `chains.py` alone
+
+pytest 9.2.0's own capture calls `os.fstat`, and the test no longer fails
+it (closes #713).
 
 ### `COMPARISON.md` compares the transport and error handling with corepc
 
@@ -72,8 +75,8 @@ which answers the link check with a 403 (closes #689, closes #704).
 
 ### `integration-bitcoind.yml` asks Core 32.1
 
-32.1 is the newest entry, asked on every pull request beside 27.2 (closes
-#707).
+32.1 is the newest entry, asked on every pull request beside 27.2
+(closes #707).
 
 ### The publish action, the uv floor and the lock move past advisories
 
@@ -85,17 +88,24 @@ which answers the link check with a 403 (closes #689, closes #704).
 
 The check-sdist hook's included (closes #679).
 
-### The shared documents follow btclib-org/.github
+### Development is LLM-based, and a contribution must be understood
 
 `CONTRIBUTING.md`, `REVIEWING.md`, `README.md` and the pull request
-template say development is LLM-based and a contribution must be understood
-(issue btclib-org/.github#1846). `REVIEWING.md` takes the shared part of
-btclib-org/.github 72e0222 and its own part's opening sentence (issue
+template say so (issue btclib-org/.github#1846).
+
+### `REVIEWING.md` takes btclib-org/.github's shared part at 72e0222
+
+And its own part opens with that repository's sentence (issue
 btclib-org/.github#1904, issue btclib-org/.github#1919).
-`.github/dependabot.yml` names the `uv.lock` exception and the `uv_build`
-ceiling (issue btclib-org/.github#1818, issue btclib-org/.github#1848), and
-`.pre-commit-config.yaml` says how a zizmor finding is answered (issue
-btclib-org/.github#1813).
+
+### `.github/dependabot.yml` names the `uv.lock` exception
+
+And says only `uv_build` has a ceiling in the dependency groups (issue
+btclib-org/.github#1818, issue btclib-org/.github#1848).
+
+### `.pre-commit-config.yaml` says how a zizmor finding is answered
+
+Whichever finding it is (issue btclib-org/.github#1813).
 
 ### Dependabot and pre-commit.ci bumps
 
