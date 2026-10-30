@@ -10,6 +10,22 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
+## v2026.10.30
+
+- **The empty signet challenge is a signet like any other.**
+  `magic_from_signet_challenge("")` returns `1406e058`, the magic a Core
+  node started with `-signetchallenge=` uses, where it raised
+  `BtcRpcValueError`. `assert_chain("signet", signet_challenge="")` passes
+  against such a node. Expecting another challenge there raises the
+  `BtcRpcValueError` of a disagreement, where it raised `FetchError`. A
+  caller that relied on the empty challenge being refused checks for it
+  itself.
+- **Verifying this release names the signer without a ref.** Its files are
+  signed by btclib-org/.github's `reusable-build.yml` at a pinned commit,
+  not at `main`, so the `--signer-workflow` ending in `@refs/heads/main`
+  that v2026.10.23's SECURITY.md gave refuses them. SECURITY.md has the
+  command, which also compares the repository by its id.
+
 ## v2026.10.23
 
 The refusals below raise different exceptions or say less. A caller that

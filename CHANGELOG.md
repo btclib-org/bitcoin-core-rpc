@@ -34,6 +34,73 @@ theme. Section 9 also lets an entry making a single claim have a
 paragraph for a body, which no bullet pattern reaches. Counting the
 entries is a reading of the file rather than a command.
 
+## v2026.10.30
+
+### The empty signet challenge derives the magic Core uses
+
+RELEASE_NOTES.md's v2026.10.30 has what `magic_from_signet_challenge` and
+`assert_chain` answer for it (closes #702).
+
+### A release is verified by repository id, with the signer named without a ref
+
+`SECURITY.md` and `RELEASING.md` verify under `--owner btclib-org` and
+compare the certificate's repository id, which a rename keeps (closes #682).
+
+### The calls into btclib-org/.github are pinned to its signed tags
+
+Each call names the commit a tag names, `claude-review.yml`'s included, and
+`.github/zizmor.yml` goes with its exception for `@main` (issue
+btclib-org/.github#1870).
+
+### The JSON-RPC reply decoding is fuzzed with ClusterFuzzLite
+
+`fuzz/fuzz_reply.py` feeds arbitrary bytes to every reply reader, and
+`fuzz.yml` runs it weekly and on dispatch (closes #691).
+
+### `tests/chains_test.py` compares the magic copy with btclib's
+
+btclib joins the `test` group at 2026.10.24, and `chains.py` says why the
+copy stays (issue btclib-org/btclib#2707). The descriptor test fails
+`fstat` for `chains.py` alone, and no longer fails pytest 9.2.0's own
+capture (closes #713).
+
+### `COMPARISON.md` compares the transport and error handling with corepc
+
+A row for redirects is added (closes #669, closes #687). The corepc commit
+is linked on GitHub, and `.lycheeignore` excludes `git.rust-bitcoin.org`,
+which answers the link check with a 403 (closes #689, closes #704).
+
+### `integration-bitcoind.yml` asks Core 32.1
+
+32.1 is the newest entry, asked on every pull request beside 27.2 (closes
+#707).
+
+### The publish action, the uv floor and the lock move past advisories
+
+`gh-action-pypi-publish` v1.14.3, uv `>=0.13.4` and `virtualenv` 21.14.13
+(issue btclib-org/.github#1844); `setuptools` 84.2.1 and `filelock` 4.2.4
+(issue btclib-org/.github#1849).
+
+### Every `uv_build` specifier is `<0.14`
+
+The check-sdist hook's included (closes #679).
+
+### The shared documents follow btclib-org/.github
+
+`CONTRIBUTING.md`, `REVIEWING.md`, `README.md` and the pull request
+template say development is LLM-based and a contribution must be understood
+(issue btclib-org/.github#1846). `REVIEWING.md` takes the shared part of
+btclib-org/.github 72e0222 and its own part's opening sentence (issue
+btclib-org/.github#1904, issue btclib-org/.github#1919).
+`.github/dependabot.yml` names the `uv.lock` exception and the `uv_build`
+ceiling (issue btclib-org/.github#1818, issue btclib-org/.github#1848), and
+`.pre-commit-config.yaml` says how a zizmor finding is answered (issue
+btclib-org/.github#1813).
+
+### Dependabot and pre-commit.ci bumps
+
+The actions group, uv-build 0.13.5 and the pinned hook revisions.
+
 ## v2026.10.23
 
 ### Refusals of a secret input raise the library's errors and quote less
