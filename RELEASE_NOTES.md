@@ -10,6 +10,19 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
+## v2026.11.2
+
+- **A signet challenge longer than 0xffff bytes derives its magic.**
+  `magic_from_signet_challenge` returns it, where it raised
+  `BtcRpcValueError`, and `assert_chain("signet", signet_challenge=...)`
+  accepts such a challenge. A node that reports one is compared like any
+  other signet: a challenge other than the expected one raises the
+  `BtcRpcValueError` of a disagreement, where it raised `FetchError`. A
+  caller that relied on the refusal checks the length itself.
+- **Core 28 and 29 are no longer checked.** `integration-bitcoind.yml`
+  asks a live node of Core 27.2, 30.4, 31.2 and 32.1: the majors Core
+  maintains, and the JSON-RPC 1.1 boundary.
+
 ## v2026.10.30
 
 - **The empty signet challenge is a signet like any other.**
