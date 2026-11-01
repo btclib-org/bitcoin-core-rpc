@@ -22,13 +22,9 @@ module-path = "src/bitcoin_core_rpc"
 # `remaining > 0` for `remaining != 0` on a bounded read that cannot go
 # negative. An ordering stands in for `==` or `!=` against the literal
 # `"signet"`, true while every chain a test passes sorts to one side of
-# it. The adjacent comparison stands in at both length boundaries of the
-# signet challenge: nothing a test builds is exactly the length the first
-# refuses above, and the longest challenge reaching the second is the one
-# the two-byte form begins at. The sign in the wallet-path check's
-# `[-2:]` widens a slice the check reads for membership. Arithmetic on
-# `_READ_CHUNK` and on the read deadline moves a constant no test pins to
-# its own value.
+# it. The sign in the wallet-path check's `[-2:]` widens a slice the
+# check reads for membership. Arithmetic on `_READ_CHUNK` and on the
+# read deadline moves a constant no test pins to its own value.
 #
 # A bare keyword-only `*,` marker becomes the positional-only `/,`, which
 # Cosmic Ray's parso-based operator reads as division: it excludes the

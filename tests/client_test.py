@@ -577,16 +577,23 @@ def test_a_challenge_the_node_reports_wrong_is_a_fetch_error() -> None:
     """Unreadable, and therefore the reply's fault and not the chain's.
 
     `BtcRpcValueError` is reserved for the disagreement, which is the
-    caller's configuration to fix; a challenge that is not hex, or one too
-    long to serialize, is an answer that cannot be interpreted.
+    caller's configuration to fix; a challenge that is not hex is an answer
+    that cannot be interpreted.
     """
     endpoint = client(chaininfo(chain="signet", signet_challenge="not hex"))
     with pytest.raises(FetchError, match="unreadable signet_challenge"):
         endpoint.assert_chain("signet")
 
-    endpoint = client(chaininfo(chain="signet", signet_challenge="00" * 0x10000))
-    with pytest.raises(FetchError, match="unreadable signet_challenge"):
-        endpoint.assert_chain("signet")
+
+def test_a_signet_with_a_challenge_past_0xffff_bytes_is_one_to_compare() -> None:
+    """A challenge of any length Core starts with is compared like any other."""
+    long_challenge = "51" * 0x10000
+    endpoint = client(chaininfo(chain="signet", signet_challenge=long_challenge))
+    endpoint.assert_chain("signet", signet_challenge=long_challenge)
+
+    endpoint = client(chaininfo(chain="signet", signet_challenge=long_challenge))
+    with pytest.raises(BtcRpcValueError, match="its challenge derives magic a313ada9"):
+        endpoint.assert_chain("signet", signet_challenge=CUSTOM_CHALLENGE)
 
 
 def test_a_signet_with_an_empty_challenge_is_one_to_compare() -> None:

@@ -247,10 +247,6 @@ _MAGIC_FROM_CHAIN: dict[str, bytes] = {
     "regtest": bytes.fromhex("fabfb5da"),
 }
 
-# above which a script's CompactSize length takes five bytes, a form
-# `magic_from_signet_challenge` does not write and refuses instead
-_MAX_CHALLENGE_LENGTH = 0xFFFF
-
 
 def magic_from_chain(chain: str) -> bytes:
     """Return the p2p message start of one of Core's chains.
@@ -281,8 +277,7 @@ def magic_from_signet_challenge(challenge: str | bytes | bytearray) -> bytes:
 
     The empty challenge is a signet too: Core reads `-signetchallenge=`
     and a bare `-signetchallenge` as the empty script, and such a node
-    uses the magic this returns for `""`. A challenge longer than 0xffff
-    bytes is refused: its length prefix takes a form this does not write.
+    uses the magic this returns for `""`.
     """
     if isinstance(challenge, str):
         try:
@@ -297,16 +292,22 @@ def magic_from_signet_challenge(challenge: str | bytes | bytearray) -> bytes:
         err_msg = "signet challenge that is no script, but a"  # type: ignore[unreachable]
         err_msg += f" {type(challenge).__name__}"
         raise BtcRpcTypeError(err_msg)
-    if len(script) > _MAX_CHALLENGE_LENGTH:
-        err_msg = f"signet challenge of {len(script)} bytes,"
-        err_msg += f" more than the {_MAX_CHALLENGE_LENGTH} this serializes"
-        raise BtcRpcValueError(err_msg)
-    length = (
-        bytes([len(script)])
-        if len(script) < 0xFD
-        else b"\xfd" + len(script).to_bytes(2, "little")
-    )
-    return sha256(sha256(length + script).digest()).digest()[:4]
+    serialized = _compact_size(len(script)) + script
+    return sha256(sha256(serialized).digest()).digest()[:4]
+
+
+def _compact_size(length: int) -> bytes:
+    """Return the CompactSize prefix Core writes before `length` bytes.
+
+    `WriteCompactSize` in Core's src/serialize.h.
+    """
+    if length < 0xFD:
+        return bytes([length])
+    if length <= 0xFFFF:
+        return b"\xfd" + length.to_bytes(2, "little")
+    if length <= 0xFFFFFFFF:
+        return b"\xfe" + length.to_bytes(4, "little")
+    return b"\xff" + length.to_bytes(8, "little")
 
 
 COOKIE_USER = "__cookie__"
