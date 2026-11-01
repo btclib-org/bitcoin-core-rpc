@@ -34,6 +34,24 @@ theme. Section 9 also lets an entry making a single claim have a
 paragraph for a body, which no bullet pattern reaches. Counting the
 entries is a reading of the file rather than a command.
 
+## v2026.11.2
+
+### The signet magic of a challenge past 0xffff bytes is derived
+
+`magic_from_signet_challenge` writes the length prefix as Core's
+`WriteCompactSize` does, in all four forms. RELEASE_NOTES.md's v2026.11.2
+has what it and `assert_chain` answer (closes #708).
+
+### `integration-bitcoind.yml` asks Core 27.2, 30.4, 31.2 and 32.1
+
+28.4 and 29.4, past their end of life, go, and 30.4 and 31.2 replace 30.3
+and 31.1 (closes #711).
+
+### `SECURITY.md` links what changed since the security review
+
+It names the reviewed commit and links that commit's comparison with
+`main` (issue btclib-org/.github#1795).
+
 ## v2026.10.30
 
 ### The empty signet challenge derives the magic Core uses
