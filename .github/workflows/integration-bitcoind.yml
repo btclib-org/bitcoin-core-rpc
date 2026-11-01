@@ -130,8 +130,10 @@ jobs:
   # boundary -- that a client sending the marker to a node which has never
   # heard of it still reads the 1.1 reply that comes back, an rpc error
   # under an HTTP 500 included. Nothing else in Core's supported range can
-  # demonstrate that. The newest entry is whatever is current, and the
-  # middle ones are the majors between the two.
+  # demonstrate that. The other entries are the majors Core maintains,
+  # the newest last: its latest three, as
+  # https://bitcoincore.org/en/lifecycle/ says, so a major leaves the list
+  # at its end of life.
   #
   # A merge is asked the two ends and the weekly run is asked all of them.
   # The sweep is not the gate's complement but the whole list, the two
@@ -163,14 +165,10 @@ jobs:
           releases='[
             {"core": "27.2", "protocol": "1.1",
              "digest": "acc223af46c178064c132b235392476f66d486453ddbd6bca6f1f8411547da78"},
-            {"core": "28.4", "protocol": "2.0",
-             "digest": "661c02443433c006a52bd3e688c1bc14a37fb95b964f40dfe7b1dc4ffcac2926"},
-            {"core": "29.4", "protocol": "2.0",
-             "digest": "e15bff6f6d21a315c4af25d2e8ae933a22bd51e924e0e90ab0474e1e11516331"},
-            {"core": "30.3", "protocol": "2.0",
-             "digest": "4753cd70416c629a2090503e8545a3c05e94a0f5037f8fb97b4c35c6e1afee0e"},
-            {"core": "31.1", "protocol": "2.0",
-             "digest": "b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e"},
+            {"core": "30.4", "protocol": "2.0",
+             "digest": "051a18c595d9a27df23cb7187ff9fb343e90943cb142af751e12787806500c3d"},
+            {"core": "31.2", "protocol": "2.0",
+             "digest": "2f38996afaa74dfa469a23bf4727887133dfc09784df1f21ddf1c74d0dc82300"},
             {"core": "32.1", "protocol": "2.0",
              "digest": "61545c17c3120fb7412f896d248b11993af04ec8817aad3649c55b2afb044963"}
           ]'
