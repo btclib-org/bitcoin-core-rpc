@@ -678,7 +678,7 @@ def test_an_empty_challenge_is_a_signet_core_starts() -> None:
 def test_a_challenge_past_0xffff_bytes_derives_the_magic_core_uses() -> None:
     """The five-byte CompactSize form, against a node that ran it.
 
-    Core v31.1 started with `-signetchallenge` set to `51` repeated 0x10000
+    A Core node started with `-signetchallenge` set to `51` repeated 0x10000
     times, and logged `Signet derived magic (message start): a313ada9`
     (ISS btclib-org/bitcoin-core-rpc#708).
     """
