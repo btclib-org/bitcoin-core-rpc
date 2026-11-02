@@ -337,7 +337,7 @@ wheels = [
 
 [[package]]
 name = "bitcoin-core-rpc"
-version = "2026.12"
+version = "2026.11.3"
 source = { editable = "." }
 
 [package.dev-dependencies]
