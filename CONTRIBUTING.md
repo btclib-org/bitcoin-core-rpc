@@ -615,7 +615,7 @@ What an administrator's merge skips, and what it does to the runs, is
 | `bitcoind` | pull request, push | Core's two ends, then 5 chains |
 | `codeql` | pull request, push to main, and weekly | 2 languages |
 | `os-ubuntu` | weekly, a release | 2 ubuntu images × 8 interpreters |
-| `os-macos` | weekly, a release | 2 macOS images × 8 interpreters |
+| `os-macos` | weekly, a release | 1 macOS image × 8 interpreters |
 | `os-windows` | weekly, a release | 2 Windows images × 8 interpreters |
 | `scorecard` | weekly, push to main | — |
 | `deps-latest` | weekly | 3 images × the floor and the ceiling, upgraded |
