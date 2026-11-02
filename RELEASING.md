@@ -370,9 +370,9 @@ result.
    version, whether or not the notes declare a break. Section 12 of the
    [organization standard](https://github.com/btclib-org/.github#12-releasing)
    has the rule. The dependents of `bitcoin-core-rpc` are
-   `bitcoin-node-tests`, `btclib`, `btclib-node` and `btclib-wallet`.
-   Re-derive them with the loop in that section before each release
-   rather than carry this list.
+   `bip32-descriptors`, `btclib`, `btclib-functional-tests`, `btclib-node`
+   and `btclib-wallet`. Re-derive them with the loop in that section before
+   each release rather than carry this list.
 
    From a throwaway checkout of each dependent's default branch, with the
    sha of the release pull request's head for `<sha>`, before it merges:
