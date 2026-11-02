@@ -612,15 +612,15 @@ What an administrator's merge skips, and what it does to the runs, is
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `api-break` | pull request | — |
 | `verified-signatures` | push to main | — |
-| `bitcoind` | pull request, push | Core's two ends, then 5 chains |
-| `codeql` | pull request, push to main, and weekly | 2 languages |
-| `os-ubuntu` | weekly, a release | 2 ubuntu images × 8 interpreters |
-| `os-macos` | weekly, a release | 1 macOS image × 8 interpreters |
-| `os-windows` | weekly, a release | 2 Windows images × 8 interpreters |
+| `bitcoind` | pull request, push | Core's two ends, then each chain |
+| `codeql` | pull request, push to main, and weekly | the languages it scans |
+| `os-ubuntu` | weekly, a release | its ubuntu images × its interpreters |
+| `os-macos` | weekly, a release | its macOS images × its interpreters |
+| `os-windows` | weekly, a release | its Windows images × its interpreters |
 | `scorecard` | weekly, push to main | — |
-| `deps-latest` | weekly | 3 images × the floor and the ceiling, upgraded |
+| `deps-latest` | weekly | its images × the floor and the ceiling, upgraded |
 | `deps-oldest` | weekly | the floor interpreter, dependencies at their floors |
-| `bitcoind` | weekly | every Core major it lists, then 5 chains on the newest |
+| `bitcoind` | weekly | every listed Core major, then each chain on the newest |
 | `links` | weekly | — |
 | `mutation` | weekly | — |
 | `fuzz` | weekly | — |
