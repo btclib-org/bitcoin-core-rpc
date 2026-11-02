@@ -755,7 +755,7 @@ datadir, on Core's own rpc port, and leaves nothing behind:
 ```shell
 uv run --locked --no-default-groups \
     python .github/scripts/rpc_smoke.py \
-    --bitcoind /path/to/bitcoind --core-version 31.2 --protocol 2.0
+    --bitcoind /path/to/bitcoind --core-version <major.minor> --protocol 2.0
 ```
 
 `--protocol` is asserted rather than derived: what the workflow's matrix
@@ -771,7 +771,7 @@ reports it back, and passes `assert_chain` for it:
 ```shell
 uv run --locked --no-default-groups \
     python .github/scripts/rpc_smoke.py \
-    --bitcoind /path/to/bitcoind --core-version 31.2 --chain testnet4
+    --bitcoind /path/to/bitcoind --core-version <major.minor> --chain testnet4
 ```
 
 ### The secrets baseline

@@ -959,7 +959,7 @@ def main() -> int:
         "--bitcoind", type=Path, required=True, help="the bitcoind to run"
     )
     parser.add_argument(
-        "--core-version", required=True, help="the version it has to report, e.g. 27.2"
+        "--core-version", required=True, help="the major.minor version it has to report"
     )
     # exactly one of the two: `--protocol` runs the full check against a
     # chain generated on regtest, `--chain` just starts a node of the named

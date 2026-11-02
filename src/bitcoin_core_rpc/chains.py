@@ -131,7 +131,7 @@ def datadir_subdir_from_chain(chain: str) -> str:
 # boundary between the two: a caller holding one name and needing the other
 # has these two functions instead of a dict of their own.
 #
-# A translation of vocabulary and not a promise of availability: v31.1
+# A translation of vocabulary and not a promise of availability: Core
 # warns that support for testnet3 is deprecated and will be removed, so
 # `test` is a name Core still reads rather than a chain every node still
 # serves.

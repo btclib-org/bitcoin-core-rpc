@@ -57,7 +57,7 @@ body:
         `getnetworkinfo`. Which protocol a node answers depends on it: v28
         and later read the JSON-RPC 2.0 marker, and older ones reply 1.1 to
         it.
-      placeholder: "v31.1.0"
+      placeholder: "vX.Y.Z"
     validations:
       required: true
 
