@@ -10,6 +10,14 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
+## v2026.11.3
+
+The public API is the one v2026.11.2 shipped, and the module differs from
+it only in a comment.
+
+- **macOS on Intel is no longer tested.** The suite, and the install check
+  `release.yml` runs once PyPI has the files, run macOS on arm64 alone.
+
 ## v2026.11.2
 
 - **A signet challenge longer than 0xffff bytes derives its magic.**

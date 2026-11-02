@@ -34,6 +34,40 @@ theme. Section 9 also lets an entry making a single claim have a
 paragraph for a body, which no bullet pattern reaches. Counting the
 entries is a reading of the file rather than a command.
 
+## v2026.11.3
+
+### macOS runs on arm64 alone
+
+The `macos-26-intel` image leaves `os-macos.yml` and `pypi-install.yml`.
+RELEASE_NOTES.md's v2026.11.3 has what a user notices (issue
+btclib-org/.github#1982).
+
+### `homepage` is the page on btclib.org
+
+`[project.urls] homepage` is <https://btclib.org/bitcoin-core-rpc/>, and
+`documentation` stays on Read the Docs (closes #724).
+
+### No Core release is named in the examples and the bug template
+
+`rpc_smoke.py`'s `--core-version` help and CONTRIBUTING.md's commands say
+`major.minor`, and the bug template's placeholder is `vX.Y.Z` (closes #725).
+
+### `RELEASING.md` names btclib-functional-tests among the dependents
+
+It takes the place of bitcoin-node-tests, the distribution's old name, and
+bip32-descriptors joins the list (closes #723).
+
+### `RELEASING.md` names the lint jobs a release run skips
+
+`Dependency review` and `Sign-off` run only on a pull request (issue
+btclib-org/.github#1989).
+
+### `CONTRIBUTING.md`'s shared part is in line with btclib-org/.github
+
+It takes that repository's paragraphs on a forge comment's word limits,
+the `Sign-off` check, a security advisory's fix and a reopened pull
+request's runs.
+
 ## v2026.11.2
 
 ### The signet magic of a challenge past 0xffff bytes is derived
@@ -62,7 +96,8 @@ RELEASE_NOTES.md's v2026.10.30 has what `magic_from_signet_challenge` and
 ### A release is verified by repository id, with the signer named without a ref
 
 `SECURITY.md` and `RELEASING.md` verify under `--owner btclib-org` and
-compare the certificate's repository id, which a rename keeps (closes #682).
+compare the certificate's repository id, which a rename keeps (closes #682,
+issue btclib-org/.github#1870).
 
 ### The calls into btclib-org/.github are pinned to its signed tags
 
