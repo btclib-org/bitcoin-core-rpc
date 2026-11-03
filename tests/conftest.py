@@ -23,10 +23,10 @@ leaves a tree to point such a run at its configuration or to make it say
 it is ungated, and this file is the second of the two: such a run is
 refused (btclib-org/.github#443).
 
-The third is a guard on the file set. Pointed at its configuration with
-`--cov-config`, a run from `tests/` still reads the directories `source`
-names against `tests/`, and `.github/scripts` is not one there, so such
-a run is refused as well.
+A guard on the file set sits beside it. Pointed at its configuration
+with `--cov-config`, a run from `tests/` still reads the directories
+`source` names against `tests/`, and `.github/scripts` is not one there,
+so such a run is refused as well.
 """
 
 from __future__ import annotations

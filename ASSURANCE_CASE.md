@@ -263,7 +263,9 @@ exposed to, and what counters each.
   `.pre-commit-config.yaml` names, as part of the lint gate.
 - **Code that is wrong and still passes.** Line and branch coverage of
   every tree `[tool.coverage.run] source` names in `pyproject.toml` is
-  held at 100% by `fail_under` there.
+  held at 100% by `fail_under` there, on the suite run from the root of
+  a checkout. The sdist ships no `.github`, so its suite measures every
+  tree but `.github/scripts`.
 - **Supply chain.** SECURITY.md's *Supported versions* describes the
   attestations and the bill of materials this package publishes.
   `uv.lock` pins every dependency of the development environment, and

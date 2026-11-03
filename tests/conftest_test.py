@@ -10,9 +10,10 @@ the run that measures this file. The position of `--cov` in addopts is
 here for the same reason -- it is a property of the command line no run
 of that command line can report on.
 
-The guards beside it are driven the same way. The first has one
-exception: the run it refuses cannot be the run reporting on it either,
-so the case it exists for is taken in a subprocess started from `tests/`.
+The guards beside it are driven the same way. The configuration guard
+has one exception: the run it refuses cannot be the run reporting on it
+either, so the case it exists for is taken in a subprocess started from
+`tests/`.
 """
 
 from __future__ import annotations
@@ -364,9 +365,8 @@ def _cov_config(
 ) -> CoverageConfiguration:
     """Build what the guards read of coverage's own configuration.
 
-    Two attributes are the whole of it: the file coverage took its
-    settings from, `None` where it took them from none, and the `source`
-    list it read there.
+    What it holds is the file coverage took its settings from, `None`
+    where it took them from none, and the `source` list it read there.
     """
     return cast(
         "CoverageConfiguration",
@@ -606,8 +606,8 @@ def test_the_hook_refuses_a_run_that_cannot_see_its_floor(
     assert f"started in, {started_in}," in str(raised.value)
     assert f"pytest read {_INIPATH}." in str(raised.value)
     # no --cov-config is offered: in a checkout, from anywhere but the
-    # rootdir, it leaves `.github/scripts` unmeasured, which the second
-    # guard refuses
+    # rootdir, it leaves `.github/scripts` unmeasured, which
+    # `sources_out_of_reach` refuses
     assert str(raised.value).endswith(f"Run from {_ROOT}.")
     # the raise is ahead of the write, so the copy pytest-cov reads is
     # left holding what pytest-cov itself put there
@@ -747,9 +747,10 @@ def test_the_source_guard_reads_coverage_s_own_list(
 ) -> None:
     """`source` is where coverage keeps what `pyproject.toml` names.
 
-    Every case above hands the guard a stand-in, so this is the one that
-    reads the attribute off coverage's own configuration for this run. A
-    run measuring nothing, `--no-cov`, has no configuration to read.
+    The cases of `sources_out_of_reach` above hand it a stand-in; this
+    one reads the attribute off coverage's own configuration for this
+    run. A run measuring nothing, `--no-cov`, has no configuration to
+    read.
     """
     measuring = coverage_configuration(pytestconfig)
     assert measuring is None or measuring.source == _SOURCE
