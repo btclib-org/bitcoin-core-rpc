@@ -20,6 +20,11 @@ rather than by the backend.
 RELEASING.md's "Rebuild a release from its tag" is what the property is
 for, a verifier's digest having to agree with the published one.
 
+`main` is called in this interpreter, by each of its refusals and on a
+directory holding one sdist, and the `__main__` guard is run with
+`runpy.run_path`: `.github/scripts` is under the coverage floor, and a
+subprocess would report nothing to it.
+
 The script is loaded by path, `.github/scripts` being no package.
 """
 
@@ -27,6 +32,8 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import runpy
+import sys
 import tarfile
 from pathlib import Path
 from types import ModuleType
@@ -130,3 +137,63 @@ def test_normalizing_rewrites_the_metadata_and_keeps_the_content(
     # compression: four octets at offset 4, little-endian, which is RFC 1952
     # section 2.3's MTIME field
     assert int.from_bytes(archive.read_bytes()[4:8], "little") == _EPOCH
+
+
+def test_main_says_how_to_be_called_when_it_is_not(
+    normalizer: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """No dist directory, or two of them, is the usage and exit 2."""
+    assert normalizer.main(["prog"]) == 2
+    assert capsys.readouterr().err == "usage: prog <dist directory>\n"
+
+
+def test_main_refuses_to_default_source_date_epoch_to_now(
+    normalizer: ModuleType,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unset is a failure, not "now": the script's comment there says why."""
+    monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
+    assert normalizer.main(["prog", str(tmp_path)]) == 1
+    assert capsys.readouterr().err == "SOURCE_DATE_EPOCH is not set\n"
+
+
+def test_main_names_a_dist_directory_with_no_sdist(
+    normalizer: ModuleType,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A directory with a wheel and no sdist is named, not skipped."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", str(_EPOCH))
+    (tmp_path / "bitcoin_core_rpc-1.0-py3-none-any.whl").write_bytes(b"")
+    assert normalizer.main(["prog", str(tmp_path)]) == 1
+    assert capsys.readouterr().err == f"no sdist in {tmp_path}\n"
+
+
+def test_main_normalizes_every_sdist_and_reports_it(
+    normalizer: ModuleType,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The success path: each `*.tar.gz` is rewritten and named."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", str(_EPOCH))
+    archive = tmp_path / "pkg-1.0.tar.gz"
+    _staged_sdist(archive, mode=0o664, mtime=_EPOCH + 0.5)
+    assert normalizer.main(["prog", str(tmp_path)]) == 0
+    assert capsys.readouterr().out == f"normalized {archive}\n"
+    assert [mtime for _, _, mtime, _, _ in _members(archive)] == [_EPOCH, _EPOCH]
+
+
+def test_the_main_guard_runs_the_script_as___main__(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`runpy.run_path` runs the file with `__name__` set to `"__main__"`."""
+    monkeypatch.setenv("SOURCE_DATE_EPOCH", str(_EPOCH))
+    _staged_sdist(tmp_path / "pkg-1.0.tar.gz", mode=0o644, mtime=_EPOCH)
+    monkeypatch.setattr(sys, "argv", ["prog", str(tmp_path)])
+    with pytest.raises(SystemExit) as excinfo:
+        runpy.run_path(str(_SCRIPT), run_name="__main__")
+    assert excinfo.value.code == 0

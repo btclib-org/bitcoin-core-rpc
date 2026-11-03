@@ -655,14 +655,14 @@ extend-glob = ["CHANGELOG.md", "RELEASE_NOTES.md", ".pre-commit-config.yaml"]
 extend-ignore-re = ['`[^`]*`']
 
 [tool.coverage.run]
-# named rather than left to --cov alone: unnamed, --cov measures every
-# file the run imports, which reaches a script imported by path -- the
-# failure mode is a local checkout gated stricter than the CI it exists
-# to reproduce, because a script's main() runs only in a subprocess
-# nothing here starts in-process. bitcoin_core_rpc is the package this
-# distribution ships; tests is included too, because a test nothing runs
-# is dead code with the authority of a test.
-source = ["bitcoin_core_rpc", "tests"]
+# every tree is named, rather than left to --cov's default of whatever
+# the run imports: a file no test imports is then reported at 0% instead
+# of missing from the table. bitcoin_core_rpc is the package this
+# distribution ships. tests is measured because a test nothing runs is
+# dead code with the authority of a test. .github/scripts is measured
+# because a branch of a script that no test reaches is a check nobody
+# has seen fail; it is no package, and coverage measures it by path.
+source = ["bitcoin_core_rpc", "tests", ".github/scripts"]
 omit = ["*/site-packages/*"]
 # statement coverage calls a half-tested `if` fully covered: the line ran,
 # one of its two ways out never did. What that hides here is this module's
