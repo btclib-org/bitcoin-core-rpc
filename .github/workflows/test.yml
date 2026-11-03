@@ -201,8 +201,8 @@ jobs:
       # and skip_covered already give the bare pytest below the same
       # report this job used to type explicitly -- measured identical,
       # table for table, with and without the flag (btclib-org/.github#433).
-      # Naming bitcoin_core_rpc and tests again here would be a second
-      # copy of that list, and the copy a contributor cannot run, this
+      # Naming [tool.coverage.run]'s source list again here would be a
+      # second copy of it, and the copy a contributor cannot run, this
       # file not being what anyone types locally
       - name: Run pytest under coverage
         run: uv run --locked --no-default-groups --group test pytest

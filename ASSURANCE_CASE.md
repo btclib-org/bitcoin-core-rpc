@@ -259,11 +259,11 @@ exposed to, and what counters each.
   `parse_float` and `parse_constant` refuse what `json` would otherwise
   hand back as an unusable amount.
 - **Type confusion (CWE-843).** mypy runs `strict = true`
-  (`pyproject.toml`) over the package and the suite, as a hook of the
-  lint gate in `.pre-commit-config.yaml`.
+  (`pyproject.toml`) over the package, the suite and `.github/scripts`,
+  as a hook of the lint gate in `.pre-commit-config.yaml`.
 - **Code that is wrong and still passes.** Line and branch coverage of
-  the package and of the suite is held at 100% by `fail_under` in
-  `pyproject.toml`.
+  the package, of the suite and of `.github/scripts` is held at 100% by
+  `fail_under` in `pyproject.toml`.
 - **Supply chain.** SECURITY.md's *Supported versions* describes the
   attestations and the bill of materials this package publishes.
   `uv.lock` pins every dependency of the development environment, and

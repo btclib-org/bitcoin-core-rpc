@@ -994,7 +994,7 @@ def main() -> int:
             f"\nCore {args.core_version} answered every check,"
             f" over json-rpc {args.protocol}"
         )
-    else:
+    else:  # pragma: no cover -- the report of a --chain run that finished
         print(f"\nCore {args.core_version} started on {args.chain} and answered")
     return 0  # pragma: no cover -- reached only after a node answered
 
