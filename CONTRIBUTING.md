@@ -533,11 +533,16 @@ if grep -rn 'href="#\.\.\?/' docs/build/html --include='*.html'; then
     exit 1
 fi
 served=$(mktemp -d)
-git clone --depth 1 --filter=blob:none --sparse \
+git clone --quiet --filter=blob:none --sparse \
     https://github.com/btclib-org/.github "$served"
 git -C "$served" sparse-checkout set .github/scripts
+git -C "$served" checkout --quiet \
+    "$(sed -n 's/.*reusable-docs\.yml@\([0-9a-f]*\).*/\1/p' .github/workflows/docs.yml)"
+found=0
 uv run --no-project --python 3.15 \
-    "$served"/.github/scripts/check_included_links.py docs/build/html
+    "$served"/.github/scripts/check_included_links.py docs/build/html || found=$?
+rm -rf "$served"
+test "$found" -eq 0 || exit "$found"
 uv run --locked --no-default-groups --group docs \
     python .github/scripts/check_api_page.py docs/build/html
 ```
@@ -549,9 +554,9 @@ for a destination it cannot resolve is an anchor to an id no page has, and
 included root files carry and suppresses no myst warning; the `grep` is
 what still finds one the day a suppression goes back in.
 
-`check_included_links.py` is btclib-org/.github's: the job checks it out at
-the commit `docs.yml` pins, and the commands above fetch it from `main`. Its
-docstring says what it refuses.
+`check_included_links.py` is btclib-org/.github's: the commands above check
+it out at the commit `docs.yml` pins, as the job does. Its docstring says
+what it refuses.
 
 `check_api_page.py` asks the built page for every name of
 `bitcoin_core_rpc.__all__`, and `docs/source/api.rst`'s block of one
