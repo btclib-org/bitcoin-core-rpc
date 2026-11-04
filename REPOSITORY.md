@@ -76,6 +76,10 @@ gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
 | `lint / Lint and type-check` | `lint.yml`, calling `reusable-lint.yml` |
 | `lint / Dependency review` | `lint.yml`, calling `reusable-lint.yml` |
 | `lint / Sign-off` | `lint.yml`, calling `reusable-lint.yml` |
+| `sourcery / Sourcery` | `sourcery.yml`, calling `reusable-sourcery.yml` |
+
+The command answers these checks in this order, each with `app_id` 15368,
+and `strict` false. Read at 2026-11-04T23:32:59Z.
 
 The last row is whichever context was added most recently, that endpoint
 appending rather than sorting — so the tail of this table moves whenever a
@@ -87,9 +91,9 @@ A merge waits for all of these checks, except an administrator's:
 **Each row above is a job name, an aggregate, or a called job's name
 joined to its caller's**, and that is a rule rather than an
 inconsistency: a workflow with one job needs no aggregate, the job
-*being* the context — a shape no row above still takes, `lint.yml` and
-`docs.yml` alike producing the third. It is also the answer to why a
-sibling repository's own live-node check
+*being* the context — a shape no row above still takes, `lint.yml`,
+`docs.yml` and `sourcery.yml` alike producing the third. It is also the
+answer to why a sibling repository's own live-node check
 can be a bare job name, `Regtest against Bitcoin Core`, where this one
 is `integration: every job passed`. The two workflows ask the same
 question of a real node and are governed by the same rule; there it is one
@@ -109,6 +113,8 @@ calls `reusable-docs.yml`, whose own job is still named
 `Lint and type-check`, producing `lint / Lint and type-check`
 (issue btclib-org/.github#35); its `Dependency review` and `Sign-off`
 jobs produce `lint / Dependency review` and `lint / Sign-off`.
+`sourcery.yml`'s `sourcery` job calls `reusable-sourcery.yml`, whose job
+is named `Sourcery`, producing `sourcery / Sourcery`.
 
 `codeql: every job passed` is not among them, and it is a name this rule
 could take: `codeql.yml` runs on a pull request, so the aggregate reports
@@ -124,6 +130,9 @@ The workflow half of the same question is required, and separately:
 an injected expression on every pull request. What an unrequired CodeQL
 run defers is not the analysis but the blocking — the alerts are raised
 against the branch either way, and a merge is what stops waiting on them.
+
+`sourcery / Sourcery` is in the rule because this tree meets the
+conditions under which [section 10][s10-sourcery] requires it.
 
 `docs / Build the documentation` is named on its own on purpose: a rule
 naming `lint / Lint and type-check` alone would leave a red docs build
@@ -258,7 +267,8 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
             {"context": "docs / Build the documentation", "app_id": 15368},
             {"context": "lint / Lint and type-check", "app_id": 15368},
             {"context": "lint / Dependency review", "app_id": 15368},
-            {"context": "lint / Sign-off", "app_id": 15368}]}
+            {"context": "lint / Sign-off", "app_id": 15368},
+            {"context": "sourcery / Sourcery", "app_id": 15368}]}
 JSON
 ```
 
@@ -367,7 +377,7 @@ does not wait for. A merge with `--admin` skips the
 approval too, once the bypass is added back and because `enforce_admins`
 is off. It also cancels the pull request's
 runs still in progress. The push to `main` runs some of the checks again,
-never `lint / Sign-off` or `lint / Dependency review`.
+never `lint / Sign-off`, `lint / Dependency review` or `sourcery / Sourcery`.
 
 Nothing here pushes to `main` directly: the only thing writing to it is a
 merge GitHub performs itself, and GitHub signs those with its web-flow key.
@@ -955,6 +965,7 @@ one day arrives with the section that uses it. The webhook list answers
 empty as well and is recorded anyway: *Read the Docs* above is about
 what that particular zero means.
 
+[s10-sourcery]: https://github.com/btclib-org/.github#the-set-and-its-cadence
 [s11-branch]: https://github.com/btclib-org/.github#branch-protection-and-rulesets
 [s11-sigs]: https://github.com/btclib-org/.github#signatures
 [s11-tokens]: https://github.com/btclib-org/.github#tokens-publishing-scanning

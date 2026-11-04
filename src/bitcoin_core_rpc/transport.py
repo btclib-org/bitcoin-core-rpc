@@ -901,19 +901,18 @@ def http_request(
         # number; the bound is because an error page is neither a size nor a
         # wait this library agreed to
         try:
-            try:
-                return e.code, _read_bounded(
-                    e, MAX_ERROR_BODY_SIZE, where, deadline, truncate=True
-                )
-            except (OSError, HTTPException, FetchError):
-                # the body of the failure failed too -- a connection dropped
-                # mid-error-page is `IncompleteRead` here, and one still
-                # arriving at the deadline is the `FetchError` the bounded
-                # read raises. The status is the part worth keeping and it
-                # is already in hand, so it goes back with no body rather
-                # than replacing a 503 a caller has a policy for with a
-                # report about reading it
-                return e.code, b""
+            return e.code, _read_bounded(
+                e, MAX_ERROR_BODY_SIZE, where, deadline, truncate=True
+            )
+        except (OSError, HTTPException, FetchError):
+            # the body of the failure failed too -- a connection dropped
+            # mid-error-page is `IncompleteRead` here, and one still
+            # arriving at the deadline is the `FetchError` the bounded
+            # read raises. The status is the part worth keeping and it
+            # is already in hand, so it goes back with no body rather
+            # than replacing a 503 a caller has a policy for with a
+            # report about reading it
+            return e.code, b""
         finally:
             # an HTTPError is a response, and a bounded read leaves it with
             # octets still in it. An unclosed one is a ResourceWarning out
@@ -1297,8 +1296,7 @@ class SessionTransport:
         key = (scheme, host, port or (443 if scheme == "https" else 80))
         method = request.get_method()
         path = request.selector
-        headers = dict(request.unredirected_hdrs)
-        headers.update(request.headers)
+        headers = {**request.unredirected_hdrs, **request.headers}
         body = request.data
         deadline = monotonic() + timeout
 

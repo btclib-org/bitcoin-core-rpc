@@ -226,7 +226,7 @@ def _jobs() -> dict[str, str]:
     """Return the merge gate's job blocks, keyed by the job's own key."""
     found: dict[str, str] = {}
     for under in _JOBS.findall(_GATE.read_text(encoding="utf-8")):
-        found.update({m["key"]: m["block"] for m in _JOB.finditer(under)})
+        found |= {m["key"]: m["block"] for m in _JOB.finditer(under)}
     return found
 
 

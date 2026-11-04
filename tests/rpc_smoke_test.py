@@ -239,8 +239,10 @@ def test_check_v2_reply_accepts_a_wellformed_reply(
     smoke: ModuleType, rpc_error: bool
 ) -> None:
     """A 2.0 result and a 2.0 error, each with exactly one member set."""
-    reply: dict[str, Any] = {"jsonrpc": "2.0"}
-    reply["error" if rpc_error else "result"] = {} if rpc_error else 1
+    reply: dict[str, Any] = {
+        "jsonrpc": "2.0",
+        "error" if rpc_error else "result": {} if rpc_error else 1,
+    }
     smoke.check_v2_reply(200, reply, rpc_error=rpc_error)
 
 

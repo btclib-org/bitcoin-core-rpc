@@ -613,9 +613,9 @@ alike, exit 1 either way — not a fix.
 
 ### What gates a merge, and what only reports
 
-`lint.yml`, `test.yml`, `docs.yml` and `integration-bitcoind.yml` produce the
-required checks, and `REPOSITORY.md` reads the rule back from the
-endpoint rather than restating it.
+`lint.yml`, `test.yml`, `docs.yml`, `integration-bitcoind.yml` and
+`sourcery.yml` produce the required checks, and `REPOSITORY.md` reads the
+rule back from the endpoint rather than restating it.
 
 What an administrator's merge skips, and what it does to the runs, is
 `REPOSITORY.md`'s *Required checks on main* and *Branch protection*.
@@ -626,6 +626,7 @@ What an administrator's merge skips, and what it does to the runs, is
 | `lint`, `docs` | pull request, push | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `api-break` | pull request | — |
+| `sourcery` | pull request | — |
 | `verified-signatures` | push to main | — |
 | `bitcoind` | pull request, push | Core's two ends, then each chain |
 | `codeql` | pull request, push to main, and weekly | the languages it scans |
@@ -657,6 +658,10 @@ advice for a reviewer.
 `verified-signatures.yml` reports after each push to `main` whether every
 commit pushed is `verified`; [the standard's *Signatures*][s-sigs] has the
 rule.
+`sourcery.yml` runs on every pull request. Whether `main` requires it is
+`REPOSITORY.md`'s *Required checks on main*; [the standard's *The set, and
+its cadence*](https://github.com/btclib-org/.github#the-set-and-its-cadence)
+says when a tree requires it.
 
 Which day each of the rest runs is section 10 of the organization
 standard, in `btclib-org/.github`, and not this file's to restate — one
@@ -686,19 +691,21 @@ are asked for real only on a Windows runner. That question does not vary
 with the architecture the interpreter targets, which is why one row of that
 matrix answers it and the rest are there for the standard library beneath.
 
-`os-ubuntu`, `os-macos` and `os-windows` hold the dependencies at the lock
-and move the platform; `deps-latest` moves both, and one variable each is
-what lets the pair be read as a difference — `os-macos.yml`'s header states
-that reading for its own column, and it is the same on the other two. Every
-workflow here also takes `workflow_dispatch`, gates included, `claude-review`
-and `scorecard` excepted — `grep -c workflow_dispatch: .github/workflows/*.yml`
-is what says so, and for the three image workflows it is the only way to ask
-about a branch at all. `claude-review` takes none because its one job
-calls a workflow whose two jobs read the pull request or the comment
-that triggered them, so a manual run would start with nothing to read.
-`scorecard` takes none because its triggers are
-the action's rather than this section's: `ossf/scorecard-action` names `push`
-and `schedule` as supported and calls `workflow_dispatch` experimental.
+`os-ubuntu`, `os-macos` and `os-windows` hold the dependencies at the
+lock and move the platform; `deps-latest` moves both, and one variable
+each is what lets the pair be read as a difference — `os-macos.yml`'s
+header states that reading for its own column, and it is the same on the
+other two. Every workflow here also takes `workflow_dispatch`, gates
+included, `claude-review`, `scorecard` and `sourcery` excepted —
+`grep -c workflow_dispatch: .github/workflows/*.yml` is what says so,
+and for the three image workflows it is the only way to ask about a
+branch at all. `claude-review` takes none because its one job calls a
+workflow whose two jobs read the pull request or the comment that
+triggered them, so a manual run would start with nothing to read.
+`sourcery` takes none for the reason its own header gives. `scorecard`
+takes none because its triggers are the action's rather than this
+section's: `ossf/scorecard-action` names `push` and `schedule` as
+supported and calls `workflow_dispatch` experimental.
 
 `codeql` runs on a pull request as well as on `main` and its weekly
 schedule, and it produces a check no rule requires: the analysis reaches
