@@ -2,25 +2,28 @@
 name: codeql
 
 # Code scanning, as a file rather than as a repository setting. GitHub's
-# default setup analyses the same two languages at the same query suite
-# from a workflow it generates and does not show, which makes the check it
-# produces the one required check whose definition a diff cannot review:
-# every other one in main's rule is a file in this tree with its actions
-# pinned to commit SHAs. Here the languages, the suite, the schedule and
-# the action versions are read the way the rest of CI is read.
+# default setup analyses the same two languages from a workflow it
+# generates and does not show, which makes the check it produces the one
+# required check whose definition a diff cannot review: every other one
+# in main's rule is a file in this tree with its actions pinned to commit
+# SHAs. Here the languages, the suite, the schedule and the action
+# versions are read the way the rest of CI is read.
 #
-# What default setup held is reproduced rather than chosen, so that moving
-# the analysis into the tree does not also change it. Asked once, while
-# default setup was still the active setting:
+# The languages and the schedule are what default setup held, reproduced
+# so that moving the analysis into the tree did not also change them.
+# Asked once, while default setup was still the active setting:
 #
 #     gh api repos/btclib-org/bitcoin-core-rpc/code-scanning/default-setup
 #
-# it answered `languages: [actions, python]`, `query_suite: default` and
-# `schedule: weekly`, which are the matrix, the init step and the cron
-# below. The endpoint reports a schedule only while `state` is
-# `configured`; asked again now, with the setting off (below), it answers
-# `schedule: null` -- the cron has not drifted, the field just stops being
-# reported once the setting is off.
+# it answered `languages: [actions, python]` and `schedule: weekly`, which
+# are the matrix and the cron below. The endpoint reports a schedule only
+# while `state` is `configured`; asked again now, with the setting off
+# (below), it answers `schedule: null` -- the cron has not drifted, the
+# field just stops being reported once the setting is off.
+#
+# The query suite is not default setup's: this tree passes no `queries`,
+# so the analysis runs the called workflow's default, security-extended,
+# which btclib-org/.github#2032 chose.
 #
 # Default setup and an advanced workflow are exclusive, and the collision is
 # at the upload rather than at the start: `init` succeeds, the database is
@@ -108,7 +111,7 @@ jobs:
   # languages the same way, and an input for a difference none of them has would
   # be a copy in disguise (btclib-org/.github#35)
   analyze:
-    uses: btclib-org/.github/.github/workflows/reusable-codeql.yml@7b85b373d1957dcfc1a648a21dd7233954ef410b # v2026.11.2
+    uses: btclib-org/.github/.github/workflows/reusable-codeql.yml@5be4b0fbb5231cff001a3ee0eaa8f7d82bffef11 # v2026.11.5
     # permissions do not inherit through a call, and the called workflow
     # names what it needs in its own header: security-events: write for
     # the SARIF upload, contents: read to check out the tree, and
