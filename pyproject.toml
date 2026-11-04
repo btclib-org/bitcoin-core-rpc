@@ -328,10 +328,10 @@ required-version = ">=0.13.4"
 # The lint gate has to be runnable from an unpacked sdist, which is what
 # puts .pre-commit-config.yaml (`*.yaml`) in, and .taplo.toml (`*.toml`),
 # .markdownlint.jsonc (`*.jsonc`) and .secrets.baseline, which hooks read,
-# with it. `*.yaml` rather than the three names, .readthedocs.yaml and
-# .yamllint.yaml being the other two and there being no fourth at the root
-# for the glob to take by accident -- the workflows are under .github,
-# which an sdist does not carry.
+# with it. `*.yaml` rather than the names, every yaml file at the root
+# being one check-yaml and yamllint read, so that the glob takes none by
+# accident -- the workflows are under .github, which an sdist does not
+# carry.
 #
 # COPYRIGHT is not here, and not in `license-files` above either: it is
 # the organization's notice, a repository file and not a distributed one,
