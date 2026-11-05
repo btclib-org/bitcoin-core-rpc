@@ -1076,6 +1076,13 @@ def _members_of_a_member(walked: JsonStream) -> None:
             walked.skip()
 
 
+def test_walking_a_member_as_an_object_reads_the_document(chunk: int) -> None:
+    """The helper below, on a document it walks to its end."""
+    walked = stream('{"p": 1, "a": {"b": 2}}', chunk)
+    _members_of_a_member(walked)
+    walked.end()
+
+
 @pytest.mark.parametrize(
     ("prefix", "rest", "expected", "walk"),
     [
