@@ -43,6 +43,7 @@ from bitcoin_core_rpc import (
 from bitcoin_core_rpc import client as client_module
 from bitcoin_core_rpc import transport as transport_module
 from tests import RPC_PASSWORD, RPC_USER, Recorded
+from tests.secret_free import assert_secret_free
 
 URL = "http://127.0.0.1:8332"
 
@@ -121,7 +122,7 @@ def test_a_walk_reads_members_and_items_in_order(chunk: int) -> None:
 def test_an_empty_object_has_no_members(chunk: int) -> None:
     """`members` of `{}` yields nothing, and consumes the object."""
     walked = stream("{ }", chunk)
-    assert list(walked.members()) == []
+    assert not list(walked.members())
     walked.end()
 
 
@@ -136,8 +137,14 @@ def names_of(walked: JsonStream) -> list[str | None]:
 
 def test_a_long_member_name_is_answered_as_none(chunk: int) -> None:
     """A name past the bound is consumed, and nobody can ask for it."""
-    text = '{"' + "n" * 100 + '": 1, "short": 2}'
+    text = '{"' + "n" * 300 + '": 1, "short": 2}'
     assert names_of(stream(text, chunk)) == [None, "short"]
+
+
+def test_a_dynamic_key_of_core_is_answered(chunk: int) -> None:
+    """An uncompressed public key, the longest key Core writes by its shape."""
+    key = "04" + "ab" * 64
+    assert names_of(stream(f'{{"{key}": "sig"}}', chunk)) == [key]
 
 
 def test_a_member_name_given_twice_is_yielded_twice(chunk: int) -> None:
@@ -286,8 +293,10 @@ def test_a_number_json_will_not_decode_is_refused() -> None:
             stream("1" * 700, 1 << 20).value(1000)
     finally:
         sys.set_int_max_str_digits(digits)
-    with pytest.raises(FetchError, match="parser refused|exponent is beyond"):
+    with pytest.raises(FetchError, match="^test: .*(parser refused|exponent is)"):
         stream("1e999999999999999999999999999", 1 << 20).value(100)
+    with pytest.raises(FetchError, match="^test: .*exponent is beyond"):
+        stream("1e5000", 1 << 20).skip()
 
 
 # --- call_stream over a caller's transport ---
@@ -502,11 +511,23 @@ def test_a_streamed_failure_is_read_as_call_reads_one(
 # --- call_stream over the default transport, against a loopback peer ---
 
 
+def _received(connection: socket.socket) -> bytes:
+    """Return one receive, refusing the end of the stream.
+
+    An `OSError`, which `_peer`'s thread suppresses, so a client that closes
+    early ends the peer rather than leaving it spinning on `b""`.
+    """
+    data = connection.recv(65536)
+    if not data:
+        raise ConnectionAbortedError("the client closed before its request")
+    return data
+
+
 def _request_of(connection: socket.socket) -> bytes:
     """Read one request: its headers and the body they announce."""
     data = b""
     while b"\r\n\r\n" not in data:
-        data += connection.recv(65536)
+        data += _received(connection)
     head, _, body = data.partition(b"\r\n\r\n")
     length = next(
         int(line.split(b":")[1])
@@ -514,7 +535,7 @@ def _request_of(connection: socket.socket) -> bytes:
         if line.lower().startswith(b"content-length:")
     )
     while len(body) < length:
-        body += connection.recv(65536)
+        body += _received(connection)
     return head + b"\r\n\r\n" + body
 
 
@@ -771,14 +792,15 @@ def test_a_peer_holding_the_body_back_is_held_to_the_deadline(
     which only the socket's own deadline ends; one that drips keeps every
     receive short, so only the deadline over the whole exchange ends it.
     """
+    timeout = 0.5
     with _peer(lambda request_id: head, then=then) as url:
         endpoint = BitcoinCoreRpcClient(
-            url, user=RPC_USER, password=RPC_PASSWORD, timeout=0.5
+            url, user=RPC_USER, password=RPC_PASSWORD, timeout=timeout
         )
         started = monotonic()
         with pytest.raises(FetchError, match="timed out|timeout expired"):
             endpoint.call_stream("m", None, count)
-        assert monotonic() - started < 3.0
+        assert monotonic() - started < 6 * timeout
 
 
 @pytest.mark.parametrize(
@@ -811,7 +833,8 @@ def test_a_skipped_number_call_refuses_is_refused(body: bytes) -> None:
     """A number nobody keeps is still one `call` cannot build."""
     with pytest.raises(FetchError):
         answering(200, body).call("m")
-    with pytest.raises(FetchError, match="exponent is beyond|parser refused"):
+    where = "^m at http://127.0.0.1:8332: "
+    with pytest.raises(FetchError, match=where + ".*(exponent is|parser refused)"):
         answering(200, body).call_stream("m", None, lambda walked: walked.skip())
 
 
@@ -823,7 +846,7 @@ def test_a_skipped_integer_past_the_digit_limit_is_refused() -> None:
     try:
         with pytest.raises(FetchError):
             answering(200, body).call("m")
-        with pytest.raises(FetchError, match="parser refused"):
+        with pytest.raises(FetchError, match="^m at .*parser refused"):
             answering(200, body).call_stream("m", None, keep(10))
     finally:
         sys.set_int_max_str_digits(digits)
@@ -949,3 +972,52 @@ def test_an_object_result_is_walked_over_the_default_transport(dialect: str) -> 
     with _peer(answer) as url:
         ids = node(url).call_stream("getblock", ["00" * 32, 1], tx_ids)
     assert ids == ["11" * 32, "22" * 32]
+
+
+def test_a_client_closing_early_ends_the_peer() -> None:
+    """`_received` refuses the end of the stream rather than spin on it."""
+    here, there = socket.socketpair()
+    with here, there:
+        there.close()
+        with pytest.raises(ConnectionAbortedError):
+            _received(here)
+
+
+# two values of a key's shape, a WIF of `dumpprivkey`, with no character in
+# common at any position: a refusal that quoted any octet of one would
+# differ between them
+_SECRETS = (
+    "L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ",
+    "KxZcY47uGp9a4mVxe7TkG1oGzW5nSqsr8tfmZa8QKfQbFhvBTSsT",
+)
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        '{"result": %s}',
+        '{"result": [1 %s]}',
+        '{"result": {"a": 1 %s}}',
+        '{"result": {"a" %s}}',
+        '{"result": [[1 %s]]}',
+        '{"result": 1 %s}',
+        '{"result": 1} %s',
+        '{"result": "\\%s"}',
+    ],
+)
+@pytest.mark.parametrize("walk", [tx_ids, count, skip_all])
+def test_a_refusal_quotes_no_octet_of_the_reply(
+    shape: str, walk: Callable[[JsonStream], object]
+) -> None:
+    """A secret where the stream stops is named by its offset alone.
+
+    The refusal is the same whichever secret stands there, so it holds no
+    octet of it, and `assert_secret_free` finds no piece of either.
+    """
+    refusals = []
+    for secret in _SECRETS:
+        with pytest.raises(FetchError) as caught:
+            answering(200, (shape % secret).encode()).call_stream("m", None, walk)
+        assert_secret_free(caught.value, [secret])
+        refusals.append(str(caught.value))
+    assert refusals[0] == refusals[1], refusals

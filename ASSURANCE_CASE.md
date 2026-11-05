@@ -175,8 +175,8 @@ describes.
 - **Economy of mechanism.** One `HttpTransport` protocol both
   `urlopen_transport` and `SessionTransport` satisfy; one `_checked_url`
   serving both clients through its `kind` argument rather than a second
-  copy of the same checks; one `_read_bounded` both transports built
-  here read a reply through. `_post_stream`, which `call_stream` reads
+  copy of the same checks; one `_read_bounded` each transport built
+  here reads a reply through. `_post_stream`, which `call_stream` reads
   through instead, keeps no body and so has nothing for `_read_bounded`
   to bound.
 - **Fail-safe defaults.** A caller giving neither a credential nor a
@@ -245,7 +245,9 @@ exposed to, and what counters each.
   rejected credential, a refused url, rpc parameter, header, timeout or
   limit, rest path, wallet name, chain or network name and signet
   challenge, an unreadable reply, an unreadable cookie file and a
-  refusal's path.
+  refusal's path. `JsonStream` names a misplaced octet of a reply by its
+  offset, never the octet, and `tests/stream_test.py` feeds a key where
+  it stops.
   It does not cover the node's own text: `RpcError`'s message, which
   [issue 644](https://github.com/btclib-org/bitcoin-core-rpc/issues/644)
   keeps as Core wrote it, and the `id`, the `jsonrpc` marker and the `error`

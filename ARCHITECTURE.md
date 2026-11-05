@@ -30,8 +30,8 @@ what a status *means* is `client.py`'s question, never the
 transport's. `HttpTransport` — a callable taking the
 built request and a timeout, answering with the status and the body —
 is the public seam a caller's own transport implements, and
-`urlopen_transport` is the default. `_read_bounded` is what both
-transports built here read a reply through: a deadline taken once,
+`urlopen_transport` is the default. `_read_bounded` is what each
+transport built here reads a reply through: a deadline taken once,
 before the exchange starts, and a loop of bounded chunks rather than one
 blocking read, so a body larger than `max_body_size` or slower than
 `timeout` is refused instead of held in memory or waited out

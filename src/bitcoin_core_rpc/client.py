@@ -830,12 +830,22 @@ def _correlated_batch_replies(
 # comes near it: an amount or a height is a few dozen
 _MAX_STREAM_NUMBER = 1024
 
-# the deepest nesting `JsonStream.skip` reads
+# the deepest nesting `JsonStream.skip` reads. The deepest result Core
+# declares in one place nests 8 levels (src/rpc/mempool.cpp at Core's
+# 0e38ad26af, from a scan of its `RPCResult` entries), and `getblock` at
+# verbosity 3 nests 7 from its result down to a prevout's `scriptPubKey`.
+# Eight times that is the margin for results built from shared parts,
+# which the scan does not follow
 _MAX_STREAM_DEPTH = 64
 
 # the longest member name `JsonStream.members` answers, quotes included; a
-# longer one is consumed and answered as `None`
-_MAX_STREAM_NAME = 64
+# longer one is consumed and answered as `None`. The longest name Core
+# declares is 27 characters, `proxy_randomize_credentials`. Its objects of
+# dynamic keys run longer: a txid or a preimage hash is 64 hex digits, an
+# uncompressed public key keying `partial_signatures` 130, an address up
+# to 90 characters (BIP 173). A key longer than this, such as an unknown
+# psbt field, is no name a walk can ask for
+_MAX_STREAM_NAME = 256
 
 _STREAM_WHITESPACE = re.compile(rb"[ \t\n\r]+")
 # where a run of plain string octets ends
@@ -871,6 +881,9 @@ def _assert_json_number(where: str, token: bytes) -> None:
             int(text)
     except (ValueError, DecimalException) as e:
         raise _unreadable(where, e) from e
+    except FetchError as e:
+        # `_json_number`'s own refusal, which names no `where`
+        raise FetchError(f"{where}: {e}") from e
 
 
 class JsonStream:
@@ -911,6 +924,9 @@ class JsonStream:
         self._where = where
         self._buffer = b""
         self._pos = 0
+        # how many octets of the document came before `_buffer`, so that a
+        # refusal can name where it stopped
+        self._offset = 0
         self._ended = False
         self._utf8 = getincrementaldecoder("utf-8")()
         # what `_advance` copies the consumed octets into while a value is
@@ -926,6 +942,14 @@ class JsonStream:
 
     def _refusal(self, what: str) -> FetchError:
         return FetchError(f"{self._where}: {what}")
+
+    def _misplaced(self, expected: str, at: int) -> FetchError:
+        """Refuse an octet that is not `expected`, naming its offset alone.
+
+        Its position and never the octet, as `JSONDecodeError` reports one:
+        the octet can be the first of a secret a proxy wrote unquoted.
+        """
+        return self._refusal(f"not {expected!r} at octet {at} of the reply")
 
     def _fill(self) -> bool:
         """Read one more chunk behind what is left, or answer the end."""
@@ -946,6 +970,7 @@ class JsonStream:
         if not chunk:
             self._ended = True
             return False
+        self._offset += self._pos
         self._buffer = self._buffer[self._pos :] + chunk
         self._pos = 0
         return True
@@ -995,8 +1020,7 @@ class JsonStream:
     def _expect(self, octet: int) -> None:
         found = self._next_octet()
         if found != octet:
-            err_msg = f"not {chr(octet)!r} where the reply has {chr(found)!r}"
-            raise self._refusal(err_msg)
+            raise self._misplaced(chr(octet), self._offset + self._pos)
         self._advance(1)
 
     def _string(self) -> None:
@@ -1094,7 +1118,7 @@ class JsonStream:
                 open_.pop()
                 continue
             if octet != ord(","):
-                raise self._refusal(f"not ',' where the reply has {chr(octet)!r}")
+                raise self._misplaced(",", self._offset + self._pos - 1)
             if open_[-1] == ord("{"):
                 self._member_name()
             return True
@@ -1162,7 +1186,7 @@ class JsonStream:
                 self._open -= 1
                 return
             if octet != ord(","):
-                raise self._refusal(f"not ',' where the reply has {chr(octet)!r}")
+                raise self._misplaced(",", self._offset + self._pos - 1)
 
     def items(self) -> Iterator[int]:
         """Yield the index of each element of an array, ahead of the element.
@@ -1184,7 +1208,7 @@ class JsonStream:
                 self._open -= 1
                 return
             if octet != ord(","):
-                raise self._refusal(f"not ',' where the reply has {chr(octet)!r}")
+                raise self._misplaced(",", self._offset + self._pos - 1)
 
     def end(self) -> None:
         """Refuse anything but whitespace after the document."""

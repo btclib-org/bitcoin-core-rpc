@@ -8,7 +8,7 @@ Everything below an HTTP status is mapped onto `FetchError` here, and
 nothing above it is: what a status *means* is `client.py`'s question, not
 this module's. `urlopen_transport` and `SessionTransport` open a socket,
 and so does `_post_stream`, for the reply
-`BitcoinCoreRpcClient.call_stream` reads as a stream: all three through
+`BitcoinCoreRpcClient.call_stream` reads as a stream: each through
 `_connect`, and nothing else in this module opens one.
 """
 
