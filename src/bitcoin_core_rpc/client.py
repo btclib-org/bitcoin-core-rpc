@@ -893,11 +893,12 @@ class JsonStream:
 
     It refuses what `call` refuses of a reply -- a document cut short, a
     value out of place, a string with a control character or a bad escape,
-    octets that are not utf-8, anything but whitespace after the document,
-    a number `call` cannot build, kept or skipped -- and what its own
-    bounds refuse: a kept value past its limit, a number past
-    `_MAX_STREAM_NUMBER` octets, nesting past `_MAX_STREAM_DEPTH` in
-    `skip`. Each refusal is a `FetchError` that quotes nothing of the
+    octets that are not utf-8, anything but whitespace after the document, a
+    number `call` cannot build, kept or skipped -- and what its own bounds
+    refuse: a kept value past its limit, a number past `_MAX_STREAM_NUMBER`
+    octets, nesting past `_MAX_STREAM_DEPTH` in `skip`. It also refuses a
+    document in UTF-16 or UTF-32, or one opening with a BOM, which `call`
+    decodes. Each refusal is a `FetchError` that quotes nothing of the
     document. A kept value is decoded as `call` decodes a reply: a
     floating-point number as a `Decimal`, an integer as an `int`.
 
@@ -1824,8 +1825,9 @@ class BitcoinCoreRpcClient:
 
         The reply is refused wherever `call` would refuse it, the members
         and values skipped included. It is also refused where a bound of
-        `JsonStream` or a member given twice in the envelope refuses it,
-        which `call` does not do.
+        `JsonStream` or a member given twice in the envelope refuses it, or
+        where it is a body `call` decodes as UTF-16, UTF-32 or with a BOM,
+        none of which `call` refuses.
 
         Over the default transport the reply is read from the socket as
         `walk` asks for it, and nothing bounds its total size: what is held

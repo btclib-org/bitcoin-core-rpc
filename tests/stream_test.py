@@ -160,20 +160,23 @@ def test_the_end_can_be_asked_twice() -> None:
     ended.end()
 
 
+def tx_ids(walked: JsonStream) -> list[Any]:
+    """Return the ids of a block's transactions: the walk README.md shows."""
+    ids: list[Any] = []
+    for name in walked.members():
+        if name != "tx":
+            walked.skip()
+            continue
+        ids.extend(walked.value(100) for _ in walked.items())
+    return ids
+
+
+BLOCK = {"hash": "00" * 32, "tx": ["11" * 32, "22" * 32], "height": 1}
+
+
 def test_the_readme_example_reads_a_block() -> None:
     """The walk README.md shows reads the ids of a block's transactions."""
-
-    def tx_ids(walked: JsonStream) -> list[Any]:
-        ids: list[Any] = []
-        for name in walked.members():
-            if name != "tx":
-                walked.skip()
-                continue
-            ids.extend(walked.value(100) for _ in walked.items())
-        return ids
-
-    block = {"hash": "00" * 32, "tx": ["11" * 32, "22" * 32], "height": 1}
-    assert tx_ids(stream(json.dumps(block), 7)) == ["11" * 32, "22" * 32]
+    assert tx_ids(stream(json.dumps(BLOCK), 7)) == ["11" * 32, "22" * 32]
 
 
 # --- JsonStream: what it refuses ---
@@ -925,3 +928,24 @@ def test_call_stream_agrees_with_call_on_random_replies(
         endpoint = streamed(monkeypatch, 200, body)
         assert _outcome(endpoint, keep(1 << 20)) == expected, body
         assert _outcome(endpoint, skip_all) == skipped, body
+
+
+@pytest.mark.parametrize("dialect", ["2.0", "legacy"])
+def test_an_object_result_is_walked_over_the_default_transport(dialect: str) -> None:
+    """The README's walk over a block, through `call_stream` and a socket.
+
+    The walk leaves the result's object through `members` and its array
+    through `items`, which is what the check after the walk reads.
+    """
+
+    def answer(request_id: str) -> bytes:
+        reply: dict[str, Any] = {"result": BLOCK, "id": request_id}
+        if dialect == "2.0":
+            reply["jsonrpc"] = "2.0"
+        else:
+            reply["error"] = None
+        return _response("200 OK", json.dumps(reply).encode())
+
+    with _peer(answer) as url:
+        ids = node(url).call_stream("getblock", ["00" * 32, 1], tx_ids)
+    assert ids == ["11" * 32, "22" * 32]
