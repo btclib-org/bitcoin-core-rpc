@@ -124,13 +124,15 @@ holds. `call_stream` reads its reply with `JsonStream` instead of
 `_parsed_json_body` and `_reply_object`: it refuses each number
 `json.loads` would refuse, skipped or kept, decodes what it keeps with the
 same `json.loads`, refuses a reply that is not a json object, and hands
-the members it kept to the same `_discriminate`. `str()` of an `RpcError` writes the non-printable characters of the
-node's message as escapes, so a reply cannot forge a log line or drive a
-terminal. A reply is also read as arbitrary bytes by `fuzz/fuzz_reply.py`
+the members it kept to the same `_discriminate`. `str()` of an
+`RpcError` writes the non-printable characters of the node's message as
+escapes, so a reply cannot forge a log line or drive a terminal. A reply
+is also read as arbitrary bytes by `fuzz/fuzz_reply.py`
 under ClusterFuzzLite (`.github/workflows/fuzz.yml`) and, mutated at every
 position, by `tests/fuzz_test.py`, which asserts that only `FetchError`
-comes out, `call_stream`'s `_streamed_result` included; `tests/fuzz_corpus_test.py` checks that every seed of the corpus
-is still read.
+comes out, `call_stream`'s `_streamed_result` included;
+`tests/fuzz_corpus_test.py` checks that every seed of the corpus is still
+read.
 
 **The network path.** Only `http` and `https` reach a built request
 (`_SCHEMES`); no proxy is taken from the environment, `ProxyHandler({})`
