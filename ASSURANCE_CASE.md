@@ -19,9 +19,17 @@ here are the ones [ARCHITECTURE](./ARCHITECTURE.md) describes.
   built or sent.** A url, a credential, a timeout, a body limit and a
   parameter structure are each checked at the call that supplies them,
   raising `BtcRpcTypeError` or `BtcRpcValueError`.
-- **What a node sends is bounded.** A reply larger than the caller's
-  `max_body_size`, or slower than its `timeout`, is refused rather than
-  held in memory whole or waited out indefinitely.
+- **What a node sends is bounded.** A reply slower than the caller's
+  `timeout` is refused rather than waited out indefinitely. For `call`,
+  a reply larger than the caller's `max_body_size` is refused rather
+  than held in memory whole. For `call_stream`, which reads a reply as
+  it arrives, the total is not bounded: what is bounded is what the
+  caller keeps of it, each value under the limit the caller gives
+  `JsonStream.value`, and each member of the reply but `result` under
+  `max_body_size`. That holds over the default transport. Over
+  `SessionTransport` or a caller's own transport, which answer the body
+  whole, `call_stream` refuses a body larger than `max_body_size`, as
+  `call` does.
 - **A credential never appears where it can leak.** Not in a url, not in
   a `__repr__`, not in an exception raised about a rejected one, not sent
   to a host a redirect or an environment variable named instead of the
@@ -112,13 +120,19 @@ never a decoder that executes anything the reply carries.
 refuses one whose `id` does not match the request just sent,
 and `_discriminate` refuses a `jsonrpc` marker that is neither absent
 nor `"2.0"`. None of it is trusted as an answer until every one of those
-holds. `str()` of an `RpcError` writes the non-printable characters of the
-node's message as escapes, so a reply cannot forge a log line or drive a
-terminal. A reply is also read as arbitrary bytes by `fuzz/fuzz_reply.py`
+holds. `call_stream` reads its reply with `JsonStream` instead of
+`_parsed_json_body` and `_reply_object`: it refuses each number
+`json.loads` would refuse, skipped or kept, decodes what it keeps with the
+same `json.loads`, refuses a reply that is not a json object, and hands
+the members it kept to the same `_discriminate`. `str()` of an
+`RpcError` writes the non-printable characters of the node's message as
+escapes, so a reply cannot forge a log line or drive a terminal. A reply
+is also read as arbitrary bytes by `fuzz/fuzz_reply.py`
 under ClusterFuzzLite (`.github/workflows/fuzz.yml`) and, mutated at every
 position, by `tests/fuzz_test.py`, which asserts that only `FetchError`
-comes out; `tests/fuzz_corpus_test.py` checks that every seed of the corpus
-is still read.
+comes out, `call_stream`'s `_streamed_result` included;
+`tests/fuzz_corpus_test.py` checks that every seed of the corpus is still
+read.
 
 **The network path.** Only `http` and `https` reach a built request
 (`_SCHEMES`); no proxy is taken from the environment, `ProxyHandler({})`
@@ -161,12 +175,15 @@ describes.
 - **Economy of mechanism.** One `HttpTransport` protocol both
   `urlopen_transport` and `SessionTransport` satisfy; one `_checked_url`
   serving both clients through its `kind` argument rather than a second
-  copy of the same checks; one `_read_bounded` every transport built
-  here reads a reply through.
+  copy of the same checks; one `_read_bounded` each transport built
+  here reads a reply through. `_post_stream`, which `call_stream` reads
+  through instead, keeps no body and so has nothing for `_read_bounded`
+  to bound.
 - **Fail-safe defaults.** A caller giving neither a credential nor a
   cookie path is refused rather than answered with a client that sends
-  an empty `Authorization`; `DEFAULT_MAX_BODY_SIZE` bounds a reply even
-  where the caller passes nothing; a caller giving both a credential and
+  an empty `Authorization`; `DEFAULT_MAX_BODY_SIZE` bounds a reply to
+  `call` even where the caller passes nothing, and what `call_stream`
+  keeps of the envelope; a caller giving both a credential and
   a cookie path is refused rather than one silently ranked over the
   other.
 - **Complete mediation.** *Trust boundaries* above is this principle
@@ -228,7 +245,9 @@ exposed to, and what counters each.
   rejected credential, a refused url, rpc parameter, header, timeout or
   limit, rest path, wallet name, chain or network name and signet
   challenge, an unreadable reply, an unreadable cookie file and a
-  refusal's path.
+  refusal's path. `JsonStream` names a misplaced octet of a reply by its
+  offset, never the octet, and `tests/stream_test.py` feeds a key where
+  it stops.
   It does not cover the node's own text: `RpcError`'s message, which
   [issue 644](https://github.com/btclib-org/bitcoin-core-rpc/issues/644)
   keeps as Core wrote it, and the `id`, the `jsonrpc` marker and the `error`
@@ -252,12 +271,15 @@ exposed to, and what counters each.
   `_read_bounded`'s bound on what one reply may weigh, checked before a
   byte past it is read, and its deadline, checked before each chunk
   rather than reset by one — under *The transport layer* in
-  ARCHITECTURE.md.
+  ARCHITECTURE.md. A reply `call_stream` reads is held to the same
+  deadline, and `JsonStream` bounds what it keeps instead of the total:
+  each kept value under a limit, a number under `_MAX_STREAM_NUMBER`
+  octets, and the nesting `skip` walks under `_MAX_STREAM_DEPTH`.
 - **Deserialization of untrusted data (CWE-502).** `_parsed_json_body`
-  is the only place a reply's bytes become Python objects, through
-  `json.loads` alone: no `pickle`, no `marshal`, no `eval`, and a custom
-  `parse_float` and `parse_constant` refuse what `json` would otherwise
-  hand back as an unusable amount.
+  and `JsonStream` are where a reply's bytes become Python objects,
+  through `json.loads` alone: no `pickle`, no `marshal`, no `eval`, and
+  a custom `parse_float` and `parse_constant` refuse what `json` would
+  otherwise hand back as an unusable amount.
 - **Type confusion (CWE-843).** mypy runs `strict = true`
   (`pyproject.toml`) over every tree the `mypy` hook of
   `.pre-commit-config.yaml` names, as part of the lint gate.

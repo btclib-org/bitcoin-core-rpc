@@ -29,12 +29,14 @@ octets that are not utf-8.
 from __future__ import annotations
 
 import contextlib
+from io import BytesIO
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from bitcoin_core_rpc import client
 from bitcoin_core_rpc.errors import FetchError
+from bitcoin_core_rpc.transport import DEFAULT_MAX_BODY_SIZE
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -43,6 +45,32 @@ if TYPE_CHECKING:
 # exception `http_request` and the readers of a reply promise
 CONTRACT = (FetchError,)
 
+
+def _streamed(where: str, status: int, payload: bytes) -> Any:
+    """Read `payload` as `call_stream` does: the result kept, then skipped.
+
+    The id is the one `_VALID` replies carry, so a reply reaches the checks
+    after the walk.
+    """
+    with contextlib.suppress(*CONTRACT):
+        client._streamed_result(
+            where,
+            "btcrpc-0",
+            status,
+            BytesIO(payload).read,
+            walk=lambda stream: stream.value(DEFAULT_MAX_BODY_SIZE),
+            max_body_size=DEFAULT_MAX_BODY_SIZE,
+        )
+    return client._streamed_result(
+        where,
+        "btcrpc-0",
+        status,
+        BytesIO(payload).read,
+        walk=lambda stream: stream.skip(),
+        max_body_size=DEFAULT_MAX_BODY_SIZE,
+    )
+
+
 # each is called with `(where, status, payload)`; the key is what
 # `fuzz/fuzz_reply.py`'s ENTRY_POINTS spells, which is how
 # tests/fuzz_corpus_test.py knows the harness fuzzes each of them
@@ -50,6 +78,7 @@ DECODERS: dict[str, Callable[[str, int, bytes], Any]] = {
     "bitcoin_core_rpc.client:_parsed_json_body": client._parsed_json_body,
     "bitcoin_core_rpc.client:_reply_object": client._reply_object,
     "bitcoin_core_rpc.client:_batch_reply_array": client._batch_reply_array,
+    "bitcoin_core_rpc.client:_streamed_result": _streamed,
 }
 
 # a 200 is an answer; the others are what a node and what a proxy in front

@@ -179,6 +179,34 @@ a server's own conformance wants in place of a result already extracted.
 status, reply = client.call_raw("getblockcount", jsonrpc=None)
 ```
 
+## Reading a large reply
+
+`call_stream` is for a reply larger than `call` should hold, such as
+`getblock` at verbosity 2 or 3. It sends the request `call` sends, and
+reads the reply as it arrives. The `walk` function is handed a
+`JsonStream` at the `result` and returns what it keeps: `members` and
+`items` walk an object or an array, `skip` consumes a value unread, and
+`value` keeps one under a limit in octets.
+
+```python
+def tx_ids(stream):
+    ids = []
+    for name in stream.members():
+        if name != "tx":
+            stream.skip()
+            continue
+        for _ in stream.items():
+            ids.append(stream.value(100))
+    return ids
+
+
+ids = client.call_stream("getblock", [block_hash, 1], tx_ids)
+```
+
+What `walk` returns is handed back only once the rest of the reply has
+been checked as `call` checks it. The method's docstring says what each
+of `max_body_size` and `request_timeout` bounds.
+
 ## Batching
 
 `call_batch` sends several `(method, params)` pairs in one HTTP POST,

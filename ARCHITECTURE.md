@@ -30,7 +30,7 @@ what a status *means* is `client.py`'s question, never the
 transport's. `HttpTransport` — a callable taking the
 built request and a timeout, answering with the status and the body —
 is the public seam a caller's own transport implements, and
-`urlopen_transport` is the default. `_read_bounded` is what every
+`urlopen_transport` is the default. `_read_bounded` is what each
 transport built here reads a reply through: a deadline taken once,
 before the exchange starts, and a loop of bounded chunks rather than one
 blocking read, so a body larger than `max_body_size` or slower than
@@ -40,6 +40,16 @@ indefinitely. Beneath it, the connections both transports open —
 the body to that deadline as well: the name lookup, each connect
 attempt, the handshake, every send, and every recv of the status line
 and the headers, each given what is left of it.
+
+`_post_stream` is the one read that does not go through
+`_read_bounded`. `BitcoinCoreRpcClient.call_stream` reads a reply
+through it over the default transport, to answer a reply larger than
+`max_body_size` can hold. It opens the same deadline connection and
+hands back the body one chunk at a time, keeping nothing of it, and
+nothing bounds the total. What is bounded is what the caller keeps:
+`client.py`'s `JsonStream` keeps a value only where it is asked to, under
+a limit the caller passes. The deadline still covers the whole exchange,
+the time the caller spends between two reads included.
 
 `SessionTransport` is the alternative transport, one connection kept per
 `(scheme, host, port)` and reused across calls rather than one socket
@@ -74,7 +84,9 @@ Every reply is also read against the request that asked for it:
 `_reply_object` refuses a body that does not parse as a json object, and
 `_id_error` refuses one whose `id` does not match — a caching proxy, or
 another call's own answer arriving out of turn, is not read as this
-call's result.
+call's result. `call_stream` reads its reply with `JsonStream` instead of
+`_reply_object`, and hands the members it kept to the same
+`_discriminate`.
 
 ## Credentials
 
@@ -99,7 +111,9 @@ the file rather than a raw exception carrying its contents.
 
 ## The two clients and `RpcChannel`
 
-`BitcoinCoreRpcClient.call` invokes one rpc method; `call_batch` sends
+`BitcoinCoreRpcClient.call` invokes one rpc method; `call_stream`
+invokes one and reads its `result` with a walk of the caller's as it
+arrives, for a reply too large to hold; `call_batch` sends
 several in one HTTP exchange and correlates each reply by `id`, a
 member's own `RpcError` sitting at its position rather than discarding
 every other member's answer; `call_raw` hands back the envelope

@@ -14,6 +14,11 @@ each member's reply with the same `_discriminate`, by way of
 `call_raw` builds one request the same way `call` does and hands back
 whatever `_parsed_json_body` parses, unread and unshaped past that.
 
+`call_stream` sends `call`'s request and reads the reply with
+`JsonStream` as it arrives, for a reply too large to hold: the caller's
+walk reads `result`, and `_streamed_result` keeps the other members and
+hands them to the same `_discriminate`.
+
 `BitcoinCoreRestClient` is the other client this module builds, over
 Core's `-rest` interface rather than its JSON-RPC one: no envelope to
 read at all, so `get_bin` and `get_json` alike check the status before
@@ -29,15 +34,18 @@ nothing here folds the two into one class.
 from __future__ import annotations
 
 import json
+import re
 from base64 import b64encode
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from codecs import getincrementaldecoder
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from decimal import Decimal, DecimalException
+from io import BytesIO
 from math import isfinite
 from os import PathLike
 from pathlib import Path
 from secrets import token_hex
 from sys import get_int_max_str_digits
-from typing import Any
+from typing import Any, TypeVar, cast
 from urllib.parse import SplitResult, quote, urlsplit
 
 from bitcoin_core_rpc.chains import (
@@ -57,12 +65,16 @@ from bitcoin_core_rpc.errors import (
     RpcError,
 )
 from bitcoin_core_rpc.transport import (
+    _READ_CHUNK,
     _SCHEMES,
     DEFAULT_MAX_BODY_SIZE,
     DEFAULT_TIMEOUT,
+    MAX_ERROR_BODY_SIZE,
     HttpTransport,
+    _assert_valid_max_body_size,
     _assert_valid_timeout,
     _is_integer,
+    _post_stream,
     http_request,
     urlopen_transport,
 )
@@ -75,6 +87,7 @@ __all__ = [
     "USER_AGENT",
     "BitcoinCoreRestClient",
     "BitcoinCoreRpcClient",
+    "JsonStream",
     "RpcChannel",
 ]
 
@@ -813,6 +826,466 @@ def _correlated_batch_replies(
     return by_id
 
 
+# the longest number `JsonStream` reads, in octets. No number Core writes
+# comes near it: an amount or a height is a few dozen
+_MAX_STREAM_NUMBER = 1024
+
+# the deepest nesting `JsonStream.skip` reads: a margin over how deep
+# Core's results nest, some of them built from shared parts. `getblock` at
+# verbosity 3, for one, nests 7 from its result down to a prevout's
+# `scriptPubKey`
+_MAX_STREAM_DEPTH = 64
+
+# the longest member name `JsonStream.members` answers, quotes included; a
+# longer one is consumed and answered as `None`. The names Core declares
+# are far shorter: this prints the longest, in a checkout of Core:
+#   git grep -ho -E 'RPCResult::Type::[A-Z_]+, *"[^"]*"' -- src |
+#     sed -E 's/.*"(.*)"/\1/' | awk '{ print length, $0 }' | sort -n | tail -1
+# Its objects of dynamic keys run longer: a txid or a preimage hash is 64
+# hex digits, an uncompressed public key keying `partial_signatures` 130,
+# an address up to 90 characters (BIP 173). A key longer than this, such
+# as an unknown psbt field, is no name a walk can ask for
+_MAX_STREAM_NAME = 256
+
+_STREAM_WHITESPACE = re.compile(rb"[ \t\n\r]+")
+# where a run of plain string octets ends
+_STREAM_STRING_STOP = re.compile(rb'["\\\x00-\x1f]')
+_STREAM_NUMBER = re.compile(rb"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?")
+_STREAM_HEX4 = re.compile(rb"[0-9a-fA-F]{4}")
+_STREAM_LITERALS = (b"true", b"false", b"null")
+_STREAM_ESCAPES = frozenset(b'"\\/bfnrt')
+_STREAM_CLOSERS = {ord("{"): ord("}"), ord("["): ord("]")}
+
+# the members of a reply `call_stream` keeps beside `result`, each under
+# its `max_body_size`
+_STREAM_ENVELOPE = frozenset({"jsonrpc", "id", "error"})
+
+_T = TypeVar("_T")
+
+
+def _assert_json_number(where: str, token: bytes) -> None:
+    """Refuse a number `call`'s parser would refuse, kept or skipped.
+
+    `json.loads` builds every number of a reply, so `call` refuses one it
+    cannot build wherever it is: an integer past
+    `sys.get_int_max_str_digits`, and a floating-point number
+    `_json_number` refuses or the decimal module will not build. A
+    `JsonStream` builds only what it keeps, so it builds each number it
+    skips here, and discards it.
+    """
+    text = token.decode()
+    try:
+        if any(c in text for c in ".eE"):
+            _json_number(text)
+        else:
+            int(text)
+    except (ValueError, DecimalException) as e:
+        raise _unreadable(where, e) from e
+    except FetchError as e:
+        # `_json_number`'s own refusal, which names no `where`
+        raise FetchError(f"{where}: {e}") from e
+
+
+class JsonStream:
+    """One json document read from `read`, a value at a time.
+
+    `json.loads` needs the whole document in memory, and then the whole
+    tree it builds. This reads the document as it arrives instead: the
+    caller walks the objects and arrays it cares about with `members` and
+    `items`, consumes each value it does not need with `skip`, and keeps
+    with `value` only the values it asks for, each under a limit of its
+    own. What it holds at once is a chunk of the stream, the value being
+    kept, and one octet per container `skip` has open.
+
+    `read(n)` answers at most `n` octets, and `b""` at the end of the
+    stream. `where` begins every message of a refusal.
+
+    Each value is consumed once, in order, and every step consumes one: a
+    walk that asks for the next member before it has consumed the value of
+    the last one reads that value as a name, and is refused.
+
+    It refuses what `call` refuses of a reply -- a document cut short, a
+    value out of place, a string with a control character or a bad escape,
+    octets that are not utf-8, anything but whitespace after the document, a
+    number `call` cannot build, kept or skipped -- and what its own bounds
+    refuse: a kept value past its limit, a number past `_MAX_STREAM_NUMBER`
+    octets, nesting past `_MAX_STREAM_DEPTH` in `skip`. It also refuses a
+    document in UTF-16 or UTF-32, or one opening with a BOM, which `call`
+    decodes. Each refusal is a `FetchError` that quotes nothing of the
+    document. A kept value is decoded as `call` decodes a reply: a
+    floating-point number as a `Decimal`, an integer as an `int`.
+
+    A member name given twice in one object is not refused: `members`
+    yields it twice, and the walk decides. `json.loads` keeps the last.
+    """
+
+    def __init__(self, read: Callable[[int], bytes], *, where: str = "json") -> None:
+        self._read = read
+        self._where = where
+        self._buffer = b""
+        self._pos = 0
+        # how many octets of the document came before `_buffer`, so that a
+        # refusal can name where it stopped
+        self._offset = 0
+        self._ended = False
+        self._utf8 = getincrementaldecoder("utf-8")()
+        # what `_advance` copies the consumed octets into while a value is
+        # kept, and the most it may hold. A soft limit stops keeping past
+        # it, and a hard one refuses
+        self._kept: bytearray | None = None
+        self._kept_limit = 0
+        self._kept_soft = False
+        # how many objects and arrays `members` and `items` have entered and
+        # not yet left: a walk that stops inside one leaves this above where
+        # it was
+        self._open = 0
+
+    def _refusal(self, what: str) -> FetchError:
+        return FetchError(f"{self._where}: {what}")
+
+    def _misplaced(self, expected: str, at: int) -> FetchError:
+        """Refuse an octet that is not `expected`, naming its offset alone.
+
+        Its position and never the octet, as `JSONDecodeError` reports one:
+        the octet can be the first of a secret a proxy wrote unquoted.
+        """
+        return self._refusal(f"not {expected!r} at octet {at} of the reply")
+
+    def _fill(self) -> bool:
+        """Read one more chunk behind what is left, or answer the end."""
+        if self._ended:
+            return False
+        chunk = self._read(_READ_CHUNK)
+        try:
+            # the answer is discarded: the decoder is what says the octets
+            # are utf-8, a sequence cut short at the end included
+            self._utf8.decode(chunk, final=not chunk)
+        except UnicodeDecodeError:
+            failed = True
+        else:
+            failed = False
+        # raised outside the `except`, whose error holds the chunk
+        if failed:
+            raise self._refusal("a reply that is not utf-8")
+        if not chunk:
+            self._ended = True
+            return False
+        self._offset += self._pos
+        self._buffer = self._buffer[self._pos :] + chunk
+        self._pos = 0
+        return True
+
+    def _ensure(self, size: int) -> int:
+        """Return how many octets are buffered, filling up to `size` of them."""
+        while len(self._buffer) - self._pos < size and self._fill():
+            pass
+        return len(self._buffer) - self._pos
+
+    def _advance(self, size: int) -> None:
+        """Consume `size` buffered octets, kept where a value is kept."""
+        if self._kept is not None:
+            self._kept += self._buffer[self._pos : self._pos + size]
+            if len(self._kept) > self._kept_limit:
+                if not self._kept_soft:
+                    raise self._refusal(
+                        f"a value longer than the {self._kept_limit} octets asked for"
+                    )
+                self._kept = None
+        self._pos += size
+
+    def _at_end(self) -> bool:
+        """Consume whitespace, and answer whether the stream ends after it."""
+        while True:
+            run = _STREAM_WHITESPACE.match(self._buffer, self._pos)
+            if run is not None:
+                self._advance(run.end() - self._pos)
+            if self._pos < len(self._buffer):
+                return False
+            if not self._fill():
+                return True
+
+    def _next_octet(self) -> int:
+        if self._at_end():
+            raise self._refusal("a reply cut short")
+        return self._buffer[self._pos]
+
+    def peek(self) -> str:
+        """Return the first character of the next value, leaving it unread.
+
+        `{` for an object, `[` for an array, `"` for a string, `t`, `f` or
+        `n` for a literal, and a digit or `-` for a number.
+        """
+        return chr(self._next_octet())
+
+    def _expect(self, octet: int) -> None:
+        found = self._next_octet()
+        if found != octet:
+            raise self._misplaced(chr(octet), self._offset + self._pos)
+        self._advance(1)
+
+    def _string(self) -> None:
+        """Consume one string, checking its escapes and refusing a control."""
+        self._expect(ord('"'))
+        while True:
+            stop = _STREAM_STRING_STOP.search(self._buffer, self._pos)
+            if stop is None:
+                self._advance(len(self._buffer) - self._pos)
+                if not self._fill():
+                    raise self._refusal("a reply cut short")
+                continue
+            self._advance(stop.start() - self._pos)
+            octet = self._buffer[self._pos]
+            if octet == ord('"'):
+                self._advance(1)
+                return
+            if octet != ord("\\"):
+                raise self._refusal("a control character in a string")
+            self._escape()
+
+    def _escape(self) -> None:
+        """Consume one escape in a string, checking it."""
+        if self._ensure(2) < 2:
+            raise self._refusal("a reply cut short")
+        escape = self._buffer[self._pos + 1]
+        if escape in _STREAM_ESCAPES:
+            self._advance(2)
+        elif escape == ord("u"):
+            if self._ensure(6) < 6:
+                raise self._refusal("a reply cut short")
+            if not _STREAM_HEX4.fullmatch(self._buffer, self._pos + 2, self._pos + 6):
+                raise self._refusal("an invalid \\u escape in a string")
+            self._advance(6)
+        else:
+            raise self._refusal("an invalid escape in a string")
+
+    def _scalar(self) -> None:
+        """Consume one number or literal."""
+        self._ensure(_MAX_STREAM_NUMBER + 1)
+        for literal in _STREAM_LITERALS:
+            if self._buffer.startswith(literal, self._pos):
+                self._advance(len(literal))
+                return
+        number = _STREAM_NUMBER.match(self._buffer, self._pos)
+        if number is None:
+            raise self._refusal("no json value where the reply has one")
+        if number.end() - self._pos > _MAX_STREAM_NUMBER:
+            raise self._refusal(f"a number longer than {_MAX_STREAM_NUMBER} octets")
+        _assert_json_number(self._where, number.group())
+        self._advance(number.end() - self._pos)
+
+    def _member_name(self) -> None:
+        """Consume a member's name and the colon after it."""
+        self._string()
+        self._expect(ord(":"))
+
+    def skip(self) -> None:
+        """Consume one value, whatever it is, checking that it is json.
+
+        A loop and not a recursion, so a value nested deeper than the
+        interpreter's stack is refused at `_MAX_STREAM_DEPTH` rather than
+        raising `RecursionError`.
+        """
+        open_ = bytearray()
+        while True:
+            octet = self._next_octet()
+            if octet in _STREAM_CLOSERS:
+                if len(open_) == _MAX_STREAM_DEPTH:
+                    raise self._refusal(f"nesting deeper than {_MAX_STREAM_DEPTH}")
+                self._advance(1)
+                if self._next_octet() != _STREAM_CLOSERS[octet]:
+                    open_.append(octet)
+                    if octet == ord("{"):
+                        self._member_name()
+                    continue
+                self._advance(1)
+            elif octet == ord('"'):
+                self._string()
+            else:
+                self._scalar()
+            if not self._next_in(open_):
+                return
+
+    def _next_in(self, open_: bytearray) -> bool:
+        """Step past a value just consumed, answering whether another follows.
+
+        Each container the value ends is closed and dropped from `open_`,
+        and the answer is `False` once none is left open.
+        """
+        while open_:
+            octet = self._next_octet()
+            self._advance(1)
+            if octet == _STREAM_CLOSERS[open_[-1]]:
+                open_.pop()
+                continue
+            if octet != ord(","):
+                raise self._misplaced(",", self._offset + self._pos - 1)
+            if open_[-1] == ord("{"):
+                self._member_name()
+            return True
+        return False
+
+    def _keep(self, limit: int, *, soft: bool) -> None:
+        """Start keeping what is consumed, up to `limit` octets."""
+        self._next_octet()
+        self._kept, self._kept_limit, self._kept_soft = bytearray(), limit, soft
+
+    def value(self, limit: int) -> Any:
+        """Return one value, refusing it past `limit` octets of json.
+
+        `limit` counts the value as it arrives, whitespace inside it and
+        the quotes of a string included.
+        """
+        if not _is_integer(limit):
+            err_msg = f"non-integer json value limit, but a {type(limit).__name__}"
+            raise BtcRpcTypeError(err_msg)
+        if limit < 0:
+            raise BtcRpcValueError(f"negative json value limit: {limit}")
+        self._keep(limit, soft=False)
+        try:
+            self.skip()
+            kept = bytes(self._kept or b"")
+        finally:
+            self._kept = None
+        # grammar, depth and length are checked by now, and every number has
+        # passed `_assert_json_number`, so the parser has nothing left to
+        # refuse
+        return json.loads(
+            kept.decode(), parse_float=_json_number, parse_constant=_refuse_constant
+        )
+
+    def _name(self) -> str | None:
+        """Return a member's name, or `None` past `_MAX_STREAM_NAME` octets."""
+        self._keep(_MAX_STREAM_NAME, soft=True)
+        try:
+            self._string()
+            kept = None if self._kept is None else bytes(self._kept)
+        finally:
+            self._kept = None
+        return None if kept is None else str(json.loads(kept.decode()))
+
+    def members(self) -> Iterator[str | None]:
+        """Yield each member name of an object, ahead of its value.
+
+        The caller consumes the value, with `skip`, `value` or a walk of its
+        own, before asking for the next name. A name longer than
+        `_MAX_STREAM_NAME` octets is yielded as `None`, a name nobody asks
+        for.
+        """
+        self._expect(ord("{"))
+        if self._next_octet() == ord("}"):
+            self._advance(1)
+            return
+        self._open += 1
+        while True:
+            name = self._name()
+            self._expect(ord(":"))
+            yield name
+            octet = self._next_octet()
+            self._advance(1)
+            if octet == ord("}"):
+                self._open -= 1
+                return
+            if octet != ord(","):
+                raise self._misplaced(",", self._offset + self._pos - 1)
+
+    def items(self) -> Iterator[int]:
+        """Yield the index of each element of an array, ahead of the element.
+
+        The caller consumes the element before asking for the next one.
+        """
+        self._expect(ord("["))
+        if self._next_octet() == ord("]"):
+            self._advance(1)
+            return
+        self._open += 1
+        index = 0
+        while True:
+            yield index
+            index += 1
+            octet = self._next_octet()
+            self._advance(1)
+            if octet == ord("]"):
+                self._open -= 1
+                return
+            if octet != ord(","):
+                raise self._misplaced(",", self._offset + self._pos - 1)
+
+    def end(self) -> None:
+        """Refuse anything but whitespace after the document."""
+        if not self._at_end():
+            raise self._refusal("more than one json value in the reply")
+
+
+def _failure_body(read: Callable[[int], bytes]) -> bytes:
+    """Return the body under a status other than 200, cut to a diagnosis.
+
+    As `http_request` reads the body of a failure: cut at
+    `MAX_ERROR_BODY_SIZE` rather than refused, and empty where reading it
+    fails, the status being the part worth keeping.
+    """
+    body = bytearray()
+    try:
+        while len(body) < MAX_ERROR_BODY_SIZE:
+            chunk = read(MAX_ERROR_BODY_SIZE - len(body))
+            if not chunk:
+                break
+            body += chunk
+    except FetchError:
+        return b""
+    return bytes(body)
+
+
+def _streamed_result(
+    where: str,
+    request_id: str,
+    status: int,
+    read: Callable[[int], bytes],
+    *,
+    walk: Callable[[JsonStream], _T],
+    max_body_size: int,
+) -> _T:
+    """Return what `walk` reads of a reply's `result`, the reply checked.
+
+    `call_stream`'s reading of a reply. Under a status other than 200 the
+    body is read by `_failure_body` and answered as `call` answers it.
+    Under a 200 the reply is walked as it arrives: `walk` reads `result`,
+    each member of `_STREAM_ENVELOPE` is kept under `max_body_size`, and
+    any other is skipped. The members kept then go to the `_discriminate`
+    that reads `call`'s reply, with what `walk` returned standing for
+    `result`.
+    """
+    if status != 200:
+        reply = _reply_object(where, status, _failure_body(read))
+        # `_discriminate` raises under any status but 200, so it never
+        # returns here
+        return cast("_T", _discriminate(where, request_id, status, reply))
+    stream = JsonStream(read, where=where)
+    kept: dict[str, Any] = {}
+    for name in stream.members():
+        if name in kept:
+            raise FetchError(f"{where}: a reply with {name!r} given twice")
+        if name == "result":
+            # where the result starts, so that a walk that read none of it,
+            # or stopped inside it, is told from a reply that goes on
+            # wrongly after it
+            stream.peek()
+            depth, start = stream._open, stream._offset + stream._pos
+            kept[name] = walk(stream)
+            # a read of nothing, which over the default transport checks the
+            # deadline: the stream may have read the last of the body before
+            # the walk returned, and the time the walk spent counts
+            read(0)
+            if stream._open != depth or stream._offset + stream._pos == start:
+                err_msg = f"{where}: the walk did not read the whole result"
+                raise FetchError(err_msg)
+        elif name in _STREAM_ENVELOPE:
+            kept[name] = stream.value(max_body_size)
+        else:
+            stream.skip()
+    stream.end()
+    return cast("_T", _discriminate(where, request_id, status, kept))
+
+
 class BitcoinCoreRpcClient:
     """One Bitcoin Core JSON-RPC endpoint, and the credentials to reach it.
 
@@ -1287,6 +1760,27 @@ class BitcoinCoreRpcClient:
         back. `HttpError.status` is what a caller's own policy reads, and
         this module's docstring says why the policy is theirs.
         """
+        request_id, body, timeout = self._request(method, params, request_timeout)
+        status, payload = http_request(
+            self.url,
+            data=body,
+            headers=self._headers(),
+            timeout=timeout,
+            max_body_size=max_body_size,
+            transport=self.transport,
+        )
+        return self._result(method, request_id, status, payload)
+
+    def _request(
+        self,
+        method: str,
+        params: Sequence[Any] | Mapping[str, Any] | None,
+        request_timeout: float | None,
+    ) -> tuple[str, bytes, float]:
+        """Return one call's id, its body and its timeout, all checked.
+
+        What `call` and `call_stream` send is the same request, built here.
+        """
         request_id = _rpc_id()
         if not isinstance(method, str):
             # json-rpc's `method` is a string, and the annotation is not a
@@ -1318,22 +1812,97 @@ class BitcoinCoreRpcClient:
             # value of a type it does, so the encoder is where it surfaces.
             # The rest is what `_request_json` finds changed since the walk
             raise BtcRpcValueError(f"rpc params json cannot carry: {e}") from e
+        return request_id, body, timeout
+
+    def _headers(self) -> dict[str, str]:
+        """Return the headers of a request to the node."""
+        return {
+            "Content-Type": "application/json",
+            "Authorization": self.auth_header(),
+            # the request `id` marks this client in the node's debug log,
+            # and `USER_AGENT` is the half a proxy and an access log see
+            "User-Agent": USER_AGENT,
+        }
+
+    def call_stream(
+        self,
+        method: str,
+        params: Sequence[Any] | Mapping[str, Any] | None,
+        walk: Callable[[JsonStream], _T],
+        *,
+        request_timeout: float | None = None,
+        max_body_size: int = DEFAULT_MAX_BODY_SIZE,
+    ) -> _T:
+        """Invoke one rpc method, its `result` read by `walk` as it arrives.
+
+        For a reply larger than `call` should hold: `getblock` at verbosity
+        2 or 3, `listunspent` on a large wallet. The request is the one
+        `call` sends. `walk` is handed a `JsonStream` at the `result` value,
+        consumes that one value with the stream's methods, and returns what
+        it keeps of it. The stream is valid only while `walk` runs.
+
+        What `walk` returns is the answer once the rest of the reply has
+        been read and checked as `call` checks it: the version, the `id`,
+        the `error`, and nothing after the document. Core writes `result`
+        first and `id` last, so `walk` runs before those checks, and where
+        one fails what it returned is discarded. A legacy reply carrying an
+        error has a `null` result, and `walk` reads that `null` too before
+        the `RpcError` is raised. A 2.0 reply carrying an error has no
+        `result`, and `walk` is not called. A walk that returns before it
+        has read the whole `result` is refused.
+
+        The reply is refused wherever `call` would refuse it, the members
+        and values skipped included. It is also refused where a bound of
+        `JsonStream` or a member given twice in the envelope refuses it, or
+        where it is a body `call` decodes as UTF-16, UTF-32 or with a BOM,
+        none of which `call` refuses.
+
+        Over the default transport the reply is read from the socket as
+        `walk` asks for it, and nothing bounds its total size: what is held
+        is what `walk` keeps, under the limits it passes to
+        `JsonStream.value`. `max_body_size` bounds what this method keeps
+        itself, each member of the reply but `result`. `request_timeout` is
+        one deadline over the whole exchange, as for `call`, and the time
+        `walk` spends counts against it.
+
+        Over `SessionTransport` or a transport of the caller's own, which
+        answer a body read whole, `max_body_size` bounds that body as it
+        does for `call`, and `walk` reads it from memory.
+
+        A status other than 200 is answered as `call` answers it, from the
+        first `MAX_ERROR_BODY_SIZE` octets of its body.
+        """
+        request_id, body, timeout = self._request(method, params, request_timeout)
+        _assert_valid_max_body_size(max_body_size)
+        where = f"{method} at {self.url}"
+        if self.transport is urlopen_transport:
+            with _post_stream(
+                self.url, data=body, headers=self._headers(), timeout=timeout
+            ) as (status, read):
+                return _streamed_result(
+                    where,
+                    request_id,
+                    status,
+                    read,
+                    walk=walk,
+                    max_body_size=max_body_size,
+                )
         status, payload = http_request(
             self.url,
             data=body,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": self.auth_header(),
-                # the request `id` marks this client in the node's debug
-                # log, and `USER_AGENT` is the half a proxy and an access
-                # log see
-                "User-Agent": USER_AGENT,
-            },
+            headers=self._headers(),
             timeout=timeout,
             max_body_size=max_body_size,
             transport=self.transport,
         )
-        return self._result(method, request_id, status, payload)
+        return _streamed_result(
+            where,
+            request_id,
+            status,
+            BytesIO(payload).read,
+            walk=walk,
+            max_body_size=max_body_size,
+        )
 
     def _result(self, method: str, request_id: str, status: int, payload: bytes) -> Any:
         where = f"{method} at {self.url}"
@@ -1415,11 +1984,7 @@ class BitcoinCoreRpcClient:
         status, payload = http_request(
             self.url,
             data=body,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": self.auth_header(),
-                "User-Agent": USER_AGENT,
-            },
+            headers=self._headers(),
             timeout=timeout,
             max_body_size=max_body_size,
             transport=self.transport,
@@ -1522,11 +2087,7 @@ class BitcoinCoreRpcClient:
         status, payload = http_request(
             self.url,
             data=body,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": self.auth_header(),
-                "User-Agent": USER_AGENT,
-            },
+            headers=self._headers(),
             timeout=timeout,
             max_body_size=max_body_size,
             transport=self.transport,

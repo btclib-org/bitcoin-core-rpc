@@ -164,6 +164,7 @@ if TYPE_CHECKING:
         USER_AGENT,
         BitcoinCoreRestClient,
         BitcoinCoreRpcClient,
+        JsonStream,
         RpcChannel,
     )
     from bitcoin_core_rpc.transport import (
@@ -194,6 +195,7 @@ __all__ = [
     "FetchError",
     "HttpError",
     "HttpTransport",
+    "JsonStream",
     "Network",
     "RPCErrorCode",
     "RpcChannel",
@@ -213,7 +215,7 @@ __all__ = [
 ]
 
 # `transport.py`'s, answered from that module the first time one is asked
-# for. `client.py`'s three are `_ON_DEMAND_CLIENT` below, not folded into
+# for. `client.py`'s are `_ON_DEMAND_CLIENT` below, not folded into
 # this tuple: the two modules are imported separately, and each name says
 # which
 _ON_DEMAND_TRANSPORT = (
@@ -228,6 +230,7 @@ _ON_DEMAND_TRANSPORT = (
 _ON_DEMAND_CLIENT = (
     "BitcoinCoreRestClient",
     "BitcoinCoreRpcClient",
+    "JsonStream",
     "RpcChannel",
     "USER_AGENT",
 )
