@@ -957,12 +957,10 @@ ignore = [
     # outside the standard library at all, which is the rest of it: DTZ
     # without a naive datetime, G and LOG without logging, ASYNC without
     # await, NPY without NumPy, PD without pandas, EXE without a shebang
-    # to check an executable bit against (the decision
-    # .pre-commit-config.yaml already states for
-    # check-shebang-scripts-are-executable), AIR without Airflow, DJ
-    # without Django, FAST without FastAPI, INT without gettext, ICN
-    # without an import this tree aliases at all, and YTT without a
-    # `sys.version` comparison
+    # or an executable Python file, AIR without Airflow, DJ without
+    # Django, FAST without FastAPI, INT without gettext, ICN without an
+    # import this tree aliases at all, and YTT without a `sys.version`
+    # comparison
     "DTZ",
     "G",
     "LOG",
