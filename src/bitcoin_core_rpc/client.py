@@ -853,6 +853,26 @@ _STREAM_ENVELOPE = frozenset({"jsonrpc", "id", "error"})
 _T = TypeVar("_T")
 
 
+def _assert_json_number(where: str, token: bytes) -> None:
+    """Refuse a number `call`'s parser would refuse, kept or skipped.
+
+    `json.loads` builds every number of a reply, so `call` refuses one it
+    cannot build wherever it is: an integer past
+    `sys.get_int_max_str_digits`, and a floating-point number
+    `_json_number` refuses or the decimal module will not build. A
+    `JsonStream` builds only what it keeps, so it builds each number it
+    skips here, and discards it.
+    """
+    text = token.decode()
+    try:
+        if any(c in text for c in ".eE"):
+            _json_number(text)
+        else:
+            int(text)
+    except (ValueError, DecimalException) as e:
+        raise _unreadable(where, e) from e
+
+
 class JsonStream:
     """One json document read from `read`, a value at a time.
 
@@ -874,12 +894,12 @@ class JsonStream:
     It refuses what `call` refuses of a reply -- a document cut short, a
     value out of place, a string with a control character or a bad escape,
     octets that are not utf-8, anything but whitespace after the document,
-    a number `json` will not decode -- and what its own bounds refuse: a
-    kept value past its limit, a number past `_MAX_STREAM_NUMBER` octets,
-    nesting past `_MAX_STREAM_DEPTH` in `skip`. Each refusal is a
-    `FetchError` that quotes nothing of the document. A kept value is
-    decoded as `call` decodes a reply: a floating-point number as a
-    `Decimal`, an integer as an `int`.
+    a number `call` cannot build, kept or skipped -- and what its own
+    bounds refuse: a kept value past its limit, a number past
+    `_MAX_STREAM_NUMBER` octets, nesting past `_MAX_STREAM_DEPTH` in
+    `skip`. Each refusal is a `FetchError` that quotes nothing of the
+    document. A kept value is decoded as `call` decodes a reply: a
+    floating-point number as a `Decimal`, an integer as an `int`.
 
     A member name given twice in one object is not refused: `members`
     yields it twice, and the walk decides. `json.loads` keeps the last.
@@ -898,6 +918,10 @@ class JsonStream:
         self._kept: bytearray | None = None
         self._kept_limit = 0
         self._kept_soft = False
+        # how many objects and arrays `members` and `items` have entered and
+        # not yet left: a walk that stops inside one leaves this above where
+        # it was
+        self._open = 0
 
     def _refusal(self, what: str) -> FetchError:
         return FetchError(f"{self._where}: {what}")
@@ -1021,6 +1045,7 @@ class JsonStream:
             raise self._refusal("no json value where the reply has one")
         if number.end() - self._pos > _MAX_STREAM_NUMBER:
             raise self._refusal(f"a number longer than {_MAX_STREAM_NUMBER} octets")
+        _assert_json_number(self._where, number.group())
         self._advance(number.end() - self._pos)
 
     def _member_name(self) -> None:
@@ -1096,16 +1121,12 @@ class JsonStream:
             kept = bytes(self._kept or b"")
         finally:
             self._kept = None
-        # grammar, depth and length are checked by now, so what is left for
-        # the parser to refuse is a number: one `_json_number` refuses, an
-        # integer past `sys.get_int_max_str_digits`, or an exponent the
-        # decimal module will not build
-        try:
-            return json.loads(
-                kept.decode(), parse_float=_json_number, parse_constant=_refuse_constant
-            )
-        except (ValueError, DecimalException) as e:
-            raise _unreadable(self._where, e) from e
+        # grammar, depth and length are checked by now, and every number has
+        # passed `_assert_json_number`, so the parser has nothing left to
+        # refuse
+        return json.loads(
+            kept.decode(), parse_float=_json_number, parse_constant=_refuse_constant
+        )
 
     def _name(self) -> str | None:
         """Return a member's name, or `None` past `_MAX_STREAM_NAME` octets."""
@@ -1129,6 +1150,7 @@ class JsonStream:
         if self._next_octet() == ord("}"):
             self._advance(1)
             return
+        self._open += 1
         while True:
             name = self._name()
             self._expect(ord(":"))
@@ -1136,6 +1158,7 @@ class JsonStream:
             octet = self._next_octet()
             self._advance(1)
             if octet == ord("}"):
+                self._open -= 1
                 return
             if octet != ord(","):
                 raise self._refusal(f"not ',' where the reply has {chr(octet)!r}")
@@ -1149,6 +1172,7 @@ class JsonStream:
         if self._next_octet() == ord("]"):
             self._advance(1)
             return
+        self._open += 1
         index = 0
         while True:
             yield index
@@ -1156,6 +1180,7 @@ class JsonStream:
             octet = self._next_octet()
             self._advance(1)
             if octet == ord("]"):
+                self._open -= 1
                 return
             if octet != ord(","):
                 raise self._refusal(f"not ',' where the reply has {chr(octet)!r}")
@@ -1215,7 +1240,15 @@ def _streamed_result(
         if name in kept:
             raise FetchError(f"{where}: a reply with {name!r} given twice")
         if name == "result":
+            depth = stream._open
             kept[name] = walk(stream)
+            # a read of nothing, which over the default transport checks the
+            # deadline: the stream may have read the last of the body before
+            # the walk returned, and the time the walk spent counts
+            read(0)
+            if stream._open != depth or stream.peek() not in ",}":
+                err_msg = f"{where}: the walk did not read the whole result"
+                raise FetchError(err_msg)
         elif name in _STREAM_ENVELOPE:
             kept[name] = stream.value(max_body_size)
         else:
@@ -1786,7 +1819,13 @@ class BitcoinCoreRpcClient:
         one fails what it returned is discarded. A legacy reply carrying an
         error has a `null` result, and `walk` reads that `null` too before
         the `RpcError` is raised. A 2.0 reply carrying an error has no
-        `result`, and `walk` is not called.
+        `result`, and `walk` is not called. A walk that returns before it
+        has read the whole `result` is refused.
+
+        The reply is refused wherever `call` would refuse it, the members
+        and values skipped included. It is also refused where a bound of
+        `JsonStream` or a member given twice in the envelope refuses it,
+        which `call` does not do.
 
         Over the default transport the reply is read from the socket as
         `walk` asks for it, and nothing bounds its total size: what is held

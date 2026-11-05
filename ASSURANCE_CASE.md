@@ -26,7 +26,10 @@ here are the ones [ARCHITECTURE](./ARCHITECTURE.md) describes.
   it arrives, the total is not bounded: what is bounded is what the
   caller keeps of it, each value under the limit the caller gives
   `JsonStream.value`, and each member of the reply but `result` under
-  `max_body_size`.
+  `max_body_size`. That holds over the default transport. Over
+  `SessionTransport` or a caller's own transport, which answer the body
+  whole, `call_stream` refuses a body larger than `max_body_size`, as
+  `call` does.
 - **A credential never appears where it can leak.** Not in a url, not in
   a `__repr__`, not in an exception raised about a rejected one, not sent
   to a host a redirect or an environment variable named instead of the
@@ -117,12 +120,16 @@ never a decoder that executes anything the reply carries.
 refuses one whose `id` does not match the request just sent,
 and `_discriminate` refuses a `jsonrpc` marker that is neither absent
 nor `"2.0"`. None of it is trusted as an answer until every one of those
-holds. `str()` of an `RpcError` writes the non-printable characters of the
+holds. `call_stream` reads its reply with `JsonStream` instead of
+`_parsed_json_body` and `_reply_object`: it refuses each number
+`json.loads` would refuse, skipped or kept, decodes what it keeps with the
+same `json.loads`, refuses a reply that is not a json object, and hands
+the members it kept to the same `_discriminate`. `str()` of an `RpcError` writes the non-printable characters of the
 node's message as escapes, so a reply cannot forge a log line or drive a
 terminal. A reply is also read as arbitrary bytes by `fuzz/fuzz_reply.py`
 under ClusterFuzzLite (`.github/workflows/fuzz.yml`) and, mutated at every
 position, by `tests/fuzz_test.py`, which asserts that only `FetchError`
-comes out; `tests/fuzz_corpus_test.py` checks that every seed of the corpus
+comes out, `call_stream`'s `_streamed_result` included; `tests/fuzz_corpus_test.py` checks that every seed of the corpus
 is still read.
 
 **The network path.** Only `http` and `https` reach a built request
@@ -172,8 +179,9 @@ describes.
   to bound.
 - **Fail-safe defaults.** A caller giving neither a credential nor a
   cookie path is refused rather than answered with a client that sends
-  an empty `Authorization`; `DEFAULT_MAX_BODY_SIZE` bounds a reply even
-  where the caller passes nothing; a caller giving both a credential and
+  an empty `Authorization`; `DEFAULT_MAX_BODY_SIZE` bounds a reply to
+  `call` even where the caller passes nothing, and what `call_stream`
+  keeps of the envelope; a caller giving both a credential and
   a cookie path is refused rather than one silently ranked over the
   other.
 - **Complete mediation.** *Trust boundaries* above is this principle

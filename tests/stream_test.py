@@ -15,12 +15,14 @@ than `max_body_size` is read.
 from __future__ import annotations
 
 import json
+import random
 import socket
 import sys
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from decimal import Decimal
-from threading import Thread
+from threading import Event, Thread
+from time import monotonic
 from typing import Any
 from urllib.request import Request
 
@@ -515,15 +517,20 @@ def _request_of(connection: socket.socket) -> bytes:
 
 @contextmanager
 def _peer(
-    answer: Callable[[str], bytes], requests: list[bytes] | None = None
+    answer: Callable[[str], bytes],
+    requests: list[bytes] | None = None,
+    then: Callable[[socket.socket, Event], None] | None = None,
 ) -> Iterator[str]:
     """Yield the url of a loopback peer answering one request, then closing.
 
-    `answer` is given the request's id and returns what to send. A peer
-    of the test's own on 127.0.0.1, reaching no network.
+    `answer` is given the request's id and returns what to send. `then`, if
+    given, runs after that, handed the connection and an `Event` set when
+    the test is done. A peer of the test's own on 127.0.0.1, reaching no
+    network.
     """
     server = socket.create_server(("127.0.0.1", 0))
     seen = [] if requests is None else requests
+    done = Event()
 
     def serve() -> None:
         with suppress(OSError):
@@ -533,12 +540,15 @@ def _peer(
                 seen.append(request)
                 body = request.partition(b"\r\n\r\n")[2]
                 connection.sendall(answer(json.loads(body)["id"]))
+                if then is not None:
+                    then(connection, done)
 
     peer = Thread(target=serve, daemon=True)
     peer.start()
     try:
         yield f"http://127.0.0.1:{server.getsockname()[1]}/"
     finally:
+        done.set()
         server.close()
         peer.join()
 
@@ -704,3 +714,214 @@ def test_a_session_transport_reads_the_body_whole() -> None:
             url, user=RPC_USER, password=RPC_PASSWORD, transport=session
         )
         assert endpoint.call_stream("m", None, count) == 2
+
+
+def test_a_walk_returning_after_the_last_read_is_held_to_the_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The deadline is checked once the walk returns, the body read or not."""
+    clock = _Clock()
+    monkeypatch.setattr(transport_module, "monotonic", clock)
+
+    def answer(request_id: str) -> bytes:
+        reply = {"jsonrpc": "2.0", "result": 1, "id": request_id}
+        return _response("200 OK", json.dumps(reply).encode())
+
+    def keep_then_wait(walked: JsonStream) -> object:
+        value = walked.value(10)
+        clock.now = 100.0
+        return value
+
+    expired = "still arriving when the timeout expired"
+    with _peer(answer) as url, pytest.raises(FetchError, match=expired):
+        BitcoinCoreRpcClient(
+            url, user=RPC_USER, password=RPC_PASSWORD, timeout=50.0
+        ).call_stream("m", None, keep_then_wait)
+
+
+def _stall(connection: socket.socket, done: Event) -> None:
+    """Send nothing more until the test is done."""
+    done.wait(10)
+
+
+def _drip(connection: socket.socket, done: Event) -> None:
+    """Send one octet of the body every 20 ms until the test is done."""
+    with suppress(OSError):
+        while not done.wait(0.02):
+            connection.sendall(b" ")
+
+
+@pytest.mark.parametrize(
+    ("then", "head"),
+    [
+        (_stall, b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n"),
+        (_drip, b'HTTP/1.1 200 OK\r\nContent-Length: 100000\r\n\r\n{"result": ['),
+    ],
+    ids=["stall", "drip"],
+)
+def test_a_peer_holding_the_body_back_is_held_to_the_deadline(
+    then: Callable[[socket.socket, Event], None], head: bytes
+) -> None:
+    """A real half-second timeout ends the call, whatever the socket waits.
+
+    A peer that stalls after its headers leaves the read in one receive,
+    which only the socket's own deadline ends; one that drips keeps every
+    receive short, so only the deadline over the whole exchange ends it.
+    """
+    with _peer(lambda request_id: head, then=then) as url:
+        endpoint = BitcoinCoreRpcClient(
+            url, user=RPC_USER, password=RPC_PASSWORD, timeout=0.5
+        )
+        started = monotonic()
+        with pytest.raises(FetchError, match="timed out|timeout expired"):
+            endpoint.call_stream("m", None, count)
+        assert monotonic() - started < 3.0
+
+
+@pytest.mark.parametrize(
+    "walk",
+    [
+        lambda walked: None,
+        lambda walked: (next(walked.items()), walked.value(10))[1],
+    ],
+    ids=["nothing", "first-item"],
+)
+def test_a_walk_that_stops_early_is_refused_as_such(
+    walk: Callable[[JsonStream], object],
+) -> None:
+    """The refusal names the walk, not the reply."""
+    body = b'{"result": [1, "error": null, "id": ID}'
+    with pytest.raises(FetchError, match="the walk did not read the whole result"):
+        answering(200, body).call_stream("m", None, walk)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'{"result": 1, "error": null, "id": ID, "x": 1e5000}',
+        b'{"result": [1, -1E-5000], "error": null, "id": ID}',
+        b'{"result": 1, "error": null, "id": ID, "x": 1e999999999999999999999999999}',
+    ],
+    ids=["beside", "inside", "decimal"],
+)
+def test_a_skipped_number_call_refuses_is_refused(body: bytes) -> None:
+    """A number nobody keeps is still one `call` cannot build."""
+    with pytest.raises(FetchError):
+        answering(200, body).call("m")
+    with pytest.raises(FetchError, match="exponent is beyond|parser refused"):
+        answering(200, body).call_stream("m", None, lambda walked: walked.skip())
+
+
+def test_a_skipped_integer_past_the_digit_limit_is_refused() -> None:
+    """An integer `int` will not build is refused, kept or skipped."""
+    body = b'{"result": 1, "error": null, "id": ID, "x": ' + b"9" * 700 + b"}"
+    digits = sys.get_int_max_str_digits()
+    sys.set_int_max_str_digits(640)
+    try:
+        with pytest.raises(FetchError):
+            answering(200, body).call("m")
+        with pytest.raises(FetchError, match="parser refused"):
+            answering(200, body).call_stream("m", None, keep(10))
+    finally:
+        sys.set_int_max_str_digits(digits)
+
+
+# --- call_stream against call, on replies built at random ---
+
+# values a reply can carry, each a piece of json text: what `call` builds,
+# and what it refuses -- an exponent past the digit limit or the decimal
+# module, a bad escape, a control character in a string
+_SCALARS = (
+    "0",
+    "-7",
+    "12345678901234567890",
+    "1.5e3",
+    "-0.00000001",
+    "1e5000",
+    "-1E-5000",
+    "1e999999999999999999999999999",
+    "true",
+    "false",
+    "null",
+    '"a"',
+    '"\\u00e9\\n"',
+    '"\\ud800"',
+    '"\\q"',
+    '"\x01"',
+)
+
+
+def _random_value(rng: random.Random, depth: int) -> str:
+    """Return the json text of one value, nested no deeper than `depth`."""
+    kind = rng.randrange(3 if depth else 1)
+    if kind == 0:
+        return rng.choice(_SCALARS)
+    if kind == 1:
+        items = (_random_value(rng, depth - 1) for _ in range(rng.randrange(3)))
+        return "[" + ", ".join(items) + "]"
+    members = (
+        f'"k{index}": {_random_value(rng, depth - 1)}'
+        for index in range(rng.randrange(3))
+    )
+    return "{" + ",".join(members) + "}"
+
+
+def _random_reply(rng: random.Random) -> bytes:
+    """Return a reply of random members, each name at most once."""
+    members = {}
+    if rng.random() < 0.8:
+        members["result"] = _random_value(rng, 3)
+    if rng.random() < 0.5:
+        members["error"] = rng.choice(
+            ["null", '{"code": -5, "message": "no"}', '{"code": 1e5}', '"bad"']
+        )
+    members["id"] = "ID" if rng.random() < 0.9 else '"other"'
+    if rng.random() < 0.6:
+        members["jsonrpc"] = rng.choice(['"2.0"', '"2.0"', '"1.0"'])
+    for index in range(rng.randrange(3)):
+        members[f"x{index}"] = _random_value(rng, 3)
+    names = list(members)
+    rng.shuffle(names)
+    text = "{" + ", ".join(f'"{name}": {members[name]}' for name in names) + "}"
+    return text.encode()
+
+
+def _outcome(
+    endpoint: BitcoinCoreRpcClient, walk: Callable[[JsonStream], object] | None
+) -> tuple[str, object]:
+    """Return what a call answers, or the class of the `FetchError` it raises.
+
+    `call` where `walk` is `None`, `call_stream` with `walk` otherwise.
+    """
+    try:
+        if walk is None:
+            return "answer", endpoint.call("m")
+        return "answer", endpoint.call_stream("m", None, walk)
+    except FetchError as e:
+        return "refused", type(e)
+
+
+def skip_all(walked: JsonStream) -> None:
+    """Keep nothing of the result, which is then only checked."""
+    walked.skip()
+
+
+def test_call_stream_agrees_with_call_on_random_replies(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every reply `call` refuses is refused, and every other is read alike.
+
+    Over a caller's transport and over the streamed path alike, with the
+    result kept and with it skipped. Seeded, so a failure names its reply.
+    """
+    # S311 asks for a generator fit for secrets, and this one is for
+    # replies that repeat from run to run
+    rng = random.Random(744)  # ruff: ignore[S311]
+    for _ in range(3000):
+        body = _random_reply(rng)
+        expected = _outcome(answering(200, body), None)
+        skipped = expected if expected[0] == "refused" else ("answer", None)
+        assert _outcome(answering(200, body), keep(1 << 20)) == expected, body
+        endpoint = streamed(monkeypatch, 200, body)
+        assert _outcome(endpoint, keep(1 << 20)) == expected, body
+        assert _outcome(endpoint, skip_all) == skipped, body

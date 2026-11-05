@@ -8,8 +8,9 @@ A reply is what an endpoint sends back, and the endpoint is the caller's to
 choose: it can be a host on the internet, or a proxy in front of the node.
 `data` is read as the body of a reply, at several HTTP statuses, through the
 paths that decode one: the body readers of `client.py`, the two clients end
-to end, `assert_chain`, and `transport.py`'s `http_request` and bounded
-read. No node runs. The clients are built on a `transport=` that answers
+to end, `call_stream` and the `_streamed_result` it reads a reply with,
+`assert_chain`, and `transport.py`'s `http_request` and bounded read. No
+node runs. The clients are built on a `transport=` that answers
 from `data`, which is the lowest seam the package gives a caller, and the
 bounded read is handed a response object that serves `data` in chunks.
 
@@ -109,6 +110,22 @@ class _Response:
         return chunk
 
 
+def _keep(stream: client.JsonStream) -> object:
+    """Keep the whole result, as `call` would."""
+    return stream.value(transport.DEFAULT_MAX_BODY_SIZE)
+
+
+def _skip(stream: client.JsonStream) -> None:
+    """Keep nothing of the result, which is then only checked."""
+    stream.skip()
+
+
+def _chunks(data: bytes) -> Callable[[int], bytes]:
+    """Return a `read` answering `data` at most `_CHUNK` octets at a time."""
+    response = _Response(data, None)
+    return response.read1
+
+
 _PEER = _Peer()
 _RPC = client.BitcoinCoreRpcClient(
     _URL, user=_USER, password=_PASSWORD, transport=_PEER
@@ -120,6 +137,8 @@ _CALLS: tuple[Callable[[], object], ...] = (
     lambda: _RPC.call_batch([("getblockcount", None), ("getblockhash", [0])]),
     lambda: _RPC.call_raw("getblockcount"),
     lambda: _RPC.call_raw("getblockcount", jsonrpc=None),
+    lambda: _RPC.call_stream("getblockcount", None, _keep),
+    lambda: _RPC.call_stream("getblockcount", None, _skip),
     lambda: _REST.get_json("/chaininfo.json"),
     lambda: _REST.get_bin("/chaininfo.json"),
 )
@@ -222,6 +241,16 @@ def fuzz_target(data: bytes) -> None:
             client._reply_object("fuzz", status, data)
         with contextlib.suppress(FetchError):
             client._batch_reply_array("fuzz", status, data)
+        for walk in (_keep, _skip):
+            with contextlib.suppress(FetchError):
+                client._streamed_result(
+                    "fuzz",
+                    "%ID0%",
+                    status,
+                    _chunks(data),
+                    walk=walk,
+                    max_body_size=transport.DEFAULT_MAX_BODY_SIZE,
+                )
 
 
 def main() -> None:

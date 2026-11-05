@@ -764,8 +764,9 @@ def urlopen_transport(
 ) -> tuple[int, bytes]:
     """Perform the request with urllib, reading a bounded response.
 
-    The default `HttpTransport`, and one of the two things here that open
-    a socket. It maps nothing and interprets nothing: the status and the
+    The default `HttpTransport`, and one of the things here that open a
+    socket, which the module docstring names. It maps nothing and
+    interprets nothing: the status and the
     bytes go back as they arrived, and `http_request` is where the
     failures become the exceptions above.
 
