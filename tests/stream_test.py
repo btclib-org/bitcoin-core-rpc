@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import socket
 import string
 import sys
@@ -44,6 +45,7 @@ from bitcoin_core_rpc import (
 )
 from bitcoin_core_rpc import client as client_module
 from bitcoin_core_rpc import transport as transport_module
+from bitcoin_core_rpc.transport import _READ_CHUNK as READ_CHUNK
 from tests import RPC_PASSWORD, RPC_USER, Recorded
 from tests.secret_free import assert_secret_free
 
@@ -1038,3 +1040,76 @@ def test_a_refusal_quotes_no_octet_of_the_reply(
         assert_secret_free(caught.value, [secret])
         refusals.append(str(caught.value))
     assert refusals[0] == refusals[1], refusals
+
+
+def test_a_result_of_one_whole_chunk_is_read() -> None:
+    """A walk that reads a result filling a chunk exactly is not refused.
+
+    The result starts at octet 10 and is `_READ_CHUNK` octets long, so the
+    stream refills its buffer just as the result ends: the offset carried
+    across the refill is what says the walk read it.
+    """
+    string = '"' + "a" * (READ_CHUNK - 2) + '"'
+    body = ('{"result":' + string + ',"error":null,"id":"btcrpc-0"}').encode()
+    assert body.index(b'"a') == 10
+    answer = client_module._streamed_result(
+        "test",
+        "btcrpc-0",
+        200,
+        reader(body, READ_CHUNK),
+        walk=skip_all,
+        max_body_size=100,
+    )
+    assert answer is None
+
+
+# a string long enough that what follows it comes after the first chunk
+_PAD = '"' + "p" * 70_000 + '"'
+
+
+def _members_of_a_member(walked: JsonStream) -> None:
+    """Walk the member `a` as an object, skipping every other member."""
+    for name in walked.members():
+        if name == "a":
+            skip_each_member(walked)
+        else:
+            walked.skip()
+
+
+@pytest.mark.parametrize(
+    ("prefix", "rest", "expected", "walk"),
+    [
+        ('{"p": ' + _PAD + ', "a": 1', " ]}", ",", skip_each_member),
+        ("[" + _PAD + ", 1", " }]", ",", skip_each_item),
+        ("[[" + _PAD + ", 1", " }]]", ",", skip_all),
+        ('{"p": ' + _PAD + ', "a"', " 1}", ":", skip_all),
+        ('{"p": ' + _PAD + ', "a": ', "[1]}", "{", _members_of_a_member),
+    ],
+    ids=["members", "items", "skip", "colon", "expect"],
+)
+def test_a_misplaced_octet_past_the_first_chunk_is_named_by_its_offset(
+    chunk: int,
+    prefix: str,
+    rest: str,
+    expected: str,
+    walk: Callable[[JsonStream], object],
+) -> None:
+    """The offset counts every octet before the buffer, whatever the chunks."""
+    at = len(prefix) + len(rest) - len(rest.lstrip())
+    assert at > READ_CHUNK
+    match = f"^test: not '{re.escape(expected)}' at octet {at} of the reply$"
+    with pytest.raises(FetchError, match=match):
+        walk(stream(prefix + rest, chunk))
+
+
+@pytest.mark.parametrize(
+    ("length", "answered"),
+    [(256, True), (257, False)],
+)
+def test_a_name_at_the_bound_is_answered_and_one_past_it_is_not(
+    length: int, *, answered: bool
+) -> None:
+    """The bound counts the name's octets, its two quotes included."""
+    name = "n" * (length - 2)
+    names = names_of(stream(f'{{"{name}": 1}}', 1))
+    assert names == [name if answered else None]
