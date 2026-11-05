@@ -830,21 +830,21 @@ def _correlated_batch_replies(
 # comes near it: an amount or a height is a few dozen
 _MAX_STREAM_NUMBER = 1024
 
-# the deepest nesting `JsonStream.skip` reads. The deepest result Core
-# declares in one place nests 8 levels (src/rpc/mempool.cpp at Core's
-# 0e38ad26af, from a scan of its `RPCResult` entries), and `getblock` at
-# verbosity 3 nests 7 from its result down to a prevout's `scriptPubKey`.
-# Eight times that is the margin for results built from shared parts,
-# which the scan does not follow
+# the deepest nesting `JsonStream.skip` reads: a margin over how deep
+# Core's results nest, some of them built from shared parts. `getblock` at
+# verbosity 3, for one, nests 7 from its result down to a prevout's
+# `scriptPubKey`
 _MAX_STREAM_DEPTH = 64
 
 # the longest member name `JsonStream.members` answers, quotes included; a
-# longer one is consumed and answered as `None`. The longest name Core
-# declares is 27 characters, `proxy_randomize_credentials`. Its objects of
-# dynamic keys run longer: a txid or a preimage hash is 64 hex digits, an
-# uncompressed public key keying `partial_signatures` 130, an address up
-# to 90 characters (BIP 173). A key longer than this, such as an unknown
-# psbt field, is no name a walk can ask for
+# longer one is consumed and answered as `None`. The names Core declares
+# are far shorter: this prints the longest, in a checkout of Core:
+#   git grep -ho -E 'RPCResult::Type::[A-Z_]+, *"[^"]*"' -- src |
+#     sed -E 's/.*"(.*)"/\1/' | awk '{ print length, $0 }' | sort -n | tail -1
+# Its objects of dynamic keys run longer: a txid or a preimage hash is 64
+# hex digits, an uncompressed public key keying `partial_signatures` 130,
+# an address up to 90 characters (BIP 173). A key longer than this, such
+# as an unknown psbt field, is no name a walk can ask for
 _MAX_STREAM_NAME = 256
 
 _STREAM_WHITESPACE = re.compile(rb"[ \t\n\r]+")
