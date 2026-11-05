@@ -224,6 +224,16 @@ def skip_each_item(walked: JsonStream) -> None:
         walked.skip()
 
 
+def test_skipping_each_member_or_item_consumes_the_document(chunk: int) -> None:
+    """The two helpers below, on a document they walk to its end."""
+    members = stream('{"a": [1], "b": 2}', chunk)
+    skip_each_member(members)
+    members.end()
+    items = stream("[1, {}]", chunk)
+    skip_each_item(items)
+    items.end()
+
+
 @pytest.mark.parametrize(
     ("walk", "text"),
     [
@@ -311,7 +321,9 @@ def keep(limit: int) -> Callable[[JsonStream], Any]:
     return lambda walked: walked.value(limit)
 
 
-def walk_never_called(walked: JsonStream) -> object:
+def walk_never_called(  # pragma: no cover -- never called is the point of the test
+    walked: JsonStream,
+) -> object:
     """Fail: the walk of a reply whose `result` must not be read."""
     raise AssertionError(walked)
 
@@ -661,11 +673,9 @@ def test_the_time_the_walk_spends_counts_against_the_deadline(
     def answer(request_id: str) -> bytes:
         return _response("200 OK", _reply(request_id))
 
-    def slow(walked: JsonStream) -> object:
-        for _ in walked.items():
-            clock.now = 100.0
-            walked.skip()
-        return None
+    def slow(walked: JsonStream) -> int:
+        clock.now = 100.0
+        return count(walked)
 
     expired = "still arriving when the timeout expired"
     with _peer(answer) as url, pytest.raises(FetchError, match=expired):

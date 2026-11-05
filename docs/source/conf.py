@@ -79,6 +79,14 @@ intersphinx_mapping = {
 # and source above:
 # curl -fsSL -o docs/source/_inventories/python.inv https://docs.python.org/3/objects.inv
 
+# the one reference no inventory holds: `call_stream` returns what its
+# `walk` returns, and the TypeVar that says so is private, so autodoc
+# renders a link to a name no page documents. Making it public would add
+# a name to `__all__` that is no part of the interface
+nitpick_ignore = [
+    ("py:class", "bitcoin_core_rpc.client._T"),
+]
+
 source_suffix = [".rst", ".md"]
 
 # anchors for h1 to h6, which is what makes a link to a heading of the same
