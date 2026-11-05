@@ -648,10 +648,11 @@ Which workflows that last row covers is
 `grep -n 'uses: \./\.github/workflows/' .github/workflows/release.yml`,
 not a list here: a list restated is one more thing to keep true.
 
-Those gates run one image on one interpreter: `ubuntu-latest`, and the
-version `.python-version` names. `claude-review` gates nothing: its own
-header says it must not become a required check, a review that gates a
-merge making a model's judgement a branch rule.
+The `test`, `lint`, `docs` and `bitcoind` rows run one image on one
+interpreter: `ubuntu-latest`, and the version `.python-version` names.
+`claude-review` gates nothing: its own header says it must not become a
+required check, a review that gates a merge making a model's judgement a
+branch rule.
 `api-break` gates nothing either: it sets the `api-break` label on a pull
 request that breaks the public API, and its own header says the label is
 advice for a reviewer.
