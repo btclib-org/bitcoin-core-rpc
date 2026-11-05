@@ -37,11 +37,12 @@ module-path = "src/bitcoin_core_rpc"
 # network vocabulary tables, the magic bytes and the signet derivation, and
 # `cookie_auth`'s own reading of a cookie file. The transport tests judge
 # the default urllib implementation and the custom-transport seam. The
-# census tests are the contract that distinguishes a package from an
-# ordinary module: every one of the four importing nothing outside the
-# standard library and each other, in the order errors < chains <
-# transport < client, and `chains.py` and `errors.py` each leaving
-# `urllib.request`, `ssl` and `socket` out of a fresh interpreter.
+# stream tests judge `JsonStream` and `call_stream`. The census tests are
+# the contract that distinguishes a package from an ordinary module: every
+# one of the four importing nothing outside the standard library and each
+# other, in the order errors < chains < transport < client, and `chains.py`
+# and `errors.py` each leaving `urllib.request`, `ssl` and `socket` out of
+# a fresh interpreter.
 #
 # -n0 avoids paying xdist startup once per mutant; -p no:randomly keeps the
 # first killing test and therefore the runtime reproducible. --no-cov is
@@ -53,7 +54,7 @@ module-path = "src/bitcoin_core_rpc"
 # such run would then be recorded as a kill.
 test-command = """python -m pytest -x -q -n0 -p no:randomly --no-cov \
   tests/chains_test.py tests/transport_test.py tests/client_test.py \
-  tests/census_test.py"""
+  tests/stream_test.py tests/census_test.py"""
 
 # The per-mutant ceiling is wide: a timeout is reported as KILLED by Cosmic
 # Ray, so a tight bound turns runner load into a false kill, and this scope

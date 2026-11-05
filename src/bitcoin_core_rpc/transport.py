@@ -6,9 +6,10 @@
 
 Everything below an HTTP status is mapped onto `FetchError` here, and
 nothing above it is: what a status *means* is `client.py`'s question, not
-this module's. `urlopen_transport` and `SessionTransport` are the two
-things here that open a socket, both through `_connect`; nothing else in
-this module does.
+this module's. `urlopen_transport` and `SessionTransport` open a socket,
+and so does `_post_stream`, for the reply
+`BitcoinCoreRpcClient.call_stream` reads as a stream: all three through
+`_connect`, and nothing else in this module opens one.
 """
 
 from __future__ import annotations
@@ -16,8 +17,8 @@ from __future__ import annotations
 import re
 import select
 import ssl
-from collections.abc import Callable, Mapping
-from contextlib import suppress
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import closing, contextmanager, suppress
 from http.client import (
     HTTPConnection,
     HTTPException,
@@ -1378,3 +1379,72 @@ class SessionTransport:
     def __exit__(self, *exc_info: object) -> None:
         """Close every connection on the way out of the `with` block."""
         self.close()
+
+
+@contextmanager
+def _post_stream(
+    url: str,
+    *,
+    data: bytes,
+    headers: Mapping[str, str],
+    timeout: float,
+) -> Iterator[tuple[int, Callable[[int], bytes]]]:
+    """POST `data` to `url`, and yield the status and a reader of the reply.
+
+    What `BitcoinCoreRpcClient.call_stream` reads a reply through over the
+    default transport, where `urlopen_transport` would read the body whole.
+    `read(n)` answers at most `n` octets, and at most `_READ_CHUNK`, with
+    one receive per call and `b""` at the end of the body. Nothing of the
+    body is held here, so what bounds the memory a reply takes is what the
+    caller keeps of it. The connection closes when the context ends.
+
+    The connection is `_new_connection`'s, the one `SessionTransport`
+    opens: no proxy, no redirect, TLS verified by `_tls_context`, and
+    `timeout` one deadline over the whole exchange, every lookup, connect,
+    send and receive given what is left of it. The time the caller spends
+    between two reads counts against it too. `Connection: close` is sent,
+    as urllib sends it for `urlopen_transport`.
+
+    Everything below the status is a `FetchError`, as for `http_request`;
+    the status is the caller's to read, and so is the body under it.
+    """
+    _assert_valid_timeout(timeout, "http timeout")
+    _assert_valid_headers(headers)
+    scheme, host, port, where = _split_url(url)
+    # the client refuses a url with a query or a fragment, so the path is
+    # the whole of what `http.client` puts on the request line
+    path = urlsplit(url).path or "/"
+    deadline = monotonic() + timeout
+    connection = _new_connection(
+        scheme, host, port or (443 if scheme == "https" else 80), timeout
+    )
+    connection.deadline = deadline
+    with closing(connection):
+        try:
+            connection.request(
+                "POST", path, body=data, headers={**headers, "Connection": "close"}
+            )
+            response = connection.getresponse()
+        except (OSError, HTTPException) as e:
+            raise FetchError(f"no answer from {where}: {e}") from e
+        with closing(response):
+            yield response.status, _stream_reader(response, where, deadline)
+
+
+def _stream_reader(
+    response: Any, where: str, deadline: float
+) -> Callable[[int], bytes]:
+    """Return the `read` `_post_stream` yields over `response`."""
+
+    def read(size: int) -> bytes:
+        # the deadline is checked here as `_read_bounded` checks it: a read
+        # the buffer answers makes no receive to hold to it
+        if monotonic() > deadline:
+            err_msg = f"{where}: still arriving when the timeout expired"
+            raise FetchError(err_msg)
+        try:
+            return bytes(response.read1(min(size, _READ_CHUNK)))
+        except (OSError, HTTPException) as e:
+            raise FetchError(f"no answer from {where}: {e}") from e
+
+    return read

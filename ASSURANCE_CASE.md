@@ -19,9 +19,14 @@ here are the ones [ARCHITECTURE](./ARCHITECTURE.md) describes.
   built or sent.** A url, a credential, a timeout, a body limit and a
   parameter structure are each checked at the call that supplies them,
   raising `BtcRpcTypeError` or `BtcRpcValueError`.
-- **What a node sends is bounded.** A reply larger than the caller's
-  `max_body_size`, or slower than its `timeout`, is refused rather than
-  held in memory whole or waited out indefinitely.
+- **What a node sends is bounded.** A reply slower than the caller's
+  `timeout` is refused rather than waited out indefinitely. For `call`,
+  a reply larger than the caller's `max_body_size` is refused rather
+  than held in memory whole. For `call_stream`, which reads a reply as
+  it arrives, the total is not bounded: what is bounded is what the
+  caller keeps of it, each value under the limit the caller gives
+  `JsonStream.value`, and each member of the reply but `result` under
+  `max_body_size`.
 - **A credential never appears where it can leak.** Not in a url, not in
   a `__repr__`, not in an exception raised about a rejected one, not sent
   to a host a redirect or an environment variable named instead of the
@@ -161,8 +166,10 @@ describes.
 - **Economy of mechanism.** One `HttpTransport` protocol both
   `urlopen_transport` and `SessionTransport` satisfy; one `_checked_url`
   serving both clients through its `kind` argument rather than a second
-  copy of the same checks; one `_read_bounded` every transport built
-  here reads a reply through.
+  copy of the same checks; one `_read_bounded` both transports built
+  here read a reply through. `_post_stream`, which `call_stream` reads
+  through instead, keeps no body and so has nothing for `_read_bounded`
+  to bound.
 - **Fail-safe defaults.** A caller giving neither a credential nor a
   cookie path is refused rather than answered with a client that sends
   an empty `Authorization`; `DEFAULT_MAX_BODY_SIZE` bounds a reply even
@@ -252,12 +259,15 @@ exposed to, and what counters each.
   `_read_bounded`'s bound on what one reply may weigh, checked before a
   byte past it is read, and its deadline, checked before each chunk
   rather than reset by one — under *The transport layer* in
-  ARCHITECTURE.md.
+  ARCHITECTURE.md. A reply `call_stream` reads is held to the same
+  deadline, and `JsonStream` bounds what it keeps instead of the total:
+  each kept value under a limit, a number under `_MAX_STREAM_NUMBER`
+  octets, and the nesting `skip` walks under `_MAX_STREAM_DEPTH`.
 - **Deserialization of untrusted data (CWE-502).** `_parsed_json_body`
-  is the only place a reply's bytes become Python objects, through
-  `json.loads` alone: no `pickle`, no `marshal`, no `eval`, and a custom
-  `parse_float` and `parse_constant` refuse what `json` would otherwise
-  hand back as an unusable amount.
+  and `JsonStream` are where a reply's bytes become Python objects,
+  through `json.loads` alone: no `pickle`, no `marshal`, no `eval`, and
+  a custom `parse_float` and `parse_constant` refuse what `json` would
+  otherwise hand back as an unusable amount.
 - **Type confusion (CWE-843).** mypy runs `strict = true`
   (`pyproject.toml`) over every tree the `mypy` hook of
   `.pre-commit-config.yaml` names, as part of the lint gate.
