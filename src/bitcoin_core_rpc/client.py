@@ -168,8 +168,10 @@ def _checked_url(url: str, *, kind: str = "rpc") -> str:
         raise BtcRpcValueError(f"invalid {kind} url scheme: expected http(s)")
     if split.username is not None or split.password is not None:
         if kind == "rpc":
-            err_msg = "credentials in the rpc url:"
-            err_msg += " pass user and password, or use the cookie file"
+            err_msg = (
+                "credentials in the rpc url:"
+                " pass user and password, or use the cookie file"
+            )
         else:
             err_msg = f"credentials in the {kind} url, which takes none:"
             err_msg += " -rest authenticates nobody who reaches it"
@@ -871,12 +873,16 @@ class BitcoinCoreRpcClient:
         if (user is None) != (password is None):
             raise BtcRpcValueError("rpc user and password go together, or neither")
         if user is not None and cookie_path is not None:
-            err_msg = "both rpc credentials and a cookie path:"
-            err_msg += " either of them says who is calling, so pass one"
+            err_msg = (
+                "both rpc credentials and a cookie path:"
+                " either of them says who is calling, so pass one"
+            )
             raise BtcRpcValueError(err_msg)
         if user is None and cookie_path is None:
-            err_msg = "no rpc credentials: pass user and password, or the"
-            err_msg += " path of the cookie file the node writes"
+            err_msg = (
+                "no rpc credentials: pass user and password, or the"
+                " path of the cookie file the node writes"
+            )
             raise BtcRpcValueError(err_msg)
         for name, value in (("user", user), ("password", password)):
             if value is not None and not isinstance(value, str):
@@ -915,9 +921,11 @@ class BitcoinCoreRpcClient:
             # written into the first argument -- a credential, and one that
             # would go into the traceback with it. `_checked_url` refuses a
             # url with userinfo in it without echoing the url either
-            err_msg = "colon in the rpc user. The credential is user:password"
-            err_msg += " and the node splits it at the first colon, so a user"
-            err_msg += " containing one names a different user than intended"
+            err_msg = (
+                "colon in the rpc user. The credential is user:password"
+                " and the node splits it at the first colon, so a user"
+                " containing one names a different user than intended"
+            )
             raise BtcRpcValueError(err_msg)
         _assert_valid_timeout(timeout, "rpc timeout")
         if cookie_path is not None and not isinstance(cookie_path, (str, PathLike)):
@@ -1006,8 +1014,10 @@ class BitcoinCoreRpcClient:
         """
         port = rpc_port_from_chain(chain)
         if signet_challenge is not None and not verify_chain:
-            err_msg = "a signet_challenge is what verify_chain compares,"
-            err_msg += " and checks nothing with it off"
+            err_msg = (
+                "a signet_challenge is what verify_chain compares,"
+                " and checks nothing with it off"
+            )
             raise BtcRpcValueError(err_msg)
         if user is None and password is None and cookie_path is None:
             # the datadir is resolved here, rather than left to
@@ -1017,9 +1027,11 @@ class BitcoinCoreRpcClient:
             # passes instead is a `cookie_path`, or credentials
             datadir = default_datadir()
             if datadir is None:
-                err_msg = "no absolute home directory (APPDATA on Windows),"
-                err_msg += " so no default datadir to find the cookie file"
-                err_msg += " in: pass cookie_path, or user and password"
+                err_msg = (
+                    "no absolute home directory (APPDATA on Windows),"
+                    " so no default datadir to find the cookie file"
+                    " in: pass cookie_path, or user and password"
+                )
                 raise BtcRpcValueError(err_msg)
             cookie_path = cookie_path_from_chain(chain, datadir)
         client = cls(
@@ -1187,9 +1199,11 @@ class BitcoinCoreRpcClient:
         # is refused by the same check, and correctly: the constructor
         # takes the endpoint of a node, and the wallet is what this adds
         if "wallet" in urlsplit(self.url).path.rstrip("/").split("/")[-2:]:
-            err_msg = "this client is already the /wallet/<name> endpoint of"
-            err_msg += " a node: call for_wallet on the client it was derived"
-            err_msg += " from"
+            err_msg = (
+                "this client is already the /wallet/<name> endpoint of"
+                " a node: call for_wallet on the client it was derived"
+                " from"
+            )
             raise BtcRpcValueError(err_msg)
         try:
             quoted = quote(wallet_name, safe="")
@@ -1380,8 +1394,10 @@ class BitcoinCoreRpcClient:
         """
         pairs = _batch_pairs(calls)
         if not pairs:
-            err_msg = "call_batch with no members: JSON-RPC 2.0 section 6 has"
-            err_msg += " no shape for an empty batch"
+            err_msg = (
+                "call_batch with no members: JSON-RPC 2.0 section 6 has"
+                " no shape for an empty batch"
+            )
             raise BtcRpcValueError(err_msg)
         timeout = self.timeout if request_timeout is None else request_timeout
         _assert_valid_timeout(timeout, "rpc request_timeout")

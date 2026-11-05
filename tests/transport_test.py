@@ -983,7 +983,7 @@ def test_no_proxy_is_taken_from_the_environment(
     assert [h for h in default if isinstance(h, ProxyHandler)]
 
     handlers = getattr(transport_module._OPENER, "handlers", [])
-    assert [h for h in handlers if isinstance(h, ProxyHandler)] == []
+    assert not [h for h in handlers if isinstance(h, ProxyHandler)]
 
 
 @pytest.mark.parametrize(

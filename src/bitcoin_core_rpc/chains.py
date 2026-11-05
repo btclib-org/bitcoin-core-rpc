@@ -431,11 +431,13 @@ def cookie_path_from_chain(
     """
     if datadir is None:
         datadir = default_datadir()
-        if datadir is None:
-            err_msg = "no absolute home directory (APPDATA on Windows), so"
-            err_msg += " no default datadir to find the cookie file in:"
-            err_msg += " pass datadir"
-            raise BtcRpcValueError(err_msg)
+    if datadir is None:
+        err_msg = (
+            "no absolute home directory (APPDATA on Windows), so"
+            " no default datadir to find the cookie file in:"
+            " pass datadir"
+        )
+        raise BtcRpcValueError(err_msg)
     # `Path` refuses a type that is no path itself, with a TypeError of
     # pathlib's naming what it takes; the constructor checks `cookie_path`
     # by hand because `quote` accepts `bytes` and built an endpoint out of
@@ -474,8 +476,10 @@ def _encodable(cookie_path: Path) -> Path:
     else:
         encodable = "\0" not in str(cookie_path)
     if not encodable:
-        err_msg = "unreadable rpc cookie file: a path the filesystem encoding"
-        err_msg += " refuses, or one with a NUL"
+        err_msg = (
+            "unreadable rpc cookie file: a path the filesystem encoding"
+            " refuses, or one with a NUL"
+        )
         raise FetchError(err_msg)
     return cookie_path
 

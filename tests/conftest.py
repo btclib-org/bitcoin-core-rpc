@@ -309,10 +309,9 @@ def pytest_configure(config: pytest.Config) -> None:
             f" only in the directory the run started in, {Path.cwd()}, and"
             f" pytest read {config.inipath}. Run from {config.rootpath}."
         )
-    unmeasured = sources_out_of_reach(
+    if unmeasured := sources_out_of_reach(
         coverage_configuration(config), config.rootpath, config.option
-    )
-    if unmeasured:
+    ):
         raise pytest.UsageError(
             f"coverage would not measure {', '.join(unmeasured)}: it reads"
             " a source directory against the directory the run started in,"
