@@ -241,7 +241,7 @@ def skip_each_item(walked: JsonStream) -> None:
 
 
 def test_skipping_each_member_or_item_consumes_the_document(chunk: int) -> None:
-    """The two helpers below, on a document they walk to its end."""
+    """`skip_each_member` and `skip_each_item`, each walked to the end."""
     members = stream('{"a": [1], "b": 2}', chunk)
     skip_each_member(members)
     members.end()
@@ -1045,9 +1045,10 @@ def test_a_refusal_quotes_no_octet_of_the_reply(
 def test_a_result_of_one_whole_chunk_is_read() -> None:
     """A walk that reads a result filling a chunk exactly is not refused.
 
-    The result starts at octet 10 and is `_READ_CHUNK` octets long, so the
-    stream refills its buffer just as the result ends: the offset carried
-    across the refill is what says the walk read it.
+    The result starts at octet 10 and is `_READ_CHUNK` octets long, so a
+    refill inside it leaves the walk at the buffer position where it
+    started: only the offset carried across the refill says the walk read
+    it.
     """
     string = '"' + "a" * (READ_CHUNK - 2) + '"'
     body = ('{"result":' + string + ',"error":null,"id":"btcrpc-0"}').encode()
@@ -1077,7 +1078,7 @@ def _members_of_a_member(walked: JsonStream) -> None:
 
 
 def test_walking_a_member_as_an_object_reads_the_document(chunk: int) -> None:
-    """The helper below, on a document it walks to its end."""
+    """`_members_of_a_member`, on a document it walks to its end."""
     walked = stream('{"p": 1, "a": {"b": 2}}', chunk)
     _members_of_a_member(walked)
     walked.end()
