@@ -1265,13 +1265,17 @@ def _streamed_result(
         if name in kept:
             raise FetchError(f"{where}: a reply with {name!r} given twice")
         if name == "result":
-            depth = stream._open
+            # where the result starts, so that a walk that read none of it,
+            # or stopped inside it, is told from a reply that goes on
+            # wrongly after it
+            stream.peek()
+            depth, start = stream._open, stream._offset + stream._pos
             kept[name] = walk(stream)
             # a read of nothing, which over the default transport checks the
             # deadline: the stream may have read the last of the body before
             # the walk returned, and the time the walk spent counts
             read(0)
-            if stream._open != depth or stream.peek() not in ",}":
+            if stream._open != depth or stream._offset + stream._pos == start:
                 err_msg = f"{where}: the walk did not read the whole result"
                 raise FetchError(err_msg)
         elif name in _STREAM_ENVELOPE:

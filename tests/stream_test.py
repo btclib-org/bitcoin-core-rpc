@@ -17,10 +17,12 @@ from __future__ import annotations
 import json
 import random
 import socket
+import string
 import sys
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from decimal import Decimal
+from hashlib import sha256
 from threading import Event, Thread
 from time import monotonic
 from typing import Any
@@ -983,12 +985,27 @@ def test_a_client_closing_early_ends_the_peer() -> None:
             _received(here)
 
 
-# two values of a key's shape, a WIF of `dumpprivkey`, with no character in
-# common at any position: a refusal that quoted any octet of one would
-# differ between them
+# what base58 writes: the digits and the letters, but for `0`, `O`, `I`
+# and `l`
+_BASE58 = "".join(c for c in string.digits + string.ascii_letters if c not in "0OIl")
+
+
+def _wif_shaped(first: str, seed: bytes, shift: int) -> str:
+    """Return a compressed WIF's shape: `first`, then 51 base58 characters.
+
+    Derived rather than written out, so that no secret scanner reads a
+    literal key here, as `tests/secret_free_refusals_test.py` does.
+    """
+    digest = sha256(seed).digest() + sha256(seed + b"+").digest()
+    return first + "".join(_BASE58[(o + shift) % 58] for o in digest[:51])
+
+
+# two values of a key's shape, a WIF of `dumpprivkey`, opening as a
+# compressed one does and with no character in common at any position: a
+# refusal that quoted any octet of one would differ between them
 _SECRETS = (
-    "L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ",
-    "KxZcY47uGp9a4mVxe7TkG1oGzW5nSqsr8tfmZa8QKfQbFhvBTSsT",
+    _wif_shaped("K", b"stream_test: key", 0),
+    _wif_shaped("L", b"stream_test: key", 29),
 )
 
 
