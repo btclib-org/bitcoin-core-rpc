@@ -12,6 +12,7 @@ asked.
 
 from __future__ import annotations
 
+import math
 import os
 import select
 import socket
@@ -674,6 +675,44 @@ def test_a_timeout_that_is_no_duration_is_refused(timeout: float) -> None:
     transport = Recorded((200, b"7"))
     with pytest.raises(BtcRpcValueError, match="http timeout is not a positive"):
         http_request(URL, timeout=timeout, transport=transport)
+    assert transport.requests == []
+
+
+def test_the_largest_timeout_is_2_to_the_31_milliseconds_less_one() -> None:
+    """The bound is 2**31 - 1 milliseconds, and a timeout of it is sent.
+
+    The comment above `_MAX_TIMEOUT` gives the measurement.
+    """
+    assert transport_module._MAX_TIMEOUT == (2**31 - 1) / 1000
+    transport = Recorded((200, b"7"))
+    assert http_request(URL, timeout=2_147_483.647, transport=transport) == (200, b"7")
+    assert transport.timeouts == [2_147_483.647]
+
+
+@pytest.mark.parametrize(
+    ("timeout", "shown"),
+    [
+        (math.nextafter(2_147_483.647, math.inf), "2147483.6470000003"),
+        (2_147_484, "2147484"),
+        (9.3e9, "9300000000.0"),
+        (10**5000, "an integer of 16610 bits"),
+        (-(10**5000), "an integer of 16610 bits"),
+    ],
+    # pytest builds an id from each value, and `str` refuses an int this long
+    ids=["next-float", "int", "float", "huge-int", "huge-negative-int"],
+)
+def test_a_timeout_above_the_bound_is_refused(timeout: float, shown: str) -> None:
+    """Above `_MAX_TIMEOUT`, refused like every other invalid timeout.
+
+    An int too long for a decimal string is described rather than shown,
+    and compared rather than converted to a float, which overflows.
+    """
+    transport = Recorded((200, b"7"))
+    with pytest.raises(BtcRpcValueError) as refusal:
+        http_request(URL, timeout=timeout, transport=transport)
+    assert str(refusal.value) == (
+        f"http timeout is not a positive number of seconds up to 2147483.647: {shown}"
+    )
     assert transport.requests == []
 
 

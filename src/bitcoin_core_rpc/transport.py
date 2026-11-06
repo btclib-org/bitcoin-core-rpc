@@ -26,7 +26,6 @@ from http.client import (
     HTTPSConnection,
 )
 from io import BufferedReader, RawIOBase
-from math import isfinite
 from socket import AI_NUMERICHOST, SOCK_STREAM, gaierror, getaddrinfo, socket
 from threading import Lock, Thread
 from time import monotonic
@@ -548,14 +547,31 @@ _OPENER = build_opener(
 )
 
 
+# The largest timeout every supported platform honours: 2**31 - 1
+# milliseconds, the most a C `int` of milliseconds holds. Measured through
+# `http_request` against loopback peers, on the interpreters and images of
+# the os-* sweeps (ISS btclib-org/bitcoin-core-rpc#746). Just above it,
+# CPython on Windows raises `OverflowError` ("timeout doesn't fit into C
+# timeval") and PyPy's TLS handshake on Linux and macOS raises it too
+# ("expected a 32-bit integer"). Higher still, CPython on Linux and macOS
+# can give up far sooner than asked, over a plain connection or a TLS one:
+# given 4,294,968 s, it gives up after 0.7 s.
+_MAX_TIMEOUT = 2_147_483.647
+
+
 def _assert_valid_timeout(timeout: float, what: str) -> None:
     """Refuse a timeout that is not a number of seconds to wait.
 
     A bool is not a duration and `timeout=True` would be one second; a
     zero or a negative one makes the socket give up before it connects;
     an infinity or a nan is what `Infinity` in a json configuration
-    decodes to. All four reach the socket layer and fail there, out of
+    decodes to; one above `_MAX_TIMEOUT` overflows below the socket on
+    some platform. Each reaches the socket layer and fails there, out of
     the standard library rather than through this module's exceptions.
+
+    The bool aside, one chained comparison refuses them all: a nan
+    compares false, and an int compares with a float exactly, however
+    large, where `isfinite` would raise `OverflowError` converting it.
 
     Shared with `client.py`, which checks its own `timeout` and
     `request_timeout` the same way before either reaches this module.
@@ -563,8 +579,17 @@ def _assert_valid_timeout(timeout: float, what: str) -> None:
     if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
         err_msg = f"non-numeric {what}, but a"
         raise BtcRpcTypeError(f"{err_msg} {type(timeout).__name__}")
-    if not isfinite(timeout) or timeout <= 0:
-        raise BtcRpcValueError(f"{what} is not a positive number of seconds: {timeout}")
+    if not 0 < timeout <= _MAX_TIMEOUT:
+        # an int this large is described rather than shown, to keep the
+        # message short; past `sys.get_int_max_str_digits()` digits, `str`
+        # could not show it anyway and raises `ValueError`
+        shown = (
+            f"an integer of {timeout.bit_length()} bits"
+            if isinstance(timeout, int) and abs(timeout) >= 2**63
+            else timeout
+        )
+        err_msg = f"{what} is not a positive number of seconds"
+        raise BtcRpcValueError(f"{err_msg} up to {_MAX_TIMEOUT}: {shown}")
 
 
 # an RFC 9110 token: what a header name may be made of
