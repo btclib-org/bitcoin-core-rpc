@@ -384,6 +384,10 @@ source-exclude = [
     # the same reasoning for `fuzz/`, which is not shipped either: this
     # one reads the harnesses and the seed corpus beside them
     "/tests/fuzz_corpus_test.py",
+    # and for a run that needs `.github/scripts` to be there: this one
+    # asks the source guard of tests/conftest.py to refuse a run that
+    # would leave it unmeasured, and in the sdist there is none to refuse
+    "/tests/source_guard_run_test.py",
     # the same reasoning once more, reaching outside the sdist through
     # `.git` rather than through `.github`: this one asks `git ls-files`
     # which tracked paths lie under the trees the shape entries below
