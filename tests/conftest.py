@@ -255,29 +255,45 @@ def configuration_went_unread(
     return cov_config.config_file is None and inipath is not None
 
 
+def configuration_directory(cov_config: CoverageConfiguration | None) -> Path | None:
+    """Return the directory of the file coverage read its configuration from.
+
+    `None` where coverage measures nothing or read no file.
+    """
+    if cov_config is None or cov_config.config_file is None:
+        return None
+    return Path(cov_config.config_file).parent
+
+
 def sources_out_of_reach(
     cov_config: CoverageConfiguration | None,
-    rootpath: Path,
     options: Namespace,
 ) -> list[str]:
     """Return each `source` entry this run would leave unmeasured.
 
     coverage takes an entry for a directory where it is one from the
     directory the run started in, and for a module name otherwise. An
-    entry that is a directory under the rootdir, is none from here, and
-    cannot be a module name is measured by neither reading: from
-    `tests/`, `.github/scripts` is that entry, and the floor still
-    passes without it. An entry that is a module name, `tests` from
-    `tests/` among them, is measured as one. In an sdist, which ships no
-    `.github`, `.github/scripts` is no directory under the rootdir, so a
-    run there is not refused.
+    entry that is a directory beside the file coverage read its
+    configuration from, is none from here, and cannot be a module name is
+    measured by neither reading: from `tests/`, `.github/scripts` is that
+    entry, and the floor still passes without it. An entry that is a
+    module name, `tests` from `tests/` among them, is measured as one.
+
+    The entry is looked for beside that file and not under the rootdir,
+    which `--rootdir` and `-c` move: `--rootdir=.` from `tests/` makes
+    `tests/` the rootdir, where `.github/scripts` is no directory either.
+    A run whose coverage read no file has nothing to look beside, and
+    `configuration_went_unread` is the guard that asks about it. In an
+    sdist, which ships no `.github`, `.github/scripts` is no directory
+    beside its `pyproject.toml`, so a run there is not refused.
     """
-    if cov_config is None or not held_to_a_floor(options):
+    configured = configuration_directory(cov_config)
+    if cov_config is None or configured is None or not held_to_a_floor(options):
         return []
     return [
         entry
         for entry in cov_config.source or []
-        if (rootpath / entry).is_dir()
+        if (configured / entry).is_dir()
         and not Path(entry).is_dir()
         and not all(part.isidentifier() for part in entry.split("."))
     ]
@@ -300,23 +316,20 @@ def pytest_configure(config: pytest.Config) -> None:
     the run measured nothing rather than that something in the tree
     failed.
     """
-    if configuration_went_unread(
-        coverage_configuration(config), config.inipath, config.option
-    ):
+    measuring = coverage_configuration(config)
+    if configuration_went_unread(measuring, config.inipath, config.option):
         raise pytest.UsageError(
             "coverage read no configuration, so this run is held to no"
             " floor and measures a different set of files: coverage looks"
             f" only in the directory the run started in, {Path.cwd()}, and"
             f" pytest read {config.inipath}. Run from {config.rootpath}."
         )
-    if unmeasured := sources_out_of_reach(
-        coverage_configuration(config), config.rootpath, config.option
-    ):
+    if unmeasured := sources_out_of_reach(measuring, config.option):
         raise pytest.UsageError(
             f"coverage would not measure {', '.join(unmeasured)}: it reads"
             " a source directory against the directory the run started in,"
             f" {Path.cwd()}, and no such directory is there. Run from"
-            f" {config.rootpath}."
+            f" {configuration_directory(measuring)}."
         )
     testpaths: list[str] = config.getini("testpaths")
     namespace = config.known_args_namespace

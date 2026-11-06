@@ -10,10 +10,9 @@ the run that measures this file. The position of `--cov` in addopts is
 here for the same reason -- it is a property of the command line no run
 of that command line can report on.
 
-The guards beside it are driven the same way. The configuration guard
-has one exception: the run it refuses cannot be the run reporting on it
-either, so the case it exists for is taken in a subprocess started from
-`tests/`.
+The guards beside it are driven the same way, and each is also run once
+in a subprocess started from `tests/`: a run a guard refuses cannot be
+the run reporting on it.
 """
 
 from __future__ import annotations
@@ -606,23 +605,18 @@ def test_the_hook_refuses_a_run_that_cannot_see_its_floor(
     assert f"started in, {started_in}," in str(raised.value)
     assert f"pytest read {_INIPATH}." in str(raised.value)
     # no --cov-config is offered: in a checkout, from anywhere but the
-    # rootdir, it leaves `.github/scripts` unmeasured, which
-    # `sources_out_of_reach` refuses
+    # directory holding pyproject.toml, it leaves `.github/scripts`
+    # unmeasured, which `sources_out_of_reach` refuses
     assert str(raised.value).endswith(f"Run from {_ROOT}.")
     # the raise is ahead of the write, so the copy pytest-cov reads is
     # left holding what pytest-cov itself put there
     assert known.cov_fail_under == 0.0
 
 
-def test_a_run_started_from_tests_says_it_is_ungated(tmp_path: Path) -> None:
-    """The guard stops a real run started from `tests/`.
-
-    Everything above is the decision driven as a function; this is the
-    invocation the issue is about, and the only case that says the two
-    are wired together -- that `tests/conftest.py` is loaded at all on
-    such a run, and that what it raises reaches whoever typed it. The run
-    costs no collection: `pytest_configure` is ahead of it, so the
-    subprocess is refused before it imports a test module.
+def _run_from_tests(
+    tmp_path: Path, *arguments: str
+) -> subprocess.CompletedProcess[str]:
+    """Run pytest from `tests/` in a child process, and return how it ended.
 
     `COVERAGE_FILE` is redirected because pytest-cov erases the data file
     it is pointed at as it starts, absent `--cov-append`, which would
@@ -635,16 +629,30 @@ def test_a_run_started_from_tests_says_it_is_ungated(tmp_path: Path) -> None:
     environment.pop("COVERAGE_RCFILE", None)
     environment["COVERAGE_FILE"] = str(tmp_path / "coverage-data")
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
-
-    started_in = _ROOT / "tests"
-    completed = subprocess.run(
-        [sys.executable, "-m", "pytest", "-p", "no:cacheprovider"],
-        cwd=started_in,
+    # S603: every argument is a constant of a case in this file, and no
+    # shell is involved
+    return subprocess.run(  # ruff: ignore[S603]
+        [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", *arguments],
+        cwd=_ROOT / "tests",
         env=environment,
         capture_output=True,
         encoding="utf-8",
         check=False,
     )
+
+
+def test_a_run_started_from_tests_says_it_is_ungated(tmp_path: Path) -> None:
+    """The guard stops a real run started from `tests/`.
+
+    Everything above is the decision driven as a function; this is the
+    invocation the issue is about, and the only case that says the two
+    are wired together -- that `tests/conftest.py` is loaded at all on
+    such a run, and that what it raises reaches whoever typed it. The run
+    costs no collection: `pytest_configure` is ahead of it, so the
+    subprocess is refused before it imports a test module.
+    """
+    started_in = _ROOT / "tests"
+    completed = _run_from_tests(tmp_path)
 
     assert completed.returncode == pytest.ExitCode.USAGE_ERROR, completed.stderr
     # pytest writes a usage error to stderr, where nothing of the run's
@@ -669,14 +677,14 @@ def _laid_out(root: Path) -> Path:
     return root
 
 
-def test_every_source_directory_is_in_reach_from_the_rootdir(
+def test_every_source_directory_is_in_reach_from_the_root(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """From the rootdir, where the gate runs, the guard is silent."""
+    """From the root of the checkout, where the gate runs, none is refused."""
     root = _laid_out(tmp_path)
     monkeypatch.chdir(root)
     measuring = _cov_config(str(root / "pyproject.toml"), _SOURCE)
-    assert sources_out_of_reach(measuring, root, _options()) == []
+    assert sources_out_of_reach(measuring, _options()) == []
 
 
 def test_a_run_from_tests_leaves_the_scripts_out_of_reach(
@@ -690,21 +698,38 @@ def test_a_run_from_tests_leaves_the_scripts_out_of_reach(
     root = _laid_out(tmp_path)
     monkeypatch.chdir(root / "tests")
     measuring = _cov_config(str(root / "pyproject.toml"), _SOURCE)
-    assert sources_out_of_reach(measuring, root, _options()) == [".github/scripts"]
+    assert sources_out_of_reach(measuring, _options()) == [".github/scripts"]
 
 
+@pytest.mark.parametrize("place", ["root", "tests"])
 def test_a_tree_without_the_directory_is_not_refused(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, place: str
 ) -> None:
     """An sdist ships no `.github`, and its run from `tests/` stands.
 
-    There the entry is no directory under the rootdir either, so it has
-    nothing to measure and nothing is lost.
+    There the entry is no directory beside `pyproject.toml` either, so it
+    has nothing to measure and nothing is lost. The file coverage read is
+    the sdist's own, at its root, or one in `tests/` that `--cov-config`
+    named, or that a run from `tests/` finds there.
     """
     (tmp_path / "tests").mkdir()
     monkeypatch.chdir(tmp_path / "tests")
-    measuring = _cov_config(str(tmp_path / "pyproject.toml"), _SOURCE)
-    assert sources_out_of_reach(measuring, tmp_path, _options()) == []
+    configured = tmp_path if place == "root" else tmp_path / "tests"
+    measuring = _cov_config(str(configured / "pyproject.toml"), _SOURCE)
+    assert sources_out_of_reach(measuring, _options()) == []
+
+
+def test_a_run_coverage_read_no_file_for_is_left_to_the_other_guard(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """With no file read there is no directory to look in.
+
+    `configuration_went_unread` is what refuses that run, so this guard
+    stays silent rather than refusing it a second time.
+    """
+    root = _laid_out(tmp_path)
+    monkeypatch.chdir(root / "tests")
+    assert sources_out_of_reach(_cov_config(None, _SOURCE), _options()) == []
 
 
 @pytest.mark.parametrize(
@@ -719,19 +744,27 @@ def test_the_source_guard_leaves_alone_what_the_other_one_does(
     root = _laid_out(tmp_path)
     monkeypatch.chdir(root / "tests")
     measuring = _cov_config(str(root / "pyproject.toml"), _SOURCE)
-    assert sources_out_of_reach(measuring, root, _options(**asked_for)) == []
-    assert sources_out_of_reach(None, root, _options()) == []
+    assert sources_out_of_reach(measuring, _options(**asked_for)) == []
+    assert sources_out_of_reach(None, _options()) == []
 
 
+@pytest.mark.parametrize("rootdir", ["root", "tests"])
 def test_the_hook_refuses_a_run_that_would_drop_a_source_directory(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, rootdir: str
 ) -> None:
-    """`pytest_configure` raises, naming the entry and the rootdir."""
+    """`pytest_configure` raises, naming the entry and where to run from.
+
+    The rootdir is `tests/` where `--rootdir=.` or a `-c` file in `tests/`
+    puts it there, and the run is refused all the same. The directory
+    named is the one holding the file coverage read, whichever the
+    rootdir is.
+    """
     root = _laid_out(tmp_path)
     monkeypatch.chdir(root / "tests")
     known = Namespace(cov_fail_under=100.0)
     controller = _controller(str(root / "pyproject.toml"), _SOURCE)
-    config = _config(_options(), known, controller, rootpath=root)
+    rootpath = root if rootdir == "root" else root / "tests"
+    config = _config(_options(), known, controller, rootpath=rootpath)
 
     with pytest.raises(pytest.UsageError) as raised:
         pytest_configure(config)
@@ -740,6 +773,32 @@ def test_the_hook_refuses_a_run_that_would_drop_a_source_directory(
     assert f"started in, {root / 'tests'}," in str(raised.value)
     assert str(raised.value).endswith(f"Run from {root}.")
     assert known.cov_fail_under == 100.0
+
+
+def test_a_run_from_tests_with_its_rootdir_there_is_refused(tmp_path: Path) -> None:
+    """The guard stops a real run whose rootdir is `tests/`.
+
+    `--cov-config` points coverage at `pyproject.toml`, `--rootdir=.` makes
+    `tests/` the rootdir, and `.` names the suite, which keeps pytest from
+    failing first on a `testpaths` it finds nothing under. Let through,
+    that run passes the floor without measuring `.github/scripts`.
+
+    The `-k` matches no test, so that a guard that lets the run through
+    collects the suite and stops there, rather than running it inside this
+    one. The guard does not read `-k`.
+    """
+    completed = _run_from_tests(
+        tmp_path,
+        "--rootdir=.",
+        "--cov-config=../pyproject.toml",
+        "-k",
+        "no_test_is_named_this",
+        ".",
+    )
+
+    assert completed.returncode == pytest.ExitCode.USAGE_ERROR, completed.stderr
+    assert "coverage would not measure .github/scripts:" in completed.stderr
+    assert f"Run from {_ROOT}." in completed.stderr
 
 
 def test_the_source_guard_reads_coverage_s_own_list(
