@@ -14,9 +14,11 @@ class again.
 `BitcoinCoreRestClient` is Core's other interface, `-rest`: read-only,
 off by default, and authenticating nobody who reaches it. `get_bin` and
 `get_json` GET one path and answer with the bytes or the parsed json,
-sharing the transport and the chain vocabulary with the JSON-RPC client
-above and nothing else -- no credentials, `-rest` taking none, and no
-method per resource, a path being the caller's own to build.
+sharing the transport, the chain vocabulary and `assert_chain` with the
+JSON-RPC client above and nothing else -- no credentials, `-rest` taking
+none, and no other method per resource, a path being the caller's own to
+build. `BitcoinCoreRestClient`'s docstring says why `assert_chain` is the
+exception.
 
 **Not python-bitcoinrpc's `AuthServiceProxy`, and not a port of it.**
 That class, and the copy of it Core's test framework maintains, carry the

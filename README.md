@@ -275,13 +275,15 @@ concurrency across several nodes keeps one instance per node instead.
 JSON-RPC — authenticating nobody who reaches it. `BitcoinCoreRestClient`
 speaks it: `get_bin` for a `.bin` path, returning the body unread, and
 `get_json` for a `.json` one, returning what it parses to. It shares the
-transport and the chain vocabulary with `BitcoinCoreRpcClient` and nothing
-else — no credentials, `-rest` taking none.
+transport, the chain vocabulary and `assert_chain` with
+`BitcoinCoreRpcClient` and nothing else — no credentials, `-rest` taking
+none.
 
 ```python
 from bitcoin_core_rpc import BitcoinCoreRestClient
 
 rest = BitcoinCoreRestClient.from_chain("main")
+rest.assert_chain("main")
 info = rest.get_json("/chaininfo.json")
 raw_tx = rest.get_bin(f"/tx/{tx_id}.bin")
 ```
@@ -292,6 +294,11 @@ Core's own documentation of `-rest` and appended after `/rest` unread.
 undone here — it reads the UTXO set, so an output already spent and one
 never created answer the same way, and a wrapper turning that answer into
 `None` would read as telling more than `/getutxos` does.
+
+`assert_chain` is admitted all the same, because it reads one fixed
+resource, `/chaininfo.json`, and maps nothing. It is the check *Talking to
+a node* describes for `BitcoinCoreRpcClient`: the same two members
+compared, and a wrong chain or signet refused with the same message.
 
 ## When it goes wrong
 

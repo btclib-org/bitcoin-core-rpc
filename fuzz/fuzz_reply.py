@@ -9,10 +9,11 @@ choose: it can be a host on the internet, or a proxy in front of the node.
 `data` is read as the body of a reply, at several HTTP statuses, through the
 paths that decode one: the body readers of `client.py`, the two clients end
 to end, `call_stream` and the `_streamed_result` it reads a reply with,
-`assert_chain`, and `transport.py`'s `http_request` and bounded read. No
-node runs. The clients are built on a `transport=` that answers
-from `data`, which is the lowest seam the package gives a caller, and the
-bounded read is handed a response object that serves `data` in chunks.
+both clients' `assert_chain`, and `transport.py`'s `http_request` and
+bounded read. No node runs. The clients are built on a `transport=` that
+answers from `data`, which is the lowest seam the package gives a caller,
+and the bounded read is handed a response object that serves `data` in
+chunks.
 
 A body that holds `%ID0%` or `%ID1%` has the id of the first or second
 member of the request it answers written in its place, so that a mutated
@@ -143,13 +144,16 @@ _CALLS: tuple[Callable[[], object], ...] = (
     lambda: _REST.get_bin("/chaininfo.json"),
 )
 
-# `assert_chain` reads `getblockchaininfo`, and answers a node that serves
-# another chain with `BtcRpcValueError`, which is the caller's configuration
-# and no reply to refuse
+# `assert_chain` reads `getblockchaininfo` or `/chaininfo.json`, and answers
+# a node that serves another chain with `BtcRpcValueError`, which is the
+# caller's configuration and no reply to refuse
 _CHAIN_CHECKS: tuple[Callable[[], object], ...] = (
     lambda: _RPC.assert_chain("main"),
     lambda: _RPC.assert_chain("signet"),
     lambda: _RPC.assert_chain("signet", signet_challenge="51"),
+    lambda: _REST.assert_chain("main"),
+    lambda: _REST.assert_chain("signet"),
+    lambda: _REST.assert_chain("signet", signet_challenge="51"),
 )
 
 

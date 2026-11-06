@@ -2891,8 +2891,10 @@ def test_call_raw_a_number_too_long_for_this_interpreter_to_write() -> None:
 
 
 # `BitcoinCoreRestClient`: Core's `-rest` interface, no credentials, no
-# envelope. The two clients share `_checked_url`, `http_request` and the
-# chain and network tables, and the tests below are what is this client's
+# envelope. The two clients share `_checked_url`, `http_request`, the
+# chain and network tables and `assert_chain`'s comparison, which
+# `test_both_clients_refuse_the_same_node_alike` holds to one message for
+# both, and the tests below are what is this client's
 # own -- a `get_bin` and a `get_json` each build a `GET`, and neither
 # client-building test above (the url, the timeout, the transport) is
 # repeated past what `kind="rest"` changes about `_checked_url`'s own
@@ -3130,6 +3132,91 @@ def test_get_json_bounds_the_reply() -> None:
     oversized = b'{"chain":"' + b"x" * 1100 + b'"}'
     with pytest.raises(FetchError, match="more than the max_body_size of 1024"):
         rest_client((200, oversized)).get_json("/chaininfo.json", max_body_size=1024)
+
+
+def rest_chaininfo(**members: object) -> tuple[int, bytes]:
+    """Return a `/chaininfo.json` reply carrying these members.
+
+    The object `chaininfo` puts under `result`, unwrapped: Core's
+    `rest_chaininfo` writes `getblockchaininfo`'s object as the whole body.
+    """
+    return 200, json.dumps(members).encode()
+
+
+@pytest.mark.parametrize(
+    ("members", "chain", "signet_challenge"),
+    [
+        ({"chain": "test"}, "main", None),
+        ({"chain": "signet", "signet_challenge": CUSTOM_CHALLENGE}, "signet", None),
+        (
+            {"chain": "signet", "signet_challenge": OTHER_CHALLENGE},
+            "signet",
+            CUSTOM_CHALLENGE,
+        ),
+    ],
+    ids=["wrong chain", "custom signet for the default", "other custom signet"],
+)
+def test_both_clients_refuse_the_same_node_alike(
+    members: dict[str, str], chain: str, signet_challenge: str | None
+) -> None:
+    """The same node answers both, and both refuse it with one message.
+
+    What lets a caller holding either client delegate the check to it: a
+    node on the wrong chain, or on another signet, reads the same whether
+    `getblockchaininfo` or `/chaininfo.json` was asked.
+    """
+    with pytest.raises(BtcRpcValueError) as rpc_exc:
+        client(chaininfo(**members)).assert_chain(
+            chain, signet_challenge=signet_challenge
+        )
+    with pytest.raises(BtcRpcValueError) as rest_exc:
+        rest_client(rest_chaininfo(**members)).assert_chain(
+            chain, signet_challenge=signet_challenge
+        )
+    assert str(rest_exc.value) == str(rpc_exc.value)
+
+
+def test_rest_assert_chain_gets_chaininfo_json() -> None:
+    """One `GET` of `/chaininfo.json`, and a node that matches passes."""
+    endpoint = rest_client(
+        rest_chaininfo(chain="signet", signet_challenge=CUSTOM_CHALLENGE)
+    )
+    endpoint.assert_chain("signet", signet_challenge=CUSTOM_CHALLENGE)
+    request = rest_recording(endpoint).request
+    assert request.full_url == f"{URL}/rest/chaininfo.json"
+    assert request.get_method() == "GET"
+
+
+@pytest.mark.parametrize(
+    ("body", "match"),
+    [
+        (b"[]", "no string chain in the list result"),
+        (b'{"chain": 7}', "no string chain in the dict result"),
+        (b'{"chain": "signet"}', "no string signet_challenge"),
+        (b'{"chain": "signet", "signet_challenge": "zz"}', "unreadable signet"),
+    ],
+    ids=["array", "numeric chain", "no challenge", "challenge not hex"],
+)
+def test_rest_assert_chain_names_the_resource_it_could_not_read(
+    body: bytes, match: str
+) -> None:
+    """A reply with nothing to compare is the reply's, and names `GET`."""
+    with pytest.raises(FetchError, match=f"GET /chaininfo.json at {URL}: {match}"):
+        rest_client((200, body)).assert_chain("signet")
+
+
+def test_rest_assert_chain_on_a_node_without_rest_is_an_http_error() -> None:
+    """A node not started with `-rest=1` answers no chain to compare."""
+    with pytest.raises(HttpError, match="HTTP 404"):
+        rest_client((404, b"")).assert_chain("main")
+
+
+def test_rest_a_challenge_off_signet_is_refused_before_the_node_is_asked() -> None:
+    """The rpc client's refusal, before the `GET` as before its call."""
+    endpoint = rest_client()
+    with pytest.raises(BtcRpcValueError, match="challenge for chain main"):
+        endpoint.assert_chain("main", signet_challenge=CUSTOM_CHALLENGE)
+    assert rest_recording(endpoint).requests == []
 
 
 class _ShowsAsASequence(Shows, Sequence[int]):
