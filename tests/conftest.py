@@ -280,12 +280,13 @@ def sources_out_of_reach(
     module name, `tests` from `tests/` among them, is measured as one.
 
     The entry is looked for beside that file and not under the rootdir,
-    which `--rootdir` and `-c` move: `--rootdir=.` from `tests/` makes
-    `tests/` the rootdir, where `.github/scripts` is no directory either.
-    A run whose coverage read no file has nothing to look beside, and
-    `configuration_went_unread` is the guard that asks about it. In an
-    sdist, which ships no `.github`, `.github/scripts` is no directory
-    beside its `pyproject.toml`, so a run there is not refused.
+    which pytest places by a rule of its own that coverage does not
+    follow: `--rootdir=.` from `tests/` makes `tests/` the rootdir, where
+    `.github/scripts` is no directory either. A run whose coverage read
+    no file has nothing to look beside, and `configuration_went_unread`
+    is the guard that asks about it. In an sdist, which ships no
+    `.github`, `.github/scripts` is no directory beside its
+    `pyproject.toml`, so a run there is not refused.
     """
     configured = configuration_directory(cov_config)
     if cov_config is None or configured is None or not held_to_a_floor(options):
@@ -318,11 +319,20 @@ def pytest_configure(config: pytest.Config) -> None:
     """
     measuring = coverage_configuration(config)
     if configuration_went_unread(measuring, config.inipath, config.option):
+        # true only where pytest read a file, which mypy cannot see
+        assert config.inipath is not None
+        # pyproject.toml holds pytest's table and coverage's, so where
+        # pytest read it, its directory is where coverage finds its own,
+        # wherever `--rootdir` puts the rootdir. A file pytest read in
+        # another directory is the exception -- one a `-c` names, or any
+        # pytest configuration file nearer the run than this
+        # pyproject.toml, such as a `pytest.ini`: the message names that
+        # directory, whether coverage finds its configuration there or not.
         raise pytest.UsageError(
             "coverage read no configuration, so this run is held to no"
             " floor and measures a different set of files: coverage looks"
             f" only in the directory the run started in, {Path.cwd()}, and"
-            f" pytest read {config.inipath}. Run from {config.rootpath}."
+            f" pytest read {config.inipath}. Run from {config.inipath.parent}."
         )
     if unmeasured := sources_out_of_reach(measuring, config.option):
         raise pytest.UsageError(
