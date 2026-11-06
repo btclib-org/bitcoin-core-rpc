@@ -668,14 +668,13 @@ Which day each of the rest runs is section 10 of the organization
 standard, in `btclib-org/.github`, and not this file's to restate — one
 calendar covering the organization is one thing to remember.
 
-Why so little gates is the ceiling on concurrent jobs the plan puts on the
-whole organization, and `REPOSITORY.md`'s *Plan-gated settings* is where
-that figure lives, beside the command that re-derives it. The platform
-sweeps on every commit would ask for more than the ceiling between them, so
-a pull request would spend its wall clock waiting for a slot rather than
-running anything. At that ceiling a second image before a review buys a
-rarer answer at the price of every review, and macOS is the sharpest case:
-those cells wait for a runner far longer than they run.
+So few checks gate a merge because the plan caps the jobs the whole organization
+may run at once, and `REPOSITORY.md`'s *Plan-gated settings* records that
+ceiling. The platform sweeps on every commit would ask for more than the ceiling
+between them, so a pull request would spend its wall clock waiting for a slot
+rather than running anything. At that ceiling a second image before a review
+buys a rarer answer at the price of every review, and macOS is the sharpest
+case: those cells wait for a runner far longer than they run.
 
 **What the sentinels vary, they vary whole.** `os-ubuntu` runs the images
 and the interpreters the gate does not sweep *and* the cell it does, and
