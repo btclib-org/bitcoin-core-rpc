@@ -101,8 +101,8 @@ an hour and a restart later. `BitcoinCoreRpcClient` defines no
 credential would then appear in any traceback or log line that renders
 the client. `BitcoinCoreRestClient`, over Core's `-rest` interface,
 takes no credential at all — `-rest` authenticates nobody who reaches
-it — and shares only the transport and the chain vocabulary with the
-JSON-RPC client.
+it — and shares only the transport, the chain vocabulary and
+`assert_chain` with the JSON-RPC client.
 
 `chains.cookie_auth` reads the cookie file ascii, one line, bounded to
 `_MAX_COOKIE_SIZE`: a path that is not a cookie file is the ordinary
@@ -123,9 +123,10 @@ endpoint, always from the client the wallet client set was built from,
 never composing a second wallet segment onto an existing one.
 `BitcoinCoreRestClient` is `-rest`'s two shapes, `get_bin` and
 `get_json`, over a path the caller builds from Core's own documentation
-of the interface: there is no per-resource method, because `-rest`
-itself cannot always tell two answers apart — `README.md`'s *Reading
-Core's `-rest` interface* has why. `RpcChannel` is attribute-style
+of the interface: there is no per-resource method but `assert_chain`,
+because `-rest` itself cannot always tell two answers apart —
+`README.md`'s *Reading Core's `-rest` interface* has why, and why
+`assert_chain` is admitted. `RpcChannel` is attribute-style
 sugar over a client's `call`, with a hand-written guard in front of
 every name starting with `_` so that `copy.deepcopy` or an interactive
 shell probing for a dunder does not turn into an rpc call of that name.

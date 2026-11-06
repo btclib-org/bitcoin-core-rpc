@@ -25,7 +25,8 @@ read at all, so `get_bin` and `get_json` alike check the status before
 trusting the body -- `get_json` then reads it through `call_raw`'s own
 `_parsed_json_body`, unshaped, over a GET rather than a POST, and
 `get_bin` returns it with nothing parsed out of it at all. `_checked_url`,
-`http_request` and the chain and network tables are the whole of what
+`http_request`, the chain and network tables and `assert_chain`'s two
+halves, `_expected_magic` and `_assert_chain_info`, are the whole of what
 the two clients share -- one speaks JSON-RPC with the credentials Core
 requires for it, the other a plain GET Core requires none for, so
 nothing here folds the two into one class.
@@ -1286,6 +1287,78 @@ def _streamed_result(
     return cast("_T", _discriminate(where, request_id, status, kept))
 
 
+def _expected_magic(
+    chain: str, signet_challenge: str | bytes | bytearray | None
+) -> bytes | None:
+    """Return the magic a node on signet is held to, or `None` off signet.
+
+    The half of `assert_chain` asked before any request, shared by both
+    clients: a challenge off signet is refused here, there being nothing a
+    reply could settle.
+    """
+    if signet_challenge is None:
+        return magic_from_chain(chain) if chain == "signet" else None
+    if chain != "signet":
+        err_msg = f"a signet_challenge for chain {_quoted(chain)},"
+        err_msg += " which is no signet"
+        raise BtcRpcValueError(err_msg)
+    return magic_from_signet_challenge(signet_challenge)
+
+
+def _assert_chain_info(
+    where: str, url: str, result: Any, chain: str, expected_magic: bytes | None
+) -> None:
+    """Compare a node's `getblockchaininfo` object with what the caller expects.
+
+    The half of `assert_chain` that reads the reply, shared by both
+    clients so that each refuses the same node with the same message:
+    `where` names the request, for a reply with nothing to compare, and
+    `url` the node, for a disagreement.
+    """
+    # the shape of the result is the node's and not a given, so it is
+    # read rather than indexed: `result["chain"]` on an array is a
+    # TypeError about list indices and on a mapping without the member a
+    # KeyError, both from underneath a library that reports every other
+    # unreadable answer as a FetchError. A mismatch stays a
+    # BtcRpcValueError below: that one is a node this client was built
+    # for the wrong chain of, which is the caller's configuration, where
+    # this is the backend's reply
+    info: Mapping[str, Any] = result if isinstance(result, Mapping) else {}
+    reported = info.get("chain")
+    if not isinstance(reported, str):
+        err_msg = f"{where}: no string"
+        err_msg += f" chain in the {type(result).__name__} result"
+        raise FetchError(err_msg)
+    if reported != chain:
+        err_msg = f"node at {url} reports chain {reported!r},"
+        err_msg += f" not the {_quoted(chain)} this client was built for"
+        raise BtcRpcValueError(err_msg)
+    if expected_magic is None:
+        return
+
+    # `signet_challenge` is a member of the reply on signet alone, and
+    # of every signet's: a node too old to report it is one this cannot
+    # answer for, which is the FetchError and not a pass
+    challenge = info.get("signet_challenge")
+    if not isinstance(challenge, str):
+        err_msg = f"{where}: no string"
+        err_msg += " signet_challenge in the reply of a node on signet"
+        raise FetchError(err_msg)
+    try:
+        node_magic = magic_from_signet_challenge(challenge)
+    except ValueError as e:
+        # `BtcRpcValueError` is a ValueError, raised for a challenge
+        # that is not hex: the reply cannot be read, which is not the
+        # disagreement below
+        err_msg = f"{where}: unreadable signet_challenge: {e}"
+        raise FetchError(err_msg) from e
+    if node_magic != expected_magic:
+        err_msg = f"node at {url} is on a signet this client is not:"
+        err_msg += f" its challenge derives magic {node_magic.hex()},"
+        err_msg += f" where {expected_magic.hex()} was expected"
+        raise BtcRpcValueError(err_msg)
+
+
 class BitcoinCoreRpcClient:
     """One Bitcoin Core JSON-RPC endpoint, and the credentials to reach it.
 
@@ -1561,61 +1634,10 @@ class BitcoinCoreRpcClient:
         answering without a `signet_challenge` member -- this being an
         interpretation of an untrusted reply like any other.
         """
-        expected_magic: bytes | None = None
-        if signet_challenge is None:
-            if chain == "signet":
-                expected_magic = magic_from_chain(chain)
-        elif chain != "signet":
-            err_msg = f"a signet_challenge for chain {_quoted(chain)},"
-            err_msg += " which is no signet"
-            raise BtcRpcValueError(err_msg)
-        else:
-            expected_magic = magic_from_signet_challenge(signet_challenge)
-
+        expected_magic = _expected_magic(chain, signet_challenge)
         result = self.call("getblockchaininfo")
-        # the shape of the result is the node's and not a given, so it is
-        # read rather than indexed: `result["chain"]` on an array is a
-        # TypeError about list indices and on a mapping without the member a
-        # KeyError, both from underneath a library that reports every other
-        # unreadable answer as a FetchError. A mismatch stays a
-        # BtcRpcValueError below: that one is a node this client was built
-        # for the wrong chain of, which is the caller's configuration, where
-        # this is the backend's reply
-        info: Mapping[str, Any] = result if isinstance(result, Mapping) else {}
-        reported = info.get("chain")
-        if not isinstance(reported, str):
-            err_msg = f"getblockchaininfo at {self.url}: no string"
-            err_msg += f" chain in the {type(result).__name__} result"
-            raise FetchError(err_msg)
-        if reported != chain:
-            err_msg = f"node at {self.url} reports chain {reported!r},"
-            err_msg += f" not the {_quoted(chain)} this client was built for"
-            raise BtcRpcValueError(err_msg)
-        if expected_magic is None:
-            return
-
-        # `signet_challenge` is a member of the reply on signet alone, and
-        # of every signet's: a node too old to report it is one this cannot
-        # answer for, which is the FetchError and not a pass
-        challenge = info.get("signet_challenge")
-        if not isinstance(challenge, str):
-            err_msg = f"getblockchaininfo at {self.url}: no string"
-            err_msg += " signet_challenge in the reply of a node on signet"
-            raise FetchError(err_msg)
-        try:
-            node_magic = magic_from_signet_challenge(challenge)
-        except ValueError as e:
-            # `BtcRpcValueError` is a ValueError, raised for a challenge
-            # that is not hex: the reply cannot be read, which is not the
-            # disagreement below
-            err_msg = f"getblockchaininfo at {self.url}:"
-            err_msg += f" unreadable signet_challenge: {e}"
-            raise FetchError(err_msg) from e
-        if node_magic != expected_magic:
-            err_msg = f"node at {self.url} is on a signet this client is not:"
-            err_msg += f" its challenge derives magic {node_magic.hex()},"
-            err_msg += f" where {expected_magic.hex()} was expected"
-            raise BtcRpcValueError(err_msg)
+        where = f"getblockchaininfo at {self.url}"
+        _assert_chain_info(where, self.url, result, chain, expected_magic)
 
     def for_wallet(self, wallet_name: str) -> BitcoinCoreRpcClient:
         """Return a client for this node's `/wallet/<name>` endpoint.
@@ -2125,14 +2147,14 @@ class BitcoinCoreRestClient:
     port `BitcoinCoreRpcClient` reaches, which is what `rpc_port_from_chain`
     and `from_chain` below are for.
 
-    Two methods, because Core's `-rest` answers two shapes and this client
-    reads exactly them: `get_bin` for a `.bin` path, returning the body
-    unread, and `get_json` for a `.json` one, returning what it parses to
-    -- the same `Decimal`-preserving parser `call_raw` reads its own
-    envelope with, refusing `NaN` and the two infinities exactly as it
-    does. `.hex` is the same octets as `.bin`, one more decode away from a
-    caller who wants them that way, so it is not offered a method of its
-    own.
+    Two methods fetch a path, because Core's `-rest` answers two shapes
+    and this client reads exactly them: `get_bin` for a `.bin` path,
+    returning the body unread, and `get_json` for a `.json` one, returning
+    what it parses to -- the same `Decimal`-preserving parser `call_raw`
+    reads its own envelope with, refusing `NaN` and the two infinities
+    exactly as it does. `.hex` is the same octets as `.bin`, one more
+    decode away from a caller who wants them that way, so it is not
+    offered a method of its own.
 
     **A path is a path, and this client passes any.** There is no
     `get_tx`, no `get_block`, no `get_utxos`: `path` is built by the
@@ -2146,6 +2168,12 @@ class BitcoinCoreRestClient:
     exactly as little. A caller who wants the output either way fetches
     the whole transaction through `get_json` and reads its own outputs,
     which is the one place the two cases are still told apart.
+
+    `assert_chain` is the one method tied to a resource, and that reason
+    does not reach it: it reads one fixed resource, `/chaininfo.json`, and
+    maps nothing. It compares two members of Core's answer with what the
+    caller expects, and refuses a node on the wrong chain or signet with
+    the message `BitcoinCoreRpcClient.assert_chain` gives.
 
     **No credentials, because `-rest` takes none.** The constructor takes
     no `user`, no `password`, no `cookie_path`: passing one would claim an
@@ -2206,6 +2234,27 @@ class BitcoinCoreRestClient:
         """
         port = rpc_port_from_chain(chain)
         return cls(f"http://127.0.0.1:{port}", timeout=timeout, transport=transport)
+
+    def assert_chain(
+        self,
+        chain: str = "main",
+        *,
+        signet_challenge: str | bytes | bytearray | None = None,
+    ) -> None:
+        """Raise unless the node serves this chain, and this signet of it.
+
+        `BitcoinCoreRpcClient.assert_chain` over `-rest`, whose docstring
+        says what each refusal means. One `GET` of `/chaininfo.json`, which
+        Core answers with the object `getblockchaininfo` returns, so the
+        members compared and the messages of a disagreement are the same.
+        A reply with nothing to compare names `GET /chaininfo.json` where
+        the rpc client's names `getblockchaininfo`.
+        """
+        expected_magic = _expected_magic(chain, signet_challenge)
+        path = "/chaininfo.json"
+        result = self.get_json(path)
+        where = f"GET {path} at {self.url}"
+        _assert_chain_info(where, self.url, result, chain, expected_magic)
 
     def _get(
         self,

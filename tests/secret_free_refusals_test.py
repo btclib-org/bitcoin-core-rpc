@@ -481,7 +481,7 @@ def test_a_name_that_is_not_one_of_cores_is_not_quoted(
 
 
 def test_a_chain_checked_against_a_node_is_not_quoted() -> None:
-    """`assert_chain` and `from_chain(verify_chain=True)` name a chain."""
+    """Both clients' `assert_chain`, and `from_chain(verify_chain=True)`."""
     info = {"chain": "main"}
     refused(lambda: echoing(info).assert_chain(KEY))
     refused(lambda: echoing(info).assert_chain("signet", signet_challenge=KEY))
@@ -489,6 +489,10 @@ def test_a_chain_checked_against_a_node_is_not_quoted() -> None:
     refused(lambda: echoing(info).assert_chain("main", signet_challenge="00"))
     signet = {"chain": "signet", "signet_challenge": KEY + "zz"}
     refused(lambda: echoing(signet).assert_chain("signet"))
+    main_body, signet_body = json.dumps(info).encode(), json.dumps(signet).encode()
+    refused(lambda: rest((200, main_body)).assert_chain(KEY))
+    refused(lambda: rest().assert_chain("signet", signet_challenge=KEY))
+    refused(lambda: rest((200, signet_body)).assert_chain("signet"))
     refused(
         lambda: BitcoinCoreRpcClient.from_chain(
             "main", user=USER, password=PASSWORD, signet_challenge=KEY

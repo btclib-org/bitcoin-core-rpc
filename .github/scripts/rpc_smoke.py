@@ -45,9 +45,10 @@ Among them, the ones a fixture is least able to settle:
   fetched are checked against the node's own decoding of them;
 - `-rest`, against the same chain: `.bin` compared byte for byte with
   the rpc client's own serialization, `.json` read for the field that
-  names what was asked for, and `/getutxos` asked about an outpoint this
+  names what was asked for, `/getutxos` asked about an outpoint this
   chain has already spent and one it has not, `tests/` having no live
-  node to ask either question of.
+  node to ask either question of, and `assert_chain` over
+  `/chaininfo.json`, accepting the chain and refusing another.
 
 The expected protocol version is an argument and not something derived
 from the version number: what the matrix pins is the claim that v27
@@ -711,6 +712,8 @@ def check_rest(
     info = rest.get_json("/chaininfo.json")
     check(info["chain"] == CHAIN, f"rest chaininfo.json reports the chain: {CHAIN}")
     check(info["blocks"] == height, f"rest chaininfo.json reports the tip: {height}")
+    check(chain_is_accepted(rest, CHAIN), f"rest assert_chain accepts {CHAIN}")
+    check(not chain_is_accepted(rest, "main"), "rest assert_chain refuses main")
 
     raw_tx = client.call("getrawtransaction", [tx_id])
     check(
@@ -805,7 +808,7 @@ def check_batch(
 
 
 def chain_is_accepted(
-    client: BitcoinCoreRpcClient, chain: str
+    client: BitcoinCoreRpcClient | BitcoinCoreRestClient, chain: str
 ) -> bool:  # pragma: no cover -- it asks a node which chain it is on
     """Say whether `assert_chain` accepts `chain` for the node reached."""
     try:
