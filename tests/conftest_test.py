@@ -12,7 +12,8 @@ of that command line can report on.
 
 The guards beside it are driven the same way, and each is also run once
 in a subprocess started from `tests/`: a run a guard refuses cannot be
-the run reporting on it.
+the run reporting on it. The source guard's run is in
+`tests/source_guard_run_test.py`, which the sdist does not ship.
 """
 
 from __future__ import annotations
@@ -790,32 +791,6 @@ def test_the_hook_refuses_a_run_that_would_drop_a_source_directory(
     assert f"started in, {root / 'tests'}," in str(raised.value)
     assert str(raised.value).endswith(f"Run from {root}.")
     assert known.cov_fail_under == 100.0
-
-
-def test_a_run_from_tests_with_its_rootdir_there_is_refused(tmp_path: Path) -> None:
-    """The guard stops a real run whose rootdir is `tests/`.
-
-    `--cov-config` points coverage at `pyproject.toml`, `--rootdir=.` makes
-    `tests/` the rootdir, and `.` names the suite, which keeps pytest from
-    failing first on a `testpaths` it finds nothing under. Let through,
-    that run passes the floor without measuring `.github/scripts`.
-
-    The `-k` matches no test, so that a guard that lets the run through
-    collects the suite and stops there, rather than running it inside this
-    one. The guard does not read `-k`.
-    """
-    completed = _run_from_tests(
-        tmp_path,
-        "--rootdir=.",
-        "--cov-config=../pyproject.toml",
-        "-k",
-        "no_test_is_named_this",
-        ".",
-    )
-
-    assert completed.returncode == pytest.ExitCode.USAGE_ERROR, completed.stderr
-    assert "coverage would not measure .github/scripts:" in completed.stderr
-    assert f"Run from {_ROOT}." in completed.stderr
 
 
 def test_the_source_guard_reads_coverage_s_own_list(
