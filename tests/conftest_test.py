@@ -393,10 +393,13 @@ def _config(
 
     Building the real thing means starting a second pytest inside this
     one, so what the hook reads of one is stood in for instead. What it
-    reads before it raises is the whole of this: the command line, the
-    copy pytest-cov holds, the two paths the message names and the plugin
-    the guard walks to. A run the guard lets through goes on to read
-    `getini` and the invocation directory, which is the real
+    reads before it raises is the command line, the configuration path
+    the message names and the plugin the guards walk to. The copy
+    pytest-cov holds is read only after both guards; a case keeps it to
+    show that a raise leaves it as it was. `rootpath` is read by neither
+    guard; a case moves it to show that the message does not follow it. A
+    run the guards let through goes on to read `getini`, that copy, the
+    rootdir and the invocation directory, which is the real
     `pytest_configure` of this very suite and not a case here.
     """
     plugin = SimpleNamespace(cov_controller=controller)
@@ -574,8 +577,9 @@ def test_the_guards_own_names_are_ones_pytest_fills_in(
     assert not absent, f"pytest no longer fills in {absent}"
 
 
+@pytest.mark.parametrize("rootdir", ["root", "tests"])
 def test_the_hook_refuses_a_run_that_cannot_see_its_floor(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, rootdir: str
 ) -> None:
     """`pytest_configure` raises, and the message names all three paths.
 
@@ -584,20 +588,24 @@ def test_the_hook_refuses_a_run_that_cannot_see_its_floor(
     exits `4` for, so the exit code says the run measured nothing rather
     than that something in the tree failed. The message carries the
     directory the run started in beside the configuration pytest read
-    because the asymmetry between them is the finding, and the rootdir
-    because that is where the run has to start instead.
+    because the asymmetry between them is the finding, and the directory
+    of that configuration because that is where the run has to start
+    instead. It is named whichever the rootdir is: the case takes the
+    rootdir at the root and at `tests/`, where `--rootdir=.` from
+    `tests/` puts it.
 
-    The run is moved out of the rootdir for the length of the case
-    because that is the only arrangement the three paths differ in: read
-    from the rootdir, where this suite runs, `Path.cwd()` and
-    `config.rootpath` are one directory, and a message naming either
-    twice would satisfy every assertion below.
+    The run is moved out of the root for the length of the case because
+    that is the only arrangement the three paths differ in: read from the
+    root, where this suite runs, `Path.cwd()` and the directory of
+    pyproject.toml are one directory, and a message naming either twice
+    would satisfy every assertion below.
     """
     monkeypatch.chdir(tmp_path)
     started_in = Path.cwd()
     assert started_in != _ROOT, "the case cannot tell the two paths apart"
     known = Namespace(cov_fail_under=0.0)
-    config = _config(_options(), known, _controller(None))
+    rootpath = _ROOT if rootdir == "root" else _ROOT / "tests"
+    config = _config(_options(), known, _controller(None), rootpath=rootpath)
 
     with pytest.raises(pytest.UsageError) as raised:
         pytest_configure(config)
@@ -641,7 +649,12 @@ def _run_from_tests(
     )
 
 
-def test_a_run_started_from_tests_says_it_is_ungated(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "arguments", [[], ["--rootdir=.", "."]], ids=["plain", "--rootdir=."]
+)
+def test_a_run_started_from_tests_says_it_is_ungated(
+    tmp_path: Path, arguments: list[str]
+) -> None:
     """The guard stops a real run started from `tests/`.
 
     Everything above is the decision driven as a function; this is the
@@ -650,17 +663,21 @@ def test_a_run_started_from_tests_says_it_is_ungated(tmp_path: Path) -> None:
     such a run, and that what it raises reaches whoever typed it. The run
     costs no collection: `pytest_configure` is ahead of it, so the
     subprocess is refused before it imports a test module.
+
+    `--rootdir=.` makes `tests/` the rootdir, and `.` names the suite,
+    which keeps pytest from failing first on a `testpaths` it finds
+    nothing under. The message names the root all the same.
     """
     started_in = _ROOT / "tests"
-    completed = _run_from_tests(tmp_path)
+    completed = _run_from_tests(tmp_path, *arguments)
 
     assert completed.returncode == pytest.ExitCode.USAGE_ERROR, completed.stderr
     # pytest writes a usage error to stderr, where nothing of the run's
     # own output is, so the assertion is on the stream that carries it
     assert "coverage read no configuration" in completed.stderr
-    # the rootdir is asserted with the words around it: it is a prefix of
+    # the root is asserted with the words around it: it is a prefix of
     # the directory this run started in, so naming the second names the
-    # first as a substring and a message that had lost the rootdir
+    # first as a substring and a message that had lost the root
     # altogether would pass
     assert f"started in, {started_in}," in completed.stderr
     assert f"Run from {_ROOT}." in completed.stderr
