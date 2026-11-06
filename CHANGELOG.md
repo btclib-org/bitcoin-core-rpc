@@ -34,6 +34,72 @@ theme. Section 9 also lets an entry making a single claim have a
 paragraph for a body, which no bullet pattern reaches. Counting the
 entries is a reading of the file rather than a command.
 
+## v2026.11.7
+
+### `call_stream` reads a reply larger than `max_body_size` over the default transport
+
+`walk` reads the `result` through a new public `JsonStream`, and its answer
+is returned once the reply is checked as `call` checks it (closes #744).
+
+### `BitcoinCoreRestClient.assert_chain` checks the chain over `-rest`
+
+It reads `/chaininfo.json` and refuses as the rpc client's `assert_chain`
+does, with the same messages for a node on another chain or signet
+(closes #745).
+
+### The sdist carries `.coderabbit.yaml` and `.sourcery.yaml`
+
+`source-include`'s `*.yaml` takes every yaml file at the root (issue
+btclib-org/.github#1998, issue btclib-org/.github#2005).
+
+### The coverage floor measures `.github/scripts`
+
+`[tool.coverage.run] source` names it beside the package and the tests
+(closes #738).
+
+### The source guard's run from a checkout stays out of the sdist
+
+`tests/source_guard_run_test.py` needs `.github/scripts`, and
+`source-exclude` keeps it out, so the sdist's suite passes (closes #764).
+
+### The coverage guards look beside coverage's configuration
+
+`tests/conftest.py` looks for a source directory there, and its refusals
+name that directory (closes #758, closes #759).
+
+### Sourcery runs on every pull request
+
+`sourcery / Sourcery` is a required check on `main`. Its findings are fixed
+with no change of behaviour (issue btclib-org/.github#2005).
+
+### btclib-org/.github's workflows are called at v2026.11.5
+
+`public-api` and `api-break` run `api_gaps.py` beside griffe, and CodeQL
+the security-extended suite (issue btclib-org/.github#1988).
+
+### `check-executables-have-shebangs` runs in the gate
+
+`.clusterfuzzlite/build.sh` is executable and opens with a shebang (issue
+btclib-org/btclib#2852).
+
+### The shared documents are in line with btclib-org/.github
+
+`RELEASING.md`, `REVIEWING.md` and `CONTRIBUTING.md` take its shared parts
+(issue btclib-org/.github#1855, btclib-org/.github#2004,
+btclib-org/.github#2022).
+
+### `CONTRIBUTING.md` says why so few checks gate a merge
+
+The plan caps the jobs the whole organization may run at once, and
+`REPOSITORY.md`'s *Plan-gated settings* records that ceiling (issue
+btclib-org/.github#2054).
+
+### `CONTRIBUTING.md` states no matrix sizes
+
+Each workflow row names what its workflow varies (closes #733), and the
+rows on `.python-version`'s interpreter are named (issue
+btclib-org/.github#2051).
+
 ## v2026.11.3
 
 ### macOS runs on arm64 alone

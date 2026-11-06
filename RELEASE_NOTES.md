@@ -10,6 +10,23 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
+## v2026.11.7
+
+The public API adds to v2026.11.3's and breaks nothing in it: griffe and
+`api_gaps.py` find no break against it, and neither does a reading of what
+they do not compare.
+
+- **A reply larger than `max_body_size` can be read over the default
+  transport.** `BitcoinCoreRpcClient.call_stream(method, params, walk)`
+  hands `walk` a `JsonStream` at the `result` as it arrives, for a reply
+  such as `getblock` at verbosity 2 or 3. What `walk` returns is the
+  answer once the rest of the reply is checked as `call` checks it.
+  Over `SessionTransport` or a transport of your own, the body is read
+  whole under `max_body_size`, as for `call`. README.md has an example.
+- **`BitcoinCoreRestClient.assert_chain` checks the chain over `-rest`.**
+  It refuses a node on another chain or another signet as the rpc
+  client's `assert_chain` does, reading `/chaininfo.json`.
+
 ## v2026.11.3
 
 The public API is the one v2026.11.2 shipped, and the module differs from
