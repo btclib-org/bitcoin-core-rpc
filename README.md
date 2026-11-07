@@ -221,15 +221,17 @@ results = client.call_batch([("getblockhash", [700_000]), ("getblockcount", None
 
 Only a failure of the whole exchange raises — a non-2xx status, a reply
 that is not an array — exactly as `call` raises for its own request.
-[COMPARISON.md](./COMPARISON.md#batching) has where this is worth
-reaching for over a loop of `call`, and where it is not.
+[COMPARISON.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/COMPARISON.md#batching)
+has where this is worth reaching for over a loop of `call`, and where it
+is not.
 
 ## Attribute-style calls
 
 `RpcChannel` wraps a client for a caller who wants `rpc.getblockcount()`
 over `client.call("getblockcount")` and has weighed the trade in
-[COMPARISON.md](./COMPARISON.md#dynamic-dispatch): an unknown method is a
-request to the node rather than an `AttributeError` here.
+[COMPARISON.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/COMPARISON.md#dynamic-dispatch):
+an unknown method is a request to the node rather than an
+`AttributeError` here.
 
 ```python
 from bitcoin_core_rpc import BitcoinCoreRpcClient, RpcChannel
@@ -250,10 +252,11 @@ interactive shell's attribute probing from becoming one.
 ## Keeping a connection alive
 
 The default transport opens one connection per call and lets the node
-close it — [COMPARISON.md](./COMPARISON.md#one-connection-per-call) has
-why. `SessionTransport` is this module's own alternative: one connection
-kept per node, reused across calls, passed the way any other `transport`
-is.
+close it —
+[COMPARISON.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/COMPARISON.md#one-connection-per-call)
+has why. `SessionTransport` is this module's own alternative: one
+connection kept per node, reused across calls, passed the way any other
+`transport` is.
 
 ```python
 from bitcoin_core_rpc import BitcoinCoreRpcClient, SessionTransport
@@ -361,13 +364,14 @@ rpc = AuthServiceProxy(f"http://{user}:{password}@127.0.0.1:8332")
 client = BitcoinCoreRpcClient("http://127.0.0.1:8332", user=user, password=password)
 ```
 
-[docs/source/migrating.md](./docs/source/migrating.md) has the rest, an
-`AuthServiceProxy` line at a time with the line that replaces it, for a
-caller carrying either Core's copy or python-bitcoinrpc's own.
-[COMPARISON.md](./COMPARISON.md) has the case for the switch beyond any
-one rewrite, and why the features this client does not have — and the
-one, dynamic dispatch, offered differently instead — are decisions rather
-than omissions.
+[docs/source/migrating.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/docs/source/migrating.md)
+has the rest, an `AuthServiceProxy` line at a time with the line that
+replaces it, for a caller carrying either Core's copy or
+python-bitcoinrpc's own.
+[COMPARISON.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/COMPARISON.md)
+has the case for the switch beyond any one rewrite, and why the features
+this client does not have — and the one, dynamic dispatch, offered
+differently instead — are decisions rather than omissions.
 
 ## Testing code that calls a node
 
@@ -415,30 +419,35 @@ records what the alternatives were measured to do.
 
 ## Architecture
 
-[ARCHITECTURE.md](./ARCHITECTURE.md) is the design: the four modules and
-the one direction their imports run, the transport layer's own refusals,
-how the two JSON-RPC dialects are told apart, and what the suite proves
-against recorded replies versus what a live node adds.
-[ASSURANCE_CASE.md](./ASSURANCE_CASE.md) is the threat model and the
-argument that this design meets it.
+[ARCHITECTURE.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/ARCHITECTURE.md)
+is the design: the four modules and the one direction their imports
+run, the transport layer's own refusals, how the two JSON-RPC dialects
+are told apart, and what the suite proves against recorded replies
+versus what a live node adds.
+[ASSURANCE_CASE.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/ASSURANCE_CASE.md)
+is the threat model and the argument that this design meets it.
 
 ## Security
 
 Basic authentication is cleartext over plain HTTP, that being what Core's
-rpc speaks. [SECURITY.md](./SECURITY.md) says what that means for a node
-that is not on loopback, and how to report a vulnerability.
+rpc speaks.
+[SECURITY.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/SECURITY.md)
+says what that means for a node that is not on loopback, and how to
+report a vulnerability.
 
 ## Contributing
 
 Development is LLM-based: humans are welcome, as long as they are
 comfortable with agentic development ;-). A contribution must have been
 read and understood by the person who submits it.
-[`CONTRIBUTING.md`](./CONTRIBUTING.md#working-with-an-llm) has the rules.
+[`CONTRIBUTING.md`](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/CONTRIBUTING.md#working-with-an-llm)
+has the rules.
 
-[CONTRIBUTING.md](./CONTRIBUTING.md) has the commands each CI job runs,
-verbatim. `uv sync` creates the environment; uv is the only tool that has
-to be installed. [REVIEWING.md](./REVIEWING.md) is what a pull request is
-answered against.
+[CONTRIBUTING.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/CONTRIBUTING.md)
+has the commands each CI job runs, verbatim. `uv sync` creates the
+environment; uv is the only tool that has to be installed.
+[REVIEWING.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/REVIEWING.md)
+is what a pull request is answered against.
 
 How the organization decides, and who holds which role, is its
 [GOVERNANCE.md](https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md);
@@ -450,7 +459,8 @@ what it intends to do, and what it deliberately does not, is its
 - Documentation: <https://bitcoin-core-rpc.readthedocs.io/>
 - Source: <https://github.com/btclib-org/bitcoin-core-rpc>
 - Releases: <https://github.com/btclib-org/bitcoin-core-rpc/releases>
-- [CHANGELOG.md](./CHANGELOG.md), and [RELEASE_NOTES.md](./RELEASE_NOTES.md)
+- [CHANGELOG.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/CHANGELOG.md),
+  and [RELEASE_NOTES.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/RELEASE_NOTES.md)
   for what a release asks a user to act on
 
 ---

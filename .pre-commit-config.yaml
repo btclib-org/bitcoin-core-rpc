@@ -321,10 +321,11 @@ repos:
   # exactly what a plain href renders, "#./NOPE.md" written with the
   # prefix and "#NOPE.md", "#NOPE.txt", "#sub/NOPE.md", "#NOPE" without
   # it, so every refused row above can be written as a badge destination
-  # and only the first is caught downstream. README.md and
-  # CONTRIBUTING.md carry badge links of that shape, none of them
-  # violating the rule; `pre-commit run local-link-prefix --all-files`
-  # is what re-derives that, here and in the siblings.
+  # and only the first is caught downstream. CONTRIBUTING.md carries
+  # badge links of that shape, none of them violating the rule;
+  # `pre-commit run local-link-prefix --all-files` is what re-derives
+  # that, here and in the siblings. README.md's, which this hook
+  # excludes, are `readme-absolute-link`'s below.
   #
   # Measured here as well, by building this repository's documentation
   # with an unresolvable link written each way: "./page.md",
@@ -387,6 +388,18 @@ repos:
         # which would land inside the regex
         entry: |-
           (?<![`!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!\.\.?/|#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
+        types: [markdown]
+        exclude: ^README\.md$
+      # the root README.md is the package's page on the index, where a
+      # relative link reaches nothing: section 2 of the organization
+      # standard is the rule. The pattern above with "./" and "../" no
+      # longer admitted
+      - id: readme-absolute-link
+        name: the root README.md links a file of the tree absolutely
+        language: pygrep
+        entry: |-
+          (?<![`!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
+        files: ^README\.md$
         types: [markdown]
       # a line that ends inside a word, at that word's own hyphen.
       # Section 4 of the organization standard is the rule: what such a
