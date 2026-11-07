@@ -315,13 +315,14 @@ def pytest_configure(config: pytest.Config) -> None:
         # wherever `--rootdir` puts the rootdir. A file pytest read in
         # another directory is the exception -- one a `-c` names, or any
         # pytest configuration file nearer the run than this
-        # pyproject.toml, such as a `pytest.ini`: the message names that
-        # directory, whether coverage finds its configuration there or not.
+        # pyproject.toml, such as a `pytest.ini`: a `-c` file can sit
+        # outside the tree, where the suite does not run, so the message
+        # names the tree holding this file rather than that directory.
         raise pytest.UsageError(
             "coverage read no configuration, so this run is held to no"
             " floor and measures a different set of files: coverage looks"
             f" only in the directory the run started in, {Path.cwd()}, and"
-            f" pytest read {config.inipath}. Run from {config.inipath.parent}."
+            f" pytest read {config.inipath}. Run from {TREE}."
         )
     if unmeasured := sources_out_of_reach(measuring, TREE, config.option):
         raise pytest.UsageError(
