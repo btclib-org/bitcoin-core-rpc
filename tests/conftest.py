@@ -37,6 +37,12 @@ from typing import Protocol
 
 import pytest
 
+# the tree that holds this file, which is where a `source` directory is
+# looked for and where a run that leaves one unmeasured is sent: no pytest
+# or coverage flag moves it, where `--rootdir` and `-c` move the rootdir
+# and `--cov-config` moves the file coverage reads
+TREE = Path(__file__).parents[1]
+
 
 def asks_for_everything(
     file_or_dir: list[str] | None,
@@ -255,46 +261,29 @@ def configuration_went_unread(
     return cov_config.config_file is None and inipath is not None
 
 
-def configuration_directory(cov_config: CoverageConfiguration | None) -> Path | None:
-    """Return the directory of the file coverage read its configuration from.
-
-    `None` where coverage measures nothing or read no file.
-    """
-    if cov_config is None or cov_config.config_file is None:
-        return None
-    return Path(cov_config.config_file).parent
-
-
 def sources_out_of_reach(
     cov_config: CoverageConfiguration | None,
+    tree: Path,
     options: Namespace,
 ) -> list[str]:
     """Return each `source` entry this run would leave unmeasured.
 
     coverage takes an entry for a directory where it is one from the
     directory the run started in, and for a module name otherwise. An
-    entry that is a directory beside the file coverage read its
-    configuration from, is none from here, and cannot be a module name is
-    measured by neither reading: from `tests/`, `.github/scripts` is that
-    entry, and the floor still passes without it. An entry that is a
-    module name, `tests` from `tests/` among them, is measured as one.
-
-    The entry is looked for beside that file and not under the rootdir,
-    which pytest places by a rule of its own that coverage does not
-    follow: `--rootdir=.` from `tests/` makes `tests/` the rootdir, where
-    `.github/scripts` is no directory either. A run whose coverage read
-    no file has nothing to look beside, and `configuration_went_unread`
-    is the guard that asks about it. In an sdist, which ships no
-    `.github`, `.github/scripts` is no directory beside its
-    `pyproject.toml`, so a run there is not refused.
+    entry that is a directory under `tree`, is none from here, and
+    cannot be a module name is measured by neither reading: from
+    `tests/`, `.github/scripts` is that entry, and the floor still
+    passes without it. An entry that is a module name, `tests` from
+    `tests/` among them, is measured as one. In an sdist, which ships no
+    `.github`, `.github/scripts` is no directory under `tree`, so a run
+    there is not refused.
     """
-    configured = configuration_directory(cov_config)
-    if cov_config is None or configured is None or not held_to_a_floor(options):
+    if cov_config is None or not held_to_a_floor(options):
         return []
     return [
         entry
         for entry in cov_config.source or []
-        if (configured / entry).is_dir()
+        if (tree / entry).is_dir()
         and not Path(entry).is_dir()
         and not all(part.isidentifier() for part in entry.split("."))
     ]
@@ -334,12 +323,12 @@ def pytest_configure(config: pytest.Config) -> None:
             f" only in the directory the run started in, {Path.cwd()}, and"
             f" pytest read {config.inipath}. Run from {config.inipath.parent}."
         )
-    if unmeasured := sources_out_of_reach(measuring, config.option):
+    if unmeasured := sources_out_of_reach(measuring, TREE, config.option):
         raise pytest.UsageError(
             f"coverage would not measure {', '.join(unmeasured)}: it reads"
             " a source directory against the directory the run started in,"
             f" {Path.cwd()}, and no such directory is there. Run from"
-            f" {configuration_directory(measuring)}."
+            f" {TREE}."
         )
     testpaths: list[str] = config.getini("testpaths")
     namespace = config.known_args_namespace
