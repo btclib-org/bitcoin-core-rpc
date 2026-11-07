@@ -4,24 +4,7 @@ A standalone JSON-RPC client against Bitcoin Core.
 Used by packages of the btclib organization, btclib-node and btclib-wallet
 among them.
 
-<!-- The badges are what the reader decides with, in three groups: what the
-software is and whether it can be used, whether it works, and what the
-OpenSSF makes of it.
-
-Inside the second group the gates come first, in the order a commit meets
-them, and the sentinels follow in the order section 10 of the organization
-standard schedules them -- the badge order *is* the calendar order over
-that subset, which is why the two move together or not at all. The day and
-hour each sentinel owns live in that section and are not copied here: a
-reader wanting the schedule reads it there, where it is still true.
-
-One badge per line keeps a change to one line and every line inside MD013,
-whose 80 columns bind only where a space follows them.
-
-A badge that reports no state -- "we use ruff", "we use uv" -- reports a
-choice instead, and those are in CONTRIBUTING.md, beside the prose that
-says how the choice is enforced.
--->
+<!-- Section 2 of btclib-org/.github's README.md says which badges sit here. -->
 [![PyPI version](https://img.shields.io/pypi/v/bitcoin-core-rpc.svg?logo=pypi)](https://pypi.org/project/bitcoin-core-rpc/)
 [![GitHub release](https://img.shields.io/github/v/release/btclib-org/bitcoin-core-rpc.svg)](https://github.com/btclib-org/bitcoin-core-rpc/releases)
 [![development status](https://img.shields.io/pypi/status/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
@@ -31,25 +14,6 @@ says how the choice is enforced.
 [![implementation](https://img.shields.io/pypi/implementation/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
 [![wheel](https://img.shields.io/pypi/wheel/bitcoin-core-rpc.svg)](https://pypi.org/project/bitcoin-core-rpc/)
 
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/bitcoin-core-rpc/main.svg)](https://results.pre-commit.ci/latest/github/btclib-org/bitcoin-core-rpc/main)
-[![lint workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml?query=branch%3Amain)
-[![test workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml?query=branch%3Amain)
-[![docs workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/docs.yml?query=branch%3Amain)
-[![documentation build](https://app.readthedocs.org/projects/bitcoin-core-rpc/badge/?version=latest)](https://bitcoin-core-rpc.readthedocs.io)
-[![mutation workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/mutation.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/mutation.yml?query=branch%3Amain)
-[![fuzz workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/fuzz.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/fuzz.yml?query=branch%3Amain)
-[![integration-bitcoind workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/integration-bitcoind.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/integration-bitcoind.yml?query=branch%3Amain)
-[![deps-latest workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/deps-latest.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/deps-latest.yml?query=branch%3Amain)
-[![pypi-install workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/pypi-install.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/pypi-install.yml?query=branch%3Amain)
-[![deps-oldest workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/deps-oldest.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/deps-oldest.yml?query=branch%3Amain)
-[![os-macos workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-macos.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-macos.yml?query=branch%3Amain)
-[![os-ubuntu workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-ubuntu.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-ubuntu.yml?query=branch%3Amain)
-[![os-windows workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-windows.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-windows.yml?query=branch%3Amain)
-[![links workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/links.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/links.yml?query=branch%3Amain)
-[![sdist-rebuild workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/sdist-rebuild.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/sdist-rebuild.yml?query=branch%3Amain)
-[![codeql workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/codeql.yml?query=branch%3Amain)
-
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/btclib-org/bitcoin-core-rpc/badge)](https://scorecard.dev/viewer/?uri=github.com/btclib-org/bitcoin-core-rpc)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14815/badge)](https://www.bestpractices.dev/projects/14815)
 [![OpenSSF Baseline](https://www.bestpractices.dev/projects/14815/baseline)](https://www.bestpractices.dev/projects/14815)
 
@@ -462,6 +426,28 @@ what it intends to do, and what it deliberately does not, is its
 - [CHANGELOG.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/CHANGELOG.md),
   and [RELEASE_NOTES.md](https://github.com/btclib-org/bitcoin-core-rpc/blob/main/RELEASE_NOTES.md)
   for what a release asks a user to act on
+
+## Status
+
+<!-- Section 2 of btclib-org/.github's README.md says which badges sit here. -->
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/bitcoin-core-rpc/main.svg)](https://results.pre-commit.ci/latest/github/btclib-org/bitcoin-core-rpc/main)
+[![lint workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/lint.yml?query=branch%3Amain)
+[![test workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/test.yml?query=branch%3Amain)
+[![docs workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/docs.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/docs.yml?query=branch%3Amain)
+[![documentation build](https://app.readthedocs.org/projects/bitcoin-core-rpc/badge/?version=latest)](https://bitcoin-core-rpc.readthedocs.io)
+[![mutation workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/mutation.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/mutation.yml?query=branch%3Amain)
+[![fuzz workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/fuzz.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/fuzz.yml?query=branch%3Amain)
+[![integration-bitcoind workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/integration-bitcoind.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/integration-bitcoind.yml?query=branch%3Amain)
+[![deps-latest workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/deps-latest.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/deps-latest.yml?query=branch%3Amain)
+[![pypi-install workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/pypi-install.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/pypi-install.yml?query=branch%3Amain)
+[![deps-oldest workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/deps-oldest.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/deps-oldest.yml?query=branch%3Amain)
+[![os-macos workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-macos.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-macos.yml?query=branch%3Amain)
+[![os-ubuntu workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-ubuntu.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-ubuntu.yml?query=branch%3Amain)
+[![os-windows workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-windows.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/os-windows.yml?query=branch%3Amain)
+[![links workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/links.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/links.yml?query=branch%3Amain)
+[![sdist-rebuild workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/sdist-rebuild.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/sdist-rebuild.yml?query=branch%3Amain)
+[![codeql workflow status](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/btclib-org/bitcoin-core-rpc/actions/workflows/codeql.yml?query=branch%3Amain)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/btclib-org/bitcoin-core-rpc/badge)](https://scorecard.dev/viewer/?uri=github.com/btclib-org/bitcoin-core-rpc)
 
 ---
 
