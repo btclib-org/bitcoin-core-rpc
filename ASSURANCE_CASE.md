@@ -99,9 +99,9 @@ validates its own arguments before anything is built from them: a url's
 scheme, its embedded credentials, its query, its port and any
 whitespace or control character in it (`_checked_url`), none of whose
 refusals repeats the url; a credential's type and the colon it must not
-contain; a timeout that is a positive, finite number of seconds
-(`_assert_valid_timeout`); header names that are tokens and values free
-of CR, LF, NUL and any character latin-1 cannot encode
+contain; a timeout that is a positive number of seconds up to
+`_MAX_TIMEOUT` (`_assert_valid_timeout`); header names that are tokens
+and values free of CR, LF, NUL and any character latin-1 cannot encode
 (`_assert_valid_headers`); a body limit that is a non-negative integer
 (`_assert_valid_max_body_size`); and a parameter structure walked for
 what json cannot carry — a non-finite number, `bytes`, a container
