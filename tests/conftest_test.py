@@ -30,6 +30,7 @@ from typing import Any, cast
 
 import pytest
 
+import tests.conftest
 from tests.conftest import (
     CoverageConfiguration,
     configuration_went_unread,
@@ -695,59 +696,67 @@ def _laid_out(root: Path) -> Path:
     return root
 
 
-def test_every_source_directory_is_in_reach_from_the_root(
+def test_every_source_directory_is_in_reach_from_the_tree(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """From the root of the checkout, where the gate runs, none is refused."""
+    """From the tree, where the gate runs, the guard is silent."""
     root = _laid_out(tmp_path)
     monkeypatch.chdir(root)
     measuring = _cov_config(str(root / "pyproject.toml"), _SOURCE)
-    assert sources_out_of_reach(measuring, _options()) == []
+    assert sources_out_of_reach(measuring, root, _options()) == []
 
 
+@pytest.mark.parametrize(
+    "configured",
+    ["tree", "tree/tests", "elsewhere"],
+    ids=["--cov-config=../pyproject.toml", "a copy in tests", "a copy outside"],
+)
+@pytest.mark.parametrize(
+    "rootdir",
+    ["tree", "tree/tests", "elsewhere"],
+    ids=["rootdir at the tree", "--rootdir=.", "-c other.ini outside"],
+)
 def test_a_run_from_tests_leaves_the_scripts_out_of_reach(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, configured: str, rootdir: str
 ) -> None:
     """From `tests/`, `.github/scripts` is neither a directory nor a module.
 
     `tests` and `bitcoin_core_rpc` are not named: from `tests/` coverage
     reads them as module names, and measures them as such.
+
+    The file coverage reads and the rootdir are each put in the tree, in
+    `tests/` and outside the tree, in every pairing. The tree is stood in
+    for by one laid out here, as `TREE` is what the hook reads.
     """
-    root = _laid_out(tmp_path)
+    root = _laid_out(tmp_path / "tree")
+    (tmp_path / "elsewhere").mkdir()
+    monkeypatch.setattr(tests.conftest, "TREE", root)
     monkeypatch.chdir(root / "tests")
-    measuring = _cov_config(str(root / "pyproject.toml"), _SOURCE)
-    assert sources_out_of_reach(measuring, _options()) == [".github/scripts"]
+    known = Namespace(cov_fail_under=100.0)
+    controller = _controller(str(tmp_path / configured / "pyproject.toml"), _SOURCE)
+    config = _config(_options(), known, controller, rootpath=tmp_path / rootdir)
+
+    with pytest.raises(pytest.UsageError) as raised:
+        pytest_configure(config)
+
+    assert str(raised.value).startswith("coverage would not measure .github/scripts:")
+    assert f"started in, {root / 'tests'}," in str(raised.value)
+    assert str(raised.value).endswith(f"Run from {root}.")
+    assert known.cov_fail_under == 100.0
 
 
-@pytest.mark.parametrize("place", ["root", "tests"])
 def test_a_tree_without_the_directory_is_not_refused(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, place: str
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """An sdist ships no `.github`, and its run from `tests/` stands.
 
-    There the entry is no directory beside `pyproject.toml` either, so it
-    has nothing to measure and nothing is lost. The file coverage read is
-    the sdist's own, at its root, or one in `tests/` that `--cov-config`
-    named, or that a run from `tests/` finds there.
+    There the entry is no directory under the tree either, so it has
+    nothing to measure and nothing is lost.
     """
     (tmp_path / "tests").mkdir()
     monkeypatch.chdir(tmp_path / "tests")
-    configured = tmp_path if place == "root" else tmp_path / "tests"
-    measuring = _cov_config(str(configured / "pyproject.toml"), _SOURCE)
-    assert sources_out_of_reach(measuring, _options()) == []
-
-
-def test_a_run_coverage_read_no_file_for_is_left_to_the_other_guard(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """With no file read there is no directory to look in.
-
-    `configuration_went_unread` is what refuses that run, so this guard
-    stays silent rather than refusing it a second time.
-    """
-    root = _laid_out(tmp_path)
-    monkeypatch.chdir(root / "tests")
-    assert sources_out_of_reach(_cov_config(None, _SOURCE), _options()) == []
+    measuring = _cov_config(str(tmp_path / "pyproject.toml"), _SOURCE)
+    assert sources_out_of_reach(measuring, tmp_path, _options()) == []
 
 
 @pytest.mark.parametrize(
@@ -762,35 +771,13 @@ def test_the_source_guard_leaves_alone_what_the_other_one_does(
     root = _laid_out(tmp_path)
     monkeypatch.chdir(root / "tests")
     measuring = _cov_config(str(root / "pyproject.toml"), _SOURCE)
-    assert sources_out_of_reach(measuring, _options(**asked_for)) == []
-    assert sources_out_of_reach(None, _options()) == []
+    assert sources_out_of_reach(measuring, root, _options(**asked_for)) == []
+    assert sources_out_of_reach(None, root, _options()) == []
 
 
-@pytest.mark.parametrize("rootdir", ["root", "tests"])
-def test_the_hook_refuses_a_run_that_would_drop_a_source_directory(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, rootdir: str
-) -> None:
-    """`pytest_configure` raises, naming the entry and where to run from.
-
-    The rootdir is `tests/` where `--rootdir=.` or a `-c` file in `tests/`
-    puts it there, and the run is refused all the same. The directory
-    named is the one holding the file coverage read, whichever the
-    rootdir is.
-    """
-    root = _laid_out(tmp_path)
-    monkeypatch.chdir(root / "tests")
-    known = Namespace(cov_fail_under=100.0)
-    controller = _controller(str(root / "pyproject.toml"), _SOURCE)
-    rootpath = root if rootdir == "root" else root / "tests"
-    config = _config(_options(), known, controller, rootpath=rootpath)
-
-    with pytest.raises(pytest.UsageError) as raised:
-        pytest_configure(config)
-
-    assert str(raised.value).startswith("coverage would not measure .github/scripts:")
-    assert f"started in, {root / 'tests'}," in str(raised.value)
-    assert str(raised.value).endswith(f"Run from {root}.")
-    assert known.cov_fail_under == 100.0
+def test_the_tree_is_the_one_holding_the_conftest() -> None:
+    """`TREE` is this tree, the one the cases above stand in for."""
+    assert tests.conftest.TREE == _ROOT
 
 
 def test_the_source_guard_reads_coverage_s_own_list(
