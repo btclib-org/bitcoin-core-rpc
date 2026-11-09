@@ -39,7 +39,7 @@ credential and with a reply:
 - the distributions published to PyPI and their provenance
 
 What an exception, a repr or a log line may say about a credential is
-the organization standard's
+the organization's standard's
 [*A refusal carries no secret*](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret).
 
 What a *method* does is Bitcoin Core's, and belongs to

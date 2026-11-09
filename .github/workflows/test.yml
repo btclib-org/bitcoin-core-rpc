@@ -122,7 +122,7 @@ jobs:
   #
   # One thing this must not get wrong: the event handling, the pagination and
   # the decision are btclib-org/.github's own, called at a tagged commit
-  # (section 10 of btclib-org/.github's README.md); what stays here is which
+  # (section 10 of the organization's standard); what stays here is which
   # files are this tree's own prose, below (issue btclib-org/.github#35)
   changes:
     name: Decide whether the jobs below have anything to check

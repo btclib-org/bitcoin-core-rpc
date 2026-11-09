@@ -13,7 +13,7 @@ hardest to notice -- a classifier left behind when a floor moves is a
 package advertising an interpreter its suite never touches, and the
 person it misleads is not reading this repository.
 
-The organization standard's rule is that a library covers every Python
+The organization's standard's rule is that a library covers every Python
 that is not out of support, so all three move together twice around each
 October: one version leaves support as another is released. This module
 does not know that calendar and does not try to -- python.org keeps it,
@@ -83,7 +83,7 @@ _PYTHONS_CALLER = re.compile(
     r"^      python-versions: '(?P<block>\[.*?\])'$", re.MULTILINE
 )
 # the merge gate, and inside it the jobs a landing waits on. Section 3 of
-# the organization standard declares a free-threading classifier where
+# the organization's standard declares a free-threading classifier where
 # the gate exercises that build, a gate being what refuses the landing
 # that breaks it, so the second side is the aggregate's `needs:` closure
 # rather than the workflow file: a job of this workflow outside that
@@ -346,7 +346,7 @@ def test_pypy_is_classified_exactly_when_it_is_run() -> None:
 def test_free_threading_is_classified_exactly_when_the_gate_runs_it() -> None:
     """The free-threading classifier is a claim about the merge gate.
 
-    The organization standard declares one where the gate exercises the
+    The organization's standard declares one where the gate exercises the
     free-threaded build: a gate refuses the landing that breaks that
     build, where a sweep runs beside a landing and blocks nothing. So the
     second side here is the jobs `test: every job passed` waits on and

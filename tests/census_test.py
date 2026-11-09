@@ -183,7 +183,7 @@ def test_every_public_name_is_exported() -> None:
     not because it lacks an underscore, and this is what makes the
     sentence true rather than aspirational: a name added to a module of
     the package without being exported fails here, which is the census
-    section 7 of the organization standard asks a publishing package for.
+    section 7 of the organization's standard asks a publishing package for.
     `py.typed` ships, so which names are supported is half of what the
     distribution promises.
     """

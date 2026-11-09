@@ -6,7 +6,7 @@ carrying it, so that a session fixing a bug in the client does not hold it
 in context.
 
 The branch rules and the repository settings live *outside* the
-repository. What is recorded is the settings the organization standard
+repository. What is recorded is the settings the organization's standard
 asks about — the ones section 16's checklist sets on a new repository,
 the ones a section of the standard states a rule for, and the ones a
 behaviour it describes rests on — together with whatever a call quoted

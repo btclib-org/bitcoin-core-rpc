@@ -1,6 +1,6 @@
 # Tests
 
-This file exists for section 7 of the [organization standard][std],
+This file exists for section 7 of the [organization's standard][std],
 which asks each repository to declare which of its conventions the suite
 turns into a red test rather than leave it to be read off a directory
 listing. `tests/_data/README.md` is the other file here, and it is about
@@ -96,11 +96,11 @@ while a distribution is built.
 
 ## Property tests
 
-Section 7 of the [organization standard][std] owes a property layer to a
-tree that parses what a stranger sends, and says a tree answering it with
-hand-rolled properties declares that here. This one does: `fuzz_test.py`
-is the layer, with no `hypothesis`; `pyproject.toml` says why the `test`
-group has none.
+Section 7 of the [organization's standard][std] owes a property layer to
+a tree that parses what a stranger sends, and says a tree answering it
+with hand-rolled properties declares that here. This one does:
+`fuzz_test.py` is the layer, with no `hypothesis`; `pyproject.toml` says
+why the `test` group has none.
 The domain is the body of a reply, at several statuses. The property is
 that a reader of a reply refuses what it cannot read as a `FetchError`
 and raises nothing else. `fuzz_test.py`'s docstring says which inputs it

@@ -38,7 +38,7 @@ jobs:
   # the checkout, the ancestry check, the version comparison against the tag,
   # and the release-notes check on RELEASE_NOTES.md and CHANGELOG.md are
   # btclib-org/.github's, called at a tagged commit (section 10 of
-  # btclib-org/.github's README.md). This tree is calendar-versioned, so
+  # the organization's standard). This tree is calendar-versioned, so
   # tag-requires-day is left at its default (true); build below consumes
   # version-suffix, the rehearsal output the called workflow declares
   # (btclib-org/.github#35)
@@ -82,7 +82,7 @@ jobs:
     uses: btclib-org/.github/.github/workflows/reusable-audit.yml@5be4b0fbb5231cff001a3ee0eaa8f7d82bffef11 # v2026.11.5
 
   # the build and its signature: btclib-org/.github's reusable-build.yml, called
-  # at a tagged commit (section 10 of btclib-org/.github's README.md). It builds
+  # at a tagged commit (section 10 of the organization's standard). It builds
   # the distribution files and the bill of materials, uploads them as `dist` and
   # `sbom`, and signs them before any publish job waits for its environment's
   # approval, which is how the signer is a workflow this tree's own steps cannot
@@ -213,9 +213,9 @@ jobs:
     # does not name, and a bare `needs` refuses to start this job when any
     # listed job failed or was skipped. `always()` is what opts back in,
     # and the `.result` checks beside it are what keep every other listed
-    # job the gate it is. Section 12 of the organization standard has the
-    # rule; github-release's comment below is this tree's account of the
-    # same refusal, behind a skipped job rather than a failed one
+    # job the gate it is. Section 12 of the organization's standard has
+    # the rule; github-release's comment below is this tree's account of
+    # the same refusal, behind a skipped job rather than a failed one
     if: >-
       always() && github.event_name == 'workflow_dispatch' &&
       github.repository == 'btclib-org/bitcoin-core-rpc' &&

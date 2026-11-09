@@ -105,8 +105,8 @@ jobs:
   # verdict no trigger produces -- what is waited on is somebody else's
   # upload, so neither a release nor a rehearsal can arrange for the
   # index to be late -- so it is a script with a test rather than a loop
-  # in a run: block, which is what section 10 of btclib-org/.github's
-  # README.md asks of a wait (btclib-org/.github#509). The budget is the
+  # in a run: block, which is what section 10 of the organization's
+  # standard asks of a wait (btclib-org/.github#509). The budget is the
   # script's own deadline, stated there as one number; timeout-minutes
   # bounds the job rather than the wait, and is the callee's own
   # (btclib-org/.github#35).
@@ -120,7 +120,7 @@ jobs:
   #
   # The job itself -- the sparse checkout, setup-uv and the script run -- is
   # btclib-org/.github's reusable-wait-for-index.yml, called at a tagged commit
-  # (section 10 of btclib-org/.github's README.md, btclib-org/.github#35).
+  # (section 10 of the organization's standard, btclib-org/.github#35).
   # package is this workflow's own distribution name, read off the script's own
   # argument rather than derived from the repository name; version is forwarded
   # from this workflow's own workflow_call input
