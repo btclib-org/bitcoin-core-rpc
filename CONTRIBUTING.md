@@ -675,7 +675,7 @@ rule.
 its cadence*](https://github.com/btclib-org/.github#the-set-and-its-cadence)
 says when a tree requires it.
 
-Which day each of the rest runs is section 10 of the organization
+Which day each of the rest runs is section 10 of the organization's
 standard, in `btclib-org/.github`, and not this file's to restate — one
 calendar covering the organization is one thing to remember.
 

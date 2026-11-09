@@ -16,7 +16,7 @@ from typing import Any
 
 # Every name this module defines, none of it imported: `__init__.py`'s own
 # `__all__` is their union across the four modules of the package, and
-# section 7 of the organization standard asks each of them for its own
+# section 7 of the organization's standard asks each of them for its own
 # besides.
 __all__ = [
     "BtcRpcRuntimeError",

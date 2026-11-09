@@ -238,8 +238,8 @@ exposed to, and what counters each.
   characters (`client.py`), and `...` for a longer one.
   An encode error holds the text it failed on, so one that a credential, a
   wallet name or a cookie path can raise is refused without being chained.
-  The rule is README section 7's *A refusal carries no secret* in
-  [btclib-org/.github](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret).
+  The rule is section 7's *A refusal carries no secret* in
+  [the organization's standard](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret).
   `tests/secret_free_refusals_test.py` feeds a secret to each of these
   refusals and passes the exception to `assert_secret_free`. It covers a
   rejected credential, a refused url, rpc parameter, header, timeout or

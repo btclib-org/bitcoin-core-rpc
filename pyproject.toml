@@ -42,7 +42,7 @@
 #
 # [tool.uv] required-version below asks a different question -- the uv
 # that reads uv.lock, not the backend that builds the archive -- and
-# moves by section 1 of the organization standard, not with this rev.
+# moves by section 1 of the organization's standard, not with this rev.
 #
 # The ceiling is the minor after the newest one uv.lock locks, which is
 # where uv's versioning policy puts a breaking change, this backend
@@ -285,7 +285,7 @@ dev = [
 
 [tool.uv]
 # the oldest uv that may read uv.lock, at most the uv a Dependabot run's
-# log names -- section 1 of the organization standard has the argument,
+# log names -- section 1 of the organization's standard has the argument,
 # section 15 the commands that measure it
 required-version = ">=0.13.4"
 
@@ -784,7 +784,7 @@ explicit-preview-rules = true
 # nothing forces a second edit here the day ruff ships a family nobody has
 # looked at yet. `ALL` takes a new family in on the pull request that bumps
 # ruff's own pinned rev instead, which is the day somebody is already
-# looking at what changed. Section 5 of the organization standard states
+# looking at what changed. Section 5 of the organization's standard states
 # the rule, and `ignore` below is where every declined rule's reason
 # lives -- a rule the formatter conflicts with, cited from ruff's own
 # docs/formatter.md and not argued here since that list is the vendor's; a

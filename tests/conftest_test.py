@@ -467,7 +467,7 @@ def test_a_selection_is_refused_the_same_way(asked_for: dict[str, Any]) -> None:
 def test_nothing_measuring_is_not_an_ungated_run() -> None:
     """`--no-cov` is left alone.
 
-    Section 10 of the organization standard has a platform sentinel pass
+    Section 10 of the organization's standard has a platform sentinel pass
     it, and a run measuring no coverage has no configuration to be
     missing.
     """

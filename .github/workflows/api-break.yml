@@ -3,7 +3,7 @@ name: api-break
 
 # The `api-break` label on a pull request that breaks the public API:
 # btclib-org/.github's `reusable-api-break.yml`, called at a tagged commit
-# (section 10 of btclib-org/.github's README.md), and its answer is the label
+# (section 10 of the organization's standard), and its answer is the label
 # alone (btclib-org/.github#1674). It is the pull-request counterpart of the
 # `public-api` job in release.yml, walking the same package against the pull
 # request's base commit.
@@ -17,7 +17,8 @@ name: api-break
 #
 # A fork's pull request gets a token that cannot write, so the label is
 # not set there. There is no `pull_request_target`: the organization
-# declines it (btclib-org/.github README section 12, `OSPS-BR-01.01`).
+# declines it (section 12 of the organization's standard,
+# `OSPS-BR-01.01`).
 
 on:
   pull_request:
