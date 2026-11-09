@@ -10,6 +10,24 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
+## v2026.11.9
+
+The public API is v2026.11.7's: griffe and `api_gaps.py` find no break
+against it. The module changes in one check, which refuses more:
+
+- **A timeout above 2,147,483.647 seconds raises `BtcRpcValueError`.**
+  That is `2**31 - 1` milliseconds, the most every supported platform
+  honours. A client's `timeout`, a call's `request_timeout` and a
+  transport's `timeout` accepted a larger value, which some platform then
+  refused with `OverflowError` below the socket, or gave up on far sooner
+  than asked. An `int` too large for a float raises `BtcRpcValueError`
+  too, where it raised `OverflowError`. A caller that passes a larger
+  timeout passes 2147483.647 or less.
+- **Every `BtcRpcValueError` a timeout raises names the bound in its
+  message**, as in
+  `rpc timeout is not a positive number of seconds up to 2147483.647: 0`.
+  A caller that matches the old message has to change.
+
 ## v2026.11.7
 
 The public API adds to v2026.11.3's and breaks nothing in it: griffe and

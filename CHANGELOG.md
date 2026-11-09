@@ -34,6 +34,35 @@ theme. Section 9 also lets an entry making a single claim have a
 paragraph for a body, which no bullet pattern reaches. Counting the
 entries is a reading of the file rather than a command.
 
+## v2026.11.9
+
+### A timeout above `2**31 - 1` milliseconds is refused
+
+It raises `BtcRpcValueError`, as a zero, negative or non-finite one does:
+above it, a supported platform raises `OverflowError` below the socket or
+gives up sooner than asked (closes #746).
+
+### README.md links the tree's own files absolutely
+
+PyPI resolves no relative link. The documentation turns these links back
+into its own pages, and `readme-absolute-link` refuses a relative one
+(issue btclib-org/.github#1851).
+
+### README.md's status badges are in a `## Status` section at its end
+
+Its head keeps the badges that say what the package is, as section 2 of
+the organization standard asks (issue btclib-org/.github#1856).
+
+### The source guard looks under the tree holding `tests/conftest.py`
+
+A `--cov-config` naming a file outside the tree no longer moves where it
+looks (closes #765).
+
+### CONTRIBUTING.md takes btclib-org/.github's shared part
+
+A maintainer who lands an agent's pull request without an approval reads
+every line of it and answers for it (issue btclib-org/.github#2088).
+
 ## v2026.11.7
 
 ### `call_stream` reads a reply larger than `max_body_size` over the default transport
