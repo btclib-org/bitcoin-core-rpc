@@ -4,7 +4,7 @@
 
 """Every refusal a secret can reach, fed one and read by `assert_secret_free`.
 
-The rule is section 7 of the btclib-org standard, *A refusal carries no
+The rule is section 7 of the organization's standard, *A refusal carries no
 secret*. `ASSURANCE_CASE.md`'s CWE-209 entry lists the refusals and what is
 left out. Each test feeds a secret where the refusal reads it, and
 `assert_secret_free` looks for every piece of it, in each spelling, in the
