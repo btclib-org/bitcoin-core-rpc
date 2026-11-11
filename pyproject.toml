@@ -491,18 +491,16 @@ package = ["src/bitcoin_core_rpc"]
 # [tool.uv.build-backend] source-exclude names is not repeated here:
 # check-sdist reads that list for the uv backend, so this holds only what
 # no include pattern adds in the first place -- the workspaces of an
-# editor and of an agent, the files git and the link checker read,
-# COPYRIGHT, which [tool.uv.build-backend] above says why the sdist does
-# not carry, and ClusterFuzzLite's configuration with the harnesses it
-# builds, which fuzz.yml reads and nothing installed from the sdist runs.
-# Patterns are gitignore's, so a directory covers what is under it at any
-# depth.
+# editor and of an agent, the files git and the link checker read, the
+# bestpractices.dev answers, COPYRIGHT, which [tool.uv.build-backend]
+# above says why the sdist does not carry, and ClusterFuzzLite's
+# configuration with the harnesses it builds, which fuzz.yml reads and
+# nothing installed from the sdist runs. Patterns are gitignore's, so a
+# directory covers what is under it at any depth.
 #
 # .github is on check-sdist's own default ignore list, which is why the
 # workflows and the scripts they call need no entry here
 git-only = [
-    # the bestpractices.dev answers, which nothing installed from the
-    # sdist reads
     ".bestpractices.json",
     ".claude/",
     ".clusterfuzzlite/",
