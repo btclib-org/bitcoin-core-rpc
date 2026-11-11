@@ -36,7 +36,8 @@ from typing import Any
 import pytest
 
 from bitcoin_core_rpc.errors import FetchError
-from tests.fuzz_test import DECODERS
+
+from .fuzz_test import DECODERS
 
 # the arguments a seed is read with besides its bytes: where it came from,
 # for the message of a refusal, and the status of an answer

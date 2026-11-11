@@ -46,8 +46,9 @@ from bitcoin_core_rpc import (
 from bitcoin_core_rpc import client as client_module
 from bitcoin_core_rpc import transport as transport_module
 from bitcoin_core_rpc.transport import _READ_CHUNK as READ_CHUNK
-from tests import RPC_PASSWORD, RPC_USER, Recorded
-from tests.secret_free import assert_secret_free
+
+from . import RPC_PASSWORD, RPC_USER, Recorded
+from .secret_free import assert_secret_free
 
 URL = "http://127.0.0.1:8332"
 

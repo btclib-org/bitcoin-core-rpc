@@ -56,7 +56,8 @@ from bitcoin_core_rpc.errors import (
     CookieNotFoundError,
     FetchError,
 )
-from tests import SECRET, Shows, assert_no_secret
+
+from . import SECRET, Shows, assert_no_secret
 
 # the shape bitcoind writes: the fixed user, a colon, and 32 random bytes
 # in hex. This one is not random and is the credential of nothing -- the

@@ -62,7 +62,8 @@ from bitcoin_core_rpc import (
     RPCErrorCode,
     default_datadir,
 )
-from tests import (
+
+from . import (
     RPC_PASSWORD,
     RPC_USER,
     SECRET,

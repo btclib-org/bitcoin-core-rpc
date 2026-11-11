@@ -53,8 +53,9 @@ from bitcoin_core_rpc import (
     urlopen_transport,
 )
 from bitcoin_core_rpc.client import _MAX_KEY_SHOWN, _decimal_json
-from tests import Recorded
-from tests.secret_free import assert_secret_free
+
+from . import Recorded
+from .secret_free import assert_secret_free
 
 # Fixed values that look random: a run such as all zeros is a piece of a
 # clean message, and a literal hex string is what the secret scanners read as

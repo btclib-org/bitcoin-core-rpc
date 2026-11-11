@@ -65,7 +65,8 @@ from bitcoin_core_rpc.transport import (
     http_request,
     urlopen_transport,
 )
-from tests import (
+
+from . import (
     LOGIN,
     RPC_PASSWORD,
     SECRET,
