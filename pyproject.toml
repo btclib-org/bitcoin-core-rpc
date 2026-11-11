@@ -501,6 +501,9 @@ package = ["src/bitcoin_core_rpc"]
 # .github is on check-sdist's own default ignore list, which is why the
 # workflows and the scripts they call need no entry here
 git-only = [
+    # the bestpractices.dev answers, which nothing installed from the
+    # sdist reads
+    ".bestpractices.json",
     ".claude/",
     ".clusterfuzzlite/",
     ".gitignore",
