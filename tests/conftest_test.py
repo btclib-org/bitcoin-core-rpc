@@ -400,8 +400,9 @@ def _config(
     the message names and the plugin the guards walk to. The copy
     pytest-cov holds is read only after both guards; a case keeps it to
     show that a raise leaves it as it was. `rootpath` is read by neither
-    guard, and `inipath` only for the path the message says pytest read;
-    a case moves each to show that where to run from follows neither. A
+    guard. `inipath` is read by the first guard, for whether pytest read
+    a file at all, and by its message, for which file. A case moves each
+    to show that where to run from follows neither. A
     run the guards let through goes on to read `getini`, that copy, the
     rootdir and the invocation directory, which is the real
     `pytest_configure` of this very suite and not a case here.
@@ -581,7 +582,9 @@ def test_the_guards_own_names_are_ones_pytest_fills_in(
     assert not absent, f"pytest no longer fills in {absent}"
 
 
-@pytest.mark.parametrize("read", ["pyproject.toml", "-c other.ini outside"])
+@pytest.mark.parametrize(
+    "read", ["pyproject.toml", "tests/pytest.ini", "-c other.ini outside"]
+)
 @pytest.mark.parametrize("rootdir", ["root", "tests"])
 def test_the_hook_refuses_a_run_that_cannot_see_its_floor(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, rootdir: str, read: str
@@ -597,9 +600,9 @@ def test_the_hook_refuses_a_run_that_cannot_see_its_floor(
     holding `tests/conftest.py` because that is where the run has to
     start instead. It is named whichever the rootdir is: the case takes the
     rootdir at the root and at `tests/`, where `--rootdir=.` from
-    `tests/` puts it, and whichever file pytest read: a `-c` naming a
-    file outside the tree moves `inipath` there, where the suite does not
-    run, so the message still names the tree.
+    `tests/` puts it, and whichever file pytest read: a `pytest.ini` in
+    `tests/` moves `inipath` to another directory inside the tree, and a
+    `-c` naming a file outside the tree moves it there.
 
     The run is moved out of the root for the length of the case because
     that is the only arrangement the three paths differ in: read from the
@@ -612,7 +615,11 @@ def test_the_hook_refuses_a_run_that_cannot_see_its_floor(
     assert started_in != _ROOT, "the case cannot tell the two paths apart"
     known = Namespace(cov_fail_under=0.0)
     rootpath = _ROOT if rootdir == "root" else _ROOT / "tests"
-    inipath = _INIPATH if read == "pyproject.toml" else tmp_path / "other.ini"
+    inipath = {
+        "pyproject.toml": _INIPATH,
+        "tests/pytest.ini": _ROOT / "tests" / "pytest.ini",
+        "-c other.ini outside": tmp_path / "other.ini",
+    }[read]
     config = _config(
         _options(), known, _controller(None), rootpath=rootpath, inipath=inipath
     )

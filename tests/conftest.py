@@ -310,14 +310,12 @@ def pytest_configure(config: pytest.Config) -> None:
     if configuration_went_unread(measuring, config.inipath, config.option):
         # true only where pytest read a file, which mypy cannot see
         assert config.inipath is not None
-        # pyproject.toml holds pytest's table and coverage's, so where
-        # pytest read it, its directory is where coverage finds its own,
-        # wherever `--rootdir` puts the rootdir. A file pytest read in
-        # another directory is the exception -- one a `-c` names, or any
-        # pytest configuration file nearer the run than this
-        # pyproject.toml, such as a `pytest.ini`: a `-c` file can sit
-        # outside the tree, where the suite does not run, so the message
-        # names the tree holding this file rather than that directory.
+        # coverage reads its configuration from this tree's pyproject.toml,
+        # and looks only where the run started, so the run is sent to the
+        # tree whatever file pytest read and wherever `--rootdir` puts the
+        # rootdir: a `-c`, or a pytest configuration file nearer the run
+        # such as a `pytest.ini`, can put that file in another directory,
+        # inside the tree or outside it
         raise pytest.UsageError(
             "coverage read no configuration, so this run is held to no"
             " floor and measures a different set of files: coverage looks"
