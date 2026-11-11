@@ -1111,12 +1111,15 @@ dist=bitcoin-core-rpc
 test_dist=bitcoin-core-rpc
 pkg=bitcoin_core_rpc
 rtd=bitcoin-core-rpc
-python=3.15
+python=$(grep -Ev '^[[:space:]]*(#|$)' .python-version)
 smoke='import bitcoin_core_rpc; print(bitcoin_core_rpc.DEFAULT_TIMEOUT)'
 ```
 
 `smoke` prints `DEFAULT_TIMEOUT` because the package has no
 `__version__`: the comment on `version` in `pyproject.toml` says why.
+
+`python` reads `.python-version`, so the block is run from the root of
+the checkout.
 
 A live node is asked before the tag: `integration-bitcoind.yml` is a
 required check on `main`, and `release.yml` runs it again on the tag.
