@@ -127,9 +127,10 @@ repos:
         # is given that directory and fails on what it cannot parse, which
         # is the question this hook asks
         exclude: ^\.vscode/
-      # hand-written json, which is `.claude/` here -- `git ls-files
-      # '*.json'` is the measure, and the hook's own defaults, two-space
-      # indent and sorted keys, are how that file is already written.
+      # the json the excludes below leave, `.bestpractices.json` and
+      # `.claude/` here -- `git ls-files '*.json'` is the measure, and the
+      # hook's own defaults, two-space indent and sorted keys, are how
+      # those files are already written.
       # --autofix because every other fixing hook here corrects rather
       # than reports.
       # Two directories excluded, for two different reasons.
