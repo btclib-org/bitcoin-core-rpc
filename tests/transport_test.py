@@ -2040,7 +2040,7 @@ def test_a_header_that_would_split_the_request_is_refused(
         {Shows(): "a"},
         {"X": Shows()},
         {b"x": 1},
-        {SECRET + " x": "a"},
+        {f"{SECRET} x": "a"},
         {SECRET: "a\n"},  # pragma: allowlist secret
     ],
 )

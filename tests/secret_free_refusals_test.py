@@ -345,7 +345,7 @@ def test_a_number_the_encoder_cannot_write_is_not_quoted() -> None:
 )
 def test_a_decimal_exponent_over_the_digit_limit_is_not_quoted() -> None:
     """An exponent in range, and past the limit, can carry digits of a key."""
-    exponent = Decimal("1E" + str(KEY_INT)[:18])
+    exponent = Decimal(f"1E{str(KEY_INT)[:18]}")
     refused(lambda: client().call("send", [exponent]))
     refused(lambda: client().call_raw("send", {"a": exponent}))
     refused(lambda: client().call_batch([("send", [exponent])]))
@@ -353,7 +353,7 @@ def test_a_decimal_exponent_over_the_digit_limit_is_not_quoted() -> None:
 
 def test_a_decimal_nan_is_not_quoted() -> None:
     """A NaN's payload is digits the caller chose, here a key's."""
-    nan = Decimal("NaN" + str(KEY_INT))
+    nan = Decimal(f"NaN{KEY_INT}")
     refused(lambda: client().call("send", [nan]))
     refused(lambda: client().call_raw("send", {"a": nan}))
     refused(lambda: client().call_batch([("send", [nan])]))
@@ -410,12 +410,12 @@ def test_a_timeout_or_limit_that_is_wrong_is_not_quoted(fed: Any) -> None:
 @pytest.mark.parametrize(
     "headers",
     [
-        {"Authorization": KEY + "\n"},
-        {"Authorization": KEY + "Ā"},
-        {"Authorization": KEY + "\0"},
+        {"Authorization": f"{KEY}\n"},
+        {"Authorization": f"{KEY}Ā"},
+        {"Authorization": f"{KEY}\0"},
         {"Authorization": KEY_INT},
         {"Authorization": KEY_BYTES},
-        {KEY + " ": "x"},
+        {f"{KEY} ": "x"},
         {KEY_BYTES: KEY},
     ],
     ids=_type_name,
@@ -430,7 +430,7 @@ def test_a_refused_header_is_not_quoted(headers: Any) -> None:
 
 @pytest.mark.parametrize(
     "path",
-    [KEY, KEY_BYTES, KEY_INT, _ShowsKey(), "/" + KEY + "\u00e9", "/ " + KEY],
+    [KEY, KEY_BYTES, KEY_INT, _ShowsKey(), f"/{KEY}\u00e9", f"/ {KEY}"],
     ids=["no-slash", "bytes", "int", "object", "non-ascii", "space"],
 )
 def test_a_refused_rest_path_is_not_quoted(path: Any) -> None:
@@ -488,7 +488,7 @@ def test_a_chain_checked_against_a_node_is_not_quoted() -> None:
     refused(lambda: echoing(info).assert_chain("signet", signet_challenge=KEY))
     refused(lambda: echoing(info).assert_chain(KEY, signet_challenge="00"))
     refused(lambda: echoing(info).assert_chain("main", signet_challenge="00"))
-    signet = {"chain": "signet", "signet_challenge": KEY + "zz"}
+    signet = {"chain": "signet", "signet_challenge": f"{KEY}zz"}
     refused(lambda: echoing(signet).assert_chain("signet"))
     main_body, signet_body = json.dumps(info).encode(), json.dumps(signet).encode()
     refused(lambda: rest((200, main_body)).assert_chain(KEY))
@@ -503,7 +503,7 @@ def test_a_chain_checked_against_a_node_is_not_quoted() -> None:
 
 @pytest.mark.parametrize(
     "challenge",
-    [KEY + "zz", KEY_INT, _ShowsKey()],
+    [f"{KEY}zz", KEY_INT, _ShowsKey()],
     ids=lambda c: type(c).__name__,
 )
 def test_a_signet_challenge_that_is_refused_is_not_quoted(challenge: Any) -> None:

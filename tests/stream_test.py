@@ -522,8 +522,7 @@ def _received(connection: socket.socket) -> bytes:
     An `OSError`, which `_peer`'s thread suppresses, so a client that closes
     early ends the peer rather than leaving it spinning on `b""`.
     """
-    data = connection.recv(65536)
-    if not data:
+    if not (data := connection.recv(65536)):
         raise ConnectionAbortedError("the client closed before its request")
     return data
 
@@ -839,7 +838,7 @@ def test_a_skipped_number_call_refuses_is_refused(body: bytes) -> None:
     with pytest.raises(FetchError):
         answering(200, body).call("m")
     where = "^m at http://127.0.0.1:8332: "
-    with pytest.raises(FetchError, match=where + ".*(exponent is|parser refused)"):
+    with pytest.raises(FetchError, match=f"{where}.*(exponent is|parser refused)"):
         answering(200, body).call_stream("m", None, lambda walked: walked.skip())
 
 
@@ -1089,8 +1088,8 @@ def test_walking_a_member_as_an_object_reads_the_document(chunk: int) -> None:
     ("prefix", "rest", "expected", "walk"),
     [
         ('{"p": ' + _PAD + ', "a": 1', " ]}", ",", skip_each_member),
-        ("[" + _PAD + ", 1", " }]", ",", skip_each_item),
-        ("[[" + _PAD + ", 1", " }]]", ",", skip_all),
+        (f"[{_PAD}, 1", " }]", ",", skip_each_item),
+        (f"[[{_PAD}, 1", " }]]", ",", skip_all),
         ('{"p": ' + _PAD + ', "a"', " 1}", ":", skip_all),
         ('{"p": ' + _PAD + ', "a": ', "[1]}", "{", _members_of_a_member),
     ],
