@@ -38,8 +38,8 @@ from typing import Protocol
 import pytest
 
 # the tree that holds this file, which is where a `source` directory is
-# looked for and where a run that leaves one unmeasured is sent: no pytest
-# or coverage flag moves it, where `--rootdir` and `-c` move the rootdir
+# looked for and where both guards send a run they refuse: no pytest or
+# coverage flag moves it, where `--rootdir` and `-c` move the rootdir
 # and `--cov-config` moves the file coverage reads
 TREE = Path(__file__).parents[1]
 
@@ -310,18 +310,17 @@ def pytest_configure(config: pytest.Config) -> None:
     if configuration_went_unread(measuring, config.inipath, config.option):
         # true only where pytest read a file, which mypy cannot see
         assert config.inipath is not None
-        # pyproject.toml holds pytest's table and coverage's, so where
-        # pytest read it, its directory is where coverage finds its own,
-        # wherever `--rootdir` puts the rootdir. A file pytest read in
-        # another directory is the exception -- one a `-c` names, or any
-        # pytest configuration file nearer the run than this
-        # pyproject.toml, such as a `pytest.ini`: the message names that
-        # directory, whether coverage finds its configuration there or not.
+        # coverage reads its configuration from this tree's
+        # pyproject.toml, and only in the directory the run started in, so
+        # the run is sent to the tree whatever file pytest read and
+        # wherever `--rootdir` puts the rootdir. A `-c`, or a nearer
+        # pytest configuration file such as a `pytest.ini`, can put that
+        # file in another directory, inside the tree or outside it
         raise pytest.UsageError(
             "coverage read no configuration, so this run is held to no"
             " floor and measures a different set of files: coverage looks"
             f" only in the directory the run started in, {Path.cwd()}, and"
-            f" pytest read {config.inipath}. Run from {config.inipath.parent}."
+            f" pytest read {config.inipath}. Run from {TREE}."
         )
     if unmeasured := sources_out_of_reach(measuring, TREE, config.option):
         raise pytest.UsageError(

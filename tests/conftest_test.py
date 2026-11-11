@@ -390,6 +390,7 @@ def _config(
     controller: object | None,
     *,
     rootpath: Path = _ROOT,
+    inipath: Path = _INIPATH,
 ) -> pytest.Config:
     """Build what the refused run reads of a `pytest.Config`.
 
@@ -399,10 +400,12 @@ def _config(
     the message names and the plugin the guards walk to. The copy
     pytest-cov holds is read only after both guards; a case keeps it to
     show that a raise leaves it as it was. `rootpath` is read by neither
-    guard; a case moves it to show that the message does not follow it. A
-    run the guards let through goes on to read `getini`, that copy, the
-    rootdir and the invocation directory, which is the real
-    `pytest_configure` of this very suite and not a case here.
+    guard. `inipath` is read by the first guard, for whether pytest read
+    a file at all, and by its message, for which file. A case moves each
+    to show that where to run from follows neither. A run the guards let
+    through goes on to read `getini`, that copy, the rootdir and the
+    invocation directory, which is the real `pytest_configure` of this
+    very suite and not a case here.
     """
     plugin = SimpleNamespace(cov_controller=controller)
     return cast(
@@ -411,7 +414,7 @@ def _config(
             known_args_namespace=known,
             option=options,
             rootpath=rootpath,
-            inipath=_INIPATH,
+            inipath=inipath,
             pluginmanager=SimpleNamespace(getplugin=lambda _name: plugin),
         ),
     )
@@ -579,9 +582,12 @@ def test_the_guards_own_names_are_ones_pytest_fills_in(
     assert not absent, f"pytest no longer fills in {absent}"
 
 
+@pytest.mark.parametrize(
+    "read", ["pyproject.toml", "tests/pytest.ini", "-c other.ini outside"]
+)
 @pytest.mark.parametrize("rootdir", ["root", "tests"])
 def test_the_hook_refuses_a_run_that_cannot_see_its_floor(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, rootdir: str
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, rootdir: str, read: str
 ) -> None:
     """`pytest_configure` raises, and the message names all three paths.
 
@@ -590,11 +596,13 @@ def test_the_hook_refuses_a_run_that_cannot_see_its_floor(
     exits `4` for, so the exit code says the run measured nothing rather
     than that something in the tree failed. The message carries the
     directory the run started in beside the configuration pytest read
-    because the asymmetry between them is the finding, and the directory
-    of that configuration because that is where the run has to start
-    instead. It is named whichever the rootdir is: the case takes the
+    because the asymmetry between them is the finding, and the tree
+    holding `tests/conftest.py` because that is where the run has to
+    start instead. It is named whichever the rootdir is: the case takes the
     rootdir at the root and at `tests/`, where `--rootdir=.` from
-    `tests/` puts it.
+    `tests/` puts it, and whichever file pytest read: a `pytest.ini` in
+    `tests/` moves `inipath` to another directory inside the tree, and a
+    `-c` naming a file outside the tree moves it there.
 
     The run is moved out of the root for the length of the case because
     that is the only arrangement the three paths differ in: read from the
@@ -607,13 +615,20 @@ def test_the_hook_refuses_a_run_that_cannot_see_its_floor(
     assert started_in != _ROOT, "the case cannot tell the two paths apart"
     known = Namespace(cov_fail_under=0.0)
     rootpath = _ROOT if rootdir == "root" else _ROOT / "tests"
-    config = _config(_options(), known, _controller(None), rootpath=rootpath)
+    inipath = {
+        "pyproject.toml": _INIPATH,
+        "tests/pytest.ini": _ROOT / "tests" / "pytest.ini",
+        "-c other.ini outside": tmp_path / "other.ini",
+    }[read]
+    config = _config(
+        _options(), known, _controller(None), rootpath=rootpath, inipath=inipath
+    )
 
     with pytest.raises(pytest.UsageError) as raised:
         pytest_configure(config)
 
     assert f"started in, {started_in}," in str(raised.value)
-    assert f"pytest read {_INIPATH}." in str(raised.value)
+    assert f"pytest read {inipath}." in str(raised.value)
     # no --cov-config is offered: in a checkout, from anywhere but the
     # directory holding pyproject.toml, it leaves `.github/scripts`
     # unmeasured, which `sources_out_of_reach` refuses
