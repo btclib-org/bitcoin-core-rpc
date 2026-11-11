@@ -38,8 +38,8 @@ from typing import Protocol
 import pytest
 
 # the tree that holds this file, which is where a `source` directory is
-# looked for and where a run that leaves one unmeasured is sent: no pytest
-# or coverage flag moves it, where `--rootdir` and `-c` move the rootdir
+# looked for and where both guards send a run they refuse: no pytest or
+# coverage flag moves it, where `--rootdir` and `-c` move the rootdir
 # and `--cov-config` moves the file coverage reads
 TREE = Path(__file__).parents[1]
 
@@ -310,12 +310,12 @@ def pytest_configure(config: pytest.Config) -> None:
     if configuration_went_unread(measuring, config.inipath, config.option):
         # true only where pytest read a file, which mypy cannot see
         assert config.inipath is not None
-        # coverage reads its configuration from this tree's pyproject.toml,
-        # and looks only where the run started, so the run is sent to the
-        # tree whatever file pytest read and wherever `--rootdir` puts the
-        # rootdir: a `-c`, or a pytest configuration file nearer the run
-        # such as a `pytest.ini`, can put that file in another directory,
-        # inside the tree or outside it
+        # coverage reads its configuration from this tree's
+        # pyproject.toml, and only in the directory the run started in, so
+        # the run is sent to the tree whatever file pytest read and
+        # wherever `--rootdir` puts the rootdir. A `-c`, or a nearer
+        # pytest configuration file such as a `pytest.ini`, can put that
+        # file in another directory, inside the tree or outside it
         raise pytest.UsageError(
             "coverage read no configuration, so this run is held to no"
             " floor and measures a different set of files: coverage looks"

@@ -402,10 +402,10 @@ def _config(
     show that a raise leaves it as it was. `rootpath` is read by neither
     guard. `inipath` is read by the first guard, for whether pytest read
     a file at all, and by its message, for which file. A case moves each
-    to show that where to run from follows neither. A
-    run the guards let through goes on to read `getini`, that copy, the
-    rootdir and the invocation directory, which is the real
-    `pytest_configure` of this very suite and not a case here.
+    to show that where to run from follows neither. A run the guards let
+    through goes on to read `getini`, that copy, the rootdir and the
+    invocation directory, which is the real `pytest_configure` of this
+    very suite and not a case here.
     """
     plugin = SimpleNamespace(cov_controller=controller)
     return cast(
