@@ -88,9 +88,7 @@ def _quoted(name: object) -> str:
     """
     if not isinstance(name, str):
         return f"a {type(name).__name__}"
-    if len(name) > _MAX_NAME_SHOWN:
-        return "(too long to quote)"
-    return name
+    return "(too long to quote)" if len(name) > _MAX_NAME_SHOWN else name
 
 
 def rpc_port_from_chain(chain: str) -> int:

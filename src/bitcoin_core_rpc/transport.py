@@ -1374,15 +1374,14 @@ class SessionTransport:
                 self._connections.pop(key).close()
                 raise
 
-            if response.will_close:
-                # The node said so in this very response -- `Connection:
-                # close`, or no keep-alive at all under HTTP/1.0 -- so
-                # holding it for a next call would hold a socket the
-                # other end has already given up on.
-                self._connections.pop(key).close()
-            elif not read_to_the_end:
-                # the exchange did not complete: the rest of a cut error
-                # body is still to come over this connection
+            # Where the node said so in this very response -- `Connection:
+            # close`, or no keep-alive at all under HTTP/1.0 -- holding it
+            # for a next call would hold a socket the other end has already
+            # given up on.
+            #
+            # Where the exchange did not complete, the rest of a cut error
+            # body is still to come over this connection.
+            if response.will_close or not read_to_the_end:
                 self._connections.pop(key).close()
 
             return response.status, body_bytes

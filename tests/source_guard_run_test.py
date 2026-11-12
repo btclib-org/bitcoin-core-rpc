@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from tests.conftest_test import _ROOT, _run_from_tests
+from .conftest_test import _ROOT, _run_from_tests
 
 if TYPE_CHECKING:
     from pathlib import Path
