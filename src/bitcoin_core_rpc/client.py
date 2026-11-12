@@ -370,11 +370,13 @@ def _request_json(value: Any) -> str:
             members.append(f"{json.dumps(name)}: {_request_json(item)}")
         return "{" + ", ".join(members) + "}"
     if isinstance(value, (list, tuple)):
-        # a loop rather than a generator, or on 3.11 a comprehension, each
-        # of which would spend a second frame per level of nesting
-        items = []
+        # a loop: a generator spends a second frame per level of nesting,
+        # and so do a comprehension and a `map` handed to `join` on 3.11
+        # and on PyPy. `+=` rather than `append`, a loop of which Sourcery's
+        # list-comprehension rewrites into a comprehension
+        items: list[str] = []
         for item in value:
-            items.append(_request_json(item))  # ruff: ignore[PERF401]
+            items += (_request_json(item),)
         return "[" + ", ".join(items) + "]"
     return json.dumps(value, allow_nan=False, default=_refuse_param)
 
@@ -561,9 +563,9 @@ def _parsed_json_body(where: str, status: int, payload: bytes) -> Any:
             # its message names a position, never the text
             shape = f"not json ({e})"
         else:
-            if status != 200:
-                raise _http_error(where, status) from e
-            raise _unreadable(where, e) from e
+            raise (
+                _http_error(where, status) if status != 200 else _unreadable(where, e)
+            ) from e
     # raised outside the `except`, so that nothing chains the decode error
     # or the parse error: each holds the reply, which can be a
     # `dumpprivkey` answer or an error body echoing the request
@@ -1226,10 +1228,9 @@ def _failure_body(read: Callable[[int], bytes]) -> bytes:
     """
     body = bytearray()
     try:
-        while len(body) < MAX_ERROR_BODY_SIZE:
-            chunk = read(MAX_ERROR_BODY_SIZE - len(body))
-            if not chunk:
-                break
+        while len(body) < MAX_ERROR_BODY_SIZE and (
+            chunk := read(MAX_ERROR_BODY_SIZE - len(body))
+        ):
             body += chunk
     except FetchError:
         return b""

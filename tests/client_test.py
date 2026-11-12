@@ -34,7 +34,7 @@ import pickle
 import re
 import sys
 from base64 import b64decode
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -62,7 +62,8 @@ from bitcoin_core_rpc import (
     RPCErrorCode,
     default_datadir,
 )
-from tests import (
+
+from . import (
     RPC_PASSWORD,
     RPC_USER,
     SECRET,
@@ -1868,9 +1869,36 @@ class Shifty(dict):  # type: ignore[type-arg]
     def items(self) -> Any:
         """Answer the mapping as it stands on the first reading only."""
         self.reads += 1
-        if self.reads == 1:
-            return list(super().items())
-        return list(self.later.items())
+        return list(super().items()) if self.reads == 1 else list(self.later.items())
+
+
+class Shifting(list[Any]):
+    """A list whose every iteration after the first answers `later`.
+
+    Its length stays that of the first reading, so a writer that sizes its
+    output from `len` and then iterates finds the two disagree.
+    """
+
+    def __init__(self, first: list[Any], later: list[Any]) -> None:
+        super().__init__(first)
+        self.later = later
+        self.reads = 0
+
+    @override
+    def __iter__(self) -> Iterator[Any]:
+        """Iterate the list as it stands on the first reading only."""
+        self.reads += 1
+        return iter(list(super().__iter__()) if self.reads == 1 else self.later)
+
+
+@pytest.mark.parametrize("later", [[1], [1, 2, 3, 4]], ids=["shrunk", "grown"])
+def test_a_list_that_is_not_what_the_walk_saw(later: list[int]) -> None:
+    """The writer writes the items it iterates, whatever the length says."""
+    shifting = Shifting([1, 2, 3], later)
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    endpoint.call("sendmany", [shifting])
+    assert json.loads(recording(endpoint).body)["params"] == [later]
+    assert shifting.reads == 2
 
 
 @pytest.mark.parametrize("spoiled", [float("nan"), Decimal("NaN")])
