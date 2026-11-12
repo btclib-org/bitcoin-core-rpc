@@ -366,16 +366,21 @@ pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
 
 A review cannot be satisfied by its author, GitHub not allowing
-self-approval, and `main-self-merge` has no bypass actor, so every merge
-needs an approval from somebody other than its author. btclib-org/.github's
-`GOVERNANCE.md`, [*How a decision is made*][governance], says when the
-maintainer adds the bypass back, and removes it after the merge. The
-landing commands are `CONTRIBUTING.md`'s *Landing it*.
+self-approval. `main-self-merge` has one bypass actor, the maintainer, in
+`pull_request` mode, so the maintainer can merge without an approval from
+somebody other than the author, and nobody else can. It is the
+organization-wide bypass, which the maintainer keeps until the backlog
+settles, with no date set (btclib-org/.github#2021). Once it is removed,
+the ruleset has no bypass actor, as the standard asks of a tree whose
+`README.md` carries the OpenSSF Best Practices badge, and
+btclib-org/.github's `GOVERNANCE.md`, [*How a decision is made*][governance],
+says when the maintainer adds it back. The landing commands are
+`CONTRIBUTING.md`'s *Landing it*.
 
 *Required checks on main* says which checks an administrator's merge
-does not wait for. A merge with `--admin` skips the
-approval too, once the bypass is added back and because `enforce_admins`
-is off. It also cancels the pull request's
+does not wait for. The maintainer's merge with `--admin` skips the
+approval too, through the bypass and because `enforce_admins` is off.
+It also cancels the pull request's
 runs still in progress. The push to `main` runs some of the checks again,
 never `lint / Sign-off`, `lint / Dependency review` or `sourcery / Sourcery`.
 
@@ -502,9 +507,9 @@ of them.
 
 That setting is what the button writes, and the button is what lands every pull
 request here: auto-merge presses it once the approval and the checks are in, and
-`--admin` presses it at once, in an emergency. There is no second landing.
-The bypass the maintainer adds to `main-self-merge` in an emergency (*Branch
-protection*) is in `pull_request` mode: it excuses that ruleset on a pull
+`--admin` presses it at once, through the bypass. There is no second landing.
+The bypass of `main-self-merge` (*Branch protection*) is in `pull_request`
+mode: it excuses that ruleset on a pull
 request's merge and nowhere else, so a direct push to `main` is refused for
 everyone, the holder included. What `--admin` skips beyond this ruleset is
 *Branch protection* above. The ruleset names `squash` as the only merge
