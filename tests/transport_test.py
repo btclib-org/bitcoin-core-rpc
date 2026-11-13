@@ -12,6 +12,7 @@ asked.
 
 from __future__ import annotations
 
+import gc
 import math
 import os
 import select
@@ -19,6 +20,7 @@ import socket
 import ssl
 import subprocess
 import sys
+import warnings
 from array import array
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
@@ -147,6 +149,10 @@ class FakeResponse:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
+        self.closed = True
+
+    def close(self) -> None:
+        """Close it, as `SessionTransport` does where reading a body raises."""
         self.closed = True
 
     def read(self, amt: int | None = None) -> bytes:
@@ -1773,7 +1779,8 @@ def test_a_failure_once_the_request_is_on_the_wire_is_not_re_sent() -> None:
     it is answered by closing the connection rather than by sending the
     request again.
     """
-    connection = FakeConnection(FakeResponse(200, b"z" * 10))
+    response = FakeResponse(200, b"z" * 10)
+    connection = FakeConnection(response)
     transport = SessionTransport(connection_factory=_connection_factory(connection))
     request = Request(URL, method="GET")
 
@@ -1781,6 +1788,33 @@ def test_a_failure_once_the_request_is_on_the_wire_is_not_re_sent() -> None:
         transport(request, DEFAULT_TIMEOUT, max_body_size=5)
 
     assert len(connection.requests) == 1
+    assert connection.closed is True
+    assert response.closed is True
+
+
+class _CloseFails(FakeResponse):
+    """A response whose `close()` raises, as one over a broken socket can."""
+
+    @override
+    def close(self) -> None:
+        raise OSError(9, "Bad file descriptor")
+
+
+def test_a_response_failing_to_close_leaves_nothing_pooled() -> None:
+    """The connection is dropped and closed even where the response's is not.
+
+    Closing the response comes after the connection leaves the pool, and
+    the connection's own close is in a `finally`, so the error out of the
+    response's close does not leave a mid-response connection for the
+    next call.
+    """
+    connection = FakeConnection(_CloseFails(200, b"z" * 10))
+    transport = SessionTransport(connection_factory=_connection_factory(connection))
+
+    with pytest.raises(OSError, match="Bad file descriptor"):
+        transport(Request(URL, method="GET"), DEFAULT_TIMEOUT, max_body_size=5)
+
+    assert transport._connections == {}
     assert connection.closed is True
 
 
@@ -2704,3 +2738,45 @@ def test_a_whole_exchange_runs_over_the_deadline_connections(*, session: bool) -
         for _ in range(2 if session else 1):
             status, body = http_request(url, timeout=5.0, transport=transport)
             assert (status, len(body)) == (200, 2 * _READ_CHUNK)
+
+
+@pytest.mark.parametrize(
+    "head",
+    [
+        # refused on its `Content-Length`, before a byte of the body is read
+        b"HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 64\r\n\r\n",
+        # no length, so the close delimits the body, read here past the limit
+        b"HTTP/1.0 200 OK\r\n\r\n",
+    ],
+)
+def test_a_refused_answer_leaves_no_socket_to_the_collector(head: bytes) -> None:
+    """The response is closed with the connection, so no finalizer warns.
+
+    A response that will close holds the socket on its own, and the
+    refusal's traceback holds the response. Held in a reference cycle, it
+    waits for the collector, which can finalize the socket before the
+    response and warn `unclosed <socket.socket [closed] ...>`. The
+    collector is off from before the call until the collection inside
+    `catch_warnings`, so that this collection is the one that would warn.
+    """
+
+    def serve(connection: socket.socket, done: Event) -> None:
+        connection.recv(65536)
+        connection.sendall(head + b"z" * 64)
+
+    gc.collect()
+    gc.disable()
+    try:
+        with _peer(serve) as url, SessionTransport() as transport:
+            with pytest.raises(FetchError, match="max_body_size of 8") as refused:
+                http_request(url, timeout=5.0, max_body_size=8, transport=transport)
+            held: list[object] = [refused.value]
+            held.append(held)
+            del refused, held
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            gc.collect()
+    finally:
+        gc.enable()
+
+    assert [str(w.message) for w in caught if w.category is ResourceWarning] == []
