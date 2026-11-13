@@ -1040,7 +1040,8 @@ class _Connection(Protocol):
         `Any`, and so no contract a type checker holds a fake to: what
         `SessionTransport` reads of it is `http.client.HTTPResponse`'s,
         `isclosed()` included, asked after an error status to learn whether
-        the body was read to its end.
+        the body was read to its end, and `close()`, called where reading
+        the body raises.
         """
 
     def close(self) -> None:
@@ -1371,7 +1372,20 @@ class SessionTransport:
                 # the reconnect must not cross -- so this is never
                 # re-sent; the connection is left mid-response, so it is
                 # not offered to a later call either.
-                self._connections.pop(key).close()
+                #
+                # The response is closed too. Where it will close
+                # (`will_close`), `getresponse()` hands the socket to it,
+                # so closing the connection does not release the socket.
+                # The traceback keeps the response alive, and where it
+                # ends up in a reference cycle the collector can finalize
+                # the socket first, a `ResourceWarning`. The connection
+                # is dropped first and closed in the `finally`, so a
+                # response whose `close()` raises leaves nothing pooled.
+                connection = self._connections.pop(key)
+                try:
+                    response.close()
+                finally:
+                    connection.close()
                 raise
 
             # Where the node said so in this very response -- `Connection:
