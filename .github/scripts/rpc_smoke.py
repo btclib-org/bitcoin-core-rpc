@@ -85,6 +85,7 @@ from __future__ import annotations
 import argparse
 import json
 import socket
+import ssl
 import subprocess
 import sys
 import time
@@ -842,11 +843,16 @@ class ConnectionCounter:
         self.opened = 0
 
     def __call__(
-        self, scheme: str, host: str, port: int, timeout: float
+        self,
+        scheme: str,
+        host: str,
+        port: int,
+        timeout: float,
+        context: ssl.SSLContext | None,
     ) -> _DeadlineHTTPConnection:
         """Return a new connection, counting it."""
         self.opened += 1
-        return _new_connection(scheme, host, port, timeout)
+        return _new_connection(scheme, host, port, timeout, context)
 
 
 def check_session(

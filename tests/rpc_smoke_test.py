@@ -167,8 +167,8 @@ def test_connection_counter_counts_each_connection_it_builds(
 ) -> None:
     """Each call is a new connection, unconnected, to that host and port."""
     connections = smoke.ConnectionCounter()
-    first = connections("http", "127.0.0.1", 18443, 5.0)
-    second = connections("http", "127.0.0.1", 18443, 5.0)
+    first = connections("http", "127.0.0.1", 18443, 5.0, None)
+    second = connections("http", "127.0.0.1", 18443, 5.0, None)
     assert connections.opened == 2
     assert first is not second
     assert (first.host, first.port, first.timeout) == ("127.0.0.1", 18443, 5.0)

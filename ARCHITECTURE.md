@@ -43,8 +43,9 @@ and the headers, each given what is left of it.
 
 `_post_stream` is the one read that does not go through
 `_read_bounded`. `BitcoinCoreRpcClient.call_stream` reads a reply
-through it over the default transport, to answer a reply larger than
-`max_body_size` can hold. It opens the same deadline connection and
+through it over the default transport, or over
+`partial(urlopen_transport, context=...)`, to answer a reply larger
+than `max_body_size` can hold. It opens the same deadline connection and
 hands back the body one chunk at a time, keeping nothing of it, and
 nothing bounds the total. What is bounded is what the caller keeps:
 `client.py`'s `JsonStream` keeps a value only where it is asked to, under
@@ -61,8 +62,9 @@ full.
 Three things a caller cannot get from `HttpTransport`'s own two
 arguments, and what `http_request` and `urlopen_transport` each do about
 them: only `http` and `https` reach a `Request` (`_SCHEMES`), no proxy is
-taken from the environment (`ProxyHandler({})` in the one `_OPENER` this
-module builds its I/O with), and no redirect is followed (`_NoRedirect`).
+taken from the environment (`ProxyHandler({})` in every opener `_opener`
+builds, which is every opener this module does its I/O with), and no
+redirect is followed (`_NoRedirect`).
 The `Authorization` header is built for one host, so following a 30x
 elsewhere, or letting `HTTP_PROXY` redirect the exchange, would send that
 credential somewhere the caller never named.

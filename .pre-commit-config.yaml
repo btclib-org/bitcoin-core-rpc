@@ -155,6 +155,10 @@ repos:
       - id: check-merge-conflict
       - id: check-vcs-permalinks
       - id: detect-private-key
+        # the key of the test server's certificate, public on purpose:
+        # tests/_tls/README.md says why. detect-secrets below still reads
+        # it, recorded in .secrets.baseline as reviewed
+        exclude: ^tests/_tls/server\.key$
       - id: debug-statements
       - id: check-docstring-first
         # every module-level constant carries a PEP 258 attribute

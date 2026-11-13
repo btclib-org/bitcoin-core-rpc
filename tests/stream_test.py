@@ -474,9 +474,10 @@ def streamed(
 
     @contextmanager
     def post_stream(
-        url: str, *, data: bytes, headers: object, timeout: float
+        url: str, *, data: bytes, headers: object, timeout: float, context: object
     ) -> Iterator[tuple[int, Callable[[int], bytes]]]:
         assert url == URL
+        assert context is None
         request_id = json.dumps(json.loads(data)["id"]).encode()
         yield status, reader(body.replace(b"ID", request_id), 1)
 
