@@ -2779,4 +2779,4 @@ def test_a_refused_answer_leaves_no_socket_to_the_collector(head: bytes) -> None
     finally:
         gc.enable()
 
-    assert [str(w.message) for w in caught if w.category is ResourceWarning] == []
+    assert not [str(w.message) for w in caught if w.category is ResourceWarning]
