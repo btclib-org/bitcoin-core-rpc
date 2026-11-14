@@ -23,6 +23,9 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
+
+# absent on Windows on Arm, as pyproject.toml's test group says
+pytest.importorskip("cryptography")
 from cryptography import x509
 
 _TLS = Path(__file__).parent / "_tls"

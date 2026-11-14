@@ -227,8 +227,12 @@ test = [
     "coverage>=7.16.0",
     # what tests/_tls/generate.py writes the TLS fixtures with, and what
     # tests/tls_generate_test.py reads them back with. 42.0.0 is the first
-    # release with the `not_valid_before_utc` that test reads
-    "cryptography>=42.0.0",
+    # release with the `not_valid_before_utc` that test reads. Windows on
+    # Arm is left out: the releases after 46.0.3 publish no wheel for it,
+    # the sdist builds only against an OpenSSL installation, which the
+    # windows-11-arm runner lacks, and the test skips itself where the
+    # package is absent
+    "cryptography>=42.0.0; sys_platform != 'win32' or platform_machine != 'ARM64'",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-randomly>=5.0.0",
