@@ -9,8 +9,8 @@ default TLS context and reached by a context that trusts `ca.pem`.
 
 The key is a test fixture, public on purpose. `generate.py` wrote the
 three files and never wrote the authority's own key, so no other
-certificate chains to `ca.pem`. Both certificates are valid from 2026 to
-the end of 9999.
+certificate chains to `ca.pem`. Both certificates are valid from
+`NOT_BEFORE` to `NOT_AFTER`, which `generate.py` sets.
 
 This command, run from the repository root, replaces them with a new
 set:
