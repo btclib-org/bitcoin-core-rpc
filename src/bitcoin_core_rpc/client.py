@@ -76,6 +76,7 @@ from bitcoin_core_rpc.transport import (
     _assert_valid_timeout,
     _is_integer,
     _post_stream,
+    _urlopen_keywords,
     http_request,
     urlopen_transport,
 )
@@ -1273,9 +1274,9 @@ def _streamed_result(
             stream.peek()
             depth, start = stream._open, stream._offset + stream._pos
             kept[name] = walk(stream)
-            # a read of nothing, which over the default transport checks the
-            # deadline: the stream may have read the last of the body before
-            # the walk returned, and the time the walk spent counts
+            # a read of nothing, which over `_post_stream` checks the
+            # deadline: the stream may have read the last of the body
+            # before the walk returned, and the time the walk spent counts
             read(0)
             if stream._open != depth or stream._offset + stream._pos == start:
                 err_msg = f"{where}: the walk did not read the whole result"
@@ -1880,13 +1881,14 @@ class BitcoinCoreRpcClient:
         where it is a body `call` decodes as UTF-16, UTF-32 or with a BOM,
         none of which `call` refuses.
 
-        Over the default transport the reply is read from the socket as
-        `walk` asks for it, and nothing bounds its total size: what is held
-        is what `walk` keeps, under the limits it passes to
-        `JsonStream.value`. `max_body_size` bounds what this method keeps
-        itself, each member of the reply but `result`. `request_timeout` is
-        one deadline over the whole exchange, as for `call`, and the time
-        `walk` spends counts against it.
+        Over the default transport, or `partial(urlopen_transport,
+        context=...)`, the reply is read from the socket as `walk` asks for
+        it, and nothing bounds its total size: what is held is what `walk`
+        keeps, under the limits it passes to `JsonStream.value`.
+        `max_body_size` bounds what this method keeps itself, each member of
+        the reply but `result`. `request_timeout` is one deadline over the
+        whole exchange, as for `call`, and the time `walk` spends counts
+        against it.
 
         Over `SessionTransport` or a transport of the caller's own, which
         answer a body read whole, `max_body_size` bounds that body as it
@@ -1898,9 +1900,13 @@ class BitcoinCoreRpcClient:
         request_id, body, timeout = self._request(method, params, request_timeout)
         _assert_valid_max_body_size(max_body_size)
         where = f"{method} at {self.url}"
-        if self.transport is urlopen_transport:
+        if (keywords := _urlopen_keywords(self.transport)) is not None:
             with _post_stream(
-                self.url, data=body, headers=self._headers(), timeout=timeout
+                self.url,
+                data=body,
+                headers=self._headers(),
+                timeout=timeout,
+                **keywords,
             ) as (status, read):
                 return _streamed_result(
                     where,

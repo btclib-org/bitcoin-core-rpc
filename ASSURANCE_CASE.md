@@ -26,10 +26,10 @@ here are the ones [ARCHITECTURE](./ARCHITECTURE.md) describes.
   it arrives, the total is not bounded: what is bounded is what the
   caller keeps of it, each value under the limit the caller gives
   `JsonStream.value`, and each member of the reply but `result` under
-  `max_body_size`. That holds over the default transport. Over
-  `SessionTransport` or a caller's own transport, which answer the body
-  whole, `call_stream` refuses a body larger than `max_body_size`, as
-  `call` does.
+  `max_body_size`. That holds over the default transport, and over
+  `partial(urlopen_transport, context=...)`. Over `SessionTransport` or
+  a caller's own transport, which answer the body whole, `call_stream`
+  refuses a body larger than `max_body_size`, as `call` does.
 - **A credential never appears where it can leak.** Not in a url, not in
   a `__repr__`, not in an exception raised about a rejected one, not sent
   to a host a redirect or an environment variable named instead of the
@@ -136,10 +136,11 @@ read.
 
 **The network path.** Only `http` and `https` reach a built request
 (`_SCHEMES`); no proxy is taken from the environment, `ProxyHandler({})`
-being how the one opener this module does its I/O with has that handler
-removed rather than merely left empty; and no redirect is followed
-(`_NoRedirect`). The `Authorization` header is built for one host, and
-each of the three is what keeps it from reaching a different one.
+being how every opener `_opener` builds, which is every opener this
+module does its I/O with, has that handler removed rather than merely
+left empty; and no redirect is followed (`_NoRedirect`). The
+`Authorization` header is built for one host, and each of the three is
+what keeps it from reaching a different one.
 
 **The cookie file.** Read fresh at every call rather than held —
 bitcoind rewrites it at every restart — through `chains.cookie_auth`:
@@ -161,11 +162,11 @@ once at import for the module-level `DEFAULT_DATADIR`, and again at
 every `from_chain` call that derives a cookie path because the caller
 supplied neither a credential nor a `cookie_path` of its own. Nothing
 else in the package reads an environment variable itself. The TLS
-context is built by `_tls_context` and not by
-`ssl.create_default_context`, which would open the file `SSLKEYLOGFILE`
-names and write the session keys to it; the system trust store it loads is
-OpenSSL's, which `SSL_CERT_FILE` and `SSL_CERT_DIR` choose, and
-SECURITY.md lists that as a limitation.
+context of a connection given no `context` is built by `_tls_context`
+and not by `ssl.create_default_context`, which would open the file
+`SSLKEYLOGFILE` names and write the session keys to it; the system trust
+store it loads is OpenSSL's, which `SSL_CERT_FILE` and `SSL_CERT_DIR`
+choose, and SECURITY.md lists that as a limitation.
 
 ## Secure design principles
 

@@ -155,6 +155,10 @@ repos:
       - id: check-merge-conflict
       - id: check-vcs-permalinks
       - id: detect-private-key
+        # the key of the test server's certificate, public on purpose:
+        # tests/_tls/README.md says why. detect-secrets below still reads
+        # it, recorded in .secrets.baseline as reviewed
+        exclude: ^tests/_tls/server\.key$
       - id: debug-statements
       - id: check-docstring-first
         # every module-level constant carries a PEP 258 attribute
@@ -173,20 +177,23 @@ repos:
         # exempts
         exclude: |-
           ^src/bitcoin_core_rpc/(chains|transport|client)\.py$
-      # the hook's default, *_test.py, with neither args nor exclude.
+      # the hook's default, *_test.py, with no args.
       # What it is for is the one failure mode a test suite cannot report
       # on itself -- a file named so that pytest never collects it is not
       # a red test, it is no test, and the count in the report is the only
       # thing that moves.
       # test_*.py, i.e. --pytest-test-first, would guard the same thing,
       # pytest's default `python_files` collecting both; *_test.py is the
-      # convention the test modules here follow, and needs no args. No
-      # exclude, and the hook's own exemptions, conftest.py and
-      # __init__.py, are what keep it that way: the shared transport lives
-      # in tests/__init__.py, and naming that module something_test.py
-      # would be this hook's failure mode written by hand -- a name that
-      # says "test" to every reader, on the one module with none
+      # convention the test modules here follow, and needs no args. The
+      # hook's own exemptions, conftest.py and __init__.py, hold every
+      # other file under tests/ to it: the shared transport lives in
+      # tests/__init__.py, and naming that module something_test.py would
+      # be this hook's failure mode written by hand -- a name that says
+      # "test" to every reader, on a module with none. The exclude is the
+      # same case: the script that writes the TLS fixtures, run by the
+      # command in tests/_tls/README.md and tested by tls_generate_test.py
       - id: name-tests-test
+        exclude: ^tests/_tls/generate\.py$
       - id: check-toml
       # only files being *added* are measured, the hook intersecting its
       # arguments with git's added set. The default 500 KB is left alone:

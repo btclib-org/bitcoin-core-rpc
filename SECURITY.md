@@ -144,10 +144,10 @@ These are known and inherent.
     of its own: the url's scheme decides. On loopback, which is what
     `from_chain` builds, the cleartext stays between one process and the
     node beside it. An `https` url gets the certificate and the host name
-    verified. For a node anywhere else over `http`, the cleartext is on
-    the wire, and rpc credentials authorise every wallet command that
-    node has; an `https` url or a tunnel (SSH, stunnel or a VPN) keeps
-    them off it.
+    verified, unless a `context` the caller gives says otherwise (below).
+    For a node anywhere else over `http`, the cleartext is on the wire,
+    and rpc credentials authorise every wallet command that node has; an
+    `https` url or a tunnel (SSH, stunnel or a VPN) keeps them off it.
 - **A credential handed to this client lives in Python objects**, which
     are immutable and not zeroized: it stays in process memory until
     garbage collection, and may have been copied by the interpreter
@@ -155,11 +155,18 @@ These are known and inherent.
     read at each call rather than held, so the credential lives for the
     duration of one call and the node rotates it at every restart.
 - **`SSL_CERT_FILE` and `SSL_CERT_DIR` choose the trust store of an
-    `https` connection.** The TLS context loads the system's default
-    certificates, which OpenSSL reads from those two variables when they
-    are set, so whoever controls this process's environment chooses which
-    authorities it trusts. A deployment that must not depend on the
-    environment passes a `transport` of its own.
+    `https` connection given no `context`.** The default TLS context
+    verifies the certificate and the host name against the system's
+    default certificates, which OpenSSL reads from those two variables
+    when they are set, so whoever controls this process's environment
+    chooses which authorities it trusts.
+- **A `context` the caller gives decides what is verified.**
+    `urlopen_transport` and `SessionTransport` take an `ssl.SSLContext`
+    as `context`, and use it as given: one that trusts a node's own
+    authority reaches that node without the environment, and one with
+    verification off verifies nothing. It keeps its key log too: one
+    built by `ssl.create_default_context()` while `SSLKEYLOGFILE` was set
+    writes the session keys to that file.
 - **A caller's own `transport` is outside all of this.** It does its own
     I/O, so what it holds in memory, whether it follows a redirect and
     where it sends the `Authorization` header are its author's to answer

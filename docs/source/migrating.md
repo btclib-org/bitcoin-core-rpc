@@ -62,10 +62,26 @@ client = BitcoinCoreRpcClient.from_chain(
 ```
 
 **`https`.** Both variants dispatch on the url's scheme —
-`http.client.HTTPSConnection` where it reads `https`, exactly as this
-client's own transports do — so an `https://` url is the same story on
-either side, with the same standard-library certificate trust and no
-extra knob on any of the three.
+`http.client.HTTPSConnection` where it reads `https`, as this client's
+own transports do. Core's copy passes that connection no TLS context, so
+the standard library's default verifies the certificate.
+python-bitcoinrpc's passes the `ssl_context` its constructor takes,
+`None` by default. Here `urlopen_transport` and `SessionTransport` take
+one as `context`, and [SECURITY.md](./security_link.md)'s *Limitations,
+not vulnerabilities* says what it decides.
+
+```python
+# python-bitcoinrpc
+rpc = AuthServiceProxy(f"https://{user}:{password}@node:8332", ssl_context=context)
+
+# this client
+client = BitcoinCoreRpcClient(
+    "https://node:8332",
+    user=user,
+    password=password,
+    transport=partial(urlopen_transport, context=context),
+)
+```
 
 ## Invoking a method
 

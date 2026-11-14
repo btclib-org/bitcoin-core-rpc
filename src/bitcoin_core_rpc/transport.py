@@ -19,6 +19,7 @@ import select
 import ssl
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import closing, contextmanager, suppress
+from functools import partial
 from http.client import (
     HTTPConnection,
     HTTPException,
@@ -29,13 +30,14 @@ from io import BufferedReader, RawIOBase
 from socket import AI_NUMERICHOST, SOCK_STREAM, gaierror, getaddrinfo, socket
 from threading import Lock, Thread
 from time import monotonic
-from typing import IO, Any, Protocol, Self
+from typing import IO, Any, Protocol, Self, TypedDict
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import (
     HTTPHandler,
     HTTPRedirectHandler,
     HTTPSHandler,
+    OpenerDirector,
     ProxyHandler,
     Request,
     build_opener,
@@ -424,7 +426,7 @@ class _DeadlineHTTPConnection(HTTPConnection):
 
 
 def _tls_context() -> ssl.SSLContext:
-    """Return the TLS context every connection of this module uses.
+    """Return the TLS context of a connection given no `context`.
 
     `ssl.create_default_context` points the key log at `SSLKEYLOGFILE`
     when that is set, and opening the file is part of setting it, so
@@ -452,17 +454,34 @@ def _tls_context() -> ssl.SSLContext:
     return context
 
 
+def _assert_valid_context(context: ssl.SSLContext | None) -> None:
+    """Refuse a `context` that is not an `ssl.SSLContext`.
+
+    One that is goes to the connection as it is, whatever it verifies:
+    SECURITY.md's *Limitations, not vulnerabilities* says what that means.
+    """
+    if context is not None and not isinstance(context, ssl.SSLContext):
+        # unreachable under the annotation, which is not a promise a
+        # caller that skips type checking keeps
+        err_msg = f"non-SSLContext context, but a {type(context).__name__}"  # type: ignore[unreachable]
+        raise BtcRpcTypeError(err_msg)
+
+
 class _DeadlineHTTPSConnection(_DeadlineHTTPConnection, HTTPSConnection):
     """The same, over TLS: the handshake is `_connect`'s, the rest is ours.
 
-    The context is `_tls_context`'s, built for each connection, and none
-    passed in is used. A caller who wants other trust, or a key log, passes
-    a `transport` of its own.
+    The context is the one given, and `_tls_context`'s, built for this
+    connection, where it is `None`. `http.client` changes nothing in a
+    context it is given.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        kwargs["context"] = _tls_context()
-        super().__init__(*args, **kwargs)
+    # a default, though every caller here passes `context`: urllib's
+    # `do_open` takes the class against a constructor that has no `context`
+    def __init__(
+        self, *args: Any, context: ssl.SSLContext | None = None, **kwargs: Any
+    ) -> None:
+        given = _tls_context() if context is None else context
+        super().__init__(*args, context=given, **kwargs)
 
 
 class _DeadlineHTTPHandler(HTTPHandler):
@@ -478,27 +497,30 @@ class _DeadlineHTTPHandler(HTTPHandler):
 class _DeadlineHTTPSHandler(HTTPSHandler):
     """urllib's `https` handler, opening a `_DeadlineHTTPSConnection`.
 
-    Given a context that is never used rather than none: with none,
-    `HTTPSHandler` builds `http.client`'s default context, which opens the
-    file `SSLKEYLOGFILE` names when `_OPENER` is built, at import. The
-    connection builds the one it uses.
+    Its connections use `context`, `_tls_context`'s where it is `None`.
+    urllib is given a context that is never used rather than none: with
+    none, `HTTPSHandler` builds `http.client`'s default context, which
+    opens the file `SSLKEYLOGFILE` names whenever `_opener` builds an
+    opener, `_OPENER` at import included.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, context: ssl.SSLContext | None) -> None:
         super().__init__(context=ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT))
+        self._given = context
 
     def do_open(  # type: ignore[explicit-override]
         self, http_class: Any, req: Request, **http_conn_args: Any
     ) -> Any:
         """Open `req` over a connection held to its deadline."""
-        http_conn_args.pop("context", None)
+        http_conn_args["context"] = self._given
         return super().do_open(_DeadlineHTTPSConnection, req, **http_conn_args)
 
 
-# The one opener this module does its I/O with, and what it is missing is
-# the point: urllib's default `HTTPRedirectHandler`, which follows a 30x
-# before any of this module sees a response. Three things it does that no
-# caller asked for, read off CPython's urllib/request.py:
+# The openers this module does its I/O with, every one `_opener`'s, and
+# what they are missing is the point: urllib's default
+# `HTTPRedirectHandler`, which follows a 30x before any of this module
+# sees a response. Three things it does that no caller asked for, read
+# off CPython's urllib/request.py:
 #
 # - `redirect_request` copies every request header except `content-length`
 #   and `content-type`, so an `Authorization` built for a node reaches
@@ -541,10 +563,21 @@ class _DeadlineHTTPSHandler(HTTPSHandler):
 #
 # The two handlers after those are urllib's own for `http` and `https`,
 # replacing the defaults of their classes the same way, and opening the
-# connections above that hold the exchange to its deadline
-_OPENER = build_opener(
-    _NoRedirect, ProxyHandler({}), _DeadlineHTTPHandler, _DeadlineHTTPSHandler
-)
+# connections above that hold the exchange to its deadline.
+#
+# `_OPENER` is the opener of a call given no `context`, built once; a call
+# given one is opened by an opener `_opener` builds for it
+def _opener(context: ssl.SSLContext | None) -> OpenerDirector:
+    """Return the opener whose `https` connections use `context`."""
+    return build_opener(
+        _NoRedirect,
+        ProxyHandler({}),
+        _DeadlineHTTPHandler,
+        _DeadlineHTTPSHandler(context),
+    )
+
+
+_OPENER = _opener(None)
 
 
 # The largest timeout every supported platform honours: 2**31 - 1
@@ -786,6 +819,7 @@ def urlopen_transport(
     timeout: float,
     *,
     max_body_size: int = DEFAULT_MAX_BODY_SIZE,
+    context: ssl.SSLContext | None = None,
 ) -> tuple[int, bytes]:
     """Perform the request with urllib, reading a bounded response.
 
@@ -801,8 +835,8 @@ def urlopen_transport(
     already read, so all `http_request` can do for those is refuse to pass
     an oversized body on.
 
-    No redirect is followed: `_OPENER` above says why, and what a 30x
-    arrives as is the `HTTPError` any other non-2xx status does.
+    No redirect is followed: the comment above `_opener` says why, and
+    what a 30x arrives as is the `HTTPError` any other non-2xx status does.
 
     `timeout` bounds the exchange and not each socket operation: the
     connection urllib builds for the request takes its deadline from it
@@ -810,26 +844,66 @@ def urlopen_transport(
     of that -- so a peer that drips headers or a body one octet at a time
     cannot hold this call open past it.
 
-    The scheme, the timeout and the limit are checked here and not only
-    where `http_request` already checks them, for the reason that function
-    gives for its own copy: this one is public too, and it takes a
-    `Request` a caller built. `urlopen` speaks `file:` and `data:` as well,
-    so a request whose url came from configuration would otherwise make
-    this transport read the local disk and report the bytes as a node's
-    answer -- and an invalid control would be refused after the resource
-    was opened rather than instead of opening it.
+    `context` is the `ssl.SSLContext` of an `https` connection, a keyword
+    with a default for the same reason. `None` builds `_tls_context`'s,
+    and a context given is used as given: SECURITY.md's *Limitations, not
+    vulnerabilities* says what that decides. `partial(urlopen_transport,
+    context=...)` is how a client or `http_request` is given it, and they
+    still pass it `max_body_size` and stream over it, as they do for this
+    function: `_urlopen_keywords` says which partial that is.
+
+    The scheme, the timeout, the limit and the context are checked here
+    and not only where `http_request` already checks them, for the reason
+    that function gives for its own copy: this one is public too, and it
+    takes a `Request` a caller built. `urlopen` speaks `file:` and `data:`
+    as well, so a request whose url came from configuration would
+    otherwise make this transport read the local disk and report the
+    bytes as a node's answer -- and an invalid control would be refused
+    after the resource was opened rather than instead of opening it.
     """
     _assert_valid_timeout(timeout, "http timeout")
     _assert_valid_max_body_size(max_body_size)
+    _assert_valid_context(context)
     *_, where = _split_url(request.full_url)
 
     deadline = monotonic() + timeout
+    opener = _OPENER if context is None else _opener(context)
     # so what reaches the opener is http or https, whoever built the
     # request: `_split_url` above is what says so here, and a redirect
     # cannot introduce a second url
-    with _OPENER.open(request, timeout=timeout) as response:
+    with opener.open(request, timeout=timeout) as response:
         body = _read_bounded(response, max_body_size, where, deadline)
         return response.status, body
+
+
+class _UrlopenKeywords(TypedDict):
+    """The keywords `_urlopen_keywords` answers, beside `max_body_size`."""
+
+    context: ssl.SSLContext | None
+
+
+def _urlopen_keywords(transport: object) -> _UrlopenKeywords | None:
+    """Return the keywords `transport` calls `urlopen_transport` with.
+
+    `{"context": None}` for `urlopen_transport` itself, and `{"context":
+    context}` for `partial(urlopen_transport, context=context)` with no
+    positional argument and no other keyword. Anything else, another
+    partial of it included, is a transport of a caller's own, and answers
+    `None`: what it does with the two arguments it is handed is not this
+    module's to know. A subclass of `partial` is one too, since its
+    `__call__` may be its own, and this module would call
+    `urlopen_transport` in its place.
+    """
+    if transport is urlopen_transport:
+        return {"context": None}
+    if (
+        type(transport) is partial
+        and transport.func is urlopen_transport
+        and not transport.args
+        and transport.keywords.keys() == {"context"}
+    ):
+        return {"context": transport.keywords["context"]}
+    return None
 
 
 def http_request(
@@ -854,7 +928,7 @@ def http_request(
     explorer says what it could not find. Deciding what a status means is
     the backend's job, that being the layer that knows. A 30x is one of
     those statuses now rather than a second request: `urlopen_transport`
-    follows no redirect, and `_OPENER` says why.
+    follows no redirect, and the comment above `_opener` says why.
 
     `max_body_size` is what an *answer* may weigh, and the caller sets it
     from what it asked for: a tip height is a few octets and a raw
@@ -908,12 +982,13 @@ def http_request(
         # the limit reaches the read itself for the two transports of this
         # module, each taking it as a keyword beside the two arguments of an
         # `HttpTransport`: a caller's own has nowhere in those two to be told
-        # one. `urlopen_transport` by identity, there being one such
-        # function, and `SessionTransport` by type, it being a class a
-        # caller builds instances of
-        if transport is urlopen_transport:
+        # one. `urlopen_transport` by `_urlopen_keywords`, there being one
+        # such function and the partial giving it a context, and
+        # `SessionTransport` by type, it being a class a caller builds
+        # instances of
+        if (keywords := _urlopen_keywords(transport)) is not None:
             status, body = urlopen_transport(
-                request, timeout, max_body_size=max_body_size
+                request, timeout, max_body_size=max_body_size, **keywords
             )
         elif isinstance(transport, SessionTransport):
             status, body = transport(request, timeout, max_body_size=max_body_size)
@@ -1049,20 +1124,24 @@ class _Connection(Protocol):
 
 
 def _new_connection(
-    scheme: str, host: str, port: int, timeout: float
+    scheme: str,
+    host: str,
+    port: int,
+    timeout: float,
+    context: ssl.SSLContext | None,
 ) -> _DeadlineHTTPConnection:
     """Build the `http.client` connection `SessionTransport` defaults to.
 
-    `_DeadlineHTTPSConnection` for `https`, `_DeadlineHTTPConnection`
-    otherwise -- the same connections, split the same way by scheme, that
-    urllib's handlers open for `urlopen_transport`. `timeout` is what the
-    connection's first deadline is taken from; `SessionTransport` sets the
-    call's own over it before anything is sent.
+    `_DeadlineHTTPSConnection` for `https`, over `context`, and
+    `_DeadlineHTTPConnection` otherwise -- the same connections, split the
+    same way by scheme, that urllib's handlers open for
+    `urlopen_transport`. `timeout` is what the connection's first deadline
+    is taken from; `SessionTransport` sets the call's own over it before
+    anything is sent.
     """
-    connection_class = (
-        _DeadlineHTTPSConnection if scheme == "https" else _DeadlineHTTPConnection
-    )
-    return connection_class(host, port, timeout=timeout)
+    if scheme == "https":
+        return _DeadlineHTTPSConnection(host, port, timeout=timeout, context=context)
+    return _DeadlineHTTPConnection(host, port, timeout=timeout)
 
 
 def _is_reused_connection_dead(connection: _Connection) -> bool:
@@ -1208,21 +1287,29 @@ class SessionTransport:
     process -- the pool a caller polling many nodes would want is closer
     to what `requests` or `httpx` already build.
 
+    `context` is the `ssl.SSLContext` of every `https` connection, as it
+    is for `urlopen_transport`, whose docstring says what a context given
+    and `None` mean.
+
     No connection is opened by the constructor: one is asked for on the
     first call addressed to a given `(scheme, host, port)`.
     `connection_factory` is the seam a test replaces it with, taking the
-    scheme, the host, the port and the timeout and answering something
-    with `_Connection`'s interface -- a fake never opening a real socket,
-    `_new_connection` above doing exactly that for everything else.
+    scheme, the host, the port, the timeout and `context` and answering
+    something with `_Connection`'s interface -- a fake never opening a
+    real socket, `_new_connection` above doing exactly that for everything
+    else.
     """
 
     def __init__(
         self,
         *,
+        context: ssl.SSLContext | None = None,
         connection_factory: Callable[
-            [str, str, int, float], _Connection
+            [str, str, int, float, ssl.SSLContext | None], _Connection
         ] = _new_connection,
     ) -> None:
+        _assert_valid_context(context)
+        self._context = context
         self._connection_factory = connection_factory
         self._connections: dict[tuple[str, str, int], _Connection] = {}
         self._lock = Lock()
@@ -1272,7 +1359,9 @@ class SessionTransport:
             connection = None
             reused = False
         if connection is None:
-            connection = self._connection_factory(*key, _time_left(deadline, url))
+            connection = self._connection_factory(
+                *key, _time_left(deadline, url), self._context
+            )
         else:
             # what a connection that reads no `deadline` is held to instead,
             # one socket operation at a time
@@ -1288,7 +1377,9 @@ class SessionTransport:
                 if not reused:
                     raise
                 connection.close()
-                connection = self._connection_factory(*key, _time_left(deadline, url))
+                connection = self._connection_factory(
+                    *key, _time_left(deadline, url), self._context
+                )
                 connection.deadline = deadline
                 connection.request(method, path, body=body, headers=headers)
             response = connection.getresponse()
@@ -1427,35 +1518,39 @@ def _post_stream(
     data: bytes,
     headers: Mapping[str, str],
     timeout: float,
+    context: ssl.SSLContext | None,
 ) -> Iterator[tuple[int, Callable[[int], bytes]]]:
     """POST `data` to `url`, and yield the status and a reader of the reply.
 
-    What `BitcoinCoreRpcClient.call_stream` reads a reply through over the
-    default transport, where `urlopen_transport` would read the body whole.
-    `read(n)` answers at most `n` octets, and at most `_READ_CHUNK`, with
-    one receive per call and `b""` at the end of the body. Nothing of the
-    body is held here, so what bounds the memory a reply takes is what the
-    caller keeps of it. The connection closes when the context ends.
+    What `BitcoinCoreRpcClient.call_stream` reads a reply through over
+    `urlopen_transport`, which would read the body whole, `context` being
+    the one that transport is given (`_urlopen_keywords`). `read(n)`
+    answers at most `n` octets, and at most `_READ_CHUNK`, with one
+    receive per call and `b""` at the end of the body. Nothing of the body
+    is held here, so what bounds the memory a reply takes is what the
+    caller keeps of it. The connection closes when the `with` block ends.
 
     The connection is `_new_connection`'s, the one `SessionTransport`
-    opens: no proxy, no redirect, TLS verified by `_tls_context`, and
-    `timeout` one deadline over the whole exchange, every lookup, connect,
-    send and receive given what is left of it. The time the caller spends
-    between two reads counts against it too. `Connection: close` is sent,
-    as urllib sends it for `urlopen_transport`.
+    opens: no proxy, no redirect, TLS over `context` as
+    `urlopen_transport` says, and `timeout` one deadline over the whole
+    exchange, every lookup, connect, send and receive given what is left
+    of it. The time the caller spends between two reads counts against it
+    too. `Connection: close` is sent, as urllib sends it for
+    `urlopen_transport`.
 
     Everything below the status is a `FetchError`, as for `http_request`;
     the status is the caller's to read, and so is the body under it.
     """
     _assert_valid_timeout(timeout, "http timeout")
     _assert_valid_headers(headers)
+    _assert_valid_context(context)
     scheme, host, port, where = _split_url(url)
     # the client refuses a url with a query or a fragment, so the path is
     # the whole of what `http.client` puts on the request line
     path = urlsplit(url).path or "/"
     deadline = monotonic() + timeout
     connection = _new_connection(
-        scheme, host, port or (443 if scheme == "https" else 80), timeout
+        scheme, host, port or (443 if scheme == "https" else 80), timeout, context
     )
     connection.deadline = deadline
     with closing(connection):

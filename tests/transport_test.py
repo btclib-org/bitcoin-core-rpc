@@ -13,6 +13,7 @@ asked.
 from __future__ import annotations
 
 import gc
+import json
 import math
 import os
 import select
@@ -24,6 +25,7 @@ import warnings
 from array import array
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
+from functools import partial
 from http.client import (
     BadStatusLine,
     HTTPConnection,
@@ -55,6 +57,7 @@ from urllib.response import addinfourl
 import pytest
 from typing_extensions import override
 
+from bitcoin_core_rpc import BitcoinCoreRpcClient, JsonStream
 from bitcoin_core_rpc import transport as transport_module
 from bitcoin_core_rpc.errors import BtcRpcTypeError, BtcRpcValueError, FetchError
 from bitcoin_core_rpc.transport import (
@@ -64,6 +67,7 @@ from bitcoin_core_rpc.transport import (
     MAX_ERROR_BODY_SIZE,
     SessionTransport,
     _read_bounded,
+    _urlopen_keywords,
     http_request,
     urlopen_transport,
 )
@@ -71,6 +75,7 @@ from bitcoin_core_rpc.transport import (
 from . import (
     LOGIN,
     RPC_PASSWORD,
+    RPC_USER,
     SECRET,
     URLS_WITH_A_LOGIN_TYPO,
     Recorded,
@@ -971,7 +976,19 @@ def test_an_http_error_is_a_status_and_a_body_not_an_exception() -> None:
         )
 
 
-def test_the_opener_does_not_follow_a_redirect() -> None:
+# `_OPENER`, and an opener `_opener` builds for a call given a context
+OPENERS = pytest.mark.parametrize(
+    "opener",
+    [
+        transport_module._OPENER,
+        transport_module._opener(ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)),
+    ],
+    ids=["_OPENER", "given a context"],
+)
+
+
+@OPENERS
+def test_the_opener_does_not_follow_a_redirect(opener: OpenerDirector) -> None:
     """One redirect handler is installed, and it is the one that refuses.
 
     The direct claim behind the exchange the next test measures, and worth
@@ -982,7 +999,7 @@ def test_the_opener_does_not_follow_a_redirect() -> None:
     # getattr with a default because typeshed does not declare `handlers`
     # on OpenerDirector: the attribute is what add_handler appends to, and
     # a plain access would be an attr-defined error rather than a test
-    handlers = getattr(transport_module._OPENER, "handlers", [])
+    handlers = getattr(opener, "handlers", [])
     redirect_handlers = [
         handler for handler in handlers if isinstance(handler, HTTPRedirectHandler)
     ]
@@ -990,9 +1007,10 @@ def test_the_opener_does_not_follow_a_redirect() -> None:
     assert isinstance(redirect_handlers[0], transport_module._NoRedirect)
 
 
+@pytest.mark.parametrize("given", [False, True], ids=["no context", "a context"])
 @pytest.mark.parametrize("variable", ["http_proxy", "HTTPS_PROXY"])
 def test_no_proxy_is_taken_from_the_environment(
-    variable: str, monkeypatch: pytest.MonkeyPatch
+    variable: str, given: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A variable set for a browser does not get the rpc credential.
 
@@ -1013,6 +1031,9 @@ def test_no_proxy_is_taken_from_the_environment(
     Measured against what the default opener does with the same
     environment, which is the other half of the claim: a handler that
     would have proxied is there, and in this module's opener it is not.
+    Both openers are built after the variable is set, since a
+    `ProxyHandler` reads the environment when it is built: one built at
+    import, as `_OPENER` is, would pass whatever `_opener` installs.
 
     These two variables and not `ALL_PROXY`, which is the case that looks
     like a wildcard and is not one: `getproxies_environment` maps it to
@@ -1028,7 +1049,8 @@ def test_no_proxy_is_taken_from_the_environment(
     default = getattr(build_opener(), "handlers", [])
     assert [h for h in default if isinstance(h, ProxyHandler)]
 
-    handlers = getattr(transport_module._OPENER, "handlers", [])
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT) if given else None
+    handlers = getattr(transport_module._opener(context), "handlers", [])
     assert not [h for h in handlers if isinstance(h, ProxyHandler)]
 
 
@@ -1376,7 +1398,7 @@ class FakeConnection:
 
 def _connection_factory(
     *connections: FakeConnection,
-) -> Callable[[str, str, int, float], FakeConnection]:
+) -> Callable[[str, str, int, float, ssl.SSLContext | None], FakeConnection]:
     """Return a `connection_factory` answering each of `connections` once.
 
     One call for a key never seen before asks for one; a stale-connection
@@ -1387,7 +1409,13 @@ def _connection_factory(
     """
     remaining = list(connections)
 
-    def factory(scheme: str, host: str, port: int, timeout: float) -> FakeConnection:
+    def factory(
+        scheme: str,
+        host: str,
+        port: int,
+        timeout: float,
+        context: ssl.SSLContext | None,
+    ) -> FakeConnection:
         connection = remaining.pop(0)
         connection.timeout = timeout
         return connection
@@ -1601,7 +1629,13 @@ def test_the_reconnect_is_given_what_is_left_of_the_deadline(
     connections = iter((stale, fresh))
     seen_timeouts: list[float] = []
 
-    def factory(scheme: str, host: str, port: int, timeout: float) -> FakeConnection:
+    def factory(
+        scheme: str,
+        host: str,
+        port: int,
+        timeout: float,
+        context: ssl.SSLContext | None,
+    ) -> FakeConnection:
         seen_timeouts.append(timeout)
         return next(connections)
 
@@ -1754,7 +1788,13 @@ def test_a_fresh_connect_failure_does_not_poison_the_pool() -> None:
     """
     node_is_up = False
 
-    def factory(scheme: str, host: str, port: int, timeout: float) -> FakeConnection:
+    def factory(
+        scheme: str,
+        host: str,
+        port: int,
+        timeout: float,
+        context: ssl.SSLContext | None,
+    ) -> FakeConnection:
         if not node_is_up:
             return FakeConnection(_RequestFails(ConnectionRefusedError("refused")))
         return FakeConnection(FakeResponse(200, b"{}"))
@@ -2194,12 +2234,12 @@ def test_an_error_names_the_host_and_not_the_rest_of_the_url() -> None:
 
 
 def test_nothing_this_package_loads_opens_the_tls_key_log(tmp_path: Path) -> None:
-    """A fresh process: the opener is built once, at import."""
+    """A fresh process: `_OPENER` is built once, at import."""
     key_log = tmp_path / "keys.log"
     code = (
         "from bitcoin_core_rpc import BitcoinCoreRpcClient\n"
         "from bitcoin_core_rpc import transport\n"
-        "transport._new_connection('https', 'localhost', 443, 5.0)\n"
+        "transport._new_connection('https', 'localhost', 443, 5.0, None)\n"
         "transport.SessionTransport()\n"
         "BitcoinCoreRpcClient('https://localhost:8332', user='u', password='p')\n"
     )
@@ -2211,12 +2251,16 @@ def test_nothing_this_package_loads_opens_the_tls_key_log(tmp_path: Path) -> Non
 def test_the_tls_key_log_is_off_whatever_the_environment_says(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """`SSLKEYLOGFILE` reaches no connection this module builds.
+    """`SSLKEYLOGFILE` reaches no connection built with `context=None`.
 
     Setting `keylog_filename` creates the file, so the control, a standard
     library connection, shows the variable is honoured and what that
     leaves behind. The control's file stays open: Windows refuses to
     remove it.
+
+    A context the caller gives keeps whatever key log it was built with,
+    `ssl.create_default_context`'s included, which is the caller's choice:
+    SECURITY.md's *Limitations, not vulnerabilities* says so.
     """
     monkeypatch.setenv("SSLKEYLOGFILE", str(tmp_path / "control.log"))
     control = HTTPSConnection("127.0.0.1", 443)
@@ -2225,11 +2269,17 @@ def test_the_tls_key_log_is_off_whatever_the_environment_says(
 
     key_log = tmp_path / "keys.log"
     monkeypatch.setenv("SSLKEYLOGFILE", str(key_log))
-    direct = transport_module._DeadlineHTTPSConnection("127.0.0.1", 443, timeout=5.0)
-    session = transport_module._new_connection("https", "127.0.0.1", 443, 5.0)
+    direct = transport_module._DeadlineHTTPSConnection(
+        "127.0.0.1", 443, timeout=5.0, context=None
+    )
+    session = transport_module._new_connection("https", "127.0.0.1", 443, 5.0, None)
     for connection in (direct, session):
         assert connection._context.keylog_filename is None  # type: ignore[attr-defined]
     assert not key_log.exists()
+
+    given = ssl.create_default_context()
+    kept = transport_module._new_connection("https", "127.0.0.1", 443, 5.0, given)
+    assert kept._context.keylog_filename == str(key_log)  # type: ignore[attr-defined]
 
 
 def test_the_tls_context_is_looked_up_when_a_connection_is_built(
@@ -2249,7 +2299,7 @@ def test_the_tls_context_is_looked_up_when_a_connection_is_built(
     stand_in = SimpleNamespace(**{**vars(ssl), "SSLContext": installed})
     monkeypatch.setattr(transport_module, "ssl", stand_in)
     transport_module._tls_context()
-    transport_module._new_connection("https", "127.0.0.1", 443, 5.0)
+    transport_module._new_connection("https", "127.0.0.1", 443, 5.0, None)
     assert built == [ssl.PROTOCOL_TLS_CLIENT] * 2
 
 
@@ -2262,7 +2312,7 @@ def test_a_replaced_default_https_context_is_not_consulted(
         "_create_default_https_context",
         ssl._create_unverified_context,  # ruff: ignore[S323]
     )
-    connection = transport_module._new_connection("https", "127.0.0.1", 443, 5.0)
+    connection = transport_module._new_connection("https", "127.0.0.1", 443, 5.0, None)
     assert connection._context.verify_mode == ssl.CERT_REQUIRED  # type: ignore[attr-defined]
     # the handler's own, unused context is not what a request goes over
     opened: list[object] = []
@@ -2273,7 +2323,7 @@ def test_a_replaced_default_https_context_is_not_consulted(
             opened.append(self._context)  # type: ignore[attr-defined]
 
     monkeypatch.setattr(transport_module, "_DeadlineHTTPSConnection", Spy)
-    handler = transport_module._DeadlineHTTPSHandler()
+    handler = transport_module._DeadlineHTTPSHandler(None)
     unverified = ssl._create_unverified_context()  # ruff: ignore[S323]
     request = Request("https://127.0.0.1:1/")
     request.timeout = 0.5  # what the opener sets
@@ -2307,11 +2357,11 @@ def test_the_default_connection_factory_picks_the_class_by_scheme() -> None:
     lazily, on the first `request()`, which this never calls -- so this
     stays as hermetic as the rest of the suite.
     """
-    plain = transport_module._new_connection("http", "127.0.0.1", 8332, 5.0)
+    plain = transport_module._new_connection("http", "127.0.0.1", 8332, 5.0, None)
     assert type(plain) is transport_module._DeadlineHTTPConnection
     assert isinstance(plain, HTTPConnection)
 
-    secure = transport_module._new_connection("https", "127.0.0.1", 443, 5.0)
+    secure = transport_module._new_connection("https", "127.0.0.1", 443, 5.0, None)
     assert type(secure) is transport_module._DeadlineHTTPSConnection
     assert isinstance(secure, HTTPSConnection)
 
@@ -2780,3 +2830,214 @@ def test_a_refused_answer_leaves_no_socket_to_the_collector(head: bytes) -> None
         gc.enable()
 
     assert not [str(w.message) for w in caught if w.category is ResourceWarning]
+
+
+# --- The TLS context a caller gives ---
+
+# the test authority, its server certificate for 127.0.0.1 and that
+# certificate's key: `tests/_tls/README.md` says how they were made
+TLS = Path(__file__).parent / "_tls"
+# an https url nothing listens on, for a refusal made before any connect
+TLS_URL = "https://127.0.0.1:1/"
+
+
+def _trusting() -> ssl.SSLContext:
+    """Return a context trusting the test authority, both checks on."""
+    return ssl.create_default_context(cafile=TLS / "ca.pem")
+
+
+def _tls_serve(
+    answer: Callable[[bytes], bytes],
+) -> Callable[[socket.socket, Event], None]:
+    """Return a `_peer` server answering one request over TLS.
+
+    The certificate is the test authority's, which no default context
+    trusts: a client that refuses it ends the handshake, and `_peer`
+    suppresses the `ssl.SSLError` that raises here. `answer` is given the
+    request's body and returns the body of a 200.
+    """
+
+    def serve(connection: socket.socket, done: Event) -> None:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        # the default already, written out because CodeQL's
+        # py/insecure-protocol does not read the default
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.load_cert_chain(TLS / "server.pem", TLS / "server.key")
+        with (
+            context.wrap_socket(connection, server_side=True) as tls,
+            tls.makefile("rb") as stream,
+        ):
+            length = 0
+            while (line := stream.readline()) not in {b"\r\n", b""}:
+                name, _, value = line.partition(b":")
+                if name.lower() == b"content-length":
+                    length = int(value)
+            body = answer(stream.read(length))
+            head = f"HTTP/1.1 200 OK\r\nContent-Length: {len(body)}\r\n"
+            tls.sendall(head.encode() + b"Connection: close\r\n\r\n" + body)
+
+    return serve
+
+
+def _https(url: str) -> str:
+    """Return the https url of a `_peer` serving TLS."""
+    return url.replace("http://", "https://", 1)
+
+
+@pytest.mark.parametrize(
+    ("default", "given"),
+    [
+        (lambda: urlopen_transport, lambda c: partial(urlopen_transport, context=c)),
+        (SessionTransport, lambda c: SessionTransport(context=c)),
+    ],
+    ids=["urlopen_transport", "SessionTransport"],
+)
+def test_a_given_context_reaches_a_server_the_default_refuses(
+    default: Callable[[], Any], given: Callable[[ssl.SSLContext], Any]
+) -> None:
+    """The issue's *Done when*: only the given context trusts the server."""
+    serve = _tls_serve(lambda _: b"{}")
+    with _peer(serve) as url:
+        assert http_request(_https(url), transport=given(_trusting())) == (200, b"{}")
+    with (
+        _peer(serve) as url,
+        pytest.raises(FetchError, match="(?i)certificate verify failed"),
+    ):
+        http_request(_https(url), transport=default())
+
+
+def test_a_given_context_still_reads_to_the_callers_limit() -> None:
+    """The partial giving a context is passed `max_body_size`.
+
+    A transport of a caller's own is not: it reads to its own default,
+    `DEFAULT_MAX_BODY_SIZE`, and refuses this body naming that limit.
+    """
+    body = b"a" * (DEFAULT_MAX_BODY_SIZE + 1)
+    transport = partial(urlopen_transport, context=_trusting())
+    with _peer(_tls_serve(lambda _: body)) as url:
+        answered = http_request(
+            _https(url), max_body_size=len(body), transport=transport
+        )
+    assert answered == (200, body)
+
+
+def _count(walked: JsonStream) -> int:
+    """Return how many elements an array has, each skipped."""
+    elements = 0
+    for _ in walked.items():
+        walked.skip()
+        elements += 1
+    return elements
+
+
+def test_call_stream_streams_over_a_given_context() -> None:
+    """The reply is read as a stream, so `max_body_size` does not bound it.
+
+    Read whole, as over a transport of a caller's own, it is refused.
+    """
+
+    def answer(request: bytes) -> bytes:
+        reply = {
+            "jsonrpc": "2.0",
+            "result": ["ab"] * 1000,
+            "id": json.loads(request)["id"],
+        }
+        return json.dumps(reply).encode()
+
+    transport = partial(urlopen_transport, context=_trusting())
+    with _peer(_tls_serve(answer)) as url:
+        client = BitcoinCoreRpcClient(
+            _https(url), user=RPC_USER, password=RPC_PASSWORD, transport=transport
+        )
+        assert client.call_stream("m", None, _count, max_body_size=100) == 1000
+
+
+def test_a_given_context_is_used_as_given() -> None:
+    """One that verifies nothing reaches the server: SECURITY.md says why."""
+    unverified = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    unverified.check_hostname = False
+    unverified.verify_mode = ssl.CERT_NONE
+    transport = partial(urlopen_transport, context=unverified)
+    with _peer(_tls_serve(lambda _: b"{}")) as url:
+        assert http_request(_https(url), transport=transport) == (200, b"{}")
+
+
+@pytest.mark.parametrize(
+    "entry", ["urlopen_transport", "http_request", "SessionTransport", "call_stream"]
+)
+def test_a_context_that_is_no_ssl_context_is_refused(entry: str) -> None:
+    """Refused before anything connects, by each way in."""
+    context = cast(ssl.SSLContext, str(TLS / "ca.pem"))
+    transport = partial(urlopen_transport, context=context)
+    refused: dict[str, Callable[[], object]] = {
+        "urlopen_transport": lambda: urlopen_transport(
+            Request(TLS_URL), DEFAULT_TIMEOUT, context=context
+        ),
+        "http_request": lambda: http_request(TLS_URL, transport=transport),
+        "SessionTransport": lambda: SessionTransport(context=context),
+        "call_stream": lambda: BitcoinCoreRpcClient(
+            TLS_URL, user=RPC_USER, password=RPC_PASSWORD, transport=transport
+        ).call_stream("m", None, _count),
+    }
+    with pytest.raises(BtcRpcTypeError, match="^non-SSLContext context, but a str$"):
+        refused[entry]()
+
+
+class _OwnPartial(partial[tuple[int, bytes]]):
+    """A subclass of `partial`, whose `__call__` a caller may override."""
+
+
+def test_only_the_partial_giving_a_context_is_urlopen_transport() -> None:
+    """Any other partial is a transport of a caller's own, a subclass too."""
+    context = _trusting()
+    assert _urlopen_keywords(urlopen_transport) == {"context": None}
+    given = partial(urlopen_transport, context=context)
+    assert _urlopen_keywords(given) == {"context": context}
+    foreign = [
+        partial(urlopen_transport),
+        partial(urlopen_transport, Request(URL)),
+        partial(urlopen_transport, max_body_size=1),
+        partial(urlopen_transport, context=context, max_body_size=1),
+        partial(dict, context=context),
+        _OwnPartial(urlopen_transport, context=context),
+        SessionTransport(),
+    ]
+    assert all(_urlopen_keywords(transport) is None for transport in foreign)
+
+
+def test_a_given_context_follows_no_redirect() -> None:
+    """End to end, through the opener a call given a context is opened by.
+
+    Followed, the 302 would be a second request to a host that does not
+    resolve, and a `FetchError` rather than the status.
+    """
+
+    def serve(connection: socket.socket, done: Event) -> None:
+        connection.recv(65536)
+        head = f"HTTP/1.1 302 Found\r\nLocation: {REDIRECT_URL}\r\n"
+        connection.sendall(head.encode() + b"Content-Length: 0\r\n\r\n")
+
+    transport = partial(urlopen_transport, context=_trusting())
+    with _peer(serve) as url:
+        assert http_request(url, timeout=5.0, transport=transport) == (302, b"")
+
+
+def test_a_given_context_takes_no_proxy_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End to end: a proxy `http_proxy` names on loopback receives nothing.
+
+    The url names a port nothing listens on, so the call fails either way;
+    what tells the two apart is whether the proxy's listening socket holds
+    a connection. `no_proxy` is cleared, since it could exempt the host.
+    """
+    with socket.create_server(("127.0.0.1", 0)) as proxy:
+        monkeypatch.setenv("http_proxy", f"http://127.0.0.1:{proxy.getsockname()[1]}")
+        for variable in ("no_proxy", "NO_PROXY"):
+            monkeypatch.delenv(variable, raising=False)
+        transport = partial(urlopen_transport, context=_trusting())
+        with pytest.raises(FetchError):
+            http_request("http://127.0.0.1:1/", timeout=2.0, transport=transport)
+        proxy.setblocking(False)
+        with pytest.raises(BlockingIOError):
+            proxy.accept()

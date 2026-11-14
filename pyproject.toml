@@ -225,6 +225,17 @@ test = [
     # import ecc.ecc, which the latest ecc does not have
     "btclib>=2026.11.10",
     "coverage>=7.16.0",
+    # what tests/_tls/generate.py writes the TLS fixtures with, and what
+    # tests/tls_generate_test.py reads them back with. 42.0.0 is the first
+    # release with the `not_valid_before_utc` that test reads. Windows on
+    # Arm is left out: building the sdist on Windows needs `OPENSSL_DIR`
+    # pointing at an OpenSSL installation, which os-windows.yml's suite job
+    # does not set. The marker stays while
+    # `grep 'cryptography-.*win_arm64' uv.lock` lists no wheel for it. The
+    # grep can list one only because uv keeps in the lock the wheels this
+    # marker excludes, where it drops those a bare `sys_platform` marker
+    # excludes. The test skips itself where the package is absent
+    "cryptography>=42.0.0; sys_platform != 'win32' or platform_machine != 'ARM64'",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-randomly>=5.0.0",
