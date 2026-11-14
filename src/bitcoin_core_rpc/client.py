@@ -120,6 +120,11 @@ _MAX_PARAMS_DEPTH = 100
 # characters is shown, even when it is a misplaced secret
 _MAX_KEY_SHOWN = 16
 
+# a status is three digits: a transport of the caller's own answering
+# anything else is not repeated, `_http_error` says why
+_MIN_STATUS = 100
+_MAX_STATUS = 999
+
 
 USER_AGENT = "bitcoin-core-rpc"
 """What `call` sends as `User-Agent`, and a transport of a caller's own can.
@@ -369,13 +374,16 @@ def _request_json(value: Any) -> str:
     This reads the caller's objects a second time, after
     `_assert_json_params` has read them, and they are free to have changed
     in between: a name that stopped being a string is refused again here,
-    a number that stopped being finite is a ValueError -- `allow_nan=False`
-    for a float, `_decimal_json` for a Decimal -- and a container that came
-    to contain itself is a RecursionError, which the caller maps with the
-    ValueError.
+    a float that stopped being finite is the ValueError of
+    `allow_nan=False`, and a container that came to contain itself is a
+    RecursionError, which `_encoded` names by type. A Decimal that is not
+    finite or is past the digit limit, and an int past it, are refused by
+    `_decimal_json` and `_int_json`, which say what they refused.
     """
     if isinstance(value, Decimal):
         return _decimal_json(value)
+    if isinstance(value, int):
+        return _int_json(value)
     if isinstance(value, dict):
         members = []
         for name, item in value.items():
@@ -412,13 +420,28 @@ def _decimal_json(number: Decimal) -> str:
     """
     if not number.is_finite():
         # not quoted, for the reason `_json_scalar` gives
-        raise ValueError("not a json number: a Decimal")
+        raise BtcRpcValueError("not a json number: a Decimal")
     limit = get_int_max_str_digits()
     if limit and abs(number.adjusted()) > limit:
         err_msg = "a Decimal whose exponent writes more digits than"
         err_msg += f" sys.get_int_max_str_digits allows ({limit})"
-        raise ValueError(err_msg)
+        raise BtcRpcValueError(err_msg)
     return format(number, "f")
+
+
+def _int_json(number: int) -> str:
+    """Return an int as the json number it is, refusing one past the limit.
+
+    `sys.get_int_max_str_digits` is the limit, as for `_decimal_json`. The
+    interpreter's own `ValueError` counts the digits, and is refused below,
+    outside the `except`, with the limit alone.
+    """
+    try:
+        return json.dumps(number)
+    except ValueError:
+        limit = get_int_max_str_digits()
+    err_msg = "an int of more digits than sys.get_int_max_str_digits"
+    raise BtcRpcValueError(f"{err_msg} allows ({limit})")
 
 
 def _json_number(token: str) -> Decimal:
@@ -467,8 +490,17 @@ def _refuse_constant(name: str) -> Any:
     raise FetchError("not a json number in the reply: NaN or an infinity")
 
 
-def _http_error(where: str, status: int) -> HttpError:
-    """Turn a status that is itself the failure into the exception for it."""
+def _http_error(where: str, status: int) -> FetchError:
+    """Turn a status that is itself the failure into the exception for it.
+
+    A status is three digits, as `http.client` reads one. A transport of
+    the caller's own can answer anything, and a value outside 100 to 999
+    is no status: it is named by its type, and not written, as
+    `_is_rpc_code` bounds the code an error object may carry.
+    """
+    if not _is_http_status(status):
+        err_msg = f"{where}: a status out of the HTTP range, a"
+        return FetchError(f"{err_msg} {type(status).__name__}")
     if status == 401:
         message = f"{where}: HTTP 401, the node refused the credentials"
         return HttpError(message, status)
@@ -506,6 +538,11 @@ def _rpc_error(where: str, error: Any) -> FetchError:
         err_msg += " and a string message"
         return FetchError(err_msg)
     return RpcError(f"{where}: the node answered an error", code)
+
+
+def _is_http_status(status: Any) -> bool:
+    """Say whether a value is an integer of three digits, as a status is."""
+    return _is_integer(status) and _MIN_STATUS <= status <= _MAX_STATUS
 
 
 def _is_rpc_code(code: Any) -> bool:
@@ -550,6 +587,9 @@ def _encoded(request: Any) -> bytes:
     """
     try:
         return _request_json(request).encode()
+    except BtcRpcValueError:
+        # the package's own refusal, which says what it refused
+        raise
     except (ValueError, RecursionError) as e:
         failure = _failure_name(e)
     raise BtcRpcValueError(f"rpc params json cannot carry: {failure}")

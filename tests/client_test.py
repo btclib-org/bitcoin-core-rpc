@@ -1311,6 +1311,17 @@ def test_a_non_finite_decimal_is_not_a_json_number(number: str) -> None:
     assert recording(endpoint).requests == []
 
 
+# the package's own refusals of a number past the digit limit: the limit is
+# named, and no digit of the number
+_DECIMAL_PAST_THE_LIMIT = (
+    r"^a Decimal whose exponent writes more digits than"
+    r" sys\.get_int_max_str_digits allows \([0-9]+\)$"
+)
+_INT_PAST_THE_LIMIT = (
+    r"^an int of more digits than sys\.get_int_max_str_digits allows \([0-9]+\)$"
+)
+
+
 @pytest.mark.parametrize("number", ["1E+5000", "1E-5000"])
 def test_a_decimal_too_long_to_write_positionally(number: str) -> None:
     """The exponent is held to the limit `json.dumps` holds an int's digits to.
@@ -1319,7 +1330,7 @@ def test_a_decimal_too_long_to_write_positionally(number: str) -> None:
     zeros after the digits for one and before them for the other.
     """
     endpoint = client()
-    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+    with pytest.raises(BtcRpcValueError, match=_DECIMAL_PAST_THE_LIMIT):
         endpoint.call("sendtoaddress", ["bc1qexample", Decimal(number)])
     assert recording(endpoint).requests == []
 
@@ -1872,6 +1883,25 @@ def test_a_real_legacy_rpc_error_still_outranks_its_status() -> None:
     assert not hasattr(exc.value, "status")
 
 
+@pytest.mark.parametrize("status", [99, 1000, -500, 2**255])
+def test_a_status_out_of_the_http_range_is_not_repeated(status: int) -> None:
+    """A transport of the caller's own can answer any int as a status."""
+    with pytest.raises(FetchError) as exc:
+        client((status, b"{}")).call("getblockcount")
+    assert type(exc.value) is FetchError
+    assert str(exc.value).endswith(": a status out of the HTTP range, a int")
+    assert str(abs(status)) not in str(exc.value)
+    assert exc.value.args == (str(exc.value),)
+
+
+@pytest.mark.parametrize("status", [100, 999])
+def test_a_status_at_either_end_of_the_range_is_shown(status: int) -> None:
+    """Three digits are a status, whatever the transport that answered."""
+    with pytest.raises(HttpError, match=f": HTTP {status}$") as exc:
+        client((status, b"{}")).call("getblockcount")
+    assert exc.value.status == status
+
+
 @pytest.mark.parametrize(
     "body",
     [
@@ -1900,7 +1930,7 @@ def test_a_number_too_long_for_this_interpreter_to_write() -> None:
     where it surfaces.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+    with pytest.raises(BtcRpcValueError, match=_INT_PAST_THE_LIMIT):
         endpoint.call("send", [10**5000])
 
 
@@ -1954,8 +1984,16 @@ def test_a_list_that_is_not_what_the_walk_saw(later: list[int]) -> None:
     assert shifting.reads == 2
 
 
-@pytest.mark.parametrize("spoiled", [float("nan"), Decimal("NaN")])
-def test_a_parameter_that_is_not_what_the_walk_saw(spoiled: object) -> None:
+@pytest.mark.parametrize(
+    ("spoiled", "refusal"),
+    [
+        (float("nan"), "^rpc params json cannot carry: ValueError$"),
+        (Decimal("NaN"), "^not a json number: a Decimal$"),
+    ],
+)
+def test_a_parameter_that_is_not_what_the_walk_saw(
+    spoiled: object, refusal: str
+) -> None:
     """The writer refuses a non-finite number the walk before it never saw.
 
     `params` accepts any `Mapping`, only the outermost one is copied by
@@ -1972,7 +2010,7 @@ def test_a_parameter_that_is_not_what_the_walk_saw(spoiled: object) -> None:
     """
     shifty = Shifty({"amount": 1.0}, {"amount": spoiled})
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+    with pytest.raises(BtcRpcValueError, match=refusal):
         endpoint.call("sendmany", [shifty])
 
     # the transport was never called: no request was recorded
@@ -2803,7 +2841,7 @@ def test_call_batch_bounds_the_sum_of_every_members_reply() -> None:
 def test_call_batch_a_number_too_long_for_this_interpreter_to_write() -> None:
     """The encoder's own refusal, on the way out, before anything is sent."""
     endpoint = client()
-    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+    with pytest.raises(BtcRpcValueError, match=_INT_PAST_THE_LIMIT):
         endpoint.call_batch([("send", [10**5000])])
     assert recording(endpoint).requests == []
 
@@ -2966,7 +3004,7 @@ def test_call_raw_bounds_the_reply_like_call() -> None:
 def test_call_raw_a_number_too_long_for_this_interpreter_to_write() -> None:
     """The encoder's own refusal, on the way out, before anything is sent."""
     endpoint = client()
-    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+    with pytest.raises(BtcRpcValueError, match=_INT_PAST_THE_LIMIT):
         endpoint.call_raw("send", [10**5000])
     assert recording(endpoint).requests == []
 

@@ -555,7 +555,7 @@ def test_an_unreadable_reply_is_not_quoted(
 
 @pytest.mark.parametrize("status", [200, 500])
 def test_a_reply_nested_too_deeply_is_not_quoted(status: int) -> None:
-    """The `RecursionError`, chained, names nothing of the reply it parsed."""
+    """The `RecursionError` names nothing of the reply it parsed."""
     body = b"[" * 200_000 + b'"' + KEY.encode() + b'"' + b"]" * 200_000
     refused(lambda: client((status, body)).call("dumpprivkey"))
 
@@ -565,7 +565,7 @@ def test_a_reply_nested_too_deeply_is_not_quoted(status: int) -> None:
 )
 @pytest.mark.parametrize("status", [200, 500])
 def test_an_integer_over_the_digit_limit_is_not_quoted(status: int) -> None:
-    """The parser's `ValueError`, chained, names the limit and no digit."""
+    """The parser's `ValueError` names the limit and no digit."""
     digits = str(KEY_INT) + "0" * sys.get_int_max_str_digits()
     body = b'{"result": ' + digits.encode() + b"}"
     refused(lambda: client((status, body)).call("dumpprivkey"))
@@ -953,6 +953,13 @@ def test_an_error_of_a_transport_of_the_callers_own_is_not_repeated(
     refused(lambda: client(error).call_batch([("getblockcount", None)]))
     refused(lambda: client(error).call_raw("getblockcount"))
     refused(lambda: rest(error).get_json(f"/tx/{KEY}.json"))
+
+
+def test_a_status_a_transport_of_the_callers_own_answers_is_not_repeated() -> None:
+    """A status past three digits is no status, and may be a key."""
+    refused(lambda: client((KEY_INT, b"{}")).call("getblockcount"))
+    refused(lambda: client((KEY_INT, b"{}")).call_batch([("getblockcount", None)]))
+    refused(lambda: rest((KEY_INT, b"{}")).get_json(f"/tx/{KEY}.json"))
 
 
 def test_an_errno_is_kept() -> None:

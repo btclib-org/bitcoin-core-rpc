@@ -47,8 +47,9 @@ That taxonomy has one consequence nothing announces. A refused connection
 reaches `AuthServiceProxy`'s caller as `ConnectionRefusedError`, an
 `OSError`; here `http_request` converts it, and `FetchError` derives from
 `RuntimeError`. An `except OSError` written for a node that is down
-therefore stops matching, and stops matching silently: the original is
-kept as `__cause__`, so the diagnosis survives and it is only the
+therefore stops matching, and stops matching silently: the diagnosis
+survives in the type and the errno the text names, as in `URLError
+(ConnectionRefusedError [errno 61])` on macOS, and it is only the
 `except` clause that is wrong. A path that falls back to some other
 service when the node does not answer needs both names — `FetchError`
 for this client, `OSError` for whatever in that path does its own I/O.

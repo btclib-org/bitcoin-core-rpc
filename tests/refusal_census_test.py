@@ -1117,8 +1117,7 @@ KEPT = {
         "the rpc error code the node sent, an integer of at most 32 bits"
     ),
     ("client.py", "_http_error", "status"): (
-        "the HTTP status: three digits from `http.client`, or what a transport"
-        " of the caller's own answers"
+        "the HTTP status, shown where `_is_http_status` finds it three digits"
     ),
     ("client.py", "_json_scalar", "value"): (
         "a float that is not finite: nan, inf or -inf"
