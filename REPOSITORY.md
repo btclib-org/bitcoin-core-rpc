@@ -466,15 +466,11 @@ and not only the convention CONTRIBUTING.md states:
 gh api repos/btclib-org/bitcoin-core-rpc \
   --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge,
          allow_auto_merge}'
-# {"allow_auto_merge":true,"allow_merge_commit":false,
+# {"allow_auto_merge":false,"allow_merge_commit":false,
 #  "allow_rebase_merge":false,"allow_squash_merge":true}
 ```
 
-`allow_auto_merge` is in that object because the landing described
-below rests on it rather than being a convenience beside it: off,
-auto-merge is not offered, every landing waits on somebody pressing
-*Squash and merge* at the moment the last check goes green, and nothing
-turns red.
+Auto-merge is off, [for the reason section 11 gives][s11-merge].
 
 The merge commit was refused by the required linear history above already,
 so turning it off takes away a button that could not have worked. The
@@ -483,12 +479,9 @@ branch's commits onto `main`, where the rule is one commit per landed
 change and the steps of a review belong to the pull request that carries
 them.
 
-What a single method buys is not the button on a pull request somebody is
-looking at. GitHub preselects whichever method was used last, and the
-dialog that switches auto-merge on carries the same dropdown — so the
-answer can be given hours before anything merges, by whoever switched it
-on, with nothing asking again. One method is one entry: there is no wrong
-one to preselect, and nothing to read before pressing.
+GitHub preselects whichever method was used last. One method is one
+entry: there is no wrong one to preselect, and nothing to read before
+pressing.
 
 Two fields shape the commit it writes, and both are GitHub's defaults:
 
@@ -506,7 +499,7 @@ the squash body is the only place it survives one commit standing for all
 of them.
 
 That setting is what the button writes, and the button is what lands every pull
-request here: auto-merge presses it once the approval and the checks are in, and
+request here: somebody presses it once the approval and the checks are in, and
 `--admin` presses it at once, through the bypass. There is no second landing.
 The bypass of `main-self-merge` (*Branch protection*) is in `pull_request`
 mode: it excuses that ruleset on a pull
@@ -972,6 +965,7 @@ what that particular zero means.
 
 [s10-sourcery]: https://github.com/btclib-org/.github#the-set-and-its-cadence
 [s11-branch]: https://github.com/btclib-org/.github#branch-protection-and-rulesets
+[s11-merge]: https://github.com/btclib-org/.github#merge-method
 [s11-sigs]: https://github.com/btclib-org/.github#signatures
 [s11-tokens]: https://github.com/btclib-org/.github#tokens-publishing-scanning
 [governance]: https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md#how-a-decision-is-made
