@@ -342,7 +342,7 @@ def test_a_refused_parameter_is_not_quoted(
     sys.get_int_max_str_digits() == 0, reason="no digit limit to refuse a number at"
 )
 def test_a_number_the_encoder_cannot_write_is_not_quoted() -> None:
-    """The refusal chains the encoder's error, which names the digit limit."""
+    """The refusal names the digit limit, and chains no error of the encoder."""
     big = KEY_INT * 10 ** sys.get_int_max_str_digits()
     refused(lambda: client().call("send", [big]))
     refused(lambda: client().call_raw("send", {"a": [big]}))
@@ -714,7 +714,7 @@ def test_a_cookie_path_utf_8_cannot_encode_is_not_chained(tmp_path: Path) -> Non
     reason="a mode excludes no user on Windows, or from root",
 )
 def test_a_cookie_file_nobody_may_read_is_not_quoted(tmp_path: Path) -> None:
-    """The refusal chains the `OSError`, which names the path only."""
+    """The refusal names the `OSError` by type and errno, and chains none."""
     cookie = _cookie(tmp_path, b"__cookie__:" + KEY.encode())
     cookie.chmod(0)
     refused(lambda: cookie_auth(cookie))
