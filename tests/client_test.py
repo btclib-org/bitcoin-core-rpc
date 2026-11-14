@@ -1889,8 +1889,7 @@ def test_a_status_out_of_the_http_range_is_not_repeated(status: int) -> None:
     with pytest.raises(FetchError) as exc:
         client((status, b"{}")).call("getblockcount")
     assert type(exc.value) is FetchError
-    assert str(exc.value).endswith(": a status that is not three digits")
-    assert str(abs(status)) not in str(exc.value)
+    assert str(exc.value) == f"getblockcount at {URL}: a status outside 100 to 999"
     assert exc.value.args == (str(exc.value),)
 
 
@@ -1898,7 +1897,13 @@ def test_a_status_out_of_the_http_range_is_not_repeated(status: int) -> None:
 def test_a_status_that_is_not_an_int_is_named_by_its_type(
     status: object, kind: str
 ) -> None:
-    """`True` is not the status 1, nor is a float a status of three digits."""
+    """`True` is not the status 1, and a float is named by its type.
+
+    One float passes: 200.0, which equals 200, is read as the answer it
+    would be under the status 200.
+    """
+    answer = client((200.0, recorded_body("getblockcount.json")))  # type: ignore[arg-type]
+    assert answer.call("getblockcount") == TIP_HEIGHT
     with pytest.raises(FetchError) as exc:
         client((status, b"{}")).call("getblockcount")  # type: ignore[arg-type]
     assert type(exc.value) is FetchError

@@ -503,7 +503,7 @@ def _http_error(where: str, status: int) -> FetchError:
         err_msg = f"{where}: a status that is not an int, of type"
         return FetchError(f"{err_msg} {type(status).__name__}")
     if not _is_http_status(status):
-        return FetchError(f"{where}: a status that is not three digits")
+        return FetchError(f"{where}: a status outside 100 to 999")
     if status == 401:
         message = f"{where}: HTTP 401, the node refused the credentials"
         return HttpError(message, status)

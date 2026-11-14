@@ -262,7 +262,8 @@ exposed to, and what counters each.
   `tests/refusal_census_test.py` finds every exception the package builds
   and fails on an argument it cannot trace to a value a refusal may hold,
   and on a `raise` that chains another exception or has it as context.
-  Its two tables are what a refusal still shows, each entry with its
+  Its docstring states the rules it traces by and the two things it takes
+  on trust. Its two tables are what a refusal still shows, each entry with its
   reason: among them the rpc method as passed, which the request sends to
   the node anyway, the path of a cookie file, which an operator has to
   find, a refused number the caller passed, the rpc error code and the
