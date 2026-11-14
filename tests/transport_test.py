@@ -2251,12 +2251,16 @@ def test_nothing_this_package_loads_opens_the_tls_key_log(tmp_path: Path) -> Non
 def test_the_tls_key_log_is_off_whatever_the_environment_says(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """`SSLKEYLOGFILE` reaches no connection this module builds.
+    """`SSLKEYLOGFILE` reaches no connection built with `context=None`.
 
     Setting `keylog_filename` creates the file, so the control, a standard
     library connection, shows the variable is honoured and what that
     leaves behind. The control's file stays open: Windows refuses to
     remove it.
+
+    A context the caller gives keeps whatever key log it was built with,
+    `ssl.create_default_context`'s included, which is the caller's choice:
+    SECURITY.md's *Limitations, not vulnerabilities* says so.
     """
     monkeypatch.setenv("SSLKEYLOGFILE", str(tmp_path / "control.log"))
     control = HTTPSConnection("127.0.0.1", 443)
@@ -2272,6 +2276,10 @@ def test_the_tls_key_log_is_off_whatever_the_environment_says(
     for connection in (direct, session):
         assert connection._context.keylog_filename is None  # type: ignore[attr-defined]
     assert not key_log.exists()
+
+    given = ssl.create_default_context()
+    kept = transport_module._new_connection("https", "127.0.0.1", 443, 5.0, given)
+    assert kept._context.keylog_filename == str(key_log)  # type: ignore[attr-defined]
 
 
 def test_the_tls_context_is_looked_up_when_a_connection_is_built(

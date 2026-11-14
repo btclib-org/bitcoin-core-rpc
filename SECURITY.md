@@ -164,7 +164,9 @@ These are known and inherent.
     `urlopen_transport` and `SessionTransport` take an `ssl.SSLContext`
     as `context`, and use it as given: one that trusts a node's own
     authority reaches that node without the environment, and one with
-    verification off verifies nothing.
+    verification off verifies nothing. It keeps its key log too: one
+    built by `ssl.create_default_context()` while `SSLKEYLOGFILE` was set
+    writes the session keys to that file.
 - **A caller's own `transport` is outside all of this.** It does its own
     I/O, so what it holds in memory, whether it follows a redirect and
     where it sends the `Authorization` header are its author's to answer
