@@ -826,10 +826,10 @@ print("\\n".join(cov.get_data().measured_files()))
 def test_a_file_no_test_runs_is_in_the_table() -> None:
     """Every module under `tests/` is found unexecuted, `_data`'s included.
 
-    `tests/_data/tls/generate.py` sits in no package, and coverage finds
-    such a file only under `include_namespace_packages`. The child measures
-    nothing and writes no data file, so each file it lists was found
-    without running it.
+    `tests/_data/tls/generate.py` sits in a subdirectory of `tests/`
+    holding no `__init__.py`, and coverage finds such a file only under
+    `include_namespace_packages`. The child measures nothing and writes no
+    data file, so each file it lists was found without running it.
     """
     environment = dict(os.environ)
     environment.pop("COVERAGE_RCFILE", None)
