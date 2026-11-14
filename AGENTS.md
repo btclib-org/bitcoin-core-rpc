@@ -1,14 +1,14 @@
 # Repository instructions
 
 Follow [CONTRIBUTING.md](./CONTRIBUTING.md) for issues, pull requests,
-local gates, and worktree commands. Read
-[REPOSITORY.md](./REPOSITORY.md) before changing workflows or settings.
-Read [ARCHITECTURE.md](./ARCHITECTURE.md) before changing the transport
-or JSON-RPC reply handling.
+and local gates. Read [REPOSITORY.md](./REPOSITORY.md) before changing
+workflows or settings. Read [ARCHITECTURE.md](./ARCHITECTURE.md) before
+changing the transport or JSON-RPC reply handling.
 
-Keep the primary checkout clean and on `main`; use a separate worktree
-for each task, following the setup and cleanup commands in
-`CONTRIBUTING.md`.
+When an agent works here, a separate worktree per task keeps the
+contributor's own checkout clean: hooks and agents change files where
+they run. For example, `git worktree add ../<name> origin/main -b <branch>`,
+and `git worktree remove ../<name>` when done.
 
 Choose the least capable model that can reliably complete the task:
 use a fast model for straightforward execution, a reasoning-focused
