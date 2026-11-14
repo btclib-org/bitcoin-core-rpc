@@ -703,12 +703,12 @@ omit = ["*/site-packages/*"]
 branch = true
 
 [tool.coverage.report]
-# below a directory `source` names, coverage looks for the files no test
-# imports only in subdirectories holding an __init__.py unless this is
-# set, and tests/_data is no package (section 7 of the organization's
-# standard): without it the script under tests/_data/tls is missing from
-# the table where no test runs it. Section 8 names this setting for that
-# case.
+# below a directory `source` names, coverage reports a file no test
+# imports only where each directory down to it holds an __init__.py,
+# unless this is set, and tests/_data is no package (section 7 of the
+# organization's standard): without it the script under tests/_data/tls
+# is missing from the table where no test runs it. Section 8 names this
+# setting for that case.
 include_namespace_packages = true
 show_missing = true
 skip_covered = true
