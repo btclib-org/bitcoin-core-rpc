@@ -15,21 +15,6 @@ on:
     # that is not the one the pull request tested, and nothing else would
     # ever test it. Tag pushes are covered by the release workflow
     branches: [main]
-    # a documentation-only commit would otherwise run every job below.
-    # None of these files is imported by the module or read by a test --
-    # README.md is the PyPI long description, not a doctest source, and
-    # CONTRIBUTING.md is checked by markdownlint, which is the lint
-    # workflow's business.
-    # Only on push: the same list on pull_request would be wrong, because
-    # "test: every job passed" is a required check on main, and a required
-    # check that
-    # produces no run at all blocks the merge instead of passing it. The
-    # changes job below is the pull_request-side answer to the same
-    # question -- it runs, so the required check still reports, but skips
-    # the jobs below it rather than the whole workflow when nothing in
-    # the diff is something they read
-    paths-ignore:
-      - "*.md"
   pull_request:
     # ready_for_review, so a pull request marked ready gets the run the
     # draft condition below withheld while it was a draft: the default
