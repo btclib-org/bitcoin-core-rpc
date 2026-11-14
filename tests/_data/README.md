@@ -1,11 +1,13 @@
-# The recorded replies
+# The data the suite reads
 
 What is in this directory, where each file came from, and how to check a
-copy. Nothing here is fetched at test time and nothing here is generated:
-these are the bytes a test is handed instead of a socket.
+copy. Nothing here is fetched at test time.
 
-The distinction between the envelope and what it carries is the whole of
-the entry.
+The `.json` files are the recorded replies, and nothing generated them:
+they are the bytes a test is handed instead of a socket. The distinction
+between the envelope and what it carries is the whole of their entry.
+`tls/` holds a test certificate authority and the script that wrote it,
+and the last section describes them.
 
 ## The envelopes are not recorded
 
@@ -22,8 +24,8 @@ with the message `src/rpc/rawtransaction.cpp` builds for a node running
 without `-txindex`, verbatim, including the trailing sentence
 `JSONRPCError` appends.
 
-Nothing here was invented; nothing here was captured either, and a node's
-answer is what settles a disagreement.
+No reply here was invented; none was captured either, and a node's answer
+is what settles a disagreement.
 `.github/workflows/integration-bitcoind.yml` is where that question is
 asked of live bitcoind versions, its `versions` job choosing which.
 
@@ -55,7 +57,32 @@ bitcoin-cli getblockhash 481824
 
 ## The id
 
-Every file carries `"id": "btclib"`, which is no id `call` ever sends —
+Every reply carries `"id": "btclib"`, which is no id `call` ever sends —
 that one is random per request. The tests echo the request's own id into
 the reply the way a node does, so a test about the *reply* is not also a
 test about the id; a test about the id builds its own body.
+
+## `tls/` is a test certificate authority
+
+`ca.pem` is a certificate authority made for the suite and nothing else.
+`server.pem` is a certificate it issued for `127.0.0.1` and `localhost`,
+and `server.key` is that certificate's key. No trust store holds the
+authority, so a loopback server presenting `server.pem` is refused by the
+default TLS context and reached by a context that trusts `ca.pem`.
+`tests/transport_test.py` runs such a server.
+
+The key is a test fixture, public on purpose. `generate.py` wrote the
+three files and never wrote the authority's own key, so no other
+certificate chains to `ca.pem`. Both certificates are valid from
+`NOT_BEFORE` to `NOT_AFTER`, which `generate.py` sets.
+
+This command, run from the repository root, replaces them with a new
+set:
+
+```shell
+uv run python tests/_data/tls/generate.py tests/_data/tls
+```
+
+`tests/tls_generate_test.py` checks that a context with
+`VERIFY_X509_STRICT`, which `_tls_context` sets, accepts a set the
+script writes.

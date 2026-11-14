@@ -225,12 +225,12 @@ test = [
     # import ecc.ecc, which the latest ecc does not have
     "btclib>=2026.11.10",
     "coverage>=7.16.0",
-    # what tests/_tls/generate.py writes the TLS fixtures with, and what
-    # tests/tls_generate_test.py reads them back with. 42.0.0 is the first
-    # release with the `not_valid_before_utc` that test reads. Windows on
-    # Arm is left out: building the sdist on Windows needs `OPENSSL_DIR`
-    # pointing at an OpenSSL installation, which os-windows.yml's suite job
-    # does not set. The marker stays while
+    # what tests/_data/tls/generate.py writes the TLS fixtures with, and
+    # what tests/tls_generate_test.py reads them back with. 42.0.0 is the
+    # first release with the `not_valid_before_utc` that test reads.
+    # Windows on Arm is left out: building the sdist on Windows needs
+    # `OPENSSL_DIR` pointing at an OpenSSL installation, which
+    # os-windows.yml's suite job does not set. The marker stays while
     # `grep 'cryptography-.*win_arm64' uv.lock` lists no wheel for it. The
     # grep can list one only because uv keeps in the lock the wheels this
     # marker excludes, where it drops those a bare `sys_platform` marker
@@ -1036,6 +1036,9 @@ ignore = [
 # ClusterFuzzLite's build.sh hands these to PyInstaller, never to an
 # import, so fuzz/ carries no __init__.py
 "fuzz/*.py" = ["INP001"]
+# section 7 of the organization's standard makes tests/_data a directory
+# and not a package, so tls_generate_test.py loads this script by its path
+"tests/_data/tls/generate.py" = ["INP001"]
 # sphinx imports this one by its own convention, reading docs/source/ as a
 # configuration directory rather than as a package; same reason
 "docs/source/conf.py" = ["INP001"]

@@ -4,7 +4,7 @@
 
 """Write a new test authority, its server certificate and that key.
 
-`README.md` beside this file says what the three files are for, and the
+`tests/_data/README.md` says what the three files are for, and gives the
 command that replaces them with a set this writes.
 """
 
