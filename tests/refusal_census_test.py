@@ -1550,11 +1550,14 @@ class _Census:
         # the default, which a call that passes nothing there takes
         defaults: dict[ast.arg, ast.expr | None] = dict(
             zip(
-                positional[len(positional) - len(func_args.defaults) :],
-                func_args.defaults,
+                [
+                    *positional[len(positional) - len(func_args.defaults) :],
+                    *func_args.kwonlyargs,
+                ],
+                [*func_args.defaults, *func_args.kw_defaults],
                 strict=True,
             )
-        ) | dict(zip(func_args.kwonlyargs, func_args.kw_defaults, strict=True))
+        )
         default = defaults.get(arg)
         if default is not None:
             self._visit(default, module, leaves, keys)
