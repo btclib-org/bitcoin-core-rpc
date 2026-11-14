@@ -1028,8 +1028,10 @@ def http_request(
     # a failure, whether it arrived as an exception above or as a status
     # from a transport that catches its own: the body is a diagnostic and
     # not the answer, so it is truncated rather than held to the caller's
-    # limit for an answer -- `MAX_ERROR_BODY_SIZE` says why
-    if status >= _CLIENT_ERROR:
+    # limit for an answer -- `MAX_ERROR_BODY_SIZE` says why. A status that is
+    # no int, which a caller's transport can answer, is not compared here:
+    # what it means is `client.py`'s question, as for any other status
+    if _is_integer(status) and status >= _CLIENT_ERROR:
         return status, body[:MAX_ERROR_BODY_SIZE]
 
     # the transports of this module have already stopped reading at the

@@ -1893,11 +1893,14 @@ def test_a_status_out_of_the_http_range_is_not_repeated(status: int) -> None:
     assert exc.value.args == (str(exc.value),)
 
 
-@pytest.mark.parametrize(("status", "kind"), [(True, "bool"), (500.0, "float")])
+@pytest.mark.parametrize(
+    ("status", "kind"),
+    [(True, "bool"), (500.0, "float"), ("500", "str"), (None, "NoneType")],
+)
 def test_a_status_that_is_not_an_int_is_named_by_its_type(
     status: object, kind: str
 ) -> None:
-    """`True` is not the status 1, and a float is named by its type.
+    """A status that is not an int is named by its type, `True` included.
 
     One float passes: 200.0, which equals 200, is read as the answer it
     would be under the status 200.
