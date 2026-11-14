@@ -1008,7 +1008,7 @@ def test_a_body_the_node_garbles_is_not_repeated() -> None:
 
     def answer(request_id: str) -> bytes:
         del request_id
-        chunk = KEY.encode() + b"\r\n" + KEY.encode() + b"\r\n"
+        chunk = b"invalid-" + KEY.encode() + b"\r\n" + KEY.encode() + b"\r\n"
         return b"HTTP/1.1 200 OK\r\n" + _BAD_CHUNK.replace(b"zz\r\n", chunk)
 
     with _peer(answer) as url:
