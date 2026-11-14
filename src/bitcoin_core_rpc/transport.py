@@ -542,9 +542,9 @@ class _DeadlineHTTPSHandler(HTTPSHandler):
 # counts hops, which is a redirect implementation inside a module whose
 # subject is one bounded request. What a same-origin redirect would buy --
 # an endpoint that moved path -- is a url the caller fixes once, and the
-# FetchError naming the status and the url is what tells them to. A caller
-# passing a transport of their own does its own I/O, so what `requests` or
-# `httpx` does with a 30x is theirs.
+# `HttpError` naming the status is what tells them to. A caller passing a
+# transport of their own does its own I/O, so what `requests` or `httpx`
+# does with a 30x is theirs.
 #
 # `ProxyHandler({})` is the second thing missing, for the same reason.
 # `build_opener` otherwise installs a `ProxyHandler` built from
