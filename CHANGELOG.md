@@ -34,6 +34,98 @@ theme. Section 9 also lets an entry making a single claim have a
 paragraph for a body, which no bullet pattern reaches. Counting the
 entries is a reading of the file rather than a command.
 
+## v2026.11.14
+
+### Refusals leave out what a node sent and the request's path
+
+`RpcError` keeps the node's code alone, `ChainMismatchError` carries the two
+chains, and `tests/refusal_census_test.py` reads the source for a value
+written into a refusal (closes #808).
+
+### `urlopen_transport` and `SessionTransport` take a TLS `context`
+
+Each `https` connection uses the `ssl.SSLContext` given, as given, and the
+verifying default where none is. A `SessionTransport`'s
+`connection_factory` takes the context as a fifth argument (closes #804).
+
+### `SessionTransport` closes the response when reading its body raises
+
+Closing the connection alone left the socket open where the response held
+it, for the collector to finalize with a `ResourceWarning` (closes #805).
+
+### Sourcery runs every rule but `dont-import-test-modules`
+
+Its findings are fixed with no change of behaviour, and the tests import
+their siblings relatively (issue btclib-org/.github#2162, issue
+btclib-org/.github#2190).
+
+### The configuration guard's refusal names the tree
+
+"coverage read no configuration" ends with the tree holding
+`tests/conftest.py`, wherever pytest read its own configuration
+(closes #771).
+
+### The `test` group asks a btclib that imports from ecc's top level
+
+`deps-oldest` failed collecting `tests/chains_test.py` at the older floor
+(closes #796).
+
+### The `docs` group takes furo only where a soupsieve free of advisories installs
+
+The marker lets the lock move soupsieve past the advisories `uv audit`
+refused (closes #800).
+
+### `.bestpractices.json` holds the bestpractices.dev answers
+
+They are corrected and brought to v2026.11.9 (closes #789, issue
+btclib-org/.github#2153, btclib-org/.github#2159, btclib-org/.github#2214).
+
+### `RELEASING.md` records an unmade bestpractices.dev save as owed
+
+Whoever next can sign in saves it (issue btclib-org/.github#2205).
+
+### `REPOSITORY.md` says the maintainer holds the bypass of `main-self-merge`
+
+It is the organization-wide bypass, kept until the backlog settles (issue
+btclib-org/.github#2212).
+
+### `CONTRIBUTING.md`, `RELEASING.md` and others take btclib-org/.github's text
+
+The others are `AGENTS.md`'s *Code Review Rules* and `tests/secret_free`,
+each the part shared with that repository (issue btclib-org/.github#1950,
+btclib-org/.github#2009, btclib-org/.github#2107, btclib-org/.github#2145).
+
+### The source and the shared files cite the standard as section 11 asks
+
+Comments and docstrings name the organization's standard so, and the shared
+files, `REVIEWING.md` among them, take btclib-org/.github's citations (issue
+btclib-org/.github#2137).
+
+### `docs/source/conf.py` takes btclib-org/.github's `RootFileLinks`
+
+It reads the include of every page, and turns a link to a page of
+`docs/source` into a link to that page (issue btclib-org/.github#2166).
+
+### `CONTRIBUTING.md`'s docs block stops on a failed step
+
+A failed build or checker checkout ends it with that step's exit code
+(issue btclib-org/.github#2015).
+
+### `CONTRIBUTING.md` no longer prescribes a checkout layout
+
+Its *Worktrees* section goes, and `AGENTS.md` suggests a worktree per task
+to an agent, as an example (issue btclib-org/.github#2263).
+
+### prettier leaves `.pre-commit-config.yaml` to pre-commit.ci
+
+Its hook and `.prettierignore` exclude the file, whose `# frozen:` spacing
+pre-commit.ci's autoupdate writes (issue btclib-org/.github#2038).
+
+### Dependabot and pre-commit.ci bumps
+
+The actions group, which calls btclib-org/.github's workflows at a later
+tag, the dev-tooling group and the pinned hook revisions.
+
 ## v2026.11.9
 
 ### A timeout above `2**31 - 1` milliseconds is refused

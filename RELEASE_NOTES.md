@@ -10,6 +10,59 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
+## v2026.11.14
+
+griffe and `api_gaps.py` find breaks against v2026.11.9, each named below:
+griffe the removal of `RpcError.data` and of `RpcError`'s `data`
+parameter, `api_gaps.py` the type of `SessionTransport`'s
+`connection_factory`. The source diff since that tag adds no `@overload`.
+
+- **`RpcError` keeps only the node's code.** Its `data` attribute and its
+  constructor's `data` parameter are gone, and its text names the call and
+  the code, not Core's message. A caller that reads the message or the
+  data takes the error object as the node sent it from
+  `BitcoinCoreRpcClient.call_raw`. A caller that builds an `RpcError`
+  passes the message and the code alone.
+- **An error object whose code is outside the signed 32-bit range is no
+  `RpcError`.** Every code Core defines fits. Such a reply raises
+  `FetchError` under HTTP 200, where Core's 2.0 replies carry an error,
+  and `HttpError` under any other status from 100 to 999, as the HTTP 500
+  of a legacy reply. A caller that catches `RpcError` for such a code
+  catches `FetchError`, which `HttpError` and `RpcError` derive from.
+- **A refusal leaves out what the node sent and the url's path.** It names
+  the node as `scheme://host[:port]`, and another program's exception by
+  its type and errno, as in `URLError (ConnectionRefusedError [errno 61])`
+  on macOS. It chains no such exception, so a caller that read one from
+  `__cause__` reads its type and errno in the text. A caller that matches
+  a refusal's text has to change.
+- **`assert_chain` raises `ChainMismatchError`** for a node on another
+  chain, or another signet, than its client was built for, and so does
+  `from_chain(verify_chain=True)`, which calls it. It is a
+  `BtcRpcValueError`, as before. It carries the two chains as `expected`
+  and `reported`, `None` for one that is no short printable name, and its
+  text names neither.
+- **`urlopen_transport` and `SessionTransport` take a `context`**, a
+  keyword-only `ssl.SSLContext`, and each `https` connection they open
+  uses it as given. Without one, nothing changes: each connection builds
+  its own verifying context. A client or `http_request` takes one as
+  `transport=partial(urlopen_transport, context=context)`, which they
+  treat as their default transport, so `max_body_size` and `call_stream`'s
+  streaming work over it. A value that is not an `ssl.SSLContext` raises
+  `BtcRpcTypeError`. SECURITY.md's *Limitations, not vulnerabilities* says
+  what a context decides.
+- **A `connection_factory` given to `SessionTransport` is called with a
+  fifth argument**, the transport's `context`, `None` where it has none. A
+  factory of your own takes it, and uses it where it opens an `https`
+  connection.
+- **`SessionTransport` closes the response when reading its body raises**,
+  as on a body past `max_body_size`. Where the response held the socket,
+  closing the connection alone left it open, and the collector could
+  finalize it with a `ResourceWarning`. A response from a
+  `connection_factory` of your own needs a `close()`, as
+  `http.client.HTTPResponse` has: on that path, an `AttributeError` for a
+  missing one, or an error its `close()` raises, replaces the read's
+  error.
+
 ## v2026.11.9
 
 The public API is v2026.11.7's: griffe and `api_gaps.py` find no break
