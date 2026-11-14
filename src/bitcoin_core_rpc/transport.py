@@ -724,7 +724,7 @@ def _assert_valid_max_body_size(max_body_size: int) -> None:
         err_msg = f"non-integer max_body_size, but a {type(max_body_size).__name__}"
         raise BtcRpcTypeError(err_msg)
     if max_body_size < 0:
-        raise BtcRpcValueError(f"negative max_body_size: {max_body_size}")
+        raise BtcRpcValueError("negative max_body_size")
 
 
 def _read_bounded(
@@ -790,9 +790,8 @@ def _read_bounded(
         # says nothing about the size and is left to the bounded read
         with suppress(ValueError):
             if int(announced) > max_body_size:
-                err_msg = f"{where}: announced {int(announced)} bytes,"
-                err_msg += f" more than the max_body_size of {max_body_size}"
-                raise FetchError(err_msg)
+                # the size is the backend's, and not repeated
+                raise FetchError(f"{where}: announced a body larger than max_body_size")
 
     buffer = bytearray()
     remaining = max_body_size + 1
@@ -978,6 +977,9 @@ def http_request(
     # transport of a caller's own that raises `HTTPError` is held to it for
     # the error body -- the only part of such an exchange this module reads
     deadline = monotonic() + timeout
+    # what the exchange below answers. An `HTTPException` sets `failure`
+    # instead, and is refused outside its `except`, which would chain it
+    status, body, failure = 0, b"", ""
     try:
         # the limit reaches the read itself for the two transports of this
         # module, each taking it as a keyword beside the two arguments of an
@@ -1023,16 +1025,22 @@ def http_request(
             # unrelated test. The `with` in `urlopen_transport` does this
             # for the responses that are not errors
             e.close()
-    except (OSError, HTTPException) as e:
+    except OSError as e:
         # URLError and TimeoutError derive from OSError, which is every way
-        # urllib reports that the exchange did not happen. `HTTPException` is
-        # the other family and no relation of it: `IncompleteRead` from a
-        # chunked body that stopped early, `BadStatusLine` and `LineTooLong`
-        # from a peer that is not speaking HTTP. Those arrive from inside the
-        # read rather than from the connect, so nothing above catches them,
-        # and this function promises that everything below the status is a
-        # FetchError
+        # urllib reports that the exchange did not happen
         raise FetchError(f"no answer from {where}: {e}") from e
+    except HTTPException as e:
+        # the other family, and no relation of OSError but for
+        # `RemoteDisconnected`: `IncompleteRead` from a chunked body that
+        # stopped early, `BadStatusLine` and `LineTooLong` from a peer that
+        # is not speaking HTTP. Those arrive from inside the read rather than
+        # from the connect, and this function promises that everything below
+        # the status is a FetchError. One can hold what the backend sent --
+        # the line of a `BadStatusLine`, the octets of an `IncompleteRead` --
+        # so it is named by its type
+        failure = type(e).__name__
+    if failure:
+        raise FetchError(f"no answer from {where}: {failure}")
 
     # a failure, whether it arrived as an exception above or as a status
     # from a transport that catches its own: the body is a diagnostic and
@@ -1559,10 +1567,17 @@ def _post_stream(
                 "POST", path, body=data, headers={**headers, "Connection": "close"}
             )
             response = connection.getresponse()
-        except (OSError, HTTPException) as e:
+        except OSError as e:
             raise FetchError(f"no answer from {where}: {e}") from e
-        with closing(response):
-            yield response.status, _stream_reader(response, where, deadline)
+        except HTTPException as e:
+            # named by its type, and refused outside the `except`, as
+            # `http_request` says
+            failure = type(e).__name__
+        else:
+            with closing(response):
+                yield response.status, _stream_reader(response, where, deadline)
+            return
+        raise FetchError(f"no answer from {where}: {failure}")
 
 
 def _stream_reader(
@@ -1578,7 +1593,11 @@ def _stream_reader(
             raise FetchError(err_msg)
         try:
             return bytes(response.read1(min(size, _READ_CHUNK)))
-        except (OSError, HTTPException) as e:
+        except OSError as e:
             raise FetchError(f"no answer from {where}: {e}") from e
+        except HTTPException as e:
+            # named by its type, as `http_request` says
+            failure = type(e).__name__
+        raise FetchError(f"no answer from {where}: {failure}")
 
     return read

@@ -172,7 +172,7 @@ hashes = client.call_batch([("getblockhash", [height]) for height in heights])
 | AuthServiceProxy | this client |
 | --- | --- |
 | `JSONRPCException.error["code"]` | `RpcError.code` |
-| `JSONRPCException.error.get("data")` | `RpcError.data` |
+| `JSONRPCException.error.get("data")` | none: `RpcError`'s docstring says why |
 | `JSONRPCException.http_status` (Core's copy only) | `HttpError.status` |
 | any other `JSONRPCException` | `FetchError` |
 

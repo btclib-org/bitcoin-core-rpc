@@ -91,6 +91,18 @@ def _quoted(name: object) -> str:
     return "(too long to quote)" if len(name) > _MAX_NAME_SHOWN else name
 
 
+def _kept_name(name: object) -> str | None:
+    """Return a name `_quoted` would show whole and printable, else `None`.
+
+    What an exception may keep as an attribute of a name it was handed or
+    answered: a chain a node reports is no less a misplaced secret than one
+    a caller passes, and a terminal escape is no name.
+    """
+    if isinstance(name, str) and len(name) <= _MAX_NAME_SHOWN and name.isprintable():
+        return name
+    return None
+
+
 def rpc_port_from_chain(chain: str) -> int:
     """Return the default rpc port of one of Core's chains.
 
@@ -279,9 +291,14 @@ def magic_from_signet_challenge(challenge: str | bytes | bytearray) -> bytes:
     """
     if isinstance(challenge, str):
         try:
-            script = bytes.fromhex(challenge)
-        except ValueError as e:
-            raise BtcRpcValueError(f"signet challenge that is no hex: {e}") from e
+            decoded: bytes | None = bytes.fromhex(challenge)
+        except ValueError:
+            decoded = None
+        # raised outside the `except`: a challenge is what a node reports,
+        # and nothing it sent is repeated
+        if decoded is None:
+            raise BtcRpcValueError("signet challenge that is no hex")
+        script = decoded
     elif isinstance(challenge, (bytes, bytearray)):
         script = bytes(challenge)
     else:

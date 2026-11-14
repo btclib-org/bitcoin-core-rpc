@@ -499,7 +499,7 @@ def test_an_announced_size_over_the_limit_is_refused_before_reading(
         monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
 
     serve(FakeResponse(200, b"a" * 4, content_length=str(limit + 1)))
-    with pytest.raises(FetchError, match=f"announced {limit + 1} bytes"):
+    with pytest.raises(FetchError, match="announced a body larger than"):
         urlopen_transport(request, DEFAULT_TIMEOUT, max_body_size=limit)
 
     # equal is still within the limit: changing `>` to `>=` must not turn
@@ -664,7 +664,7 @@ def test_a_limit_that_is_no_size_is_refused_as_such(max_body_size: object) -> No
 
 def test_a_negative_limit_is_no_limit_at_all() -> None:
     """Where zero is a limit: only an empty body answers it."""
-    with pytest.raises(BtcRpcValueError, match="negative max_body_size: -1"):
+    with pytest.raises(BtcRpcValueError, match="^negative max_body_size$"):
         http_request(URL, max_body_size=-1, transport=Recorded((200, b"")))
 
     assert http_request(URL, max_body_size=0, transport=Recorded((200, b""))) == (
@@ -962,7 +962,7 @@ def test_the_transport_refuses_a_limit_that_is_no_size(
             DEFAULT_TIMEOUT,
             max_body_size=64.0,  # type: ignore[arg-type]
         )
-    with pytest.raises(BtcRpcValueError, match="negative max_body_size: -1"):
+    with pytest.raises(BtcRpcValueError, match="^negative max_body_size$"):
         urlopen_transport(Request(URL), DEFAULT_TIMEOUT, max_body_size=-1)
     assert opener.requests == []
 
@@ -1916,7 +1916,7 @@ def test_the_session_transport_refuses_a_limit_that_is_no_size() -> None:
     connection = FakeConnection(FakeResponse(200, b""))
     transport = SessionTransport(connection_factory=_connection_factory(connection))
 
-    with pytest.raises(BtcRpcValueError, match="negative max_body_size: -1"):
+    with pytest.raises(BtcRpcValueError, match="^negative max_body_size$"):
         transport(Request(URL, method="GET"), DEFAULT_TIMEOUT, max_body_size=-1)
 
     assert connection.requests == []
@@ -2818,7 +2818,7 @@ def test_a_refused_answer_leaves_no_socket_to_the_collector(head: bytes) -> None
     gc.disable()
     try:
         with _peer(serve) as url, SessionTransport() as transport:
-            with pytest.raises(FetchError, match="max_body_size of 8") as refused:
+            with pytest.raises(FetchError, match="larger than") as refused:
                 http_request(url, timeout=5.0, max_body_size=8, transport=transport)
             held: list[object] = [refused.value]
             held.append(held)

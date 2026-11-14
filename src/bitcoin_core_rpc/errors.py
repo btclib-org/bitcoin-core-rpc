@@ -12,7 +12,6 @@ caller wanting the whole hierarchy imports from.
 from __future__ import annotations
 
 import enum
-from typing import Any
 
 # Every name this module defines, none of it imported: `__init__.py`'s own
 # `__all__` is their union across the four modules of the package, and
@@ -22,6 +21,7 @@ __all__ = [
     "BtcRpcRuntimeError",
     "BtcRpcTypeError",
     "BtcRpcValueError",
+    "ChainMismatchError",
     "CookieNotFoundError",
     "FetchError",
     "HttpError",
@@ -41,7 +41,7 @@ __all__ = [
 # one at half of them; distinct names put the mistake in the source
 # rather than in a test.
 #
-# The two carrying a field hand every constructor argument to
+# The classes carrying a field hand every constructor argument to
 # `BaseException.__init__` and compose their message in `__str__`, which is
 # what `subprocess.CalledProcessError` and `UnicodeDecodeError` do, and what
 # makes them picklable: `BaseException.__reduce__` returns `(cls, self.args)`,
@@ -204,7 +204,7 @@ class RPCErrorCode(enum.IntEnum):
 
 
 class RpcError(FetchError):
-    """bitcoind answered with a JSON-RPC error object, and this is it.
+    """bitcoind answered with a JSON-RPC error object, and this is its code.
 
     `code` is the node's, from `src/rpc/protocol.h`: -5 is
     RPC_INVALID_ADDRESS_OR_KEY, which is what `getrawtransaction` returns
@@ -217,22 +217,20 @@ class RpcError(FetchError):
     `ValueError` instead. `RPCErrorCode(exc.code)` is the caller's own
     line when it wants the name.
 
-    `data` is JSON-RPC's optional third member of an error object, kept
-    as it arrived. Core leaves it out today, so it is None for every
-    error a node sends; a method that starts sending one, or a proxy
-    adding its own, would otherwise have it dropped here, which is the
-    one place it cannot be recovered from.
-
-    `args[0]` is the text as it arrived, the node's message included.
-    `str()` writes each non-printable character of it as an escape, so a
-    message carrying a newline or an ESC cannot forge a log line or drive
-    a terminal.
+    The code is all this keeps of the error object. Its `message` and its
+    `data` are left out of the text, the args and the attributes alike:
+    Core's message can quote what the request carried, such as a
+    descriptor holding a private key, and section 7 of the organization's
+    standard, *A refusal carries no secret*, relays another program's
+    error code and not its text. `args[0]` names the call; `str()` writes
+    each non-printable character of it as an escape, so an rpc method
+    carrying a newline or an ESC cannot forge a log line or drive a
+    terminal.
     """
 
-    def __init__(self, message: str, code: int, data: Any = None) -> None:
+    def __init__(self, message: str, code: int) -> None:
         self.code = code
-        self.data = data
-        super().__init__(message, code, data)
+        super().__init__(message, code)
 
     # no @override: typing has it from 3.12, the floor here is 3.11, and
     # this file takes nothing outside the standard library
@@ -242,6 +240,30 @@ class RpcError(FetchError):
             for c in self.args[0]
         )
         return f"{text} (rpc error code {self.code})"
+
+
+class ChainMismatchError(BtcRpcValueError):
+    """A node serves another chain, or another signet, than the one expected.
+
+    `expected` is the chain the client was built for and `reported` the one
+    the node answered. Each is a printable name of at most `_MAX_NAME_SHOWN`
+    characters (`chains.py`), and `None` where it is anything else. The
+    text names neither: a caller saying which two chains disagree reads
+    them here. On a signet whose challenge differs, both are `"signet"`.
+    """
+
+    def __init__(
+        self, message: str, expected: str | None, reported: str | None
+    ) -> None:
+        self.expected = expected
+        self.reported = reported
+        super().__init__(message, expected, reported)
+
+    # no @override: typing has it from 3.12, the floor here is 3.11, and
+    # this file takes nothing outside the standard library
+    def __str__(self) -> str:  # type: ignore[explicit-override]
+        # the message alone, as for `HttpError`
+        return str(self.args[0])
 
 
 class CookieNotFoundError(FetchError):
