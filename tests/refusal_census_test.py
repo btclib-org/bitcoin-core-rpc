@@ -2145,8 +2145,16 @@ _SHAPES = {
         ),
     ),
     "read of a file": (
-        "def f(key):\n    raise ValueError(len('a'))",
-        "def f(path):\n    with open_it(path) as file:\n        raise ValueError(file.read())",
+        (
+            "def _open_it(path):\n    return path\n"
+            "def _m():\n    with _open_it('a') as file:\n"
+            "        raise ValueError(file.name)"
+        ),
+        (
+            "def _open_it(path):\n    return path\n"
+            "def _m():\n    with _open_it('a') as file:\n"
+            "        raise ValueError(file.read())"
+        ),
     ),
     "read of a file descriptor": (
         "import os\ndef f(key):\n    raise ValueError(os.sep)",
