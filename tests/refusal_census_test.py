@@ -10,7 +10,8 @@ wrong place can come back in what a node answers. The census reads the
 sources of the package with `ast` and runs none of them. It is a lint over
 the shapes its controls show, `_SHAPES` flagged and passed and `_SEEDS`
 put back into the package, and not a proof: a shape no control holds may
-pass unseen, as the two named at the end do.
+pass unseen. Each shape measured to pass unseen is an open issue of this
+repository whose title starts "The refusal census does not see".
 
 It reads as an exception the package builds each call of a name ending in
 `Error` or `Exception`, or of a name an assignment or an import binds to
@@ -98,12 +99,6 @@ unknown; a class of the package called is its `__init__`, `__new__` and
 `__post_init__`; a builtin, or a name imported from outside the package,
 runs none of it. What a call outside the package raises is not one of its
 refusals, and is not read.
-
-Two shapes pass unseen, measured: an item of a container bound to another
-name, as in `alias = values[0]` and then `alias.append(key)`, and an item
-of a shallow copy one of `_READERS` makes, as in `alias = list(values)`
-and then `alias[0].append(key)`. A refusal that holds `values` holds the
-key in both.
 """
 
 from __future__ import annotations

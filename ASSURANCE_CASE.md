@@ -253,22 +253,22 @@ exposed to, and what counters each.
   refusals and passes the exception to `assert_secret_free`. It covers a
   rejected credential, a refused url, rpc parameter, header, timeout or
   limit, rest path, wallet name, chain or network name and signet
-  challenge, an unreadable reply, an unreadable cookie file and a
-  refusal's path, a key the node answers in an error object, an id, a
-  version marker, a chain, a garbled exchange or an announced size, and a
-  key in the text and the args of an `OSError` a caller's transport raises.
-  `JsonStream` names a misplaced octet of a reply by its offset, never the
-  octet, and `tests/stream_test.py` feeds a key where it stops.
+  challenge, an unreadable reply, an unreadable cookie file and a refusal's
+  path, a key the node answers in an error object, an id, a version marker,
+  a chain, a garbled exchange or an announced size, and a key in the text
+  and the args of an `OSError` a caller's transport raises. `JsonStream`
+  names a misplaced octet of a reply by its offset, never the octet, and
+  `tests/stream_test.py` feeds a key where it stops.
   `tests/refusal_census_test.py` is a lint over the sources, not a proof:
-  it fails on an argument of an exception the package builds that it
-  cannot trace to a value a refusal may hold, and on a `raise` that chains
-  another exception or has it as context, over the shapes its controls
-  show. Its docstring states the rules it traces by, the two things it
-  takes on trust and two shapes it does not see. Its two tables are what a
-  refusal still shows, each entry with its reason: among them the rpc
-  method as passed, which the request sends to the node anyway, the path
-  of a cookie file, which an operator has to find, a refused number the
-  caller passed, the rpc error code and the HTTP status.
+  it fails on an argument of an exception the package builds that it cannot
+  trace to a value a refusal may hold, and on a `raise` that chains another
+  exception or has it as context, over the shapes its controls show. Its
+  docstring states the rules it traces by and the two things it takes on
+  trust, and says where the shapes it does not see are filed. Its two
+  tables are what a refusal still shows, each entry with its reason: among
+  them the rpc method as passed, which the request sends to the node
+  anyway, the path of a cookie file, which an operator has to find, a
+  refused number the caller passed, the rpc error code and the HTTP status.
 - **URL redirection to an untrusted site (CWE-601) and exposure of a
   resource to the wrong sphere (CWE-668).** A credential built for one
   host reaching a different one through a followed redirect or an
