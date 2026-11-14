@@ -2898,13 +2898,17 @@ def _https(url: str) -> str:
 def test_a_given_context_reaches_a_server_the_default_refuses(
     default: Callable[[], Any], given: Callable[[ssl.SSLContext], Any]
 ) -> None:
-    """The issue's *Done when*: only the given context trusts the server."""
+    """The issue's *Done when*: only the given context trusts the server.
+
+    The default's refusal names the error by its type, which says that the
+    certificate is what it refused.
+    """
     serve = _tls_serve(lambda _: b"{}")
     with _peer(serve) as url:
         assert http_request(_https(url), transport=given(_trusting())) == (200, b"{}")
     with (
         _peer(serve) as url,
-        pytest.raises(FetchError, match="(?i)certificate verify failed"),
+        pytest.raises(FetchError, match=r"\bSSLCertVerificationError\b"),
     ):
         http_request(_https(url), transport=default())
 
