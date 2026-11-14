@@ -39,6 +39,7 @@ import re
 from base64 import b64encode
 from codecs import getincrementaldecoder
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from contextlib import suppress
 from decimal import Decimal, DecimalException
 from io import BytesIO
 from math import isfinite
@@ -66,6 +67,7 @@ from bitcoin_core_rpc.errors import (
     FetchError,
     HttpError,
     RpcError,
+    _failure_name,
 )
 from bitcoin_core_rpc.transport import (
     _READ_CHUNK,
@@ -533,6 +535,26 @@ def _unreadable(where: str, cause: Exception) -> FetchError:
     return FetchError(err_msg)
 
 
+def _encoded(request: Any) -> bytes:
+    """Return the json of a request, refusing what the encoder will not write.
+
+    An int of more digits, or a Decimal of a larger exponent, than
+    `sys.get_int_max_str_digits` allows, which is the mirror of the limit
+    a *reply* holding one runs into: json has the number and this
+    interpreter will not write it. `_assert_json_params` refuses the
+    types json has no rendering for, and this is a value of a type it
+    does, so the encoder is where it surfaces. The rest is what
+    `_request_json` finds changed since that walk. The error is named by
+    `_failure_name` and refused outside the `except`: the caller's own
+    objects can put anything in its text.
+    """
+    try:
+        return _request_json(request).encode()
+    except (ValueError, RecursionError) as e:
+        failure = _failure_name(e)
+    raise BtcRpcValueError(f"rpc params json cannot carry: {failure}")
+
+
 def _parsed_json_body(where: str, status: int, payload: bytes) -> Any:
     """Return the json value a reply's body decodes to, whatever shape it is.
 
@@ -585,19 +607,17 @@ def _parsed_json_body(where: str, status: int, payload: bytes) -> Any:
         # ValueError -- so it escaped a promise this module makes about
         # every unreadable reply
         if isinstance(e, UnicodeDecodeError):
-            shape = "a reply that is not utf-8"
+            refusal = FetchError(f"{where}: a reply that is not utf-8")
         elif isinstance(e, json.JSONDecodeError):
-            shape = "not json"
+            refusal = FetchError(f"{where}: not json")
         else:
-            raise (
-                _http_error(where, status) if status != 200 else _unreadable(where, e)
-            ) from e
+            refusal = _unreadable(where, e)
     # raised outside the `except`, so that nothing chains the decode error
-    # or the parse error: each holds the reply, which can be a
+    # or the parse error: each can hold the reply, which can be a
     # `dumpprivkey` answer or an error body echoing the request
     if status != 200:
         raise _http_error(where, status)
-    raise FetchError(f"{where}: {shape}")
+    raise refusal
 
 
 def _reply_object(where: str, status: int, payload: bytes) -> Mapping[str, Any]:
@@ -750,16 +770,16 @@ def _batch_pairs(calls: Any) -> list[tuple[Any, Any]]:
     characters being no pair either, for the reason `_params_member`
     refuses one as params.
     """
-    if isinstance(calls, (str, bytes, bytearray)):
+    members: Iterator[Any] | None = None
+    if not isinstance(calls, (str, bytes, bytearray)):
+        # a TypeError of `iter` is refused below, outside the `except`: one
+        # out of the caller's own `__iter__` can say anything
+        with suppress(TypeError):
+            members = iter(calls)
+    if members is None:
         err_msg = f"call_batch calls is a {type(calls).__name__} and not"
         err_msg += " an iterable of (method, params) pairs"
         raise BtcRpcTypeError(err_msg)
-    try:
-        members = iter(calls)
-    except TypeError as e:
-        err_msg = f"call_batch calls is a {type(calls).__name__} and not"
-        err_msg += " an iterable of (method, params) pairs"
-        raise BtcRpcTypeError(err_msg) from e
     pairs: list[tuple[Any, Any]] = []
     for index, member in enumerate(members):
         shape = f"a {type(member).__name__}"
@@ -909,10 +929,15 @@ def _assert_json_number(where: str, token: bytes) -> None:
         else:
             int(text)
     except (ValueError, DecimalException) as e:
-        raise _unreadable(where, e) from e
+        # refused below, outside the `except`, which would chain it
+        failure: FetchError | None = _unreadable(where, e)
     except FetchError as refusal:
         # `_json_number`'s own refusal, which names no `where`
         raise FetchError(f"{where}: {refusal}") from refusal
+    else:
+        failure = None
+    if failure is not None:
+        raise failure
 
 
 class JsonStream:
@@ -1850,17 +1875,7 @@ class BitcoinCoreRpcClient:
             "method": method,
             "params": params_member,
         }
-        try:
-            body = _request_json(request).encode()
-        except (ValueError, RecursionError) as e:
-            # an int of more digits, or a Decimal of a larger exponent,
-            # than `sys.get_int_max_str_digits` allows, which is the mirror of
-            # the limit a *reply* holding one runs into: json has the
-            # number and this interpreter will not write it. The walk above
-            # refuses the types json has no rendering for, and this is a
-            # value of a type it does, so the encoder is where it surfaces.
-            # The rest is what `_request_json` finds changed since the walk
-            raise BtcRpcValueError(f"rpc params json cannot carry: {e}") from e
+        body = _encoded(request)
         return request_id, body, timeout
 
     def _headers(self) -> dict[str, str]:
@@ -2031,10 +2046,7 @@ class BitcoinCoreRpcClient:
                 zip(pairs, request_ids, strict=True)
             )
         ]
-        try:
-            body = _request_json(members).encode()
-        except (ValueError, RecursionError) as e:
-            raise BtcRpcValueError(f"rpc params json cannot carry: {e}") from e
+        body = _encoded(members)
         status, payload = http_request(
             self.url,
             data=body,
@@ -2135,10 +2147,7 @@ class BitcoinCoreRpcClient:
         request["id"] = request_id
         request["method"] = method
         request["params"] = params_member
-        try:
-            body = _request_json(request).encode()
-        except (ValueError, RecursionError) as e:
-            raise BtcRpcValueError(f"rpc params json cannot carry: {e}") from e
+        body = _encoded(request)
         status, payload = http_request(
             self.url,
             data=body,

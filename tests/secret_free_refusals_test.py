@@ -19,6 +19,7 @@ what a refusal does say.
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import sys
@@ -30,6 +31,7 @@ from hashlib import sha256
 from http.client import BadStatusLine, IncompleteRead, UnknownProtocol
 from pathlib import Path
 from typing import Any
+from urllib.error import URLError
 from urllib.request import Request
 
 import pytest
@@ -910,6 +912,59 @@ def test_an_exchange_the_node_garbled_is_not_repeated(error: Exception) -> None:
     """An `HTTPException` holds the node's octets, so it is not chained."""
     refused(lambda: http_request(URL, transport=Recorded(error)))
     refused(lambda: client(error).call("getblockcount"))
+
+
+class RequestsConnectionError(OSError):
+    """What `requests` raises for a connection it could not make.
+
+    An `OSError`, as `requests.exceptions.ConnectionError` is, whose text
+    names the url, the path with a wallet's name included.
+    """
+
+
+class RequestsChunkedEncodingError(OSError):
+    """What `requests` raises for a chunked body cut short: an `OSError`.
+
+    It wraps the `IncompleteRead` of the octets the node sent.
+    """
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        RequestsConnectionError(f"Max retries exceeded with url: /wallet/{KEY}"),
+        RequestsChunkedEncodingError(
+            f"Connection broken: {KEY}", IncompleteRead(KEY_BYTES)
+        ),
+        OSError(KEY_INT, KEY),
+        ConnectionRefusedError(errno.ECONNREFUSED, KEY, KEY),
+        URLError(OSError(KEY_INT, KEY)),
+        URLError(KEY),
+        TimeoutError(KEY),
+    ],
+    ids=lambda error: type(error).__name__,
+)
+def test_an_error_of_a_transport_of_the_callers_own_is_not_repeated(
+    error: Exception,
+) -> None:
+    """An `OSError` of a caller's transport can quote the url or the octets."""
+    refused(lambda: http_request(f"{URL}/wallet/{KEY}", transport=Recorded(error)))
+    refused(lambda: client(error).for_wallet(KEY).call("getblockcount"))
+    refused(lambda: client(error).call_batch([("getblockcount", None)]))
+    refused(lambda: client(error).call_raw("getblockcount"))
+    refused(lambda: rest(error).get_json(f"/tx/{KEY}.json"))
+
+
+def test_an_errno_is_kept() -> None:
+    """The number is the system's, where the text is anybody's."""
+    error = ConnectionRefusedError(errno.ECONNREFUSED, KEY)
+    with pytest.raises(FetchError) as exc:
+        http_request(URL, transport=Recorded(error))
+    expected = f"ConnectionRefusedError [errno {errno.ECONNREFUSED}]"
+    assert str(exc.value) == f"no answer from {URL}: {expected}"
+    with pytest.raises(FetchError) as exc:
+        http_request(URL, transport=Recorded(URLError(error)))
+    assert str(exc.value) == f"no answer from {URL}: URLError ({expected})"
 
 
 def test_a_size_the_node_announces_is_not_repeated(

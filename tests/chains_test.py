@@ -338,7 +338,7 @@ def test_a_descriptor_that_cannot_be_inspected_is_closed_and_refused(
     # os.fstat too (9.2.0 on), before the patch is undone
     no_fstat = SimpleNamespace(**{**vars(os), "fstat": failing_fstat})
     monkeypatch.setattr("bitcoin_core_rpc.chains.os", no_fstat)
-    with pytest.raises(FetchError, match="unreadable rpc cookie file .*: no fstat"):
+    with pytest.raises(FetchError, match="unreadable rpc cookie file .*: OSError$"):
         cookie_auth(cookie)
     assert _open_descriptors() == before
 

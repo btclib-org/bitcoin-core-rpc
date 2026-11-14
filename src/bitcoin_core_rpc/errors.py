@@ -222,10 +222,11 @@ class RpcError(FetchError):
     Core's message can quote what the request carried, such as a
     descriptor holding a private key, and section 7 of the organization's
     standard, *A refusal carries no secret*, relays another program's
-    error code and not its text. `args[0]` names the call; `str()` writes
-    each non-printable character of it as an escape, so an rpc method
-    carrying a newline or an ESC cannot forge a log line or drive a
-    terminal.
+    error code and not its text. A caller who needs the message reads it
+    with `BitcoinCoreRpcClient.call_raw`, which hands back the error object
+    as the node sent it. `args[0]` names the call; `str()` writes each
+    non-printable character of it as an escape, so an rpc method carrying
+    a newline or an ESC cannot forge a log line or drive a terminal.
     """
 
     def __init__(self, message: str, code: int) -> None:
@@ -281,3 +282,37 @@ class CookieNotFoundError(FetchError):
     inspect a file that was never written; one holding them apart says
     "start the node" for this and names the file for the rest.
     """
+
+
+# an errno past 32 bits is no number of the system's table but a value
+# a transport of the caller's own put there
+_ERRNO_BOUND = 2**31
+
+
+def _failure_name(failure: BaseException) -> str:
+    """Name an exception another program raised, for a refusal to show.
+
+    By its type, and by its errno where it carries an `int` of at most 32
+    bits. The text and the args are left out, and the refusal chains
+    nothing: section 7 of the organization's standard, *A refusal carries
+    no secret*, relays another program's error code and not its text. An
+    `OSError` raised by a transport of the caller's own, such as the
+    `ConnectionError` of `requests`, can quote the url with a wallet's
+    name in its path, or what the node sent. A `reason` that is an
+    exception, which `URLError` wraps the connection's error in, is named
+    the same way after it.
+    """
+    name = _type_and_errno(failure)
+    reason = getattr(failure, "reason", None)
+    if isinstance(reason, BaseException):
+        name += f" ({_type_and_errno(reason)})"
+    return name
+
+
+def _type_and_errno(failure: BaseException) -> str:
+    """Name an exception by its type and the errno `_failure_name` keeps."""
+    name = type(failure).__name__
+    errno = getattr(failure, "errno", None)
+    if type(errno) is int and -_ERRNO_BOUND <= errno < _ERRNO_BOUND:
+        name += f" [errno {errno}]"
+    return name

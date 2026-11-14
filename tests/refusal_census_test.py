@@ -15,9 +15,10 @@ it cannot trace is a finding. It traces
 
 - a literal, a comparison, a name bound by an import, a `def` or a
   `class`, and an attribute named in capitals;
-- what `_quoted`, `_kept_name`, `_endpoint`, `_split_url`, `len`, `type`
-  and `bool` answer, what the methods `bit_length`, `count`, `find`, `index`,
-  `start` and `end` answer, and a `__name__` or a `__qualname__`;
+- what `_quoted`, `_kept_name`, `_endpoint`, `_split_url`,
+  `_failure_name`, `len`, `type` and `bool` answer, what the methods
+  `bit_length`, `count`, `find`, `index`, `start` and `end` answer, and a
+  `__name__` or a `__qualname__`;
 - the index `enumerate` counts from a start it traces, and the one a
   `range` counts from zero or from a start it traces;
 - a call, an attribute or an item of what it traces; each element a loop
@@ -52,6 +53,17 @@ reason: `CALLER_VALUES`, a parameter whose value the caller passed, and
 not trace, nor any name that function binds to it. Of what a node sends,
 they hold the rpc error code and the HTTP status alone. An entry no
 refusal uses fails the census too.
+
+An exception that is not one of the package's classes may hold the same
+values, as a `JSONDecodeError` holds the document it failed on, so no
+refusal chains one or has it as context. A `raise` inside an `except` of
+another class, or in a `finally`, is a finding, `from None` included,
+which keeps the context, and the exception handled raised again alone
+excepted; so is a `raise ... from` anything but `None`, the exception of
+an `except` of the package's own classes, or what a function of the
+package builds of them; and so is a call, inside such an `except`, of a
+function of the package that raises. A method called there on another
+object than its own is known by its name only, and is not read.
 """
 
 from __future__ import annotations
@@ -73,7 +85,16 @@ _LIBRARY = Path(bitcoin_core_rpc.__file__).parent
 # or holds a name short enough to quote, or the scheme, the host and the port
 # of a url
 _DESCRIBING = frozenset(
-    {"_quoted", "_kept_name", "_endpoint", "_split_url", "len", "type", "bool"}
+    {
+        "_quoted",
+        "_kept_name",
+        "_endpoint",
+        "_split_url",
+        "_failure_name",
+        "len",
+        "type",
+        "bool",
+    }
 )
 _DESCRIBING_METHODS = frozenset(
     {"bit_length", "count", "find", "index", "start", "end"}
@@ -100,10 +121,19 @@ _COMPREHENSION = (ast.ListComp, ast.SetComp, ast.GeneratorExp)
 _BINDING = (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr)
 _LOOP = (ast.For, ast.AsyncFor, ast.comprehension)
 _DECLARED = (ast.Import, ast.ImportFrom, *_FUNCTION, ast.ClassDef)
+_BOUND = frozenset({"self", "cls"})
 
 
 def _private(name: str) -> bool:
     return name.startswith("_") and not name.endswith("__")
+
+
+def _bound(receiver: ast.expr) -> bool:
+    """Return whether a method is called on `self`, `cls` or `super()`."""
+    if isinstance(receiver, ast.Call):
+        receiver = receiver.func
+        return isinstance(receiver, ast.Name) and receiver.id == "super"
+    return isinstance(receiver, ast.Name) and receiver.id in _BOUND
 
 
 def _called_name(func: ast.expr) -> str | None:
@@ -389,7 +419,158 @@ class _Census:
                     untraced.append(leaf)
             if untraced:
                 found.append(f"{module.where(call)}: " + "; ".join(untraced))
+        return found + self.chains()
+
+    def chains(self) -> list[str]:
+        """Return each `raise` that chains, or leaves as context, another error.
+
+        And each call of a function of the package that raises, made while
+        handling one.
+        """
+        found: list[str] = []
+        for module in self.modules:
+            for node in ast.walk(module.tree):
+                if isinstance(node, ast.Raise) and node.exc is not None:
+                    found.extend(self._chained(node, module))
+                elif isinstance(node, ast.ExceptHandler) and not self._own(node.type):
+                    found.extend(self._raising_calls(node, module))
         return found
+
+    def _raising_calls(self, handler: ast.ExceptHandler, module: _Module) -> list[str]:
+        """Return each call in an `except` body of a function that raises.
+
+        What that function raises has the exception handled as context. A
+        method is read where it is called on its own object alone: called on
+        another, it is known by its name only.
+        """
+        found: list[str] = []
+        caught = "everything" if handler.type is None else ast.unparse(handler.type)
+        for statement in handler.body:
+            for node in [statement, *_own_nodes(statement)]:
+                if not isinstance(node, ast.Call) or (
+                    isinstance(node.func, ast.Attribute) and not _bound(node.func.value)
+                ):
+                    continue
+                for function in self._resolve(node.func, module) or []:
+                    if self._raises(function):
+                        callee = ast.unparse(node.func)
+                        found.append(
+                            f"{module.where(node)}: calls {callee}, which raises,"
+                            f" while handling {caught}"
+                        )
+                        break
+        return found
+
+    def _raises(self, function: ast.AST) -> bool:
+        """Return whether a function holds a `raise` of an exception."""
+        return any(
+            isinstance(node, ast.Raise) and node.exc is not None
+            for node in self._scope_nodes(function)
+        )
+
+    def _chained(self, node: ast.Raise, module: _Module) -> list[str]:
+        """Return what a `raise` chains that can hold what it was handed.
+
+        An exception is handled, and becomes the context of what is raised,
+        in the body of each `except` around the `raise` and in a `finally`.
+        One of the package's own classes holds what the census checks; any
+        other may hold what a caller or a node handed over, as a
+        `JSONDecodeError` holds the document it failed on.
+        """
+        found: list[str] = []
+        handlers: list[ast.ExceptHandler] = []
+        child: ast.AST = node
+        parent = module.parents.get(node)
+        while parent is not None and not isinstance(parent, (*_FUNCTION, ast.ClassDef)):
+            if isinstance(parent, ast.ExceptHandler):
+                handlers.append(parent)
+            elif (
+                isinstance(parent, (ast.Try, ast.TryStar)) and child in parent.finalbody
+            ):
+                found.append(f"{module.where(node)}: raised in a finally block")
+            child, parent = parent, module.parents.get(parent)
+        names = {handler.name for handler in handlers if handler.name}
+        if isinstance(node.exc, ast.Name) and node.exc.id in names:
+            # the exception handled, raised again: no refusal of the package
+            return found
+        for handler in handlers:
+            if not self._own(handler.type):
+                caught = (
+                    "everything" if handler.type is None else ast.unparse(handler.type)
+                )
+                found.append(f"{module.where(node)}: raised while handling {caught}")
+        cause = node.cause
+        if not (
+            cause is None
+            or (isinstance(cause, ast.Constant) and cause.value is None)
+            or (isinstance(cause, ast.Name) and cause.id in names)
+            or self._own_kept(cause, module)
+        ):
+            found.append(f"{module.where(node)}: chains {ast.unparse(cause)}")
+        return found
+
+    def _own_kept(self, cause: ast.expr, module: _Module) -> bool:
+        """Return whether a name, or an item of it, holds own exceptions alone.
+
+        Each value put into it is an empty literal, None, the exception an
+        `except` of the package's own classes binds, or what a function of
+        the package returns where each of its `return`s builds one of them.
+        """
+        while isinstance(cause, ast.Subscript):
+            cause = cause.value
+        if not isinstance(cause, ast.Name):
+            return False
+        scope = module.scopes(cause)[0]
+        own = {
+            handler.name
+            for handler in self._scope_nodes(scope)
+            if isinstance(handler, ast.ExceptHandler)
+            and handler.name
+            and self._own(handler.type)
+        }
+        values: list[ast.expr | None] = []
+        # and what any function the scope holds puts into it
+        nested = self._mutations(scope).get(cause.id, [])
+        for node in [*self._scope_nodes(scope), *nested]:
+            if _mutates(node, cause.id):
+                call = cast("ast.Call", node)
+                values.extend([*call.args, *(k.value for k in call.keywords)])
+            elif isinstance(node, (ast.Assign, ast.AnnAssign)) and _binds(
+                node, cause.id
+            ):
+                values.append(node.value)
+            elif _binds(node, cause.id):
+                return False
+        return bool(values) and all(
+            (isinstance(value, (ast.List, ast.Tuple)) and not value.elts)
+            or (isinstance(value, ast.Constant) and value.value is None)
+            or (isinstance(value, ast.Name) and value.id in own)
+            or self._builds_own(value, module)
+            for value in values
+        )
+
+    def _builds_own(self, value: ast.expr | None, module: _Module) -> bool:
+        """Return whether a call is of functions building own classes alone."""
+        if not isinstance(value, ast.Call):
+            return False
+        functions = self._resolve(value.func, module) or []
+        returns = [
+            node
+            for function in functions
+            for node in self._scope_nodes(function)
+            if isinstance(node, ast.Return)
+        ]
+        return bool(returns) and all(
+            isinstance(node.value, ast.Call)
+            and _called_name(node.value.func) in self.classes
+            for node in returns
+        )
+
+    def _own(self, caught: ast.expr | None) -> bool:
+        """Return whether an `except` catches the package's classes alone."""
+        if isinstance(caught, ast.Tuple):
+            return all(self._own(each) for each in caught.elts)
+        return _called_name(caught) in self.classes if caught is not None else False
 
     def untraced(
         self, exprs: list[ast.expr], module: _Module, kept: frozenset[str] = frozenset()
@@ -509,8 +690,8 @@ class _Census:
                     isinstance(module.parents.get(scope), ast.ClassDef)
                     and bool(positional)
                     and positional[0].arg == expr.id
-                    and not any(
-                        _called_name(d) == "staticmethod"
+                    and all(
+                        _called_name(d) != "staticmethod"
                         for d in getattr(scope, "decorator_list", [])
                     )
                 )
@@ -932,9 +1113,6 @@ CALLER_VALUES = {
 #: An argument of the refusals of one function that the census does not
 #: trace, keyed by module, function and source.
 KEPT = {
-    ("chains.py", "cookie_auth", "e"): (
-        "the OSError of opening the caller's cookie file, which names its path"
-    ),
     ("client.py", "_rpc_error", "code"): (
         "the rpc error code the node sent, an integer of at most 32 bits"
     ),
@@ -945,15 +1123,6 @@ KEPT = {
     ("client.py", "_json_scalar", "value"): (
         "a float that is not finite: nan, inf or -inf"
     ),
-    ("client.py", "_request", "e"): (
-        "the encoder's error for the caller's params, which names a limit"
-    ),
-    ("client.py", "call_batch", "e"): (
-        "the encoder's error for the caller's params, which names a limit"
-    ),
-    ("client.py", "call_raw", "e"): (
-        "the encoder's error for the caller's params, which names a limit"
-    ),
     ("transport.py", "_assert_valid_timeout", "shown"): (
         "a refused timeout: a float, or the size in bits of a larger integer"
     ),
@@ -963,12 +1132,6 @@ KEPT = {
     ("transport.py", "http_request", "max_body_size"): (
         "the caller's limit, shown once a body read has gone past it"
     ),
-    ("transport.py", "http_request", "e"): (
-        "an OSError: the system's text about the connection. An HTTPException,"
-        " which can hold what the node sent, is named by its type"
-    ),
-    ("transport.py", "_post_stream", "e"): "an OSError, as for http_request",
-    ("transport.py", "read", "e"): "an OSError, as for http_request",
 }
 
 
@@ -1124,12 +1287,14 @@ _SHAPES = {
     ),
     "except": (
         (
-            "def f(key):\n    try:\n        pass\n    except OSError as e:\n"
-            "        raise ValueError(type(e).__name__) from e"
+            "def f(key):\n    failure = ''\n    try:\n        pass\n"
+            "    except OSError as e:\n        failure = type(e).__name__\n"
+            "    raise ValueError(failure)"
         ),
         (
-            "def f(key):\n    try:\n        pass\n    except OSError as e:\n"
-            "        raise ValueError(str(e)) from e"
+            "def f(key):\n    failure = ''\n    try:\n        pass\n"
+            "    except OSError as e:\n        failure = str(e)\n"
+            "    raise ValueError(failure)"
         ),
     ),
     "environment": (
@@ -1321,6 +1486,124 @@ _SHAPES = {
         "raise ValueError('a')",
         "import sys\nraise ValueError(sys.argv[0])",
     ),
+    "chained": (
+        (
+            "class _OwnError(Exception):\n    pass\ndef f(key):\n    try:\n"
+            "        pass\n    except _OwnError as e:\n"
+            "        raise ValueError('a') from e"
+        ),
+        (
+            "def f(key):\n    try:\n        pass\n    except ValueError as e:\n"
+            "        raise ValueError('a') from e"
+        ),
+    ),
+    "context": (
+        (
+            "def f(key):\n    failed = False\n    try:\n        pass\n"
+            "    except ValueError:\n        failed = True\n"
+            "    if failed:\n        raise ValueError('a')"
+        ),
+        (
+            "def f(key):\n    try:\n        pass\n    except ValueError:\n"
+            "        raise ValueError('a') from None"
+        ),
+    ),
+    "context of a bare except": (
+        "def f(key):\n    try:\n        pass\n    except:\n        raise",
+        "def f(key):\n    try:\n        pass\n    except:\n        raise ValueError('a')",
+    ),
+    "finally": (
+        "def f(key):\n    try:\n        raise ValueError('a')\n    finally:\n        pass",
+        "def f(key):\n    try:\n        pass\n    finally:\n        raise ValueError('a')",
+    ),
+    "cause kept": (
+        (
+            "class _OwnError(Exception):\n    pass\ndef f(key):\n    seen = []\n"
+            "    try:\n        pass\n    except _OwnError as e:\n"
+            "        seen.append(e)\n    raise ValueError('a') from seen[-1]"
+        ),
+        (
+            "def f(key):\n    seen = []\n    try:\n        pass\n"
+            "    except ValueError as e:\n        seen.append(e)\n"
+            "    raise ValueError('a') from seen[-1]"
+        ),
+    ),
+    "cause of a call": (
+        "def f(key):\n    raise ValueError('a') from None",
+        "def f(key):\n    raise ValueError('a') from g()",
+    ),
+    "cause bound by a loop": (
+        (
+            "class _OwnError(Exception):\n    pass\ndef f(key):\n    last = None\n"
+            "    try:\n        pass\n    except _OwnError as e:\n        last = e\n"
+            "    raise ValueError('a') from last"
+        ),
+        (
+            "def f(errors):\n    for last in errors:\n        pass\n"
+            "    raise ValueError('a') from last"
+        ),
+    ),
+    "cause built by the package": (
+        (
+            "class _OwnError(Exception):\n    pass\ndef _g():\n"
+            "    return _OwnError('a')\ndef f(key):\n    cause = _g()\n"
+            "    raise ValueError('a') from cause"
+        ),
+        (
+            "class _OwnError(Exception):\n    pass\ndef _g(key):\n"
+            "    return key\ndef f(key):\n    cause = _g(key)\n"
+            "    raise ValueError('a') from cause"
+        ),
+    ),
+    "cause built by no function of the package": (
+        (
+            "class _OwnError(Exception):\n    pass\ndef f(key):\n"
+            "    cause = None\n    raise ValueError('a') from cause"
+        ),
+        "def f(key):\n    cause = g()\n    raise ValueError('a') from cause",
+    ),
+    "raising call in an except": (
+        (
+            "class _OwnError(Exception):\n    pass\ndef _g():\n"
+            "    raise ValueError('a')\ndef f(key):\n    try:\n        pass\n"
+            "    except _OwnError:\n        _g()"
+        ),
+        (
+            "def _g():\n    raise ValueError('a')\ndef f(key):\n    try:\n"
+            "        pass\n    except ValueError:\n        _g()"
+        ),
+    ),
+    "method called in an except": (
+        (
+            "class C:\n    def _g(self):\n        raise ValueError('a')\n"
+            "    def _f(self, other):\n        try:\n            pass\n"
+            "        except ValueError:\n            other._g()"
+        ),
+        (
+            "class C:\n    def _g(self):\n        raise ValueError('a')\n"
+            "    def _f(self):\n        try:\n            pass\n"
+            "        except ValueError:\n            self._g()"
+        ),
+    ),
+    "method of super called in an except": (
+        (
+            "class C:\n    def _g(self):\n        raise ValueError('a')\n"
+            "    def _f(self):\n        try:\n            pass\n"
+            "        except ValueError:\n            make()._g()"
+        ),
+        (
+            "class C:\n    def _g(self):\n        raise ValueError('a')\n"
+            "    def _f(self):\n        try:\n            pass\n"
+            "        except ValueError:\n            super()._g()"
+        ),
+    ),
+    "handled exception raised again": (
+        "def f(key):\n    try:\n        pass\n    except ValueError as e:\n        raise e",
+        (
+            "def f(key):\n    try:\n        pass\n    except ValueError as e:\n"
+            "        raise ValueError(e)"
+        ),
+    ),
     "arguments unpacked": (
         "def _g(x):\n    raise ValueError(x)\ndef f(keys):\n    _g(1)",
         "def _g(x):\n    raise ValueError(x)\ndef f(keys):\n    _g(*keys)",
@@ -1337,8 +1620,10 @@ def test_census_controls(traced: str, flagged: str) -> None:
 
 def test_the_tables_hide_their_own_entries_alone() -> None:
     """A caller's parameter is hidden by name, a kept argument by function."""
-    module = "def f(key, other):\n    raise ValueError(key)\ndef g(key):\n"
-    module += "    raise ValueError(key)"
+    module = (
+        "def f(key, other):\n    raise ValueError(key)\ndef g(key):\n"
+        "    raise ValueError(key)"
+    )
     census = _census({"m.py": module})
     assert len(census.findings()) == 2
     callers = {"m.py parameter key of f": "", "m.py parameter key of g": ""}
@@ -1350,3 +1635,39 @@ def test_the_tables_hide_their_own_entries_alone() -> None:
     # a name the function binds to the kept argument is not traced either
     local = "def f(key):\n    text = key\n    raise ValueError(text)"
     assert not _census({"m.py": local}).findings(kept={("m.py", "f", "key"): ""})
+
+
+# the library with one refusal put back as it was before issue 808, or as a
+# change could write it: each is a finding
+_SEEDS = {
+    "a JSONDecodeError chained": (
+        "client.py",
+        'refusal = FetchError(f"{where}: not json")',
+        'raise FetchError(f"{where}: not json") from e',
+    ),
+    "an HTTPException written into the text": (
+        "transport.py",
+        "failure = _failure_name(e)",
+        "failure = str(e)",
+    ),
+    "an OSError written and chained": (
+        "transport.py",
+        "failure = _failure_name(e)",
+        'raise FetchError(f"no answer from {where}: {e}") from e',
+    ),
+    "raised from None while handling a FileNotFoundError": (
+        "chains.py",
+        "missing = True",
+        'raise FetchError("no cookie") from None',
+    ),
+}
+
+
+@pytest.mark.parametrize(("module", "old", "new"), _SEEDS.values(), ids=_SEEDS)
+def test_the_census_finds_a_refusal_put_back(module: str, old: str, new: str) -> None:
+    """Each seed is a finding of the census, and the library is not."""
+    sources = _library()
+    name = f"{_PACKAGE}/{module}"
+    assert old in sources[name]
+    sources[name] = sources[name].replace(old, new, 1)
+    assert _census(sources).findings(CALLER_VALUES, _kept())

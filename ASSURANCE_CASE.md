@@ -236,8 +236,11 @@ exposed to, and what counters each.
   A refusal's path, which locates the refused value, shows the name of each
   mapping it goes through only where the name has at most `_MAX_KEY_SHOWN`
   characters (`client.py`), and `...` for a longer one.
-  An encode error holds the text it failed on, so one that a credential, a
-  wallet name or a cookie path can raise is refused without being chained.
+  An exception of another program, a transport of the caller's own
+  included, is named by `_failure_name` (`errors.py`): its type, and its
+  errno, never its text. No refusal chains one or has it as context: an
+  encode error holds the text it failed on, and an `OSError` a caller's
+  transport raises can quote the url with its path.
   The rule is section 7's *A refusal carries no secret* in
   [the organization's standard](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret).
   A refusal writes no value a node sent, a key passed in the wrong place
@@ -251,12 +254,14 @@ exposed to, and what counters each.
   rejected credential, a refused url, rpc parameter, header, timeout or
   limit, rest path, wallet name, chain or network name and signet
   challenge, an unreadable reply, an unreadable cookie file and a
-  refusal's path, and a key the node answers in an error object, an id, a
-  version marker, a chain, a garbled exchange or an announced size.
+  refusal's path, a key the node answers in an error object, an id, a
+  version marker, a chain, a garbled exchange or an announced size, and a
+  key in the text and the args of an `OSError` a caller's transport raises.
   `JsonStream` names a misplaced octet of a reply by its offset, never the
   octet, and `tests/stream_test.py` feeds a key where it stops.
   `tests/refusal_census_test.py` finds every exception the package builds
-  and fails on an argument it cannot trace to a value a refusal may hold.
+  and fails on an argument it cannot trace to a value a refusal may hold,
+  and on a `raise` that chains another exception or has it as context.
   Its two tables are what a refusal still shows, each entry with its
   reason: among them the rpc method as passed, which the request sends to
   the node anyway, the path of a cookie file, which an operator has to

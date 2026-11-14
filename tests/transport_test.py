@@ -1703,7 +1703,10 @@ def test_a_drop_after_the_write_is_not_re_sent(
     with pytest.raises(FetchError, match="no answer from") as excinfo:
         http_request(URL, data=b"{}", transport=transport)
 
-    assert excinfo.value.__cause__ is error
+    # named by its type, and chaining nothing: `_failure_name` says why
+    assert str(excinfo.value).endswith(type(error).__name__)
+    assert excinfo.value.__cause__ is None
+    assert excinfo.value.__context__ is None
     assert len(stale.requests) == 2
     assert stale.closed is True
     assert transport._connections == {}
@@ -2485,7 +2488,7 @@ def test_a_peer_dripping_headers_is_held_to_the_deadline(
     with (
         _peer(_drip_headers) as url,
         SessionTransport() as session_transport,
-        pytest.raises(FetchError, match="timed out"),
+        pytest.raises(FetchError, match="TimeoutError"),
     ):
         transport = session_transport if session else urlopen_transport
         http_request(url, timeout=50.0, transport=transport)
@@ -2500,7 +2503,7 @@ def test_a_tls_handshake_is_held_to_the_deadline() -> None:
     """
     with socket.create_server(("127.0.0.1", 0)) as silent:
         url = f"https://127.0.0.1:{silent.getsockname()[1]}/"
-        with pytest.raises(FetchError, match="timed out"):
+        with pytest.raises(FetchError, match="TimeoutError"):
             http_request(url, timeout=0.2)
 
 

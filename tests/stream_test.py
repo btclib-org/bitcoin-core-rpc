@@ -804,7 +804,7 @@ def test_a_peer_holding_the_body_back_is_held_to_the_deadline(
             url, user=RPC_USER, password=RPC_PASSWORD, timeout=timeout
         )
         started = monotonic()
-        with pytest.raises(FetchError, match="timed out|timeout expired"):
+        with pytest.raises(FetchError, match="TimeoutError|timeout expired"):
             endpoint.call_stream("m", None, count)
         assert monotonic() - started < 6 * timeout
 
