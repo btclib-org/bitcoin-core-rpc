@@ -470,8 +470,7 @@ gh api repos/btclib-org/bitcoin-core-rpc \
 #  "allow_rebase_merge":false,"allow_squash_merge":true}
 ```
 
-Auto-merge is off, so no pull request can be armed: the merge is
-explicit.
+Auto-merge is off, [for the reason section 11 gives][s11-merge].
 
 The merge commit was refused by the required linear history above already,
 so turning it off takes away a button that could not have worked. The
@@ -966,6 +965,7 @@ what that particular zero means.
 
 [s10-sourcery]: https://github.com/btclib-org/.github#the-set-and-its-cadence
 [s11-branch]: https://github.com/btclib-org/.github#branch-protection-and-rulesets
+[s11-merge]: https://github.com/btclib-org/.github#merge-method
 [s11-sigs]: https://github.com/btclib-org/.github#signatures
 [s11-tokens]: https://github.com/btclib-org/.github#tokens-publishing-scanning
 [governance]: https://github.com/btclib-org/.github/blob/main/GOVERNANCE.md#how-a-decision-is-made
