@@ -225,6 +225,10 @@ test = [
     # import ecc.ecc, which the latest ecc does not have
     "btclib>=2026.11.10",
     "coverage>=7.16.0",
+    # what tests/_tls/generate.py writes the TLS fixtures with, and what
+    # tests/tls_generate_test.py reads them back with. 42.0.0 is the first
+    # release with the `not_valid_before_utc` that test reads
+    "cryptography>=42.0.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pytest-randomly>=5.0.0",
@@ -1029,6 +1033,9 @@ ignore = [
 # sphinx imports this one by its own convention, reading docs/source/ as a
 # configuration directory rather than as a package; same reason
 "docs/source/conf.py" = ["INP001"]
+# run with `python tests/_tls/generate.py`, and loaded by path in its
+# test; same reason
+"tests/_tls/generate.py" = ["INP001"]
 # the D rules are not here: a public test function, fixture or method
 # states what it verifies -- the property, the vector, the failure mode --
 # under the same docstring gate as the module's public interface. D102/D103
