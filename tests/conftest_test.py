@@ -14,6 +14,9 @@ The guards beside it are driven the same way, and each is also run once
 in a subprocess started from `tests/`: a run a guard refuses cannot be
 the run reporting on it. The source guard's run is in
 `tests/source_guard_run_test.py`, which the sdist does not ship.
+
+The last case asks the coverage table of `pyproject.toml` for a file no
+test runs, in a child interpreter, for the same reason.
 """
 
 from __future__ import annotations
@@ -807,3 +810,39 @@ def test_the_source_guard_reads_coverage_s_own_list(
     """
     measuring = coverage_configuration(pytestconfig)
     assert measuring is None or measuring.source == _SOURCE
+
+
+# what a child interpreter prints: every file coverage reports, measuring
+# nothing, under the configuration of the directory it starts in
+_UNEXECUTED = """
+import coverage
+cov = coverage.Coverage(data_file=None, config_file="pyproject.toml")
+cov.start()
+cov.stop()
+print("\\n".join(cov.get_data().measured_files()))
+"""
+
+
+def test_a_file_no_test_runs_is_in_the_table() -> None:
+    """Every module under `tests/` is found unexecuted, `_data`'s included.
+
+    `tests/_data/tls/generate.py` sits in no package, and coverage finds
+    such a file only under `include_namespace_packages`. The child measures
+    nothing and writes no data file, so each file it lists was found
+    without running it.
+    """
+    environment = dict(os.environ)
+    environment.pop("COVERAGE_RCFILE", None)
+    # S603: the arguments are this file's constants, and no shell is involved
+    found = subprocess.run(  # ruff: ignore[S603]
+        [sys.executable, "-c", _UNEXECUTED],
+        cwd=_ROOT,
+        env=environment,
+        capture_output=True,
+        encoding="utf-8",
+        check=True,
+    ).stdout.splitlines()
+    measured = {Path(name).resolve() for name in found}
+    expected = {path.resolve() for path in (_ROOT / "tests").rglob("*.py")}
+    assert _ROOT / "tests" / "_data" / "tls" / "generate.py" in expected
+    assert expected - measured == set()

@@ -685,9 +685,10 @@ extend-ignore-re = ['`[^`]*`']
 [tool.coverage.run]
 # every tree is named, rather than left to --cov's default of whatever
 # the run imports: a file no test imports is then reported at 0% instead
-# of missing from the table. bitcoin_core_rpc is the package this
-# distribution ships. tests is measured because a test nothing runs is
-# dead code with the authority of a test. .github/scripts is measured
+# of missing from the table, in a directory holding no __init__.py too,
+# by include_namespace_packages below. bitcoin_core_rpc is the package
+# this distribution ships. tests is measured because a test nothing runs
+# is dead code with the authority of a test. .github/scripts is measured
 # because a branch of a script that no test reaches is a check nobody
 # has seen fail; it is no package, and coverage measures it by path.
 source = ["bitcoin_core_rpc", "tests", ".github/scripts"]
@@ -701,6 +702,12 @@ omit = ["*/site-packages/*"]
 branch = true
 
 [tool.coverage.report]
+# coverage looks for the files no test imports only in directories that
+# hold an __init__.py unless this is set, and tests/_data is no package
+# (section 7 of the organization's standard): without it the script under
+# tests/_data/tls is missing from the table where no test runs it.
+# Section 8 names this setting for that case
+include_namespace_packages = true
 show_missing = true
 skip_covered = true
 precision = 2
