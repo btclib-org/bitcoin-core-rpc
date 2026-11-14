@@ -26,6 +26,7 @@ from bitcoin_core_rpc.errors import (
     BtcRpcValueError,
     CookieNotFoundError,
     FetchError,
+    _failure_name,
 )
 
 # Every name this module defines, none of it imported: `__init__.py`'s own
@@ -89,6 +90,18 @@ def _quoted(name: object) -> str:
     if not isinstance(name, str):
         return f"a {type(name).__name__}"
     return "(too long to quote)" if len(name) > _MAX_NAME_SHOWN else name
+
+
+def _kept_name(name: object) -> str | None:
+    """Return a name `_quoted` would show whole and printable, else `None`.
+
+    What an exception may keep as an attribute of a name it was handed or
+    answered: a chain a node reports is no less a misplaced secret than one
+    a caller passes, and a terminal escape is no name.
+    """
+    if isinstance(name, str) and len(name) <= _MAX_NAME_SHOWN and name.isprintable():
+        return name
+    return None
 
 
 def rpc_port_from_chain(chain: str) -> int:
@@ -279,9 +292,14 @@ def magic_from_signet_challenge(challenge: str | bytes | bytearray) -> bytes:
     """
     if isinstance(challenge, str):
         try:
-            script = bytes.fromhex(challenge)
-        except ValueError as e:
-            raise BtcRpcValueError(f"signet challenge that is no hex: {e}") from e
+            decoded: bytes | None = bytes.fromhex(challenge)
+        except ValueError:
+            decoded = None
+        # raised outside the `except`: a challenge is what a node reports,
+        # and nothing it sent is repeated
+        if decoded is None:
+            raise BtcRpcValueError("signet challenge that is no hex")
+        script = decoded
     elif isinstance(challenge, (bytes, bytearray)):
         script = bytes(challenge)
     else:
@@ -506,6 +524,33 @@ def cookie_auth(cookie_path: Path) -> str:
     FetchError too: it says the node wrote no cookie, where the rest say
     something is at the path and it is not a cookie.
     """
+    raw = _cookie_bytes(cookie_path)
+    if len(raw) > _MAX_COOKIE_SIZE:
+        err_msg = f"oversized rpc cookie file {cookie_path}:"
+        err_msg += f" more than the {_MAX_COOKIE_SIZE} bytes one can be"
+        raise FetchError(err_msg)
+    try:
+        line = raw.decode("ascii").strip()
+    except UnicodeDecodeError:
+        line = None
+    if line is None:
+        # outside the `except`, so that nothing chains the decode error,
+        # which holds the file
+        raise FetchError(f"non-ascii rpc cookie file {cookie_path}")
+    if "\n" in line or "\r" in line:
+        raise FetchError(f"malformed rpc cookie file {cookie_path}: several lines")
+    if ":" not in line:
+        raise FetchError(f"malformed rpc cookie file {cookie_path}: no ':' in it")
+    return line
+
+
+def _cookie_bytes(cookie_path: Path) -> bytes:
+    """Return what `cookie_auth` reads of a file, an octet past its bound.
+
+    A failure to open or to read is refused outside the `except`, which
+    would chain it.
+    """
+    raw, failure, missing = b"", "", False
     try:
         fd = os.open(_encodable(cookie_path), _COOKIE_OPEN_FLAGS)
         # the descriptor is judged, not the path: a path checked and then
@@ -524,32 +569,21 @@ def cookie_auth(cookie_path: Path) -> str:
             raise FetchError(err_msg)
         with os.fdopen(fd, "rb") as file:
             raw = file.read(_MAX_COOKIE_SIZE + 1)
-    except FileNotFoundError as e:
-        err_msg = f"no rpc cookie file {cookie_path}: bitcoind writes one"
-        err_msg += " while it runs with its rpc server enabled"
-        raise CookieNotFoundError(err_msg) from e
+    except FileNotFoundError:
+        missing = True
     except OSError as e:
         # every other way the open fails is a file to look at: a mode that
         # excludes this user, a datadir that is no directory, a directory
         # at the path on Windows (POSIX opens one, and the check refuses
         # it). `FileNotFoundError` alone above, and not `ENOTDIR` with it
         # -- a path component that is a file is a datadir the caller
-        # configured wrong, which the node starting does not fix
-        raise FetchError(f"unreadable rpc cookie file {cookie_path}: {e}") from e
-    if len(raw) > _MAX_COOKIE_SIZE:
-        err_msg = f"oversized rpc cookie file {cookie_path}:"
-        err_msg += f" more than the {_MAX_COOKIE_SIZE} bytes one can be"
-        raise FetchError(err_msg)
-    try:
-        line = raw.decode("ascii").strip()
-    except UnicodeDecodeError:
-        line = None
-    if line is None:
-        # outside the `except`, so that nothing chains the decode error,
-        # which holds the file
-        raise FetchError(f"non-ascii rpc cookie file {cookie_path}")
-    if "\n" in line or "\r" in line:
-        raise FetchError(f"malformed rpc cookie file {cookie_path}: several lines")
-    if ":" not in line:
-        raise FetchError(f"malformed rpc cookie file {cookie_path}: no ':' in it")
-    return line
+        # configured wrong, which the node starting does not fix. Named by
+        # `_failure_name`, as every error of another program is
+        failure = _failure_name(e)
+    if missing:
+        err_msg = f"no rpc cookie file {cookie_path}: bitcoind writes one"
+        err_msg += " while it runs with its rpc server enabled"
+        raise CookieNotFoundError(err_msg)
+    if failure:
+        raise FetchError(f"unreadable rpc cookie file {cookie_path}: {failure}")
+    return raw

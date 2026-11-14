@@ -383,7 +383,7 @@ def test_an_rpc_error_is_raised_and_no_result_is_walked(
     status: int, body: bytes
 ) -> None:
     """A legacy error under its 500, and a 2.0 error with no `result`."""
-    with pytest.raises(RpcError, match="^m at http://127.0.0.1:8332: no ") as caught:
+    with pytest.raises(RpcError, match="^m at http://127.0.0.1:8332: the") as caught:
         answering(status, body).call_stream("m", None, walk_never_called)
     assert caught.value.code == -5
 
@@ -638,7 +638,7 @@ def test_call_refuses_the_reply_call_stream_reads() -> None:
     def answer(request_id: str) -> bytes:
         return _response("200 OK", _reply(request_id))
 
-    with _peer(answer) as url, pytest.raises(FetchError, match="of 1000"):
+    with _peer(answer) as url, pytest.raises(FetchError, match="announced a body"):
         node(url).call("getblock", max_body_size=1000)
 
 
@@ -650,8 +650,9 @@ def test_a_status_from_the_peer_is_answered_as_call_answers_it() -> None:
         reply = {"result": None, "error": error, "id": request_id}
         return _response("500 Internal Server Error", json.dumps(reply).encode())
 
-    with _peer(answer) as url, pytest.raises(RpcError, match="bad"):
+    with _peer(answer) as url, pytest.raises(RpcError) as caught:
         node(url).call_stream("m", None, walk_never_called)
+    assert caught.value.code == -8
 
 
 # a chunked body whose first chunk size is no number, which `http.client`
@@ -803,7 +804,7 @@ def test_a_peer_holding_the_body_back_is_held_to_the_deadline(
             url, user=RPC_USER, password=RPC_PASSWORD, timeout=timeout
         )
         started = monotonic()
-        with pytest.raises(FetchError, match="timed out|timeout expired"):
+        with pytest.raises(FetchError, match="TimeoutError|timeout expired"):
             endpoint.call_stream("m", None, count)
         assert monotonic() - started < 6 * timeout
 

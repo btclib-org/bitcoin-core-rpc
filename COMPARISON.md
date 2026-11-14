@@ -28,7 +28,7 @@ rather than a translation of that one, and shares no line with either.
 | Maintenance | in-repo copy, the caller's to patch | maintained package, zero dependencies |
 | Amounts | `Decimal` on replies; a `Decimal` request parameter rounded through `float` by python-bitcoinrpc, sent as a string by Core's copy, a type an amount argument accepts and an integer one refuses | `Decimal` on replies **and** on requests, a `Decimal` parameter written as the JSON number it is; `NaN`/`Infinity` refused both ways |
 | Credentials | embedded in the URL (`http://user:pass@...`), so they can leak into logs, reprs and exception messages | separate `user`/`password` fields, or first-class cookie authentication (`cookie_path`, `from_chain` with datadir discovery) |
-| Errors | `JSONRPCException` wrapping raw error dicts | typed hierarchy: `RpcError` (with `.code` and `.data`, message in `str()`), `HttpError` (with `.status`), `FetchError` for transport failures |
+| Errors | `JSONRPCException` wrapping raw error dicts | typed hierarchy: `RpcError` (with `.code`, and none of the node's text), `HttpError` (with `.status`), `FetchError` for transport failures |
 | Timeouts | per-connection only, and spent per socket operation, which a peer dripping a body resets forever | per-client and **per-call** (`request_timeout`), bounding the whole exchange — answer and error page alike — plus a bounded response size (`max_body_size`) |
 | Concurrency | shared mutable request-id counter | `call` writes nothing on the client: one client serves any number of threads |
 | Wallet endpoints | URL string concatenation | `for_wallet()` |
@@ -47,8 +47,9 @@ That taxonomy has one consequence nothing announces. A refused connection
 reaches `AuthServiceProxy`'s caller as `ConnectionRefusedError`, an
 `OSError`; here `http_request` converts it, and `FetchError` derives from
 `RuntimeError`. An `except OSError` written for a node that is down
-therefore stops matching, and stops matching silently: the original is
-kept as `__cause__`, so the diagnosis survives and it is only the
+therefore stops matching, and stops matching silently: the diagnosis
+survives in the type and the errno the text names, as in `URLError
+(ConnectionRefusedError [errno 61])` on macOS, and it is only the
 `except` clause that is wrong. A path that falls back to some other
 service when the node does not answer needs both names — `FetchError`
 for this client, `OSError` for whatever in that path does its own I/O.
@@ -79,7 +80,7 @@ read at commit `7efbdb6437`.
 | Body limit | `DEFAULT_MAX_BODY_SIZE` by default, `max_body_size` per call; `call_stream` reads a larger reply as a stream, bounding what it keeps rather than the total | 1 GiB, `bitreq`'s default, `bitreq/src/request.rs:126`, which `jsonrpc`'s transport leaves as it is, `jsonrpc/src/http/bitreq_http_async.rs:58-66` | intended: the comment above `DEFAULT_MAX_BODY_SIZE` gives the reason |
 | Non-200 status | under 2.0 always `HttpError` (`_v2_result`); under 1.1 a readable error object first, then the status (`_legacy_result`) | `HttpError` only when the body is not json; a json body is read as the reply, `jsonrpc/src/http/bitreq_http_async.rs:72-83` | intended: under 2.0 Core answers an rpc error with HTTP 200, `src/httprpc.cpp:43-46` and `:122-126`, and `_v2_result`'s docstring says what that buys |
 | Redirects | none followed: every opener `_opener` builds holds `_NoRedirect`, and `SessionTransport` sends over `http.client`, which follows none; a 30x is a status like any other, tested for 301, 302, 303, 307 and 308 by `test_a_redirect_is_a_status_and_not_a_second_request` and `test_a_redirect_is_refused_and_not_answered` | 301, 302, 303 and 307 followed, `bitreq/src/connection.rs:847`, up to 100 hops, `bitreq/src/request.rs:127`, which `jsonrpc`'s transport leaves as it is, `jsonrpc/src/http/bitreq_http_async.rs:58-66`; every header, `Authorization` included, is sent again on each hop, `bitreq/src/request.rs:441-443`; [corepc PR 739](https://git.rust-bitcoin.org/rust-bitcoin/corepc/pulls/739) proposes following none | intended: the comment above `_opener` gives the reason |
-| Error codes | `RpcError.code` and `.data`; `RPCErrorCode` names Core's codes | code, message and data, `jsonrpc/src/error.rs:120-127`; one code tested by name, `-5` for `is_not_found_error`, `client/src/client_async/error.rs:82-84` | alike in what reaches the caller; `RPCErrorCode` is a lookup on top, as its docstring says |
+| Error codes | `RpcError.code`; `RPCErrorCode` names Core's codes | code, message and data, `jsonrpc/src/error.rs:120-127`; one code tested by name, `-5` for `is_not_found_error`, `client/src/client_async/error.rs:82-84` | intended: `RpcError`'s docstring says why the message and the data are left out; `RPCErrorCode` is a lookup on top, as its docstring says |
 | Amounts | `Decimal` both ways (`_json_number`, `_decimal_json`) | `f64` in the reply type, `types/src/v17/blockchain/mod.rs:631`, then `Amount::from_btc`, `types/src/v17/blockchain/into.rs:522` | intended: `call`'s docstring |
 | Cookie | a path, or one `from_chain` derives from the chain and the datadir; read at every call (`cookie_auth`) | a path only, read once by the constructor, `client/src/client_async/mod.rs:60-66` and `:111-112` | intended: `cookie_auth`'s docstring |
 

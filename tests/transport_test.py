@@ -499,7 +499,7 @@ def test_an_announced_size_over_the_limit_is_refused_before_reading(
         monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
 
     serve(FakeResponse(200, b"a" * 4, content_length=str(limit + 1)))
-    with pytest.raises(FetchError, match=f"announced {limit + 1} bytes"):
+    with pytest.raises(FetchError, match="announced a body larger than"):
         urlopen_transport(request, DEFAULT_TIMEOUT, max_body_size=limit)
 
     # equal is still within the limit: changing `>` to `>=` must not turn
@@ -664,7 +664,7 @@ def test_a_limit_that_is_no_size_is_refused_as_such(max_body_size: object) -> No
 
 def test_a_negative_limit_is_no_limit_at_all() -> None:
     """Where zero is a limit: only an empty body answers it."""
-    with pytest.raises(BtcRpcValueError, match="negative max_body_size: -1"):
+    with pytest.raises(BtcRpcValueError, match="^negative max_body_size$"):
         http_request(URL, max_body_size=-1, transport=Recorded((200, b"")))
 
     assert http_request(URL, max_body_size=0, transport=Recorded((200, b""))) == (
@@ -962,7 +962,7 @@ def test_the_transport_refuses_a_limit_that_is_no_size(
             DEFAULT_TIMEOUT,
             max_body_size=64.0,  # type: ignore[arg-type]
         )
-    with pytest.raises(BtcRpcValueError, match="negative max_body_size: -1"):
+    with pytest.raises(BtcRpcValueError, match="^negative max_body_size$"):
         urlopen_transport(Request(URL), DEFAULT_TIMEOUT, max_body_size=-1)
     assert opener.requests == []
 
@@ -1703,7 +1703,10 @@ def test_a_drop_after_the_write_is_not_re_sent(
     with pytest.raises(FetchError, match="no answer from") as excinfo:
         http_request(URL, data=b"{}", transport=transport)
 
-    assert excinfo.value.__cause__ is error
+    # named by its type, and chaining nothing: `_failure_name` says why
+    assert str(excinfo.value).endswith(type(error).__name__)
+    assert excinfo.value.__cause__ is None
+    assert excinfo.value.__context__ is None
     assert len(stale.requests) == 2
     assert stale.closed is True
     assert transport._connections == {}
@@ -1916,7 +1919,7 @@ def test_the_session_transport_refuses_a_limit_that_is_no_size() -> None:
     connection = FakeConnection(FakeResponse(200, b""))
     transport = SessionTransport(connection_factory=_connection_factory(connection))
 
-    with pytest.raises(BtcRpcValueError, match="negative max_body_size: -1"):
+    with pytest.raises(BtcRpcValueError, match="^negative max_body_size$"):
         transport(Request(URL, method="GET"), DEFAULT_TIMEOUT, max_body_size=-1)
 
     assert connection.requests == []
@@ -2485,7 +2488,7 @@ def test_a_peer_dripping_headers_is_held_to_the_deadline(
     with (
         _peer(_drip_headers) as url,
         SessionTransport() as session_transport,
-        pytest.raises(FetchError, match="timed out"),
+        pytest.raises(FetchError, match="TimeoutError"),
     ):
         transport = session_transport if session else urlopen_transport
         http_request(url, timeout=50.0, transport=transport)
@@ -2500,7 +2503,7 @@ def test_a_tls_handshake_is_held_to_the_deadline() -> None:
     """
     with socket.create_server(("127.0.0.1", 0)) as silent:
         url = f"https://127.0.0.1:{silent.getsockname()[1]}/"
-        with pytest.raises(FetchError, match="timed out"):
+        with pytest.raises(FetchError, match="TimeoutError"):
             http_request(url, timeout=0.2)
 
 
@@ -2818,7 +2821,7 @@ def test_a_refused_answer_leaves_no_socket_to_the_collector(head: bytes) -> None
     gc.disable()
     try:
         with _peer(serve) as url, SessionTransport() as transport:
-            with pytest.raises(FetchError, match="max_body_size of 8") as refused:
+            with pytest.raises(FetchError, match="larger than") as refused:
                 http_request(url, timeout=5.0, max_body_size=8, transport=transport)
             held: list[object] = [refused.value]
             held.append(held)
@@ -2895,13 +2898,17 @@ def _https(url: str) -> str:
 def test_a_given_context_reaches_a_server_the_default_refuses(
     default: Callable[[], Any], given: Callable[[ssl.SSLContext], Any]
 ) -> None:
-    """The issue's *Done when*: only the given context trusts the server."""
+    """The issue's *Done when*: only the given context trusts the server.
+
+    The default's refusal names the error by its type, which says that the
+    certificate is what it refused.
+    """
     serve = _tls_serve(lambda _: b"{}")
     with _peer(serve) as url:
         assert http_request(_https(url), transport=given(_trusting())) == (200, b"{}")
     with (
         _peer(serve) as url,
-        pytest.raises(FetchError, match="(?i)certificate verify failed"),
+        pytest.raises(FetchError, match=r"\bSSLCertVerificationError\b"),
     ):
         http_request(_https(url), transport=default())
 

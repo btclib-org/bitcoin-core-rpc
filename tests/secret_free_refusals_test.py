@@ -8,15 +8,18 @@ The rule is section 7 of the organization's standard, *A refusal carries no
 secret*. `ASSURANCE_CASE.md`'s CWE-209 entry lists the refusals and what is
 left out. Each test feeds a secret where the refusal reads it, and
 `assert_secret_free` looks for every piece of it, in each spelling, in the
-exception and in every exception it chains.
+exception and in every exception it chains. A key passed in the wrong place
+can come back in what a node answers, so the secret is also fed where a
+node's answer reaches a refusal.
 
-What no test here asks is what a node says: `ASSURANCE_CASE.md`'s CWE-209
-entry lists it. `chains_test.py`, `client_test.py` and `transport_test.py`
-hold the tests of what a refusal does say.
+`refusal_census_test.py` is what finds every refusal of the package.
+`chains_test.py`, `client_test.py` and `transport_test.py` hold the tests of
+what a refusal does say.
 """
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import sys
@@ -25,8 +28,10 @@ from collections.abc import Callable
 from decimal import Decimal, InvalidOperation, localcontext
 from functools import partial
 from hashlib import sha256
+from http.client import BadStatusLine, IncompleteRead, UnknownProtocol
 from pathlib import Path
 from typing import Any
+from urllib.error import URLError
 from urllib.request import Request
 
 import pytest
@@ -37,6 +42,7 @@ from bitcoin_core_rpc import (
     BitcoinCoreRpcClient,
     BtcRpcTypeError,
     BtcRpcValueError,
+    ChainMismatchError,
     FetchError,
     RpcChannel,
     RpcError,
@@ -52,10 +58,13 @@ from bitcoin_core_rpc import (
     rpc_port_from_chain,
     urlopen_transport,
 )
+from bitcoin_core_rpc import transport as transport_module
 from bitcoin_core_rpc.client import _MAX_KEY_SHOWN, _decimal_json
 
 from . import Recorded
 from .secret_free import assert_secret_free
+from .stream_test import _BAD_CHUNK, Echoing, _peer, keep
+from .transport_test import FakeResponse, _opener
 
 # Fixed values that look random: a run such as all zeros is a piece of a
 # clean message, and a literal hex string is what the secret scanners read as
@@ -333,7 +342,7 @@ def test_a_refused_parameter_is_not_quoted(
     sys.get_int_max_str_digits() == 0, reason="no digit limit to refuse a number at"
 )
 def test_a_number_the_encoder_cannot_write_is_not_quoted() -> None:
-    """The refusal chains the encoder's error, which names the digit limit."""
+    """The refusal names the digit limit, and chains no error of the encoder."""
     big = KEY_INT * 10 ** sys.get_int_max_str_digits()
     refused(lambda: client().call("send", [big]))
     refused(lambda: client().call_raw("send", {"a": [big]}))
@@ -546,7 +555,7 @@ def test_an_unreadable_reply_is_not_quoted(
 
 @pytest.mark.parametrize("status", [200, 500])
 def test_a_reply_nested_too_deeply_is_not_quoted(status: int) -> None:
-    """The `RecursionError`, chained, names nothing of the reply it parsed."""
+    """The `RecursionError` names nothing of the reply it parsed."""
     body = b"[" * 200_000 + b'"' + KEY.encode() + b'"' + b"]" * 200_000
     refused(lambda: client((status, body)).call("dumpprivkey"))
 
@@ -556,7 +565,7 @@ def test_a_reply_nested_too_deeply_is_not_quoted(status: int) -> None:
 )
 @pytest.mark.parametrize("status", [200, 500])
 def test_an_integer_over_the_digit_limit_is_not_quoted(status: int) -> None:
-    """The parser's `ValueError`, chained, names the limit and no digit."""
+    """The parser's `ValueError` names the limit and no digit."""
     digits = str(KEY_INT) + "0" * sys.get_int_max_str_digits()
     body = b'{"result": ' + digits.encode() + b"}"
     refused(lambda: client((status, body)).call("dumpprivkey"))
@@ -705,7 +714,7 @@ def test_a_cookie_path_utf_8_cannot_encode_is_not_chained(tmp_path: Path) -> Non
     reason="a mode excludes no user on Windows, or from root",
 )
 def test_a_cookie_file_nobody_may_read_is_not_quoted(tmp_path: Path) -> None:
-    """The refusal chains the `OSError`, which names the path only."""
+    """The refusal names the `OSError` by type and errno, and chains none."""
     cookie = _cookie(tmp_path, b"__cookie__:" + KEY.encode())
     cookie.chmod(0)
     refused(lambda: cookie_auth(cookie))
@@ -739,3 +748,269 @@ def test_a_longer_name_is_not_in_the_path(size: int) -> None:
     assert str(exc.value).endswith('a bytes at params["a"][...]')
     refused(lambda: client().call("send", {"a": {KEY[:size]: KEY_BYTES}}))
     refused(lambda: client().call_batch([("send", {KEY[:size]: KEY_BYTES})]))
+
+
+# what a node answers
+
+
+def answering(status: int, reply: dict[str, Any]) -> BitcoinCoreRpcClient:
+    """Return a client answering `reply`, its `"ID"` this request's id."""
+    body = json.dumps(reply).encode().replace(b'"ID"', b"ID")
+    return BitcoinCoreRpcClient(
+        URL, user=USER, password=PASSWORD, transport=Echoing((status, body))
+    )
+
+
+def _calls(status: int, reply: dict[str, Any]) -> list[Callable[[], object]]:
+    """Return a lone call over each method of the client, to the same answer."""
+    return [
+        lambda: answering(status, reply).call("dumpprivkey"),
+        lambda: answering(status, reply).call_stream("dumpprivkey", None, keep(9)),
+    ]
+
+
+_ERRORS = {
+    "message": {"code": -5, "message": f"invalid key {KEY}"},
+    "data": {"code": -5, "message": "x", "data": [KEY]},
+    "code": {"code": KEY_INT, "message": "x"},
+    "string": KEY,
+    "array": [KEY],
+    "no message": {"code": -5, "message": [KEY]},
+}
+
+
+@pytest.mark.parametrize("name", _ERRORS)
+@pytest.mark.parametrize("status", [200, 500])
+def test_an_rpc_error_keeps_nothing_of_the_object_but_its_code(
+    status: int, name: str
+) -> None:
+    """Core's message can quote the request: a descriptor, a key."""
+    reply = {"result": None, "error": _ERRORS[name], "id": "ID"}
+    for call in _calls(status, reply):
+        refused(call)
+    reply_2 = {"jsonrpc": "2.0", "error": _ERRORS[name], "id": "ID"}
+    for call in _calls(200, reply_2):
+        refused(call)
+
+
+def test_an_rpc_error_of_a_batch_member_keeps_nothing_but_its_code() -> None:
+    """The error a batch answers as a value is held to the same rule."""
+
+    def transport(request: Request, timeout: float) -> tuple[int, bytes]:
+        del timeout
+        assert isinstance(request.data, bytes)
+        error = {"code": -5, "message": f"invalid key {KEY}", "data": KEY}
+        replies = [
+            {"jsonrpc": "2.0", "error": error, "id": member["id"]}
+            for member in json.loads(request.data)
+        ]
+        return 200, json.dumps(replies).encode()
+
+    endpoint = BitcoinCoreRpcClient(
+        URL, user=USER, password=PASSWORD, transport=transport
+    )
+    (answer,) = endpoint.call_batch([("dumpprivkey", None)])
+    assert isinstance(answer, RpcError)
+    assert_secret_free(answer, SECRETS)
+
+
+@pytest.mark.parametrize("status", [200, 500])
+def test_an_id_the_node_answers_is_not_repeated(status: int) -> None:
+    """A reply to another request, whatever its id holds."""
+    for reply in (
+        {"jsonrpc": "2.0", "result": 1, "id": KEY},
+        {"result": 1, "error": None, "id": KEY},
+        {"result": 1, "error": None, "id": [KEY_INT]},
+    ):
+        for call in _calls(status, reply):
+            refused(call)
+
+
+def test_a_version_the_node_answers_is_not_repeated() -> None:
+    """A `jsonrpc` member that is neither 2.0 nor absent."""
+    for call in _calls(200, {"jsonrpc": KEY, "result": 1, "id": "ID"}):
+        refused(call)
+
+
+def test_a_member_given_twice_is_not_repeated() -> None:
+    """`call_stream` refuses a member of the envelope given twice."""
+    body = b'{"id": "' + KEY.encode() + b'", "id": ID, "result": 1}'
+    endpoint = BitcoinCoreRpcClient(
+        URL, user=USER, password=PASSWORD, transport=Echoing((200, body))
+    )
+    refused(lambda: endpoint.call_stream("dumpprivkey", None, keep(9)))
+
+
+def _batch(*replies: object) -> Callable[[], object]:
+    """Return a batch of two calls whose node answers `replies`."""
+
+    def transport(request: Request, timeout: float) -> tuple[int, bytes]:
+        del request, timeout
+        return 200, json.dumps(list(replies)).encode()
+
+    endpoint = BitcoinCoreRpcClient(
+        URL, user=USER, password=PASSWORD, transport=transport
+    )
+    return partial(endpoint.call_batch, [("a", None), ("b", None)])
+
+
+def test_a_batch_reply_with_ids_nobody_sent_is_not_repeated() -> None:
+    """An id of the reply array is the node's, and may be anything."""
+    member = {"jsonrpc": "2.0", "result": 1, "id": KEY}
+    refused(_batch(member, member))
+    refused(_batch(member, {**member, "id": [KEY_INT]}))
+    refused(_batch(member))
+
+
+def test_a_chain_the_node_reports_is_not_repeated() -> None:
+    """The chain is kept as an attribute only where it is a short name."""
+    infos: list[dict[str, Any]] = [
+        {"chain": KEY},
+        {"chain": KEY_INT},
+        {"chain": [KEY]},
+    ]
+    for info in infos:
+        with pytest.raises((ChainMismatchError, FetchError)) as exc:
+            echoing(info).assert_chain("main")
+        assert_secret_free(exc.value, SECRETS)
+    with pytest.raises(ChainMismatchError) as caught:
+        echoing({"chain": KEY}).assert_chain("main")
+    assert (caught.value.expected, caught.value.reported) == ("main", None)
+    signet = {"chain": "signet", "signet_challenge": KEY}
+    refused(lambda: echoing(signet).assert_chain("signet"))
+    body = json.dumps({"chain": KEY}).encode()
+    refused(lambda: rest((200, body)).assert_chain("main"))
+    body = json.dumps(signet).encode()
+    refused(lambda: rest((200, body)).assert_chain("signet"))
+
+
+@pytest.mark.parametrize("status", [200, 404, 503])
+def test_a_rest_path_is_not_repeated(status: int) -> None:
+    """A path can hold a transaction id, and a key in the wrong place."""
+    path = f"/tx/{KEY}.json"
+    body = b"not json" if status == 200 else b""
+    refused(lambda: rest((status, body)).get_json(path))
+    if status != 200:
+        refused(lambda: rest((status, body)).get_bin(f"/tx/{KEY}.bin"))
+
+
+def test_a_wallet_name_in_the_url_is_not_repeated() -> None:
+    """A wallet client's path holds the wallet's name."""
+    refused(lambda: client((503, b"")).for_wallet(KEY).call("getbalance"))
+    refused(lambda: client((200, b"x")).for_wallet(KEY).call_raw("getbalance"))
+    batch = client((200, b"{}")).for_wallet(KEY).call_batch
+    refused(lambda: batch([("getbalance", None)]))
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        BadStatusLine(f"HTTP/1.1 {KEY}"),
+        IncompleteRead(KEY_BYTES),
+        UnknownProtocol(KEY),
+    ],
+    ids=lambda error: type(error).__name__,
+)
+def test_an_exchange_the_node_garbled_is_not_repeated(error: Exception) -> None:
+    """An `HTTPException` holds the node's octets, so it is not chained."""
+    refused(lambda: http_request(URL, transport=Recorded(error)))
+    refused(lambda: client(error).call("getblockcount"))
+
+
+class RequestsConnectionError(OSError):
+    """What `requests` raises for a connection it could not make.
+
+    An `OSError`, as `requests.exceptions.ConnectionError` is, whose text
+    names the url, the path with a wallet's name included.
+    """
+
+
+class RequestsChunkedEncodingError(OSError):
+    """What `requests` raises for a chunked body cut short: an `OSError`.
+
+    It wraps the `IncompleteRead` of the octets the node sent.
+    """
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        RequestsConnectionError(f"Max retries exceeded with url: /wallet/{KEY}"),
+        RequestsChunkedEncodingError(
+            f"Connection broken: {KEY}", IncompleteRead(KEY_BYTES)
+        ),
+        OSError(KEY_INT, KEY),
+        ConnectionRefusedError(errno.ECONNREFUSED, KEY, KEY),
+        URLError(OSError(KEY_INT, KEY)),
+        URLError(KEY),
+        TimeoutError(KEY),
+    ],
+    ids=lambda error: type(error).__name__,
+)
+def test_an_error_of_a_transport_of_the_callers_own_is_not_repeated(
+    error: Exception,
+) -> None:
+    """An `OSError` of a caller's transport can quote the url or the octets."""
+    refused(lambda: http_request(f"{URL}/wallet/{KEY}", transport=Recorded(error)))
+    refused(lambda: client(error).for_wallet(KEY).call("getblockcount"))
+    refused(lambda: client(error).call_batch([("getblockcount", None)]))
+    refused(lambda: client(error).call_raw("getblockcount"))
+    refused(lambda: rest(error).get_json(f"/tx/{KEY}.json"))
+
+
+def test_a_status_a_transport_of_the_callers_own_answers_is_not_repeated() -> None:
+    """A status past three digits is no status, and may be a key."""
+    refused(lambda: client((KEY_INT, b"{}")).call("getblockcount"))
+    refused(lambda: client((KEY_INT, b"{}")).call_batch([("getblockcount", None)]))
+    refused(lambda: rest((KEY_INT, b"{}")).get_json(f"/tx/{KEY}.json"))
+
+
+def test_an_errno_is_kept() -> None:
+    """The number is the system's, where the text is anybody's."""
+    error = ConnectionRefusedError(errno.ECONNREFUSED, KEY)
+    with pytest.raises(FetchError) as exc:
+        http_request(URL, transport=Recorded(error))
+    expected = f"ConnectionRefusedError [errno {errno.ECONNREFUSED}]"
+    assert str(exc.value) == f"no answer from {URL}: {expected}"
+    with pytest.raises(FetchError) as exc:
+        http_request(URL, transport=Recorded(URLError(error)))
+    assert str(exc.value) == f"no answer from {URL}: URLError ({expected})"
+
+
+def test_a_size_the_node_announces_is_not_repeated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`Content-Length` is the node's claim, and may be any number."""
+    response = FakeResponse(200, b"a", content_length=str(KEY_INT))
+
+    def fake_open(request: Request, timeout: float) -> FakeResponse:
+        del request, timeout
+        return response
+
+    monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
+    refused(lambda: urlopen_transport(Request(URL), 5.0, max_body_size=8))
+
+
+def test_a_status_line_the_node_garbles_is_not_repeated() -> None:
+    """`call_stream` reads the default transport's socket itself."""
+
+    def answer(request_id: str) -> bytes:
+        del request_id
+        return b"HTTP/1.1 " + KEY.encode() + b"\r\n\r\n"
+
+    with _peer(answer) as url:
+        endpoint = BitcoinCoreRpcClient(url, user=USER, password=PASSWORD)
+        refused(lambda: endpoint.call_stream("dumpprivkey", None, keep(9)))
+
+
+def test_a_body_the_node_garbles_is_not_repeated() -> None:
+    """A chunk size that is no number, which `http.client` refuses."""
+
+    def answer(request_id: str) -> bytes:
+        del request_id
+        chunk = b"invalid-" + KEY.encode() + b"\r\n" + KEY.encode() + b"\r\n"
+        return b"HTTP/1.1 200 OK\r\n" + _BAD_CHUNK.replace(b"zz\r\n", chunk)
+
+    with _peer(answer) as url:
+        endpoint = BitcoinCoreRpcClient(url, user=USER, password=PASSWORD)
+        refused(lambda: endpoint.call_stream("dumpprivkey", None, keep(9)))

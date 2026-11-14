@@ -54,6 +54,7 @@ from bitcoin_core_rpc import (
     BitcoinCoreRpcClient,
     BtcRpcTypeError,
     BtcRpcValueError,
+    ChainMismatchError,
     CookieNotFoundError,
     FetchError,
     HttpError,
@@ -61,6 +62,7 @@ from bitcoin_core_rpc import (
     RpcError,
     RPCErrorCode,
     default_datadir,
+    magic_from_signet_challenge,
 )
 
 from . import (
@@ -411,9 +413,9 @@ def test_from_chain_refuses_a_node_on_the_wrong_chain() -> None:
     reply = json.dumps({"result": {"chain": "test"}, "error": None, "id": "x"})
     transport = Echoing((200, reply.encode()))
     with pytest.raises(
-        BtcRpcValueError,
-        match="reports chain 'test', not the main this client was built for",
-    ):
+        ChainMismatchError,
+        match="reports another chain than the one this client was built for",
+    ) as exc:
         BitcoinCoreRpcClient.from_chain(
             "main",
             user=RPC_USER,
@@ -421,6 +423,7 @@ def test_from_chain_refuses_a_node_on_the_wrong_chain() -> None:
             transport=transport,
             verify_chain=True,
         )
+    assert (exc.value.expected, exc.value.reported) == ("main", "test")
 
 
 @pytest.mark.parametrize(
@@ -477,27 +480,50 @@ def test_assert_chain_is_the_check_from_chain_makes() -> None:
     endpoint.assert_chain("main")
 
     endpoint = client(chaininfo(chain="test"))
-    with pytest.raises(BtcRpcValueError, match="reports chain 'test', not the main"):
+    with pytest.raises(ChainMismatchError, match="reports another chain") as exc:
         endpoint.assert_chain("main")
+    assert (exc.value.expected, exc.value.reported) == ("main", "test")
+    assert "test" not in str(exc.value)
+    assert isinstance(exc.value, BtcRpcValueError)
 
 
 @pytest.mark.parametrize("secret", [SECRET, SECRET.encode(), Shows()])
 def test_assert_chain_does_not_quote_a_long_chain(secret: Any) -> None:
     """The chain is the caller's, and may be a key in the wrong argument."""
     untyped: Any = client(chaininfo(chain="main")).assert_chain
-    with pytest.raises(BtcRpcValueError, match="reports chain 'main', not the") as exc:
+    with pytest.raises(ChainMismatchError, match="reports another chain") as exc:
         untyped(secret)
     assert_no_secret(exc.value)
-    with pytest.raises(BtcRpcValueError, match="a signet_challenge for chain") as exc:
+    assert (exc.value.expected, exc.value.reported) == (None, "main")
+    with pytest.raises(BtcRpcValueError, match="a signet_challenge for") as other:
         untyped(secret, signet_challenge=DEFAULT_SIGNET_CHALLENGE)
-    assert_no_secret(exc.value)
+    assert_no_secret(other.value)
 
 
-def test_assert_chain_quotes_a_short_chain() -> None:
-    """A typo is shown."""
+def test_assert_chain_keeps_a_short_chain() -> None:
+    """A typo is kept, as an attribute: the text names neither chain."""
     endpoint = client(chaininfo(chain="main"))
-    with pytest.raises(BtcRpcValueError, match="not the mainnt this client"):
+    with pytest.raises(ChainMismatchError) as exc:
         endpoint.assert_chain("mainnt")
+    assert (exc.value.expected, exc.value.reported) == ("mainnt", "main")
+    assert "main" not in str(exc.value)
+
+
+@pytest.mark.parametrize(
+    "reported",
+    [SECRET, "a" * 17, "main\x1b[2J", ""],
+    ids=["secret", "too long", "an escape", "empty"],
+)
+def test_assert_chain_keeps_a_reported_chain_only_where_it_is_a_name(
+    reported: str,
+) -> None:
+    """What the node reports is kept as `_kept_name` keeps a name."""
+    endpoint = client(chaininfo(chain=reported))
+    with pytest.raises(ChainMismatchError) as exc:
+        endpoint.assert_chain("main")
+    expected = None if reported else ""
+    assert (exc.value.expected, exc.value.reported) == ("main", expected)
+    assert_no_secret(exc.value)
 
 
 def test_signet_challenge_is_keyword_only() -> None:
@@ -522,8 +548,9 @@ def test_a_signet_is_identified_by_its_challenge_and_not_by_its_name() -> None:
     endpoint.assert_chain("signet")
 
     endpoint = client(chaininfo(chain="signet", signet_challenge=CUSTOM_CHALLENGE))
-    with pytest.raises(BtcRpcValueError, match="on a signet this client is not"):
+    with pytest.raises(ChainMismatchError, match="on another signet") as exc:
         endpoint.assert_chain("signet")
+    assert (exc.value.expected, exc.value.reported) == ("signet", "signet")
 
 
 def test_a_custom_signet_is_the_challenge_the_caller_passes() -> None:
@@ -543,7 +570,7 @@ def test_a_custom_signet_is_the_challenge_the_caller_passes() -> None:
     endpoint.assert_chain("signet", signet_challenge=DEFAULT_SIGNET_CHALLENGE.upper())
 
     endpoint = client(chaininfo(chain="signet", signet_challenge=OTHER_CHALLENGE))
-    with pytest.raises(BtcRpcValueError, match="on a signet this client is not"):
+    with pytest.raises(ChainMismatchError, match="on another signet"):
         endpoint.assert_chain("signet", signet_challenge=CUSTOM_CHALLENGE)
 
 
@@ -593,8 +620,9 @@ def test_a_signet_with_a_challenge_past_0xffff_bytes_is_one_to_compare() -> None
     endpoint.assert_chain("signet", signet_challenge=long_challenge)
 
     endpoint = client(chaininfo(chain="signet", signet_challenge=long_challenge))
-    with pytest.raises(BtcRpcValueError, match="its challenge derives magic a313ada9"):
+    with pytest.raises(ChainMismatchError, match="on another signet"):
         endpoint.assert_chain("signet", signet_challenge=CUSTOM_CHALLENGE)
+    assert magic_from_signet_challenge(long_challenge).hex() == "a313ada9"
 
 
 def test_a_signet_with_an_empty_challenge_is_one_to_compare() -> None:
@@ -607,8 +635,9 @@ def test_a_signet_with_an_empty_challenge_is_one_to_compare() -> None:
     endpoint.assert_chain("signet", signet_challenge="")
 
     endpoint = client(chaininfo(chain="signet", signet_challenge=""))
-    with pytest.raises(BtcRpcValueError, match="its challenge derives magic 1406e058"):
+    with pytest.raises(ChainMismatchError, match="on another signet"):
         endpoint.assert_chain("signet")
+    assert magic_from_signet_challenge("").hex() == "1406e058"
 
 
 def test_a_challenge_off_signet_is_refused_before_the_node_is_asked() -> None:
@@ -1282,6 +1311,17 @@ def test_a_non_finite_decimal_is_not_a_json_number(number: str) -> None:
     assert recording(endpoint).requests == []
 
 
+# the package's own refusals of a number past the digit limit: the limit is
+# named, and no digit of the number
+_DECIMAL_PAST_THE_LIMIT = (
+    r"^a Decimal whose exponent writes more digits than"
+    r" sys\.get_int_max_str_digits allows \([0-9]+\)$"
+)
+_INT_PAST_THE_LIMIT = (
+    r"^an int of more digits than sys\.get_int_max_str_digits allows \([0-9]+\)$"
+)
+
+
 @pytest.mark.parametrize("number", ["1E+5000", "1E-5000"])
 def test_a_decimal_too_long_to_write_positionally(number: str) -> None:
     """The exponent is held to the limit `json.dumps` holds an int's digits to.
@@ -1290,7 +1330,7 @@ def test_a_decimal_too_long_to_write_positionally(number: str) -> None:
     zeros after the digits for one and before them for the other.
     """
     endpoint = client()
-    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+    with pytest.raises(BtcRpcValueError, match=_DECIMAL_PAST_THE_LIMIT):
         endpoint.call("sendtoaddress", ["bc1qexample", Decimal(number)])
     assert recording(endpoint).requests == []
 
@@ -1355,9 +1395,7 @@ def test_a_non_number_in_a_reply_is_refused(constant: str) -> None:
     rest of its life, so it is refused where it decodes.
     """
     body = b'{"jsonrpc":"2.0","result":' + constant.encode() + b',"id":"x"}'
-    with pytest.raises(
-        FetchError, match=f"not a json number in the reply: {constant}"
-    ) as exc:
+    with pytest.raises(FetchError, match="not a json number in the reply") as exc:
         client((200, body)).call("getbalance")
 
     # and it is not its own cause. This refusal is the module's, raised from
@@ -1436,8 +1474,10 @@ def test_a_call_writes_nothing_on_the_client() -> None:
 def test_a_reply_to_someone_elses_request_is_refused(other_id: str) -> None:
     """What a caching proxy in the way looks like from here."""
     body = json.dumps({"jsonrpc": "2.0", "result": 1, "id": other_id}).encode()
-    with pytest.raises(FetchError, match=rf"reply id {other_id!r} is not the"):
+    with pytest.raises(FetchError, match="a reply whose id is not the") as exc:
         verbatim((200, body)).call("getblockcount")
+    # the id the backend sent is not repeated
+    assert "another" not in str(exc.value)
 
 
 def test_an_error_for_someone_elses_request_is_refused() -> None:
@@ -1449,7 +1489,7 @@ def test_an_error_for_someone_elses_request_is_refused() -> None:
     """
     error = {"code": -5, "message": "No such mempool transaction"}
     body = json.dumps({"jsonrpc": "2.0", "error": error, "id": "another"}).encode()
-    with pytest.raises(FetchError, match="reply id 'another' is not the") as exc:
+    with pytest.raises(FetchError, match="a reply whose id is not the") as exc:
         verbatim((200, body)).call("getrawtransaction", [TX_ID])
     assert not isinstance(exc.value, RpcError)
 
@@ -1463,39 +1503,42 @@ def test_a_legacy_reply_to_someone_elses_request_is_refused() -> None:
     route through the same two facts.
     """
     body = json.dumps({"result": 1, "error": None, "id": "another"}).encode()
-    with pytest.raises(FetchError, match="reply id 'another' is not the"):
+    with pytest.raises(FetchError, match="a reply whose id is not the"):
         verbatim((200, body)).call("getblockcount")
 
 
 def test_an_rpc_error_object_is_an_rpc_error_with_the_code() -> None:
-    """Core's own message for a node without -txindex, and its code."""
+    """Core's code for a node without -txindex, and none of its message."""
     body = recorded_body("getrawtransaction_error.json")
     with pytest.raises(RpcError, match="rpc error code -5") as exc:
         client((200, body)).call("getrawtransaction", [TX_ID])
     assert exc.value.code == -5
-    assert exc.value.data is None
-    assert "-txindex" in str(exc.value)
+    assert exc.value.args == (
+        f"getrawtransaction at {URL}: the node answered an error",
+        -5,
+    )
+    assert "-txindex" not in repr(exc.value)
+    assert set(vars(exc.value)) == {"code"}
 
 
-def test_an_rpc_error_message_is_not_rendered_raw() -> None:
-    """A node's text with a newline or an ESC is escaped in `str()`.
+def test_an_rpc_error_is_not_rendered_raw() -> None:
+    """A text with a newline or an ESC is escaped in `str()`.
 
-    Raw, it forges a log line or drives the terminal it is printed to.
-    `args[0]` keeps the text as it arrived.
+    Raw, it forges a log line or drives the terminal it is printed to: the
+    text names the rpc method, which is the caller's. `args[0]` keeps the
+    text as it was built.
     """
-    message = "bad\nERROR forged line \x1b[2J\u2028 and é stays"
-    error = RpcError(f"getbalance: {message}", -1)
-    said = str(error)
-    assert said == (
+    text = "bad\nERROR forged line \x1b[2J\u2028 and é stays"
+    error = RpcError(f"getbalance: {text}", -1)
+    assert str(error) == (
         "getbalance: bad\\nERROR forged line \\x1b[2J\\u2028 and é stays"
         " (rpc error code -1)"
     )
-    assert error.args[0] == f"getbalance: {message}"
-    body = {"jsonrpc": "2.0", "error": {"code": -1, "message": message}}
+    assert error.args[0] == f"getbalance: {text}"
+    body = {"jsonrpc": "2.0", "error": {"code": -1, "message": "x"}, "id": "x"}
     with pytest.raises(RpcError) as exc:
-        client((200, json.dumps(body).encode())).call("getbalance")
-    assert str(exc.value).endswith(said.removeprefix("getbalance: "))
-    assert exc.value.args[0] == f"getbalance at {URL}: {message}"
+        client((200, json.dumps(body).encode())).call(f"get\n{text}")
+    assert "\n" not in str(exc.value)
 
 
 def test_rpc_error_code_names_the_refusal() -> None:
@@ -1525,37 +1568,58 @@ def test_a_code_outside_the_enumeration_still_reaches_the_caller() -> None:
         RPCErrorCode(exc.value.code)
 
 
-def test_the_data_member_of_an_error_object_is_kept() -> None:
-    """json-rpc's optional third member, which Core does not send today.
-
-    A method that starts sending one, or a proxy adding its own, would
-    otherwise have it dropped where it cannot be recovered from.
-    """
+def test_the_message_and_the_data_of_an_error_object_are_not_kept() -> None:
+    """Either can quote what the request carried, so the code alone is."""
     error = {"code": -8, "message": "Invalid parameter", "data": {"field": "txid"}}
     body = json.dumps({"jsonrpc": "2.0", "error": error, "id": "x"}).encode()
     with pytest.raises(RpcError) as exc:
         client((200, body)).call("getrawtransaction", [TX_ID])
-    assert exc.value.data == {"field": "txid"}
+    assert not hasattr(exc.value, "data")
+    assert "Invalid" not in repr(exc.value.args)
+    assert "field" not in repr(exc.value.args)
+
+
+@pytest.mark.parametrize(
+    "code",
+    [2**31, -(2**31) - 1, 1.5, True, "-5", None],
+    ids=["past 32 bits", "below 32 bits", "float", "bool", "string", "null"],
+)
+def test_an_error_whose_code_is_no_32_bit_integer_is_unreadable(code: Any) -> None:
+    """A code is kept only where it fits in 32 bits, as Core's do."""
+    error = {"code": code, "message": "x"}
+    body = json.dumps({"jsonrpc": "2.0", "error": error, "id": "x"}).encode()
+    with pytest.raises(FetchError, match="without a 32-bit integer code") as exc:
+        client((200, body)).call("getblockcount")
+    assert not isinstance(exc.value, RpcError)
+
+
+@pytest.mark.parametrize("code", [2**31 - 1, -(2**31)])
+def test_an_error_whose_code_is_at_a_bound_of_32_bits_is_kept(code: int) -> None:
+    """The ends of the range are codes."""
+    error = {"code": code, "message": "x"}
+    body = json.dumps({"jsonrpc": "2.0", "error": error, "id": "x"}).encode()
+    with pytest.raises(RpcError) as exc:
+        client((200, body)).call("getblockcount")
+    assert exc.value.code == code
 
 
 def test_an_rpc_error_survives_pickle_and_deepcopy() -> None:
-    """`code` and `data` are constructor arguments now, not folded into `str`.
+    """`code` is a constructor argument, not folded into `str`.
 
     `BaseException.__reduce__` rebuilds an exception by calling its class
     with `self.args`, so a class whose `args` held the composed message
     alone -- one argument -- could not be rebuilt from it, this one taking
-    three. That failure is what a `ProcessPoolExecutor` hits when a worker
+    two. That failure is what a `ProcessPoolExecutor` hits when a worker
     raises this and cannot send it back: the pool reports itself broken
     rather than the rpc error the worker actually died of.
     """
-    error = RpcError("getrawtransaction: not found", -5, {"tx": 1})
+    error = RpcError("getrawtransaction: not found", -5)
     said = "getrawtransaction: not found (rpc error code -5)"
     assert str(error) == said
     for back in (pickle.loads(pickle.dumps(error)), copy.deepcopy(error)):  # ruff: ignore[S301]
         assert type(back) is RpcError
         assert str(back) == said
         assert back.code == -5
-        assert back.data == {"tx": 1}
 
 
 def test_an_rpc_error_arriving_with_a_500_is_still_an_rpc_error() -> None:
@@ -1797,7 +1861,7 @@ def test_a_correlated_legacy_error_that_is_no_error_object_keeps_the_status(
         client((status, body)).call("getblockcount")
     assert exc.value.status == status
 
-    with pytest.raises(FetchError, match="unreadable rpc error 'bad'"):
+    with pytest.raises(FetchError, match="unreadable rpc error, a str"):
         client((200, body)).call("getblockcount")
 
 
@@ -1817,6 +1881,45 @@ def test_a_real_legacy_rpc_error_still_outranks_its_status() -> None:
         client((500, body)).call("getrawtransaction")
     assert exc.value.code == -5
     assert not hasattr(exc.value, "status")
+
+
+@pytest.mark.parametrize("status", [99, 1000, -500, 2**255])
+def test_a_status_out_of_the_http_range_is_not_repeated(status: int) -> None:
+    """A transport of the caller's own can answer any int as a status."""
+    with pytest.raises(FetchError) as exc:
+        client((status, b"{}")).call("getblockcount")
+    assert type(exc.value) is FetchError
+    assert str(exc.value) == f"getblockcount at {URL}: a status outside 100 to 999"
+    assert exc.value.args == (str(exc.value),)
+
+
+@pytest.mark.parametrize(
+    ("status", "kind"),
+    [(True, "bool"), (500.0, "float"), ("500", "str"), (None, "NoneType")],
+)
+def test_a_status_that_is_not_an_int_is_named_by_its_type(
+    status: object, kind: str
+) -> None:
+    """A status that is not an int is named by its type, `True` included.
+
+    One float passes: 200.0, which equals 200, is read as the answer it
+    would be under the status 200.
+    """
+    answer = client((200.0, recorded_body("getblockcount.json")))  # type: ignore[arg-type]
+    assert answer.call("getblockcount") == TIP_HEIGHT
+    with pytest.raises(FetchError) as exc:
+        client((status, b"{}")).call("getblockcount")  # type: ignore[arg-type]
+    assert type(exc.value) is FetchError
+    assert str(exc.value).endswith(f": a status that is not an int, of type {kind}")
+    assert exc.value.args == (str(exc.value),)
+
+
+@pytest.mark.parametrize("status", [100, 999])
+def test_a_status_at_either_end_of_the_range_is_shown(status: int) -> None:
+    """Three digits are a status, whatever the transport that answered."""
+    with pytest.raises(HttpError, match=f": HTTP {status}$") as exc:
+        client((status, b"{}")).call("getblockcount")
+    assert exc.value.status == status
 
 
 @pytest.mark.parametrize(
@@ -1847,7 +1950,7 @@ def test_a_number_too_long_for_this_interpreter_to_write() -> None:
     where it surfaces.
     """
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+    with pytest.raises(BtcRpcValueError, match=_INT_PAST_THE_LIMIT):
         endpoint.call("send", [10**5000])
 
 
@@ -1901,8 +2004,16 @@ def test_a_list_that_is_not_what_the_walk_saw(later: list[int]) -> None:
     assert shifting.reads == 2
 
 
-@pytest.mark.parametrize("spoiled", [float("nan"), Decimal("NaN")])
-def test_a_parameter_that_is_not_what_the_walk_saw(spoiled: object) -> None:
+@pytest.mark.parametrize(
+    ("spoiled", "refusal"),
+    [
+        (float("nan"), "^rpc params json cannot carry: ValueError$"),
+        (Decimal("NaN"), "^not a json number: a Decimal$"),
+    ],
+)
+def test_a_parameter_that_is_not_what_the_walk_saw(
+    spoiled: object, refusal: str
+) -> None:
     """The writer refuses a non-finite number the walk before it never saw.
 
     `params` accepts any `Mapping`, only the outermost one is copied by
@@ -1919,7 +2030,7 @@ def test_a_parameter_that_is_not_what_the_walk_saw(spoiled: object) -> None:
     """
     shifty = Shifty({"amount": 1.0}, {"amount": spoiled})
     endpoint = client((200, recorded_body("getblockcount.json")))
-    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+    with pytest.raises(BtcRpcValueError, match=refusal):
         endpoint.call("sendmany", [shifty])
 
     # the transport was never called: no request was recorded
@@ -2750,7 +2861,7 @@ def test_call_batch_bounds_the_sum_of_every_members_reply() -> None:
 def test_call_batch_a_number_too_long_for_this_interpreter_to_write() -> None:
     """The encoder's own refusal, on the way out, before anything is sent."""
     endpoint = client()
-    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+    with pytest.raises(BtcRpcValueError, match=_INT_PAST_THE_LIMIT):
         endpoint.call_batch([("send", [10**5000])])
     assert recording(endpoint).requests == []
 
@@ -2913,7 +3024,7 @@ def test_call_raw_bounds_the_reply_like_call() -> None:
 def test_call_raw_a_number_too_long_for_this_interpreter_to_write() -> None:
     """The encoder's own refusal, on the way out, before anything is sent."""
     endpoint = client()
-    with pytest.raises(BtcRpcValueError, match="rpc params json cannot carry"):
+    with pytest.raises(BtcRpcValueError, match=_INT_PAST_THE_LIMIT):
         endpoint.call_raw("send", [10**5000])
     assert recording(endpoint).requests == []
 

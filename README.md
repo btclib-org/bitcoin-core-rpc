@@ -274,7 +274,7 @@ one of them is a `FetchError`, so one `except FetchError` covers the lot.
 
 | exception | what happened | what it carries |
 | --- | --- | --- |
-| `RpcError` | the node computed an error | `code`, `data` |
+| `RpcError` | the node computed an error | `code` |
 | `HttpError` | the exchange failed | `status` |
 | `FetchError` | there was no answer to read | — |
 

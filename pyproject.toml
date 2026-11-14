@@ -936,11 +936,10 @@ ignore = [
     "unused-lambda-argument",
     # flake8-annotations' any-type alone, and it is the module's subject
     # rather than a gap in its annotations: an rpc result is whatever the
-    # node's JSON gives back, `RpcError.data` is whatever the method put
-    # there, and a caller narrows what it asked for. Faking a narrower
-    # type here would be a cast nothing can check. The rest of the family
-    # stays selected, mypy in strict mode already refusing an unannotated
-    # definition
+    # node's JSON gives back, and a caller narrows what it asked for.
+    # Faking a narrower type here would be a cast nothing can check. The
+    # rest of the family stays selected, mypy in strict mode already
+    # refusing an unannotated definition
     "any-type",
     # flake8-boolean-trap: a caller reading `f(x, True)` cannot say what
     # the flag means without opening the signature. Every site is a test

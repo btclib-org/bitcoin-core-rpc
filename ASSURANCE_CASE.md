@@ -124,15 +124,14 @@ holds. `call_stream` reads its reply with `JsonStream` instead of
 `_parsed_json_body` and `_reply_object`: it refuses each number
 `json.loads` would refuse, skipped or kept, decodes what it keeps with the
 same `json.loads`, refuses a reply that is not a json object, and hands
-the members it kept to the same `_discriminate`. `str()` of an
-`RpcError` writes the non-printable characters of the node's message as
-escapes, so a reply cannot forge a log line or drive a terminal. A reply
-is also read as arbitrary bytes by `fuzz/fuzz_reply.py`
-under ClusterFuzzLite (`.github/workflows/fuzz.yml`) and, mutated at every
-position, by `tests/fuzz_test.py`, which asserts that only `FetchError`
-comes out, `call_stream`'s `_streamed_result` included;
-`tests/fuzz_corpus_test.py` checks that every seed of the corpus is still
-read.
+the members it kept to the same `_discriminate`. An `RpcError` keeps the
+code of the error object and none of its text, so a reply cannot forge a
+log line or drive a terminal. A reply is also read as arbitrary bytes by
+`fuzz/fuzz_reply.py` under ClusterFuzzLite (`.github/workflows/fuzz.yml`)
+and, mutated at every position, by `tests/fuzz_test.py`, which asserts
+that only `FetchError` comes out, `call_stream`'s `_streamed_result`
+included; `tests/fuzz_corpus_test.py` checks that every seed of the corpus
+is still read.
 
 **The network path.** Only `http` and `https` reach a built request
 (`_SCHEMES`); no proxy is taken from the environment, `ProxyHandler({})`
@@ -237,26 +236,39 @@ exposed to, and what counters each.
   A refusal's path, which locates the refused value, shows the name of each
   mapping it goes through only where the name has at most `_MAX_KEY_SHOWN`
   characters (`client.py`), and `...` for a longer one.
-  An encode error holds the text it failed on, so one that a credential, a
-  wallet name or a cookie path can raise is refused without being chained.
+  An exception of another program, a transport of the caller's own
+  included, is named by `_failure_name` (`errors.py`): its type, and its
+  errno, never its text. No refusal chains one or has it as context: an
+  encode error holds the text it failed on, and an `OSError` a caller's
+  transport raises can quote the url with its path.
   The rule is section 7's *A refusal carries no secret* in
   [the organization's standard](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret).
+  A refusal writes no value a node sent, a key passed in the wrong place
+  being able to come back in its answer, and no request's path, which can
+  hold a transaction id or a wallet's name: it names the node by
+  `scheme://host[:port]`. An `RpcError` keeps the error object's code and
+  nothing else of it. `ChainMismatchError` names neither chain, and keeps
+  each as an attribute where `_kept_name` (`chains.py`) admits it.
   `tests/secret_free_refusals_test.py` feeds a secret to each of these
   refusals and passes the exception to `assert_secret_free`. It covers a
   rejected credential, a refused url, rpc parameter, header, timeout or
   limit, rest path, wallet name, chain or network name and signet
-  challenge, an unreadable reply, an unreadable cookie file and a
-  refusal's path. `JsonStream` names a misplaced octet of a reply by its
-  offset, never the octet, and `tests/stream_test.py` feeds a key where
-  it stops.
-  It does not cover the node's own text: `RpcError`'s message, which
-  [issue 644](https://github.com/btclib-org/bitcoin-core-rpc/issues/644)
-  keeps as Core wrote it, and the `id`, the `jsonrpc` marker and the `error`
-  object that a refusal repeats from a reply.
-  A refusal also shows the rpc method as passed, which the request sends to
-  the node anyway, the path of a cookie file, which an operator has to find,
-  the chain a node reports when it is not the one the client was built for,
-  and a refused number the caller passed.
+  challenge, an unreadable reply, an unreadable cookie file and a refusal's
+  path, a key the node answers in an error object, an id, a version marker,
+  a chain, a garbled exchange or an announced size, and a key in the text
+  and the args of an `OSError` a caller's transport raises. `JsonStream`
+  names a misplaced octet of a reply by its offset, never the octet, and
+  `tests/stream_test.py` feeds a key where it stops.
+  `tests/refusal_census_test.py` is a lint over the sources, not a proof:
+  it fails on an argument of an exception the package builds that it cannot
+  trace to a value a refusal may hold, and on a `raise` that chains another
+  exception or has it as context, over the shapes its controls show. Its
+  docstring states the rules it traces by and the two things it takes on
+  trust, and says where the shapes it is measured not to see are filed. Its
+  two tables are what a refusal still shows, each entry with its reason:
+  among them the rpc method as passed, which the request sends to the node
+  anyway, the path of a cookie file, which an operator has to find, a
+  refused number the caller passed, the rpc error code and the HTTP status.
 - **URL redirection to an untrusted site (CWE-601) and exposure of a
   resource to the wrong sphere (CWE-668).** A credential built for one
   host reaching a different one through a followed redirect or an

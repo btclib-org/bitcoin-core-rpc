@@ -39,6 +39,7 @@ import re
 from base64 import b64encode
 from codecs import getincrementaldecoder
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from contextlib import suppress
 from decimal import Decimal, DecimalException
 from io import BytesIO
 from math import isfinite
@@ -50,6 +51,7 @@ from typing import Any, TypeVar, cast
 from urllib.parse import SplitResult, quote, urlsplit
 
 from bitcoin_core_rpc.chains import (
+    _kept_name,
     _quoted,
     cookie_auth,
     cookie_path_from_chain,
@@ -61,9 +63,11 @@ from bitcoin_core_rpc.chains import (
 from bitcoin_core_rpc.errors import (
     BtcRpcTypeError,
     BtcRpcValueError,
+    ChainMismatchError,
     FetchError,
     HttpError,
     RpcError,
+    _failure_name,
 )
 from bitcoin_core_rpc.transport import (
     _READ_CHUNK,
@@ -76,6 +80,7 @@ from bitcoin_core_rpc.transport import (
     _assert_valid_timeout,
     _is_integer,
     _post_stream,
+    _split_url,
     _urlopen_keywords,
     http_request,
     urlopen_transport,
@@ -115,6 +120,11 @@ _MAX_PARAMS_DEPTH = 100
 # characters is shown, even when it is a misplaced secret
 _MAX_KEY_SHOWN = 16
 
+# a status is three digits: a transport of the caller's own answering
+# anything else is not repeated, `_http_error` says why
+_MIN_STATUS = 100
+_MAX_STATUS = 999
+
 
 USER_AGENT = "bitcoin-core-rpc"
 """What `call` sends as `User-Agent`, and a transport of a caller's own can.
@@ -132,7 +142,7 @@ def _rpc_id() -> str:
     return f"btcrpc-{token_hex(_RPC_ID_BYTES)}"
 
 
-def _split_url(url: str) -> SplitResult | None:
+def _parsed_url(url: str) -> SplitResult | None:
     """Return the url split, or None where `urlsplit` refuses it."""
     try:
         return urlsplit(url)
@@ -147,6 +157,15 @@ def _has_valid_port(split: SplitResult) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _endpoint(url: str) -> str:
+    """Name the node a checked url reaches, as `scheme://host[:port]`.
+
+    What a refusal names the node by. Never the path: a wallet client's
+    holds the wallet's name, and a `-rest` path a transaction id.
+    """
+    return _split_url(url)[3]
 
 
 def _checked_url(url: str, *, kind: str = "rpc") -> str:
@@ -173,10 +192,10 @@ def _checked_url(url: str, *, kind: str = "rpc") -> str:
     # else with a `UnicodeEncodeError` whose `args` keep the whole line
     if not url.isascii():
         raise BtcRpcValueError(f"non-ASCII character in the {kind} url")
-    # the two ValueErrors of `_split_url` and `_has_valid_port` quote the
+    # the two ValueErrors of `_parsed_url` and `_has_valid_port` quote the
     # netloc and the port text, so the refusal is raised outside their
     # handlers: inside, they would stay as its `__context__`
-    split = _split_url(url)
+    split = _parsed_url(url)
     if split is None:
         raise BtcRpcValueError(f"malformed {kind} url")
     if split.scheme not in _SCHEMES:
@@ -355,13 +374,16 @@ def _request_json(value: Any) -> str:
     This reads the caller's objects a second time, after
     `_assert_json_params` has read them, and they are free to have changed
     in between: a name that stopped being a string is refused again here,
-    a number that stopped being finite is a ValueError -- `allow_nan=False`
-    for a float, `_decimal_json` for a Decimal -- and a container that came
-    to contain itself is a RecursionError, which the caller maps with the
-    ValueError.
+    a float that stopped being finite is the ValueError of
+    `allow_nan=False`, and a container that came to contain itself is a
+    RecursionError, which `_encoded` names by type. A Decimal that is not
+    finite or is past the digit limit, and an int past it, are refused by
+    `_decimal_json` and `_int_json`, which say what they refused.
     """
     if isinstance(value, Decimal):
         return _decimal_json(value)
+    if isinstance(value, int):
+        return _int_json(value)
     if isinstance(value, dict):
         members = []
         for name, item in value.items():
@@ -398,13 +420,28 @@ def _decimal_json(number: Decimal) -> str:
     """
     if not number.is_finite():
         # not quoted, for the reason `_json_scalar` gives
-        raise ValueError("not a json number: a Decimal")
+        raise BtcRpcValueError("not a json number: a Decimal")
     limit = get_int_max_str_digits()
     if limit and abs(number.adjusted()) > limit:
         err_msg = "a Decimal whose exponent writes more digits than"
         err_msg += f" sys.get_int_max_str_digits allows ({limit})"
-        raise ValueError(err_msg)
+        raise BtcRpcValueError(err_msg)
     return format(number, "f")
+
+
+def _int_json(number: int) -> str:
+    """Return an int as the json number it is, refusing one past the limit.
+
+    `sys.get_int_max_str_digits` is the limit, as for `_decimal_json`. The
+    interpreter's own `ValueError` counts the digits, and is refused below,
+    outside the `except`, with the limit alone.
+    """
+    try:
+        return json.dumps(number)
+    except ValueError:
+        limit = get_int_max_str_digits()
+    err_msg = "an int of more digits than sys.get_int_max_str_digits"
+    raise BtcRpcValueError(f"{err_msg} allows ({limit})")
 
 
 def _json_number(token: str) -> Decimal:
@@ -449,42 +486,71 @@ def _refuse_constant(name: str) -> Any:
     proxy or a stub in the way can, and a nan arriving as an amount
     compares false against itself for the rest of its life.
     """
-    raise FetchError(f"not a json number in the reply: {name}")
+    del name
+    raise FetchError("not a json number in the reply: NaN or an infinity")
 
 
-def _http_error(where: str, status: int) -> HttpError:
-    """Turn a status that is itself the failure into the exception for it."""
+def _http_error(where: str, status: int) -> FetchError:
+    """Turn a status that is itself the failure into the exception for it.
+
+    A status is three digits, as `http.client` reads one. A transport of
+    the caller's own can answer anything, and a value outside 100 to 999
+    is no status: it is not written, as `_is_rpc_code` bounds the code an
+    error object may carry, and a value that is no int is named by its
+    type.
+    """
+    if not _is_integer(status):
+        err_msg = f"{where}: a status that is not an int, of type"
+        return FetchError(f"{err_msg} {type(status).__name__}")
+    if not _is_http_status(status):
+        return FetchError(f"{where}: a status outside 100 to 999")
     if status == 401:
         message = f"{where}: HTTP 401, the node refused the credentials"
         return HttpError(message, status)
     return HttpError(f"{where}: HTTP {status}", status)
 
 
-def _id_error(where: str, request_id: str, reply: Mapping[str, Any]) -> FetchError:
-    """Say that a reply answers some request other than this one."""
-    err_msg = f"{where}: reply id {reply.get('id')!r}"
-    err_msg += f" is not the {request_id!r} asked for"
-    return FetchError(err_msg)
+def _id_error(where: str, request_id: str) -> FetchError:
+    """Say that a reply answers some request other than this one.
+
+    The id asked for is named, and not the one the reply carries, which is
+    the backend's and can be anything.
+    """
+    return FetchError(f"{where}: a reply whose id is not the {request_id!r} asked for")
 
 
 def _rpc_error(where: str, error: Any) -> FetchError:
     """Turn what the node put in `error` into the exception for it.
 
     An error object is a code that is an integer and a message that is a
-    string; a caller acts on the first and reads the second, so neither is
-    something to render whatever arrived. A missing message would become
-    an empty one and a list would be formatted into the exception, both of
-    which report the node as having said something it did not.
+    string. The code is kept, and nothing else of the object: the message
+    can quote what the request carried, as `RpcError` says. A code is kept
+    only where it fits in 32 bits, as every code Core defines does, so that
+    no code can carry the digits of a key; any other error object is
+    refused by what it lacks, naming none of it.
     """
     if not isinstance(error, Mapping):
-        return FetchError(f"{where}: unreadable rpc error {error!r}")
+        err_msg = f"{where}: unreadable rpc error, a {type(error).__name__}"
+        return FetchError(err_msg)
     # Any, both of them: every value of a reply is whatever the backend
     # put there, which is what the two checks below are for
     code: Any = error.get("code")
     message: Any = error.get("message")
-    if not _is_integer(code) or not isinstance(message, str):
-        return FetchError(f"{where}: unreadable rpc error {error!r}")
-    return RpcError(f"{where}: {message}", code, error.get("data"))
+    if not _is_rpc_code(code) or not isinstance(message, str):
+        err_msg = f"{where}: unreadable rpc error, without a 32-bit integer code"
+        err_msg += " and a string message"
+        return FetchError(err_msg)
+    return RpcError(f"{where}: the node answered an error", code)
+
+
+def _is_http_status(status: Any) -> bool:
+    """Say whether a value is an integer of three digits, as a status is."""
+    return _is_integer(status) and _MIN_STATUS <= status <= _MAX_STATUS
+
+
+def _is_rpc_code(code: Any) -> bool:
+    """Say whether a value is a 32-bit integer, as each code Core defines is."""
+    return _is_integer(code) and -(2**31) <= code < 2**31
 
 
 def _unreadable(where: str, cause: Exception) -> FetchError:
@@ -497,14 +563,39 @@ def _unreadable(where: str, cause: Exception) -> FetchError:
     integer longer than `sys.get_int_max_str_digits` allows, a number
     whose exponent the decimal module refuses to build, and whatever a
     later Python adds -- is the parser refusing the reply, which is what
-    happened.
+    happened, named by the type of its error.
 
     Only for a 200. Under any other status the shape is not the answer:
     see `_reply_object`, which reaches this only after ruling that out.
     """
     if isinstance(cause, RecursionError):
         return FetchError(f"{where}: a reply nested too deeply to parse")
-    return FetchError(f"{where}: a reply the json parser refused ({cause})")
+    # its type alone: what the parser says may quote the reply
+    err_msg = f"{where}: a reply the json parser refused ({type(cause).__name__})"
+    return FetchError(err_msg)
+
+
+def _encoded(request: Any) -> bytes:
+    """Return the json of a request, refusing what the encoder will not write.
+
+    An int of more digits, or a Decimal of a larger exponent, than
+    `sys.get_int_max_str_digits` allows, which is the mirror of the limit
+    a *reply* holding one runs into: json has the number and this
+    interpreter will not write it. `_assert_json_params` refuses the
+    types json has no rendering for, and this is a value of a type it
+    does, so the encoder is where it surfaces. The rest is what
+    `_request_json` finds changed since that walk. The error is named by
+    `_failure_name` and refused outside the `except`: the caller's own
+    objects can put anything in its text.
+    """
+    try:
+        return _request_json(request).encode()
+    except BtcRpcValueError:
+        # the package's own refusal, which says what it refused
+        raise
+    except (ValueError, RecursionError) as e:
+        failure = _failure_name(e)
+    raise BtcRpcValueError(f"rpc params json cannot carry: {failure}")
 
 
 def _parsed_json_body(where: str, status: int, payload: bytes) -> Any:
@@ -559,20 +650,17 @@ def _parsed_json_body(where: str, status: int, payload: bytes) -> Any:
         # ValueError -- so it escaped a promise this module makes about
         # every unreadable reply
         if isinstance(e, UnicodeDecodeError):
-            shape = "a reply that is not utf-8"
+            refusal = FetchError(f"{where}: a reply that is not utf-8")
         elif isinstance(e, json.JSONDecodeError):
-            # its message names a position, never the text
-            shape = f"not json ({e})"
+            refusal = FetchError(f"{where}: not json")
         else:
-            raise (
-                _http_error(where, status) if status != 200 else _unreadable(where, e)
-            ) from e
+            refusal = _unreadable(where, e)
     # raised outside the `except`, so that nothing chains the decode error
-    # or the parse error: each holds the reply, which can be a
+    # or the parse error: each can hold the reply, which can be a
     # `dumpprivkey` answer or an error body echoing the request
     if status != 200:
         raise _http_error(where, status)
-    raise FetchError(f"{where}: {shape}")
+    raise refusal
 
 
 def _reply_object(where: str, status: int, payload: bytes) -> Mapping[str, Any]:
@@ -639,7 +727,7 @@ def _discriminate(
         # would cost the caller the policy `HttpError.status` is for
         if status != 200:
             raise _http_error(where, status)
-        err_msg = f"{where}: json-rpc version {marker!r}, neither 2.0"
+        err_msg = f"{where}: a json-rpc version that is neither 2.0"
         err_msg += " nor the legacy reply that carries no version at all"
         raise FetchError(err_msg)
     return _v2_result(where, request_id, status, reply)
@@ -677,7 +765,7 @@ def _legacy_result(
     if status != 200:
         raise _http_error(where, status)
     if not ours:
-        raise _id_error(where, request_id, reply)
+        raise _id_error(where, request_id)
     if "result" not in reply:
         raise FetchError(f"{where}: a reply with neither result nor error")
     return reply["result"]
@@ -704,7 +792,7 @@ def _v2_result(
     if status != 200:
         raise _http_error(where, status)
     if reply.get("id") != request_id:
-        raise _id_error(where, request_id, reply)
+        raise _id_error(where, request_id)
     has_result = "result" in reply
     has_error = "error" in reply
     if has_result == has_error:
@@ -725,16 +813,16 @@ def _batch_pairs(calls: Any) -> list[tuple[Any, Any]]:
     characters being no pair either, for the reason `_params_member`
     refuses one as params.
     """
-    if isinstance(calls, (str, bytes, bytearray)):
+    members: Iterator[Any] | None = None
+    if not isinstance(calls, (str, bytes, bytearray)):
+        # a TypeError of `iter` is refused below, outside the `except`: one
+        # out of the caller's own `__iter__` can say anything
+        with suppress(TypeError):
+            members = iter(calls)
+    if members is None:
         err_msg = f"call_batch calls is a {type(calls).__name__} and not"
         err_msg += " an iterable of (method, params) pairs"
         raise BtcRpcTypeError(err_msg)
-    try:
-        members = iter(calls)
-    except TypeError as e:
-        err_msg = f"call_batch calls is a {type(calls).__name__} and not"
-        err_msg += " an iterable of (method, params) pairs"
-        raise BtcRpcTypeError(err_msg) from e
     pairs: list[tuple[Any, Any]] = []
     for index, member in enumerate(members):
         shape = f"a {type(member).__name__}"
@@ -816,10 +904,10 @@ def _correlated_batch_replies(
             raise FetchError(err_msg)
         reply_id = reply.get("id")
         if not isinstance(reply_id, str) or reply_id not in sent_ids:
-            err_msg = f"{where}: a reply answering id {reply_id!r}, which nobody sent"
+            err_msg = f"{where}: a reply answering an id nobody sent"
             raise FetchError(err_msg)
         if reply_id in by_id:
-            err_msg = f"{where}: two replies answering the same id {reply_id!r}"
+            err_msg = f"{where}: two replies answering the same id"
             raise FetchError(err_msg)
         by_id[reply_id] = reply
     # every reply's id is sent and distinct (both checked in the loop), and
@@ -884,10 +972,15 @@ def _assert_json_number(where: str, token: bytes) -> None:
         else:
             int(text)
     except (ValueError, DecimalException) as e:
-        raise _unreadable(where, e) from e
-    except FetchError as e:
+        # refused below, outside the `except`, which would chain it
+        failure: FetchError | None = _unreadable(where, e)
+    except FetchError as refusal:
         # `_json_number`'s own refusal, which names no `where`
-        raise FetchError(f"{where}: {e}") from e
+        raise FetchError(f"{where}: {refusal}") from refusal
+    else:
+        failure = None
+    if failure is not None:
+        raise failure
 
 
 class JsonStream:
@@ -1143,7 +1236,7 @@ class JsonStream:
             err_msg = f"non-integer json value limit, but a {type(limit).__name__}"
             raise BtcRpcTypeError(err_msg)
         if limit < 0:
-            raise BtcRpcValueError(f"negative json value limit: {limit}")
+            raise BtcRpcValueError("negative json value limit")
         self._keep(limit, soft=False)
         try:
             self.skip()
@@ -1266,7 +1359,7 @@ def _streamed_result(
     kept: dict[str, Any] = {}
     for name in stream.members():
         if name in kept:
-            raise FetchError(f"{where}: a reply with {name!r} given twice")
+            raise FetchError(f"{where}: a reply with a member given twice")
         if name == "result":
             # where the result starts, so that a walk that read none of it,
             # or stopped inside it, is told from a reply that goes on
@@ -1308,14 +1401,15 @@ def _expected_magic(
 
 
 def _assert_chain_info(
-    where: str, url: str, result: Any, chain: str, expected_magic: bytes | None
+    where: str, endpoint: str, result: Any, chain: str, expected_magic: bytes | None
 ) -> None:
     """Compare a node's `getblockchaininfo` object with what the caller expects.
 
     The half of `assert_chain` that reads the reply, shared by both
     clients so that each refuses the same node with the same message:
     `where` names the request, for a reply with nothing to compare, and
-    `url` the node, for a disagreement.
+    `endpoint` the node, for a disagreement. A disagreement names neither
+    chain: `ChainMismatchError` carries both.
     """
     # the shape of the result is the node's and not a given, so it is
     # read rather than indexed: `result["chain"]` on an array is a
@@ -1332,9 +1426,9 @@ def _assert_chain_info(
         err_msg += f" chain in the {type(result).__name__} result"
         raise FetchError(err_msg)
     if reported != chain:
-        err_msg = f"node at {url} reports chain {reported!r},"
-        err_msg += f" not the {_quoted(chain)} this client was built for"
-        raise BtcRpcValueError(err_msg)
+        err_msg = f"node at {endpoint} reports another chain than the one"
+        err_msg += " this client was built for"
+        raise ChainMismatchError(err_msg, _kept_name(chain), _kept_name(reported))
     if expected_magic is None:
         return
 
@@ -1348,17 +1442,14 @@ def _assert_chain_info(
         raise FetchError(err_msg)
     try:
         node_magic = magic_from_signet_challenge(challenge)
-    except ValueError as e:
-        # `BtcRpcValueError` is a ValueError, raised for a challenge
-        # that is not hex: the reply cannot be read, which is not the
-        # disagreement below
-        err_msg = f"{where}: unreadable signet_challenge: {e}"
-        raise FetchError(err_msg) from e
+    except BtcRpcValueError as e:
+        # raised for a challenge that is not hex: the reply cannot be read,
+        # which is not the disagreement below
+        raise FetchError(f"{where}: unreadable signet_challenge") from e
     if node_magic != expected_magic:
-        err_msg = f"node at {url} is on a signet this client is not:"
-        err_msg += f" its challenge derives magic {node_magic.hex()},"
-        err_msg += f" where {expected_magic.hex()} was expected"
-        raise BtcRpcValueError(err_msg)
+        err_msg = f"node at {endpoint} is on another signet than the one"
+        err_msg += " this client was built for"
+        raise ChainMismatchError(err_msg, "signet", "signet")
 
 
 class BitcoinCoreRpcClient:
@@ -1537,9 +1628,10 @@ class BitcoinCoreRpcClient:
         `-chain=test` and a `main` cookie both exist. A caller for whom
         that gap matters -- a cookie path or a datadir carried over from a
         differently-configured host, an environment variable naming the
-        wrong chain -- opts in and gets `BtcRpcValueError` naming both
-        chains instead of a wrong-network call succeeding silently, at the
-        cost of one round trip here rather than trust in every call after.
+        wrong chain -- opts in and gets `ChainMismatchError`, which carries
+        both chains, instead of a wrong-network call succeeding silently,
+        at the cost of one round trip here rather than trust in every call
+        after.
 
         `signet_challenge` is the signet the caller means, and is what
         `assert_chain` compares by: without it, `signet` means the default
@@ -1629,17 +1721,18 @@ class BitcoinCoreRpcClient:
         caller passing one has a signet in mind and this client is on no
         signet at all, which is the caller's configuration either way.
 
-        `BtcRpcValueError` for a disagreement, the node being the authority
-        on what it serves and the client's label therefore the thing to
-        fix. `FetchError` for a reply with nothing to compare -- a result
-        that is not a mapping, a `chain` that is not a string, a signet
-        answering without a `signet_challenge` member -- this being an
-        interpretation of an untrusted reply like any other.
+        `ChainMismatchError`, a `BtcRpcValueError`, for a disagreement, the
+        node being the authority on what it serves and the client's label
+        therefore the thing to fix. `FetchError` for a reply with nothing
+        to compare -- a result that is not a mapping, a `chain` that is not
+        a string, a signet answering without a `signet_challenge` member --
+        this being an interpretation of an untrusted reply like any other.
         """
         expected_magic = _expected_magic(chain, signet_challenge)
         result = self.call("getblockchaininfo")
-        where = f"getblockchaininfo at {self.url}"
-        _assert_chain_info(where, self.url, result, chain, expected_magic)
+        endpoint = _endpoint(self.url)
+        where = f"getblockchaininfo at {endpoint}"
+        _assert_chain_info(where, endpoint, result, chain, expected_magic)
 
     def for_wallet(self, wallet_name: str) -> BitcoinCoreRpcClient:
         """Return a client for this node's `/wallet/<name>` endpoint.
@@ -1825,17 +1918,7 @@ class BitcoinCoreRpcClient:
             "method": method,
             "params": params_member,
         }
-        try:
-            body = _request_json(request).encode()
-        except (ValueError, RecursionError) as e:
-            # an int of more digits, or a Decimal of a larger exponent,
-            # than `sys.get_int_max_str_digits` allows, which is the mirror of
-            # the limit a *reply* holding one runs into: json has the
-            # number and this interpreter will not write it. The walk above
-            # refuses the types json has no rendering for, and this is a
-            # value of a type it does, so the encoder is where it surfaces.
-            # The rest is what `_request_json` finds changed since the walk
-            raise BtcRpcValueError(f"rpc params json cannot carry: {e}") from e
+        body = _encoded(request)
         return request_id, body, timeout
 
     def _headers(self) -> dict[str, str]:
@@ -1899,7 +1982,7 @@ class BitcoinCoreRpcClient:
         """
         request_id, body, timeout = self._request(method, params, request_timeout)
         _assert_valid_max_body_size(max_body_size)
-        where = f"{method} at {self.url}"
+        where = f"{method} at {_endpoint(self.url)}"
         if (keywords := _urlopen_keywords(self.transport)) is not None:
             with _post_stream(
                 self.url,
@@ -1934,7 +2017,7 @@ class BitcoinCoreRpcClient:
         )
 
     def _result(self, method: str, request_id: str, status: int, payload: bytes) -> Any:
-        where = f"{method} at {self.url}"
+        where = f"{method} at {_endpoint(self.url)}"
         reply = _reply_object(where, status, payload)
         return _discriminate(where, request_id, status, reply)
 
@@ -2006,10 +2089,7 @@ class BitcoinCoreRpcClient:
                 zip(pairs, request_ids, strict=True)
             )
         ]
-        try:
-            body = _request_json(members).encode()
-        except (ValueError, RecursionError) as e:
-            raise BtcRpcValueError(f"rpc params json cannot carry: {e}") from e
+        body = _encoded(members)
         status, payload = http_request(
             self.url,
             data=body,
@@ -2018,7 +2098,8 @@ class BitcoinCoreRpcClient:
             max_body_size=max_body_size,
             transport=self.transport,
         )
-        where = f"call_batch at {self.url}"
+        endpoint = _endpoint(self.url)
+        where = f"call_batch at {endpoint}"
         # read first, as `_v2_result` reads it for a lone 2.0 call: every
         # member was sent with the 2.0 marker, so a non-2xx here is a
         # failure of the one HTTP exchange behind the whole array and not
@@ -2028,10 +2109,10 @@ class BitcoinCoreRpcClient:
         replies = _batch_reply_array(where, status, payload)
         by_id = _correlated_batch_replies(where, request_ids, replies)
         results: list[Any] = []
-        for index, ((method, _params), request_id) in enumerate(
-            zip(pairs, request_ids, strict=True)
-        ):
-            member_where = f"{method} at {self.url} (call_batch member {index})"
+        # a member is named by its position, and not by its method, as
+        # `_batch_member_request` names it
+        for index, request_id in enumerate(request_ids):
+            member_where = f"call_batch member {index} at {endpoint}"
             try:
                 result = _discriminate(
                     member_where, request_id, status, by_id[request_id]
@@ -2109,10 +2190,7 @@ class BitcoinCoreRpcClient:
         request["id"] = request_id
         request["method"] = method
         request["params"] = params_member
-        try:
-            body = _request_json(request).encode()
-        except (ValueError, RecursionError) as e:
-            raise BtcRpcValueError(f"rpc params json cannot carry: {e}") from e
+        body = _encoded(request)
         status, payload = http_request(
             self.url,
             data=body,
@@ -2121,7 +2199,7 @@ class BitcoinCoreRpcClient:
             max_body_size=max_body_size,
             transport=self.transport,
         )
-        where = f"{method} at {self.url}"
+        where = f"{method} at {_endpoint(self.url)}"
         return status, _parsed_json_body(where, status, payload)
 
 
@@ -2260,8 +2338,9 @@ class BitcoinCoreRestClient:
         expected_magic = _expected_magic(chain, signet_challenge)
         path = "/chaininfo.json"
         result = self.get_json(path)
-        where = f"GET {path} at {self.url}"
-        _assert_chain_info(where, self.url, result, chain, expected_magic)
+        endpoint = _endpoint(self.url)
+        where = f"GET {path} at {endpoint}"
+        _assert_chain_info(where, endpoint, result, chain, expected_magic)
 
     def _get(
         self,
@@ -2278,7 +2357,8 @@ class BitcoinCoreRestClient:
         the request-building this does once.
         """
         url = _rest_url(self.url, path)
-        where = f"GET {path} at {self.url}"
+        # not the path, which can hold a transaction id
+        where = f"rest GET at {_endpoint(self.url)}"
         timeout = self.timeout if request_timeout is None else request_timeout
         _assert_valid_timeout(timeout, "rest request_timeout")
         status, payload = http_request(
