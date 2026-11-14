@@ -521,7 +521,7 @@ def test_assert_chain_keeps_a_reported_chain_only_where_it_is_a_name(
     endpoint = client(chaininfo(chain=reported))
     with pytest.raises(ChainMismatchError) as exc:
         endpoint.assert_chain("main")
-    expected = reported if reported == "" else None
+    expected = None if reported else ""
     assert (exc.value.expected, exc.value.reported) == ("main", expected)
     assert_no_secret(exc.value)
 

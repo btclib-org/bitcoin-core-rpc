@@ -268,9 +268,7 @@ def _private(name: str) -> bool:
 def _called_name(func: ast.expr) -> str | None:
     if isinstance(func, ast.Name):
         return func.id
-    if isinstance(func, ast.Attribute):
-        return func.attr
-    return None
+    return func.attr if isinstance(func, ast.Attribute) else None
 
 
 def _positional(func: ast.AST) -> list[ast.arg]:
@@ -431,10 +429,14 @@ _Key = tuple[str, int, str]
 
 def _function_name(module: _Module, node: ast.AST) -> str:
     """Return the name of the `def` a node is in, or `<module>`."""
-    for scope in module.scopes(node):
-        if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            return scope.name
-    return "<module>"
+    return next(
+        (
+            scope.name
+            for scope in module.scopes(node)
+            if isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef))
+        ),
+        "<module>",
+    )
 
 
 def _origin(leaf: str) -> str:
@@ -657,12 +659,12 @@ class _Census:
         callers, kept = callers or {}, kept or {}
         for module in self.modules:
             for node in ast.walk(module.tree):
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    exprs = {
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and (
+                    exprs := {
                         e for m, f, e in kept if (m, f) == (module.name, node.name)
                     }
-                    if exprs:
-                        self.kept_scopes[id(node)] = frozenset(exprs)
+                ):
+                    self.kept_scopes[id(node)] = frozenset(exprs)
         found: list[str] = []
         for module, call, values in self.sites():
             function = _function_name(module, call)
@@ -970,7 +972,8 @@ class _Census:
             found |= self._reach(key)
         return found
 
-    def _visit(  # noqa: C901, PLR0911, PLR0912
+    # one branch for each kind of expression the module's docstring traces
+    def _visit(  # noqa: C901, PLR0911, PLR0912  # sourcery skip: low-code-quality
         self,
         expr: ast.AST | None,
         module: _Module,
@@ -1239,7 +1242,8 @@ class _Census:
                     self.reached[member] = frozenset(found)
         return self.reached[start]
 
-    def _edges(self, key: _Key) -> tuple[list[str], set[_Key]]:  # noqa: C901, PLR0912
+    # one branch for each kind of key
+    def _edges(self, key: _Key) -> tuple[list[str], set[_Key]]:  # noqa: C901, PLR0912  # sourcery skip: low-code-quality
         """Return the untraced values a key holds and the keys it reads."""
         if key not in self.edges:
             leaves: list[str] = []
@@ -1296,7 +1300,8 @@ class _Census:
             self.edges[key] = (leaves, keys)
         return self.edges[key]
 
-    def _binding(  # noqa: C901
+    # one branch for each kind of statement that binds a name
+    def _binding(  # noqa: C901  # sourcery skip: low-code-quality
         self,
         node: ast.AST,
         name: str,
@@ -1423,7 +1428,9 @@ class _Census:
         names = caught.elts if isinstance(caught, ast.Tuple) else [caught]
         return all(_called_name(name) in self.classes for name in names)
 
-    def _element(  # noqa: C901, PLR0911, PLR0912, PLR0917
+    # one branch for each shape of target and value the module's docstring
+    # traces
+    def _element(  # noqa: C901, PLR0911, PLR0912, PLR0917  # sourcery skip: low-code-quality
         self,
         target: ast.AST,
         value: ast.expr | None,
@@ -1517,7 +1524,8 @@ class _Census:
                 return
         self._visit(value, module, leaves, keys)
 
-    def _parameter(  # noqa: C901
+    # one step for each way a parameter of the package gets its value
+    def _parameter(  # noqa: C901  # sourcery skip: low-code-quality
         self,
         func: ast.AST,
         name: str,
@@ -1551,8 +1559,7 @@ class _Census:
                 func_args.defaults,
                 strict=True,
             )
-        )
-        defaults.update(zip(func_args.kwonlyargs, func_args.kw_defaults, strict=True))
+        ) | dict(zip(func_args.kwonlyargs, func_args.kw_defaults, strict=True))
         default = defaults.get(arg)
         if default is not None:
             self._visit(default, module, leaves, keys)

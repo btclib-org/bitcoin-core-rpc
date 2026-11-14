@@ -864,8 +864,11 @@ def test_a_batch_reply_with_ids_nobody_sent_is_not_repeated() -> None:
 
 def test_a_chain_the_node_reports_is_not_repeated() -> None:
     """The chain is kept as an attribute only where it is a short name."""
-    infos: list[dict[str, Any]] = [{"chain": KEY}, {"chain": KEY_INT}]
-    infos.append({"chain": [KEY]})
+    infos: list[dict[str, Any]] = [
+        {"chain": KEY},
+        {"chain": KEY_INT},
+        {"chain": [KEY]},
+    ]
     for info in infos:
         with pytest.raises((ChainMismatchError, FetchError)) as exc:
             echoing(info).assert_chain("main")
