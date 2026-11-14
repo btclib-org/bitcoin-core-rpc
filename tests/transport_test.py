@@ -2838,8 +2838,8 @@ def test_a_refused_answer_leaves_no_socket_to_the_collector(head: bytes) -> None
 # --- The TLS context a caller gives ---
 
 # the test authority, its server certificate for 127.0.0.1 and that
-# certificate's key: `tests/_tls/README.md` says how they were made
-TLS = Path(__file__).parent / "_tls"
+# certificate's key: `tests/_data/README.md` says how they were made
+TLS = Path(__file__).parent / "_data" / "tls"
 # an https url nothing listens on, for a refusal made before any connect
 TLS_URL = "https://127.0.0.1:1/"
 

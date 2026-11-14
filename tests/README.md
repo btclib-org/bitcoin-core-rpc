@@ -4,7 +4,7 @@ This file exists for section 7 of the [organization's standard][std],
 which asks each repository to declare which of its conventions the suite
 turns into a red test rather than leave it to be read off a directory
 listing. `tests/_data/README.md` is the other file here, and it is about
-the recorded replies rather than about the suite.
+the data the suite reads rather than about the suite.
 
 ## Convention tests
 

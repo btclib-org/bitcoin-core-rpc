@@ -2,18 +2,20 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Tests for `tests/_tls/generate.py`, which writes the TLS fixtures.
+"""Tests for `tests/_data/tls/generate.py`, which writes the TLS fixtures.
 
 A set it writes completes a handshake with a context that trusts its
 authority and sets `VERIFY_X509_STRICT`, and carries what the committed
 set carries. The handshake runs over memory buffers, so no socket opens.
 
-`main` is called in this interpreter, and the `__main__` guard is run with
+The script is loaded by its path, `tests/_data` being no package. `main`
+is called in this interpreter, and the `__main__` guard is run with
 `runpy.run_path`, for the coverage floor.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import runpy
 import ssl
 import sys
@@ -25,10 +27,13 @@ import pytest
 pytest.importorskip("cryptography")
 from cryptography import x509
 
-from ._tls import generate
-
-_TLS = Path(__file__).parent / "_tls"
+_TLS = Path(__file__).parent / "_data" / "tls"
 _SCRIPT = _TLS / "generate.py"
+_SPEC = importlib.util.spec_from_file_location("generate", _SCRIPT)
+assert _SPEC is not None
+assert _SPEC.loader is not None
+generate = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(generate)
 _FILES = ["ca.pem", "server.key", "server.pem"]
 # the extensions whose value is a key's identifier, which a new key changes
 _KEY_IDS = {x509.SubjectKeyIdentifier.oid, x509.AuthorityKeyIdentifier.oid}

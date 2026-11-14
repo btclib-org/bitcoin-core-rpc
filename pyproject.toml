@@ -225,12 +225,12 @@ test = [
     # import ecc.ecc, which the latest ecc does not have
     "btclib>=2026.11.10",
     "coverage>=7.16.0",
-    # what tests/_tls/generate.py writes the TLS fixtures with, and what
-    # tests/tls_generate_test.py reads them back with. 42.0.0 is the first
-    # release with the `not_valid_before_utc` that test reads. Windows on
-    # Arm is left out: building the sdist on Windows needs `OPENSSL_DIR`
-    # pointing at an OpenSSL installation, which os-windows.yml's suite job
-    # does not set. The marker stays while
+    # what tests/_data/tls/generate.py writes the TLS fixtures with, and
+    # what tests/tls_generate_test.py reads them back with. 42.0.0 is the
+    # first release with the `not_valid_before_utc` that test reads.
+    # Windows on Arm is left out: building the sdist on Windows needs
+    # `OPENSSL_DIR` pointing at an OpenSSL installation, which
+    # os-windows.yml's suite job does not set. The marker stays while
     # `grep 'cryptography-.*win_arm64' uv.lock` lists no wheel for it. The
     # grep can list one only because uv keeps in the lock the wheels this
     # marker excludes, where it drops those a bare `sys_platform` marker
@@ -685,11 +685,13 @@ extend-ignore-re = ['`[^`]*`']
 [tool.coverage.run]
 # every tree is named, rather than left to --cov's default of whatever
 # the run imports: a file no test imports is then reported at 0% instead
-# of missing from the table. bitcoin_core_rpc is the package this
-# distribution ships. tests is measured because a test nothing runs is
-# dead code with the authority of a test. .github/scripts is measured
-# because a branch of a script that no test reaches is a check nobody
-# has seen fail; it is no package, and coverage measures it by path.
+# of missing from the table, in a subdirectory holding no __init__.py
+# too, by include_namespace_packages below. bitcoin_core_rpc is the
+# package this distribution ships. tests is measured because a test
+# nothing runs is dead code with the authority of a test.
+# .github/scripts is measured because a branch of a script that no test
+# reaches is a check nobody has seen fail; it is no package, and
+# coverage measures it by path.
 source = ["bitcoin_core_rpc", "tests", ".github/scripts"]
 omit = ["*/site-packages/*"]
 # statement coverage calls a half-tested `if` fully covered: the line ran,
@@ -701,6 +703,13 @@ omit = ["*/site-packages/*"]
 branch = true
 
 [tool.coverage.report]
+# below a directory `source` names, coverage reports a file no test
+# imports only where each directory down to it holds an __init__.py,
+# unless this is set, and tests/_data is no package (section 7 of the
+# organization's standard): without it the script under tests/_data/tls
+# is missing from the table where no test runs it. Section 8 names this
+# setting for that case.
+include_namespace_packages = true
 show_missing = true
 skip_covered = true
 precision = 2
@@ -1036,6 +1045,9 @@ ignore = [
 # ClusterFuzzLite's build.sh hands these to PyInstaller, never to an
 # import, so fuzz/ carries no __init__.py
 "fuzz/*.py" = ["INP001"]
+# section 7 of the organization's standard makes tests/_data a directory
+# and not a package, so tls_generate_test.py loads this script by its path
+"tests/_data/tls/generate.py" = ["INP001"]
 # sphinx imports this one by its own convention, reading docs/source/ as a
 # configuration directory rather than as a package; same reason
 "docs/source/conf.py" = ["INP001"]

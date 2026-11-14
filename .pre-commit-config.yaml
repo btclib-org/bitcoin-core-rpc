@@ -156,9 +156,9 @@ repos:
       - id: check-vcs-permalinks
       - id: detect-private-key
         # the key of the test server's certificate, public on purpose:
-        # tests/_tls/README.md says why. detect-secrets below still reads
+        # tests/_data/README.md says why. detect-secrets below still reads
         # it, recorded in .secrets.baseline as reviewed
-        exclude: ^tests/_tls/server\.key$
+        exclude: ^tests/_data/tls/server\.key$
       - id: debug-statements
       - id: check-docstring-first
         # every module-level constant carries a PEP 258 attribute
@@ -189,11 +189,12 @@ repos:
       # other file under tests/ to it: the shared transport lives in
       # tests/__init__.py, and naming that module something_test.py would
       # be this hook's failure mode written by hand -- a name that says
-      # "test" to every reader, on a module with none. The exclude is the
-      # same case: the script that writes the TLS fixtures, run by the
-      # command in tests/_tls/README.md and tested by tls_generate_test.py
+      # "test" to every reader, on a module with none. The exclude is
+      # section 7 of the organization's standard: a file under a _data
+      # directory of tests/ is data and not a test module, the script that
+      # writes the TLS fixtures included
       - id: name-tests-test
-        exclude: ^tests/_tls/generate\.py$
+        exclude: ^tests/(.*/)?_data/
       - id: check-toml
       # only files being *added* are measured, the hook intersecting its
       # arguments with git's added set. The default 500 KB is left alone:
