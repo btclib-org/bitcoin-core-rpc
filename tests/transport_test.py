@@ -2851,6 +2851,9 @@ def _tls_serve(
 
     def serve(connection: socket.socket, done: Event) -> None:
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        # the default already, written out because CodeQL's
+        # py/insecure-protocol does not read the default
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
         context.load_cert_chain(TLS / "server.pem", TLS / "server.key")
         with (
             context.wrap_socket(connection, server_side=True) as tls,
