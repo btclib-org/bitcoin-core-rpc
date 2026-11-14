@@ -9,18 +9,15 @@ authority and sets `VERIFY_X509_STRICT`, and carries what the committed
 set carries. The handshake runs over memory buffers, so no socket opens.
 
 `main` is called in this interpreter, and the `__main__` guard is run with
-`runpy.run_path`, for the coverage floor. The script is loaded by path,
-`tests/_tls` being no package.
+`runpy.run_path`, for the coverage floor.
 """
 
 from __future__ import annotations
 
-import importlib.util
 import runpy
 import ssl
 import sys
 from pathlib import Path
-from types import ModuleType
 
 import pytest
 
@@ -28,22 +25,13 @@ import pytest
 pytest.importorskip("cryptography")
 from cryptography import x509
 
+from ._tls import generate
+
 _TLS = Path(__file__).parent / "_tls"
 _SCRIPT = _TLS / "generate.py"
 _FILES = ["ca.pem", "server.key", "server.pem"]
 # the extensions whose value is a key's identifier, which a new key changes
 _KEY_IDS = {x509.SubjectKeyIdentifier.oid, x509.AuthorityKeyIdentifier.oid}
-
-
-@pytest.fixture(scope="module")
-def generator() -> ModuleType:
-    """Return the script, imported by path."""
-    spec = importlib.util.spec_from_file_location("generate", _SCRIPT)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def _done(tls: ssl.SSLObject) -> bool:
@@ -83,22 +71,20 @@ def _strict(directory: Path) -> ssl.SSLContext:
 
 @pytest.mark.parametrize("server_hostname", ["127.0.0.1", "localhost"])
 def test_a_generated_set_passes_a_strict_handshake(
-    generator: ModuleType, tmp_path: Path, server_hostname: str
+    tmp_path: Path, server_hostname: str
 ) -> None:
     """Both names the server certificate carries are verified."""
-    assert generator.main(["generate.py", str(tmp_path)]) == 0
+    assert generate.main(["generate.py", str(tmp_path)]) == 0
     assert sorted(p.name for p in tmp_path.iterdir()) == _FILES
     _handshake(tmp_path, _strict(tmp_path), server_hostname)
 
 
-def test_a_context_not_trusting_the_authority_refuses_it(
-    generator: ModuleType, tmp_path: Path
-) -> None:
+def test_a_context_not_trusting_the_authority_refuses_it(tmp_path: Path) -> None:
     """The handshake above verifies: one trusting another authority fails."""
-    generator.generate(tmp_path)
+    generate.generate(tmp_path)
     other = tmp_path / "other"
     other.mkdir()
-    generator.generate(other)
+    generate.generate(other)
     with pytest.raises(ssl.SSLCertVerificationError):
         _handshake(tmp_path, _strict(other), "127.0.0.1")
 
@@ -121,20 +107,18 @@ def _shape(certificate: x509.Certificate) -> object:
 
 @pytest.mark.parametrize("name", ["ca.pem", "server.pem"])
 def test_a_generated_set_carries_what_the_committed_one_does(
-    generator: ModuleType, tmp_path: Path, name: str
+    tmp_path: Path, name: str
 ) -> None:
     """Names, validity, signature algorithm and extensions agree."""
-    generator.generate(tmp_path)
+    generate.generate(tmp_path)
     generated = x509.load_pem_x509_certificate((tmp_path / name).read_bytes())
     committed = x509.load_pem_x509_certificate((_TLS / name).read_bytes())
     assert _shape(generated) == _shape(committed)
 
 
-def test_the_server_serial_and_the_key_identifiers_chain(
-    generator: ModuleType, tmp_path: Path
-) -> None:
+def test_the_server_serial_and_the_key_identifiers_chain(tmp_path: Path) -> None:
     """The server certificate is serial 2, naming the authority's key."""
-    generator.generate(tmp_path)
+    generate.generate(tmp_path)
     ca = x509.load_pem_x509_certificate((tmp_path / "ca.pem").read_bytes())
     server = x509.load_pem_x509_certificate((tmp_path / "server.pem").read_bytes())
     authority_id = ca.extensions.get_extension_for_class(x509.SubjectKeyIdentifier)
@@ -144,10 +128,10 @@ def test_the_server_serial_and_the_key_identifiers_chain(
 
 
 def test_main_refuses_a_missing_directory_argument(
-    generator: ModuleType, capsys: pytest.CaptureFixture[str]
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Without exactly one argument it prints the usage and exits 2."""
-    assert generator.main(["generate.py"]) == 2
+    assert generate.main(["generate.py"]) == 2
     assert capsys.readouterr().err == "usage: generate.py <directory>\n"
 
 

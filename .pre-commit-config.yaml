@@ -185,13 +185,13 @@ repos:
       # test_*.py, i.e. --pytest-test-first, would guard the same thing,
       # pytest's default `python_files` collecting both; *_test.py is the
       # convention the test modules here follow, and needs no args. The
-      # hook's own exemptions, conftest.py and __init__.py, keep the rest
-      # of tests/ to it: the shared transport lives in tests/__init__.py,
-      # and naming that module something_test.py would be this hook's
-      # failure mode written by hand -- a name that says "test" to every
-      # reader, on a module with none. The exclude is the same case: the
-      # script that writes the TLS fixtures, run by the command in
-      # tests/_tls/README.md and tested by tls_generate_test.py
+      # hook's own exemptions, conftest.py and __init__.py, hold every
+      # other file under tests/ to it: the shared transport lives in
+      # tests/__init__.py, and naming that module something_test.py would
+      # be this hook's failure mode written by hand -- a name that says
+      # "test" to every reader, on a module with none. The exclude is the
+      # same case: the script that writes the TLS fixtures, run by the
+      # command in tests/_tls/README.md and tested by tls_generate_test.py
       - id: name-tests-test
         exclude: ^tests/_tls/generate\.py$
       - id: check-toml
