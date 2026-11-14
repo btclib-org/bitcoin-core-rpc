@@ -495,12 +495,15 @@ def _http_error(where: str, status: int) -> FetchError:
 
     A status is three digits, as `http.client` reads one. A transport of
     the caller's own can answer anything, and a value outside 100 to 999
-    is no status: it is named by its type, and not written, as
-    `_is_rpc_code` bounds the code an error object may carry.
+    is no status: it is not written, as `_is_rpc_code` bounds the code an
+    error object may carry, and a value that is no int is named by its
+    type.
     """
-    if not _is_http_status(status):
-        err_msg = f"{where}: a status out of the HTTP range, a"
+    if not _is_integer(status):
+        err_msg = f"{where}: a status that is not an int, of type"
         return FetchError(f"{err_msg} {type(status).__name__}")
+    if not _is_http_status(status):
+        return FetchError(f"{where}: a status that is not three digits")
     if status == 401:
         message = f"{where}: HTTP 401, the node refused the credentials"
         return HttpError(message, status)

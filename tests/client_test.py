@@ -1889,8 +1889,20 @@ def test_a_status_out_of_the_http_range_is_not_repeated(status: int) -> None:
     with pytest.raises(FetchError) as exc:
         client((status, b"{}")).call("getblockcount")
     assert type(exc.value) is FetchError
-    assert str(exc.value).endswith(": a status out of the HTTP range, a int")
+    assert str(exc.value).endswith(": a status that is not three digits")
     assert str(abs(status)) not in str(exc.value)
+    assert exc.value.args == (str(exc.value),)
+
+
+@pytest.mark.parametrize(("status", "kind"), [(True, "bool"), (500.0, "float")])
+def test_a_status_that_is_not_an_int_is_named_by_its_type(
+    status: object, kind: str
+) -> None:
+    """`True` is not the status 1, nor is a float a status of three digits."""
+    with pytest.raises(FetchError) as exc:
+        client((status, b"{}")).call("getblockcount")  # type: ignore[arg-type]
+    assert type(exc.value) is FetchError
+    assert str(exc.value).endswith(f": a status that is not an int, of type {kind}")
     assert exc.value.args == (str(exc.value),)
 
 
