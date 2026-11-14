@@ -15,8 +15,9 @@ in a subprocess started from `tests/`: a run a guard refuses cannot be
 the run reporting on it. The source guard's run is in
 `tests/source_guard_run_test.py`, which the sdist does not ship.
 
-The last case asks the coverage table of `pyproject.toml` for a file no
-test runs, in a child interpreter, for the same reason.
+`test_a_file_no_test_runs_is_in_the_table` asks the coverage table of
+`pyproject.toml` for a file no test runs, in a child interpreter, for
+the same reason.
 """
 
 from __future__ import annotations
