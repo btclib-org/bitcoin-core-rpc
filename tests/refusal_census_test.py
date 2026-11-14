@@ -24,7 +24,8 @@ not trace is a finding. It traces
 - the index `enumerate` counts from a start it traces, and each number a
   `range` counts, where it traces every argument of it;
 - a call, an attribute or an item of what it traces, but an attribute of
-  `_PROCESS_INPUT`; each element a loop or a comprehension takes from it,
+  `_PROCESS_INPUT` and a call of `_INPUT_READS`, which reads a file or a
+  socket; each element a loop or a comprehension takes from it,
   or `zip` pairs; and in a loop over rows written out, the column the
   name takes;
 - a local or module name, where it traces every value the name is bound
@@ -57,17 +58,17 @@ not trace, nor any name that function binds to it. Of what a node sends,
 they hold the rpc error code and the HTTP status alone. An entry no
 refusal uses fails the census too.
 
-Two things it takes on trust. A call outside the package answers only
-what it is handed, the reads of `_PROCESS_INPUT` and a builtin outside
-`_PURE_BUILTINS` aside. And a value reaches an object only through the
-name the census reads it under. Of a container a name is bound to in its
-own scope, a list, a dict, a set or what a call of `_CONTAINER_TYPES`
-builds, these places it is handed to are each a finding: another name, an
-item of another container, and an argument of a call other than a
-refusal, one of `_READERS`, or a function of the package whose parameter
-neither has a value put into it nor is handed on in turn. A container
-reached any other way, through an attribute or what a call answers, is
-not followed past the name the census reads.
+Two things it takes on trust. A call outside the package answers only what
+it is handed, the reads of `_PROCESS_INPUT`, a call of `_INPUT_READS` and
+a builtin outside `_PURE_BUILTINS` aside. And a value reaches an object
+only through the name the census reads it under. Of a container a name is
+bound to in its own scope, a list, a dict, a set or what a call of
+`_CONTAINER_TYPES` builds, these places it is handed to are each a
+finding: another name, an item of another container, and an argument of a
+call other than a refusal, one of `_READERS`, or a function of the package
+whose parameter neither has a value put into it nor is handed on in turn.
+A container reached any other way, through an attribute or what a call
+answers, is not followed past the name the census reads.
 
 An exception that is not one of the package's classes may hold the same
 values, as a `JSONDecodeError` holds the document it failed on, so no
@@ -80,11 +81,13 @@ package builds of them. So is a call, inside such an `except`, that may
 reach a `raise` of the package: of a function of the package that holds
 one, or calls one that does, however far down, or of a callee the census
 cannot name, a parameter, a local or what is no name, there or in any
-function it reaches. A method is every method of that name in the
-package, whatever object it is called on; a class of the package called
-is its `__init__`, `__new__` and `__post_init__`; a builtin, or a name
-imported from outside the package, runs none of it. What a call outside
-the package raises is not one of its refusals, and is not read.
+function it reaches. A method is every method of that name in the package,
+whatever object it is called on, except that a name called on a method's
+own object that the package assigns as an attribute and defines no method
+of is unknown; a class of the package called is its `__init__`, `__new__`
+and `__post_init__`; a builtin, or a name imported from outside the
+package, runs none of it. What a call outside the package raises is not
+one of its refusals, and is not read.
 """
 
 from __future__ import annotations
@@ -136,6 +139,21 @@ _PROCESS_INPUT = frozenset(
         "input",
         "orig_argv",
         "stdin",
+    }
+)
+# the calls that answer what a file or a socket holds: the cookie file holds
+# the rpc password, and a socket what the node sent
+_INPUT_READS = frozenset(
+    {
+        "fdopen",
+        "read",
+        "read1",
+        "read_bytes",
+        "read_text",
+        "readline",
+        "readlines",
+        "recv",
+        "recv_into",
     }
 )
 # the builtins a refusal may be built of: each answers only what it is
@@ -409,6 +427,7 @@ class _Census:
     kept_scopes: dict[int, frozenset[str]] = field(default_factory=dict)
     kept_now: frozenset[str] = frozenset()
     raising: set[int] | None = None
+    assigned: set[str] | None = None
     class_defs: dict[str, list[ast.ClassDef]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:  # noqa: C901
@@ -579,16 +598,16 @@ class _Census:
     def _callees(self, func: ast.expr, module: _Module) -> list[ast.AST] | None:
         """Return the `def`s of the package a call may run, None where unknown.
 
-        An attribute called is every method of that name in the package,
-        whatever it is called on. A name is the `def` of the scope binding
-        it, the one of the package it is imported from, or the constructor
-        of a class of the package; a name nothing binds is a builtin, and
-        one imported by name from outside the package runs none of it. A
-        name bound any other way, a parameter or a local, is unknown, and so
-        is a callee that is no name.
+        An attribute called is what `_method_callees` says. A name is the
+        `def` of the scope binding it, the one of the package it is
+        imported from, or the constructor of a class of the package; a name
+        nothing binds is a builtin, and one imported by name from outside
+        the package runs none of it. A name bound any other way, a
+        parameter or a local, is unknown, and so is a callee that is no
+        name.
         """
         if isinstance(func, ast.Attribute):
-            return self.methods.get(func.attr, [])
+            return self._method_callees(func, module)
         if not isinstance(func, ast.Name):
             return None
         for scope in module.scopes(func):
@@ -607,6 +626,35 @@ class _Census:
                 found.extend(runs)
             return found
         return []
+
+    def _method_callees(
+        self, func: ast.Attribute, module: _Module
+    ) -> list[ast.AST] | None:
+        """Return the methods an attribute called may be, None where unknown.
+
+        Every method of that name in the package, whatever it is called on.
+        Called on a method's own object, a name that is no method of the
+        package but an attribute the package assigns holds whatever was
+        assigned, a function of the package included, and is unknown.
+        """
+        if (
+            func.attr not in self.methods
+            and self._is_self(func.value, module)
+            and func.attr in self._assigned_attributes()
+        ):
+            return None
+        return self.methods.get(func.attr, [])
+
+    def _assigned_attributes(self) -> set[str]:
+        """Return the name of each attribute the package assigns a value to."""
+        if self.assigned is None:
+            self.assigned = {
+                node.attr
+                for module in self.modules
+                for node in ast.walk(module.tree)
+                if isinstance(node, ast.Attribute) and isinstance(node.ctx, ast.Store)
+            }
+        return self.assigned
 
     def _runs(self, binding: ast.AST, name: str) -> list[ast.AST] | None:
         """Return what calling a name a node binds runs, None where unknown."""
@@ -817,6 +865,9 @@ class _Census:
         if isinstance(expr, ast.Call):
             func = expr.func
             name = _called_name(func) or ""
+            if name in _INPUT_READS:
+                leaves.append(f"{module.where(expr)} {ast.unparse(expr)}, read")
+                return
             if isinstance(func, ast.Name) and name in _DESCRIBING:
                 return
             if isinstance(func, ast.Attribute) and name in _DESCRIBING_METHODS:
@@ -1948,7 +1999,7 @@ _SHAPES = {
     ),
     "step of a range": (
         "def f(key):\n    for i in range(0, 6, 2):\n        raise ValueError(i)",
-        "def f(key):\n    for i in range(0, key * 2, key):\n        raise ValueError(i)",
+        "def f(key):\n    for i in range(0, 6, key):\n        raise ValueError(i)",
     ),
     "container aliased": (
         (
@@ -2076,6 +2127,35 @@ _SHAPES = {
             "    except OSError:\n        handler()"
         ),
     ),
+    "function held in an attribute, called in an except": (
+        (
+            "def _new(key):\n    raise ValueError('a')\n"
+            "class C:\n    def __init__(self, factory=_new):\n"
+            "        self._factory = factory\n"
+            "    def _m(self):\n        try:\n            pass\n"
+            "        except OSError:\n            pass\n"
+            "        self._factory(1)"
+        ),
+        (
+            "def _new(key):\n    raise ValueError('a')\n"
+            "class C:\n    def __init__(self, factory=_new):\n"
+            "        self._factory = factory\n"
+            "    def _m(self):\n        try:\n            pass\n"
+            "        except OSError:\n            self._factory(1)"
+        ),
+    ),
+    "read of a file": (
+        "def f(key):\n    raise ValueError(len('a'))",
+        "def f(path):\n    with open_it(path) as file:\n        raise ValueError(file.read())",
+    ),
+    "read of a file descriptor": (
+        "import os\ndef f(key):\n    raise ValueError(os.sep)",
+        "import os\ndef f(key):\n    raise ValueError(os.fdopen(3).read())",
+    ),
+    "read of a socket": (
+        "import socket\ndef f(key):\n    raise ValueError(socket.AF_INET)",
+        "import socket\ndef f(key):\n    raise ValueError(socket.socket().recv(64))",
+    ),
     "arguments unpacked": (
         "def _g(x):\n    raise ValueError(x)\ndef f(keys):\n    _g(1)",
         "def _g(x):\n    raise ValueError(x)\ndef f(keys):\n    _g(*keys)",
@@ -2126,6 +2206,11 @@ _SEEDS = {
         "transport.py",
         "failure = _failure_name(e)",
         'raise FetchError(f"no answer from {where}: {e}") from e',
+    ),
+    "a connection factory called while handling a stale connection": (
+        "transport.py",
+        "                stale = True\n",
+        "                self._connection_factory(*key, 1.0)\n",
     ),
     "raised from None while handling a FileNotFoundError": (
         "chains.py",
