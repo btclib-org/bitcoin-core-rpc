@@ -12,6 +12,7 @@ asked.
 
 from __future__ import annotations
 
+import errno
 import gc
 import json
 import math
@@ -2281,6 +2282,42 @@ def _round_trip(error: FetchError) -> FetchError:
     assert back.args == error.args
     assert vars(back) == vars(error)
     return back
+
+
+def _at_protocol_2(obj: object, *, fix_imports: bool = True) -> Any:
+    """Return `obj` as a pickle at protocol 2 gives it back."""
+    data = pickle.dumps(obj, protocol=2, fix_imports=fix_imports)
+    return pickle.loads(data)  # ruff: ignore[S301]
+
+
+@pytest.mark.parametrize(
+    ("kind", "code"),
+    [(TimeoutError, errno.ETIMEDOUT), (ConnectionRefusedError, errno.ECONNREFUSED)],
+    ids=["timeout", "refused"],
+)
+def test_protocol_2_maps_the_failure_class_to_oserror(
+    kind: type[OSError], code: int
+) -> None:
+    """At protocol 2 `fix_imports` maps the class to `OSError`.
+
+    Pickle writes the `OSError` subclasses `_compat_pickle` lists under
+    Python 2's `OSError`, and `failure_type` is such a class: it comes back
+    as itself with `fix_imports` off, and at the default protocol. An
+    exception is rebuilt by `OSError`'s constructor, which picks the
+    subclass from the errno: without one it is an `OSError`, and with the
+    errno of its class it is that class.
+    """
+    with pytest.raises(FetchError) as excinfo:
+        http_request(URL, transport=Recorded(kind(SECRET)))
+    error = excinfo.value
+    assert error.failure_type is kind
+    assert _round_trip(error).failure_type is kind
+    assert _at_protocol_2(error, fix_imports=False).failure_type is kind
+    assert _at_protocol_2(error).failure_type is OSError
+    assert _at_protocol_2(kind) is OSError
+    assert _at_protocol_2(kind, fix_imports=False) is kind
+    assert type(_at_protocol_2(kind())) is OSError
+    assert type(_at_protocol_2(kind(code, "x"))) is kind
 
 
 class _DownError(OSError):

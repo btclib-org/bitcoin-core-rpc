@@ -104,14 +104,18 @@ class FetchError(BtcRpcRuntimeError):
     `URLError`'s `reason`; a `URLError` whose `reason` is text is its own
     class. A class is held as itself where its metaclass is `type`, its
     module and every dotted parent of it are imported, and pickle gives it
-    back as itself at protocol 2 and at the default; otherwise, as for one
-    a caller defines in a function, it is held as the first of its bases
-    that is, so that a `FetchError` holding it pickles at those protocols.
-    Where the class cannot be read, it is `BaseException`. Over this
-    package's transports, an expired timeout is `TimeoutError`. A class
-    and not the exception: the exception's text and args can quote the url
-    or what the backend sent, and a class holds neither. It is `None` on
-    every other refusal.
+    back as itself at protocol 2 with `fix_imports` off and at the default
+    protocol; otherwise, as for one a caller defines in a function, it is
+    held as the first of its bases that is, so that a `FetchError` holding
+    it pickles at those protocols. At protocol 2 with `fix_imports` on,
+    pickle's default there, the `OSError` subclasses `_compat_pickle` lists,
+    such as `TimeoutError` and `ConnectionRefusedError`, come back as
+    `OSError`: pickle writes those classes under Python 2's `OSError`. Where
+    the class cannot be read, it is `BaseException`. Over this package's
+    transports, an expired timeout is `TimeoutError`. A class and not the
+    exception: the exception's text and args can quote the url or what the
+    backend sent, and a class holds neither. It is `None` on every other
+    refusal.
     """
 
     failure_type: type[BaseException] | None = None
