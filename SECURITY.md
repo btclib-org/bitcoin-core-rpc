@@ -38,6 +38,11 @@ credential and with a reply:
     asked for it
 - the distributions published to PyPI and their provenance
 
+A flaw in how this package sends calls to a node and reads its replies
+that lets funds be stolen, lost or locked belongs here too: locked
+includes an output that consensus can spend but standard relay policy
+refuses.
+
 What an exception, a repr or a log line may say about a credential is
 the organization's standard's
 [*A refusal carries no secret*](https://github.com/btclib-org/.github/blob/main/README.md#a-refusal-carries-no-secret).
