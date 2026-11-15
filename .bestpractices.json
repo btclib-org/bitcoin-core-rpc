@@ -4,7 +4,7 @@
   "accessibility_best_practices_justification": "bitcoin-core-rpc is a library with no user interface, so accessibility best practices have nothing to apply to. https://github.com/btclib-org/bitcoin-core-rpc/blob/main/README.md",
   "accessibility_best_practices_status": "N/A",
   "achieve_passing_status": "Met",
-  "achieve_silver_status": "Met",
+  "achieve_silver_status": "Unmet",
   "assurance_case_justification": "ASSURANCE_CASE.md states the threat model, the trust boundaries, the secure-design argument and the argument against common implementation weaknesses this criterion asks for. https://github.com/btclib-org/bitcoin-core-rpc/blob/main/ASSURANCE_CASE.md",
   "assurance_case_status": "Met",
   "automated_integration_testing_justification": "Every push to main starts test.yml's suite under coverage, and so does every pull request that is ready for review and changes more than the files test.yml's prose-pattern names. Each push run's concurrency group is keyed on its commit and its ref, so no later push to main cancels it (btclib-org/.github#2277). Its aggregate check, test: every job passed, is required on main and fails a pull request not yet ready for review; enforce_admins is off, so an administrator's merge does not wait for it. https://github.com/btclib-org/bitcoin-core-rpc/blob/main/.github/workflows/test.yml",
