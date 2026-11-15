@@ -34,6 +34,55 @@ theme. Section 9 also lets an entry making a single claim have a
 paragraph for a body, which no bullet pattern reaches. Counting the
 entries is a reading of the file rather than a command.
 
+## v2026.11.15
+
+### `FetchError` carries the class of what failed, as `failure_type`
+
+A caller tells a refused connection, a certificate that does not verify and
+an expired timeout apart without reading the text, and an `Exception` raised
+naming a failure no longer escapes in its place (closes #828, closes #835).
+
+### SECURITY.md takes reports of a flaw that lets funds be stolen, lost or locked
+
+Such a flaw in how this package sends calls to a node and reads its
+replies belongs there, and an output that consensus can spend but standard
+relay policy refuses counts as locked (issue btclib-org/.github#2318).
+
+### `.bestpractices.json` answers each criterion by its literal text
+
+The answers name v2026.11.14, say that an administrator's merge bypasses
+each required check they cite, and count a published advisory, a flaw of a
+kind SECURITY.md names and a fund flaw (issue btclib-org/.github#2318).
+
+### Each push to `main` starts the suite, in a run no later push cancels
+
+`test.yml` starts on a push that changes only Markdown, and `test.yml`,
+`lint.yml`, `docs.yml` and others group a push run by its commit and its
+ref (issue btclib-org/.github#2277).
+
+### `CONTRIBUTING.md` states the test policy
+
+New or changed functionality comes with tests of its own in the same pull
+request, and a fix with a test that fails without the fix.
+
+### The TLS fixtures and the script that writes them are under `tests/_data/tls`
+
+Section 7 of the organization's standard counts a file there as data, and
+`include_namespace_packages` keeps the script in coverage's table where no
+test runs it (closes btclib-org/.github#2276).
+
+### A pull request lands by a pinned merge, and auto-merge is off
+
+`CONTRIBUTING.md`'s *Landing it* has whoever approved it run
+`gh pr merge --match-head-commit`, and `REPOSITORY.md` records
+`allow_auto_merge` off (issue btclib-org/.github#2272).
+
+### The shared files take btclib-org/.github@7369e8a's text
+
+They are `CONTRIBUTING.md`, `REVIEWING.md`, `RELEASING.md` and
+`tests/secret_free`. `RELEASING.md` holds other merges with `release-hold`
+until a release is published (issue btclib-org/ai-agents-process#403).
+
 ## v2026.11.14
 
 ### Refusals leave out what a node sent and the request's path

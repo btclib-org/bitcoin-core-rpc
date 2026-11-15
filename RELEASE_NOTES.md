@@ -10,6 +10,29 @@ a client whose recorded replies come from the Core versions of that month.
 It promises nothing about compatibility, so a breaking change is announced
 in this file — read it before upgrading, rather than a digit.
 
+## v2026.11.15
+
+The public API adds to v2026.11.14's and breaks nothing in it: griffe and
+`api_gaps.py` find no break against it, and the source diff since that tag
+adds no `@overload`.
+
+- **`FetchError` carries the class of what failed, as `failure_type`**,
+  where the exchange did not complete: the connection's own error, such as
+  `ConnectionRefusedError` or `ssl.SSLCertVerificationError`, and
+  `TimeoutError` where this package's deadline expired. It is `None` on
+  every other refusal. A caller that read a `FetchError`'s text to tell
+  its user why reads `failure_type`. `FetchError`'s docstring says which
+  class a transport's failure is held as, and which class pickle gives
+  back for it.
+- **An `Exception` raised while a transport's failure is named no longer
+  escapes in place of the `FetchError`**, such as one that a property of
+  the failure's own exception raises. It carried the failure, whose text
+  can quote the url, as its context.
+
+SECURITY.md's *What belongs here, and what belongs upstream* takes reports
+of a flaw in how this package sends calls to a node and reads its replies
+that lets funds be stolen, lost or locked.
+
 ## v2026.11.14
 
 griffe and `api_gaps.py` find breaks against v2026.11.9, each named below:
