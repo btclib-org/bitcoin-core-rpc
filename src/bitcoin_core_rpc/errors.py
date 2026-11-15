@@ -12,6 +12,8 @@ caller wanting the whole hierarchy imports from.
 from __future__ import annotations
 
 import enum
+import pickle
+import sys
 
 # Every name this module defines, none of it imported: `__init__.py`'s own
 # `__all__` is their union across the four modules of the package, and
@@ -55,6 +57,14 @@ __all__ = [
 # message gains a second `(rpc error code -5)` every time. The price is
 # `args`, a tuple of the arguments rather than a one-tuple of the message,
 # and the `repr` that names the fields with it; `str` is unchanged.
+#
+# `FetchError.failure_type` is no constructor argument but an attribute,
+# `None` on the class and set on an instance where the exchange did not
+# complete: an `__init__` on `FetchError` that calls a base's `__init__`
+# would make the refusal census, which takes that call for every
+# `__init__` of the package, read every `FetchError` built inside an
+# `except` as a call that may raise. `__reduce__` returns the instance's
+# `__dict__` beside `args`, so the round trip keeps it.
 
 
 class BtcRpcValueError(ValueError):
@@ -84,7 +94,31 @@ class FetchError(BtcRpcRuntimeError):
 
     `HttpError`, `RpcError` and `CookieNotFoundError` derive from it, so
     one `except FetchError` catches every failure of an exchange.
+
+    `failure_type` is the class of what failed where the exchange did not
+    complete, such as `ConnectionRefusedError`,
+    `ssl.SSLCertVerificationError`, `socket.gaierror`, or an
+    `http.client.HTTPException` from a peer that does not speak HTTP, so
+    that a caller can tell its user why. It is the connection's own error,
+    not the `URLError` urllib wraps it in, where that error is the
+    `URLError`'s `reason`; a `URLError` whose `reason` is text is its own
+    class. A class is held as itself where its metaclass is `type`, its
+    module and every dotted parent of it are imported, and pickle gives it
+    back as itself at protocol 2 with `fix_imports` off and at the default
+    protocol; otherwise, as for one a caller defines in a function, it is
+    held as the first of its bases that is, so that a `FetchError` holding
+    it pickles at those protocols. At protocol 2 with `fix_imports` on,
+    pickle's default there, the `OSError` subclasses `_compat_pickle` lists,
+    such as `TimeoutError` and `ConnectionRefusedError`, come back as
+    `OSError`: pickle writes those classes under Python 2's `OSError`. Where
+    the class cannot be read, it is `BaseException`. Over this package's
+    transports, an expired timeout is `TimeoutError`. A class and not the
+    exception: the exception's text and args can quote the url or what the
+    backend sent, and a class holds neither. It is `None` on every other
+    refusal.
     """
+
+    failure_type: type[BaseException] | None = None
 
 
 class HttpError(FetchError):
@@ -288,6 +322,29 @@ class CookieNotFoundError(FetchError):
 # a transport of the caller's own put there
 _ERRNO_BOUND = 2**31
 
+# A class's method resolution order and names, read through `type`'s own
+# descriptors rather than as attributes: `kind.__mro__` asks the metaclass
+# of `kind`, which a caller's class can make answer anything or raise,
+# while each descriptor answers what `type` holds for the class. That of
+# `__module__` answers the `__module__` of the class's own `__dict__`,
+# which the class sets as it likes. `issubclass(kind, BaseException)` asks
+# no metaclass of the caller's either: `type`, the metaclass of
+# `BaseException`, answers it from the same method resolution order.
+_MRO = type.__dict__["__mro__"]
+_NAME = type.__dict__["__name__"]
+_MODULE = type.__dict__["__module__"]
+
+# The protocols at which `_pickles` asks pickle to give a class back: the
+# default, which `pickle.dumps` and multiprocessing's `ForkingPickler`
+# use where no protocol is given, and 2. Below protocol 4 pickle writes a
+# class's names as lines, and below 3 in ASCII, so it refuses there a
+# name with a newline or a letter outside ASCII that the default takes.
+#
+# `fix_imports` is off in that check: what it does at protocol 2 to the
+# `OSError` subclasses `FetchError`'s docstring names is pickle mapping a
+# name it can write, not a class it refuses.
+_PROTOCOLS = (2, pickle.DEFAULT_PROTOCOL)
+
 
 def _failure_name(failure: BaseException) -> str:
     """Name an exception another program raised, for a refusal to show.
@@ -301,18 +358,127 @@ def _failure_name(failure: BaseException) -> str:
     name in its path, or what the node sent. A `reason` that is an
     exception, which `URLError` wraps the connection's error in, is named
     the same way after it.
+
+    Neither this nor `_failure_type` raises an `Exception`: each is called
+    while the exception is handled, so what either raised would carry that
+    exception as its context. Reading the `reason` or the `errno` of an
+    exception of the caller's can run the caller's code, a property or a
+    `__getattribute__`, and so can finding its class in its module; what
+    that code raises is left out, unless it is no `Exception`, as
+    `KeyboardInterrupt` is, which propagates.
     """
-    name = _type_and_errno(failure)
-    reason = getattr(failure, "reason", None)
-    if isinstance(reason, BaseException):
-        name += f" ({_type_and_errno(reason)})"
+    try:
+        name = _type_and_errno(failure)
+        reason = _reason(failure)
+        if reason is not None:
+            name += f" ({_type_and_errno(reason)})"
+    except Exception:  # noqa: BLE001 -- `_failure_name` says why
+        name = "an exception whose class cannot be read"
     return name
 
 
-def _type_and_errno(failure: BaseException) -> str:
+def _failure_type(failure: BaseException) -> type[BaseException]:
+    """Return what `FetchError.failure_type` holds for an exception.
+
+    The class of the `reason` where that is an exception, as `_failure_name`
+    reads it, and of the exception itself otherwise, or the first of its
+    bases `_pickles` accepts where it does not accept that class: a class a
+    caller defines in a function, deriving directly from `OSError`, is held
+    as `OSError`. `BaseException` where `_pickles` accepts none of them, or
+    where reading the class raises, as `_failure_name` says.
+    """
+    try:
+        reason = _reason(failure)
+        kind = type(failure if reason is None else reason)
+        bases = _MRO.__get__(kind)
+        named = [c for c in bases if issubclass(c, BaseException) and _pickles(c)]
+        held = named[0] if named else BaseException
+    except Exception:  # noqa: BLE001 -- `_failure_name` says why
+        held = BaseException
+    return held
+
+
+def _pickles(kind: type) -> bool:
+    """Return whether pickle gives a class back as itself at `_PROTOCOLS`.
+
+    Pickle is asked, by a round trip at each protocol, since its rules for
+    a class's names are its own and differ across protocols and
+    interpreters. The round trip can run a module `__getattr__` of the
+    caller's, and read a module's `__spec__`. An `Exception` it raises, a
+    `PicklingError` or an `AttributeError` among them, gives False.
+
+    Only a class whose metaclass is `type`: pickle asks a class for its
+    names, which runs its metaclass, and that can answer other names than
+    the ones `type` holds, or raise.
+
+    Only a class whose module `_imported` holds imported: pickle calls
+    `__import__` on the module a class names, which imports it, and its
+    top-level package for a dotted name, where they are not imported yet,
+    running their code.
+    """
+    if type(kind) is not type:
+        return False
+    try:
+        if not _imported(_MODULE.__get__(kind)):
+            return False
+        # the bytes are what `dumps` wrote for the class one call earlier
+        back = [
+            pickle.loads(pickle.dumps(kind, protocol, fix_imports=False))  # noqa: S301
+            for protocol in _PROTOCOLS
+        ]
+    except Exception:  # noqa: BLE001 -- `_failure_name` says why
+        return False
+    return all(found is kind for found in back)
+
+
+def _imported(module: object) -> bool:
+    """Return whether a module and each of its dotted parents are imported.
+
+    Each is a key of `sys.modules`. For `a.b.c` that is `a.b.c`, `a.b` and
+    `a`, more than the `__import__` of pickle needs: with `a.b.c` and `a`
+    imported, it leaves an absent `a.b` unimported. Only a `str` and no
+    subclass of one, whose `split` would be the caller's code and could
+    answer other parents than the import reads.
+    """
+    if type(module) is not str:
+        return False
+    parts = module.split(".")
+    return all(".".join(parts[:end]) in sys.modules for end in range(1, len(parts) + 1))
+
+
+def _read(failure: object, name: str) -> object:
+    """Return an attribute, or None where reading it raises an `Exception`."""
+    try:
+        found = getattr(failure, name, None)
+    except Exception:  # noqa: BLE001 -- `_failure_name` says why
+        found = None
+    return found
+
+
+def _reason(failure: object) -> object:
+    """Return the `reason` of an exception where that is an exception, or None.
+
+    Its class is what is tested, by `issubclass`: `isinstance` also asks the
+    object for its `__class__`, which an object of the caller's can answer
+    with an exception class it does not derive from.
+    """
+    reason = _read(failure, "reason")
+    return reason if issubclass(type(reason), BaseException) else None
+
+
+def _failed_exchange(message: str, failure_type: type[BaseException]) -> FetchError:
+    """Return the `FetchError` of an exchange that did not complete."""
+    refusal = FetchError(message)
+    refusal.failure_type = failure_type
+    return refusal
+
+
+def _type_and_errno(failure: object) -> str:
     """Name an exception by its type and the errno `_failure_name` keeps."""
-    name = type(failure).__name__
-    errno = getattr(failure, "errno", None)
+    # `str.__str__` makes it a `str`: a class's `__name__` can be a `str`
+    # subclass, whose methods, `__format__` among them, are the caller's code
+    name = str.__str__(_NAME.__get__(type(failure)))
+    errno = _read(failure, "errno")
     if type(errno) is int and -_ERRNO_BOUND <= errno < _ERRNO_BOUND:
         name += f" [errno {errno}]"
     return name

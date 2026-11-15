@@ -28,7 +28,7 @@ rather than a translation of that one, and shares no line with either.
 | Maintenance | in-repo copy, the caller's to patch | maintained package, zero dependencies |
 | Amounts | `Decimal` on replies; a `Decimal` request parameter rounded through `float` by python-bitcoinrpc, sent as a string by Core's copy, a type an amount argument accepts and an integer one refuses | `Decimal` on replies **and** on requests, a `Decimal` parameter written as the JSON number it is; `NaN`/`Infinity` refused both ways |
 | Credentials | embedded in the URL (`http://user:pass@...`), so they can leak into logs, reprs and exception messages | separate `user`/`password` fields, or first-class cookie authentication (`cookie_path`, `from_chain` with datadir discovery) |
-| Errors | `JSONRPCException` wrapping raw error dicts | typed hierarchy: `RpcError` (with `.code`, and none of the node's text), `HttpError` (with `.status`), `FetchError` for transport failures |
+| Errors | `JSONRPCException` wrapping raw error dicts | typed hierarchy: `RpcError` (with `.code`, and none of the node's text), `HttpError` (with `.status`), `FetchError` (with `.failure_type`) for transport failures |
 | Timeouts | per-connection only, and spent per socket operation, which a peer dripping a body resets forever | per-client and **per-call** (`request_timeout`), bounding the whole exchange — answer and error page alike — plus a bounded response size (`max_body_size`) |
 | Concurrency | shared mutable request-id counter | `call` writes nothing on the client: one client serves any number of threads |
 | Wallet endpoints | URL string concatenation | `for_wallet()` |
@@ -48,15 +48,15 @@ reaches `AuthServiceProxy`'s caller as `ConnectionRefusedError`, an
 `OSError`; here `http_request` converts it, and `FetchError` derives from
 `RuntimeError`. An `except OSError` written for a node that is down
 therefore stops matching, and stops matching silently: the diagnosis
-survives in the type and the errno the text names, as in `URLError
-(ConnectionRefusedError [errno 61])` on macOS, and it is only the
-`except` clause that is wrong. A path that falls back to some other
-service when the node does not answer needs both names — `FetchError`
-for this client, `OSError` for whatever in that path does its own I/O.
-The same conversion is what stops the standard library reaching the
-caller at all: `socket.timeout` becoming an alias of `TimeoutError` is a
-change a vendored `AuthServiceProxy` hands to whoever holds the copy, and
-one this client absorbs.
+survives as `failure_type`, and in the type and the errno the text names,
+as in `URLError (ConnectionRefusedError [errno 61])` on macOS, and it is
+only the `except` clause that is wrong. A path that falls back to some
+other service when the node does not answer needs both names —
+`FetchError` for this client, `OSError` for whatever in that path does
+its own I/O. The same conversion is what stops the standard library
+reaching the caller at all: `socket.timeout` becoming an alias of
+`TimeoutError` is a change a vendored `AuthServiceProxy` hands to whoever
+holds the copy, and one this client absorbs.
 
 ## corepc
 

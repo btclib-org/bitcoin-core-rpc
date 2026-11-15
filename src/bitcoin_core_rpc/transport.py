@@ -47,7 +47,9 @@ from bitcoin_core_rpc.errors import (
     BtcRpcTypeError,
     BtcRpcValueError,
     FetchError,
+    _failed_exchange,
     _failure_name,
+    _failure_type,
 )
 
 # Every name this module defines, none of it imported: `__init__.py`'s own
@@ -803,7 +805,7 @@ def _read_bounded(
     while remaining > 0:
         if monotonic() > deadline:
             err_msg = f"{where}: still arriving when the timeout expired"
-            raise FetchError(err_msg)
+            raise _failed_exchange(err_msg, TimeoutError)
         chunk = response.read1(min(remaining, _READ_CHUNK))
         if not chunk:
             break
@@ -910,6 +912,18 @@ def _urlopen_keywords(transport: object) -> _UrlopenKeywords | None:
     return None
 
 
+def _no_answer(where: str, failure: BaseException) -> FetchError:
+    """Return the refusal of an exchange that `failure` ended.
+
+    Named by `_failure_name`, and carrying `_failure_type` as its
+    `failure_type`. Its caller raises it outside the `except`, which would
+    chain `failure`.
+    """
+    return _failed_exchange(
+        f"no answer from {where}: {_failure_name(failure)}", _failure_type(failure)
+    )
+
+
 def http_request(
     url: str,
     *,
@@ -924,7 +938,8 @@ def http_request(
     Everything below the HTTP status is a FetchError: a refused
     connection, an unresolvable host and an expired timeout are one
     answer to the caller -- the backend did not answer -- and none of
-    them is a bitcoin error worth a type of its own.
+    them is a bitcoin error worth a type of its own. Its `failure_type`
+    says which it was.
 
     A non-2xx status is *not* a failure here. It comes back like any
     other, because the body of a 500 is where bitcoind's legacy JSON-RPC
@@ -983,10 +998,11 @@ def http_request(
     # the error body -- the only part of such an exchange this module reads
     deadline = monotonic() + timeout
     # what the exchange below answers. An `HTTPError` sets `error_page`
-    # instead, and an `OSError` or an `HTTPException` sets `failure`: each is
-    # read or refused outside its `except`, which would chain it
-    status, body, failure = 0, b"", ""
+    # instead, and an `OSError` or an `HTTPException` sets `refusal`: each is
+    # read or raised outside its `except`, which would chain it
+    status, body = 0, b""
     error_page: HTTPError | None = None
+    refusal: FetchError | None = None
     try:
         # the limit reaches the read itself for the two transports of this
         # module, each taking it as a keyword beside the two arguments of an
@@ -1019,9 +1035,9 @@ def http_request(
         # -- the line of a `BadStatusLine`, the octets of an `IncompleteRead`
         # -- or the url, path included, as the `ConnectionError` of a
         # transport over `requests` does, so it is named by `_failure_name`
-        failure = _failure_name(e)
-    if failure:
-        raise FetchError(f"no answer from {where}: {failure}")
+        refusal = _no_answer(where, e)
+    if refusal is not None:
+        raise refusal
     if error_page is not None:
         return _error_page(error_page, where, deadline)
 
@@ -1181,7 +1197,8 @@ def _time_left(deadline: float, where: str) -> float:
     """
     remaining = deadline - monotonic()
     if remaining <= 0:
-        raise FetchError(f"{where}: timeout expired before the exchange completed")
+        err_msg = f"{where}: timeout expired before the exchange completed"
+        raise _failed_exchange(err_msg, TimeoutError)
     return remaining
 
 
@@ -1589,14 +1606,13 @@ def _post_stream(
             )
             response = connection.getresponse()
         except (OSError, HTTPException) as e:
-            # named by `_failure_name`, and refused outside the `except`, as
-            # `http_request` says
-            failure = _failure_name(e)
+            # refused outside the `except`, as `http_request` says
+            refusal = _no_answer(where, e)
         else:
             with closing(response):
                 yield response.status, _stream_reader(response, where, deadline)
             return
-        raise FetchError(f"no answer from {where}: {failure}")
+        raise refusal
 
 
 def _stream_reader(
@@ -1609,12 +1625,12 @@ def _stream_reader(
         # the buffer answers makes no receive to hold to it
         if monotonic() > deadline:
             err_msg = f"{where}: still arriving when the timeout expired"
-            raise FetchError(err_msg)
+            raise _failed_exchange(err_msg, TimeoutError)
         try:
             return bytes(response.read1(min(size, _READ_CHUNK)))
         except (OSError, HTTPException) as e:
-            # named by `_failure_name`, as `http_request` says
-            failure = _failure_name(e)
-        raise FetchError(f"no answer from {where}: {failure}")
+            # refused outside the `except`, as `http_request` says
+            refusal = _no_answer(where, e)
+        raise refusal
 
     return read

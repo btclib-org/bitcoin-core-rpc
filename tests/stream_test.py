@@ -24,6 +24,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from decimal import Decimal
 from hashlib import sha256
+from http.client import IncompleteRead
 from threading import Event, Thread
 from time import monotonic
 from typing import Any
@@ -677,8 +678,12 @@ def test_a_body_that_cannot_be_read_is_no_answer() -> None:
     def answer(request_id: str) -> bytes:
         return b"HTTP/1.1 200 OK\r\n" + _BAD_CHUNK
 
-    with _peer(answer) as url, pytest.raises(FetchError, match="^no answer from"):
+    with (
+        _peer(answer) as url,
+        pytest.raises(FetchError, match="^no answer from") as caught,
+    ):
         node(url).call_stream("m", None, keep(100))
+    assert caught.value.failure_type is IncompleteRead
 
 
 def test_a_body_cut_short_is_refused() -> None:
@@ -718,18 +723,20 @@ def test_the_time_the_walk_spends_counts_against_the_deadline(
         return count(walked)
 
     expired = "still arriving when the timeout expired"
-    with _peer(answer) as url, pytest.raises(FetchError, match=expired):
+    with _peer(answer) as url, pytest.raises(FetchError, match=expired) as caught:
         BitcoinCoreRpcClient(
             url, user=RPC_USER, password=RPC_PASSWORD, timeout=50.0
         ).call_stream("m", None, slow)
+    assert caught.value.failure_type is TimeoutError
 
 
 def test_a_peer_that_is_not_there_is_no_answer() -> None:
     """A refused connection is a `FetchError`, as for `call`."""
     with socket.create_server(("127.0.0.1", 0)) as closed:
         port = closed.getsockname()[1]
-    with pytest.raises(FetchError, match="^no answer from http://127.0.0.1"):
+    with pytest.raises(FetchError, match="^no answer from http://127.0.0.1") as caught:
         node(f"http://127.0.0.1:{port}").call_stream("m", None, keep(10))
+    assert caught.value.failure_type is ConnectionRefusedError
 
 
 def test_a_session_transport_reads_the_body_whole() -> None:
@@ -804,9 +811,10 @@ def test_a_peer_holding_the_body_back_is_held_to_the_deadline(
             url, user=RPC_USER, password=RPC_PASSWORD, timeout=timeout
         )
         started = monotonic()
-        with pytest.raises(FetchError, match="TimeoutError|timeout expired"):
+        with pytest.raises(FetchError, match="TimeoutError|timeout expired") as caught:
             endpoint.call_stream("m", None, count)
         assert monotonic() - started < 6 * timeout
+    assert caught.value.failure_type is TimeoutError
 
 
 @pytest.mark.parametrize(

@@ -12,10 +12,12 @@ asked.
 
 from __future__ import annotations
 
+import errno
 import gc
 import json
 import math
 import os
+import pickle
 import select
 import socket
 import ssl
@@ -40,7 +42,7 @@ from io import BytesIO
 from pathlib import Path
 from threading import Event, Thread
 from time import monotonic
-from types import SimpleNamespace, TracebackType
+from types import ModuleType, SimpleNamespace, TracebackType
 from typing import Any, ClassVar, Self, cast
 from urllib.error import HTTPError, URLError
 from urllib.request import (
@@ -58,6 +60,7 @@ import pytest
 from typing_extensions import override
 
 from bitcoin_core_rpc import BitcoinCoreRpcClient, JsonStream
+from bitcoin_core_rpc import errors as errors_module
 from bitcoin_core_rpc import transport as transport_module
 from bitcoin_core_rpc.errors import BtcRpcTypeError, BtcRpcValueError, FetchError
 from bitcoin_core_rpc.transport import (
@@ -426,8 +429,10 @@ def test_a_body_that_drips_past_the_deadline_is_refused(
     monkeypatch.setattr(transport_module, "monotonic", _clock(0.0, 0.5, 9.0))
 
     request = Request(URL, method="GET")
-    with pytest.raises(FetchError, match="still arriving when the timeout expired"):
+    expired = "still arriving when the timeout expired"
+    with pytest.raises(FetchError, match=expired) as excinfo:
         urlopen_transport(request, 1.0, max_body_size=100)
+    assert excinfo.value.failure_type is TimeoutError
     # one read, and the ninety-nine octets still to come are not waited for
     assert response.reads == [101]
 
@@ -1668,9 +1673,10 @@ def test_a_deadline_already_spent_refuses_the_connect(
     connection = FakeConnection(FakeResponse(200, b"{}"))
     transport = SessionTransport(connection_factory=_connection_factory(connection))
 
-    with pytest.raises(FetchError, match="timeout expired"):
+    with pytest.raises(FetchError, match="timeout expired") as excinfo:
         transport(Request(URL, method="GET"), 1.0)
 
+    assert excinfo.value.failure_type is TimeoutError
     assert connection.requests == []
 
 
@@ -1705,6 +1711,7 @@ def test_a_drop_after_the_write_is_not_re_sent(
 
     # named by its type, and chaining nothing: `_failure_name` says why
     assert str(excinfo.value).endswith(type(error).__name__)
+    assert excinfo.value.failure_type is type(error)
     assert excinfo.value.__cause__ is None
     assert excinfo.value.__context__ is None
     assert len(stale.requests) == 2
@@ -2228,6 +2235,468 @@ def test_an_error_names_the_host_in_the_form_it_was_written(
     assert transport_module._split_url(url)[3] == where
 
 
+@pytest.mark.parametrize(
+    "transport",
+    [lambda: urlopen_transport, SessionTransport],
+    ids=["urlopen_transport", "SessionTransport"],
+)
+def test_a_refused_connection_carries_its_class(
+    transport: Callable[[], Any],
+) -> None:
+    """A port nothing listens on: the connection's own error, by its class.
+
+    urllib wraps it in a `URLError`, and `SessionTransport` raises it bare;
+    `failure_type` is the same for both.
+    """
+    with socket.create_server(("127.0.0.1", 0)) as closed:
+        port = closed.getsockname()[1]
+    with pytest.raises(FetchError, match="^no answer from") as excinfo:
+        http_request(f"http://127.0.0.1:{port}", timeout=5, transport=transport())
+    assert excinfo.value.failure_type is ConnectionRefusedError
+    assert vars(_round_trip(excinfo.value)) == vars(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    ("error", "kind"),
+    [
+        (URLError("unknown url type"), URLError),
+        (URLError(TimeoutError("timed out")), TimeoutError),
+        (BadStatusLine("garbled"), BadStatusLine),
+    ],
+    ids=["a reason that is text", "a reason that is an error", "no reason"],
+)
+def test_the_failure_type_is_the_reason_where_that_is_an_error(
+    error: Exception, kind: type[BaseException]
+) -> None:
+    """The class of a `reason` that is an exception, else of the error."""
+    with pytest.raises(FetchError) as excinfo:
+        http_request(URL, transport=Recorded(error))
+    assert excinfo.value.failure_type is kind
+    assert _round_trip(excinfo.value).failure_type is kind
+
+
+def _round_trip(error: FetchError) -> FetchError:
+    """Return `error` as pickle gives it back, every attribute of it kept."""
+    back = pickle.loads(pickle.dumps(error))  # ruff: ignore[S301]
+    assert type(back) is type(error)
+    assert back.args == error.args
+    assert vars(back) == vars(error)
+    return back
+
+
+def _at_protocol_2(obj: object, *, fix_imports: bool = True) -> Any:
+    """Return `obj` as a pickle at protocol 2 gives it back."""
+    data = pickle.dumps(obj, protocol=2, fix_imports=fix_imports)
+    return pickle.loads(data)  # ruff: ignore[S301]
+
+
+@pytest.mark.parametrize(
+    ("kind", "code"),
+    [(TimeoutError, errno.ETIMEDOUT), (ConnectionRefusedError, errno.ECONNREFUSED)],
+    ids=["timeout", "refused"],
+)
+def test_protocol_2_maps_the_failure_class_to_oserror(
+    kind: type[OSError], code: int
+) -> None:
+    """At protocol 2 `fix_imports` maps the class to `OSError`.
+
+    Pickle writes the `OSError` subclasses `_compat_pickle` lists under
+    Python 2's `OSError`, and `failure_type` is such a class: it comes back
+    as itself with `fix_imports` off, and at the default protocol. An
+    exception is rebuilt by `OSError`'s constructor, which picks the
+    subclass from the errno: without one it is an `OSError`, and with the
+    errno of its class it is that class.
+    """
+    with pytest.raises(FetchError) as excinfo:
+        http_request(URL, transport=Recorded(kind(SECRET)))
+    error = excinfo.value
+    assert error.failure_type is kind
+    assert _round_trip(error).failure_type is kind
+    assert _at_protocol_2(error, fix_imports=False).failure_type is kind
+    assert _at_protocol_2(error).failure_type is OSError
+    assert _at_protocol_2(kind) is OSError
+    assert _at_protocol_2(kind, fix_imports=False) is kind
+    assert type(_at_protocol_2(kind())) is OSError
+    assert type(_at_protocol_2(kind(code, "x"))) is kind
+
+
+class _DownError(OSError):
+    """A failure class pickle finds by its name, of a transport's own."""
+
+
+def _local_failures() -> list[tuple[Exception, type[BaseException]]]:
+    """Return failures of classes defined here, each with what it is held as."""
+
+    class RefusedError(ConnectionRefusedError):
+        pass
+
+    class GarbledError(HTTPException):
+        pass
+
+    class DownError(OSError):
+        pass
+
+    class DeeperError(DownError):
+        pass
+
+    return [
+        (DownError(), OSError),
+        (DeeperError(), OSError),
+        (URLError(DownError()), OSError),
+        (RefusedError(), ConnectionRefusedError),
+        (GarbledError(), HTTPException),
+        (_DownError(), _DownError),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("error", "kind"),
+    _local_failures(),
+    ids=["OSError", "OSError twice", "under URLError", "refused", "HTTP", "named"],
+)
+def test_a_failure_class_pickle_cannot_name_is_held_as_a_base_it_can(
+    error: Exception, kind: type[BaseException]
+) -> None:
+    """A transport's own class, defined in a function, pickles as its base.
+
+    Pickle refuses a class it cannot find again by module and name, and a
+    `FetchError` holding one would refuse to pickle too: what a
+    `ProcessPoolExecutor` sends back from a worker is that pickle.
+    """
+    with pytest.raises(FetchError) as excinfo:
+        http_request(URL, transport=Recorded(error))
+    assert excinfo.value.failure_type is kind
+    assert _round_trip(excinfo.value).failure_type is kind
+
+
+class _ListedModuleError(OSError):
+    """A class whose `__module__` is no key `sys.modules` can hold."""
+
+    __module__: ClassVar[list[str]] = []  # type: ignore[assignment,misc]
+
+
+# a module of the caller's own whose `__getattr__` raises `KeyError`, with
+# a class `type()` built under a name the module does not hold, and one
+# whose `errno` raises: ISS btclib-org/bitcoin-core-rpc#835's inputs
+_LAZY_MODULE = """
+_LAZY = {}
+def __getattr__(name):
+    return _LAZY[name]
+Err = type("TransportError", (OSError,), {})
+class PropErr(OSError):
+    @property
+    def errno(self):
+        raise ValueError("caller's errno property")
+"""
+
+
+class _NamelessMeta(type):
+    """A metaclass refusing its classes' name and method order."""
+
+    @override
+    def __getattribute__(cls, name: str) -> Any:
+        if name in {"__name__", "__mro__"}:
+            raise RuntimeError(name)
+        return super().__getattribute__(name)
+
+
+class _NamelessError(OSError, metaclass=_NamelessMeta):
+    """A failure whose metaclass refuses its name and method order."""
+
+
+class _EmptyMroMeta(type):
+    """A metaclass answering an empty method order for its classes."""
+
+    @override
+    def __getattribute__(cls, name: str) -> Any:
+        return () if name == "__mro__" else super().__getattribute__(name)
+
+
+class _EmptyMroError(OSError, metaclass=_EmptyMroMeta):
+    """A failure whose metaclass says it derives from nothing."""
+
+
+class _HiddenMeta(type):
+    """A metaclass refusing its classes' module and qualified name."""
+
+    @override
+    def __getattribute__(cls, name: str) -> Any:
+        if name in {"__module__", "__qualname__"}:
+            raise RuntimeError(name)
+        return super().__getattribute__(name)
+
+
+class _HiddenError(OSError, metaclass=_HiddenMeta):
+    """A failure whose metaclass refuses the names pickle reads."""
+
+
+class _Liar:
+    """A reason that says its class is `OSError`, and is no exception."""
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+    @override
+    def __getattribute__(self, name: str) -> Any:
+        return OSError if name == "__class__" else super().__getattribute__(name)
+
+    @override
+    def __repr__(self) -> str:
+        return self.text
+
+
+class _Loud(str):
+    """A name whose `__format__` raises, as a caller's `str` subclass can."""
+
+    __slots__ = ()
+
+    @override
+    def __format__(self, format_spec: str) -> str:
+        raise RuntimeError(SECRET)
+
+
+class _ShoutedError(OSError):
+    """A failure whose `__name__` is a `_Loud`."""
+
+
+_ShoutedError.__name__ = _Loud("ShoutedError")
+
+
+class _Split(str):
+    """A name whose `split` answers a path the name does not hold."""
+
+    __slots__ = ()
+
+    @override
+    def split(  # type: ignore[override]
+        self, sep: str | None = None, maxsplit: int = -1
+    ) -> list[str]:
+        return ["_SplitError"]
+
+
+class _SplitError(OSError):
+    """A failure whose `__qualname__` is a `_Split` naming no class."""
+
+
+_SplitError.__qualname__ = _Split("elsewhere._SplitError")
+
+
+class _LocalsError(OSError):
+    """A failure whose `__qualname__` passes through `<locals>`."""
+
+
+_LocalsError.__qualname__ = "_scope.<locals>._LocalsError"
+# what a lookup of that name finds, and pickle still refuses
+_scope = SimpleNamespace(**{"<locals>": SimpleNamespace(_LocalsError=_LocalsError)})
+
+# a class naming as its module `this`, which the standard library holds
+# and which prints when imported: pickling the class would import it
+_UnimportedError = type("_UnimportedError", (OSError,), {"__module__": "this"})
+
+
+def _child_failure(monkeypatch: pytest.MonkeyPatch) -> Exception:
+    """Return a failure whose module is imported, and its parent `this` not."""
+    module = ModuleType("this.probe_child")
+    monkeypatch.setitem(sys.modules, "this.probe_child", module)
+    kind: type[OSError] = type(
+        "ChildError", (OSError,), {"__module__": "this.probe_child"}
+    )
+    setattr(module, "ChildError", kind)  # noqa: B010 -- a module built here
+    return kind(SECRET)
+
+
+def _lazy_failures(monkeypatch: pytest.MonkeyPatch) -> dict[str, Exception]:
+    """Return the failures of `_LAZY_MODULE`, the module registered."""
+    module = ModuleType("lazy_mod")
+    exec(_LAZY_MODULE, module.__dict__)  # noqa: S102 -- the issue's input
+    monkeypatch.setitem(sys.modules, "lazy_mod", module)
+    return {"Err": module.Err(SECRET), "PropErr": module.PropErr(SECRET)}
+
+
+@pytest.mark.parametrize(
+    ("name", "said", "kind"),
+    [
+        ("listed", "_ListedModuleError", OSError),
+        ("Err", "TransportError", OSError),
+        ("PropErr", "PropErr", None),
+        ("nameless", "_NamelessError", OSError),
+        ("empty", "_EmptyMroError", OSError),
+        ("hidden", "_HiddenError", OSError),
+        ("liar", "URLError", None),
+        ("loud", "ShoutedError", None),
+        ("split", "_SplitError", OSError),
+        ("locals", "_LocalsError", OSError),
+        ("unimported", "_UnimportedError", OSError),
+        ("parent", "ChildError", OSError),
+    ],
+    ids=[
+        "listed",
+        "lazy",
+        "errno",
+        "nameless",
+        "empty",
+        "hidden",
+        "liar",
+        "loud",
+        "split",
+        "locals",
+        "unimported",
+        "parent",
+    ],
+)
+def test_a_failure_class_of_the_callers_is_still_no_answer(
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    said: str,
+    kind: type[BaseException] | None,
+) -> None:
+    """A class of the caller's cannot make the refusal carry the failure.
+
+    Its metaclass is not asked for its names or bases, and what the
+    caller's code raises is left out, unless it is no `Exception`. The
+    refusal is the `FetchError` of every other failure, chaining nothing:
+    raised inside the `except`, it would carry the failure, whose text
+    quotes the url, as its context. A class whose metaclass is not `type`
+    is held as its first base `_pickles` accepts, so that pickling it asks
+    no metaclass of the caller's. The `FetchError` pickles at protocol 2
+    and at the default.
+    """
+    monkeypatch.delitem(sys.modules, "this", raising=False)
+    failures: dict[str, Exception] = {
+        "listed": _ListedModuleError(SECRET),
+        "nameless": _NamelessError(SECRET),
+        "empty": _EmptyMroError(SECRET),
+        "hidden": _HiddenError(SECRET),
+        "liar": URLError(cast("BaseException", _Liar(SECRET))),
+        "loud": _ShoutedError(SECRET),
+        "split": _SplitError(SECRET),
+        "locals": _LocalsError(SECRET),
+        "unimported": _UnimportedError(SECRET),
+        "parent": _child_failure(monkeypatch),
+        **_lazy_failures(monkeypatch),
+    }
+    error = failures[name]
+    url = f"{URL}/wallet/{SECRET}"
+    with pytest.raises(FetchError) as excinfo:
+        http_request(url, transport=Recorded(error))
+    assert str(excinfo.value) == f"no answer from {URL}: {said}"
+    assert excinfo.value.__context__ is None
+    assert excinfo.value.__cause__ is None
+    assert_no_secret(excinfo.value)
+    expected = type(error) if kind is None else kind
+    assert excinfo.value.failure_type is expected
+    assert _round_trip(excinfo.value).failure_type is expected
+    old = pickle.loads(pickle.dumps(excinfo.value, protocol=2))  # ruff: ignore[S301]
+    assert old.failure_type is expected
+    assert "this" not in sys.modules
+
+
+def test_the_hooks_those_failures_carry_are_live() -> None:
+    """Each hook the test above leaves unasked runs where it is asked.
+
+    Its control: the test above passes because the hooks are not asked,
+    and not because they do nothing.
+    """
+    with pytest.raises(RuntimeError, match="__name__"):
+        _ = _NamelessError.__name__
+    with pytest.raises(RuntimeError, match="__qualname__"):
+        _ = _HiddenError.__qualname__
+    assert _EmptyMroError.__mro__ == ()
+    liar = _Liar(SECRET)
+    assert isinstance(liar, OSError)
+    assert repr(liar) == SECRET
+    with pytest.raises(RuntimeError, match=SECRET):
+        _ = format(_Loud("ShoutedError"))
+    assert _Split("elsewhere._SplitError").split(".") == ["_SplitError"]
+    assert getattr(_scope, "<locals>")._LocalsError is _LocalsError
+    for refused in (_SplitError, _LocalsError):
+        with pytest.raises((pickle.PicklingError, AttributeError)):
+            pickle.dumps(refused)
+
+
+def _pickles(kind: type) -> bool:
+    """Return whether pickle gives a class back, as `errors._pickles` asks."""
+    try:
+        return all(
+            pickle.loads(pickle.dumps(kind, protocol, fix_imports=False))  # ruff: ignore[S301]
+            is kind
+            for protocol in (2, pickle.DEFAULT_PROTOCOL)
+        )
+    except (pickle.PickleError, AttributeError, ValueError):
+        return False
+
+
+@pytest.mark.parametrize(
+    ("module_name", "name"),
+    [
+        ("odd_names", "<locals>"),
+        ("", "EmptyModuleError"),
+        ("odd_names", ""),
+        ("odd_names", "New\nLineError"),
+        ("odd_names", "\u00dcberError"),
+    ],
+    ids=["locals", "empty module", "empty name", "newline", "non-ascii"],
+)
+def test_a_failure_class_pickle_refuses_by_its_name_is_held_as_a_base(
+    monkeypatch: pytest.MonkeyPatch, module_name: str, name: str
+) -> None:
+    """A class held by a name pickle refuses is held as `OSError`.
+
+    Its module is imported and holds it by its name, and pickle still
+    refuses that name, at every protocol or below 4. Which names it refuses
+    is the interpreter's: PyPy pickles an empty module name, an empty name
+    and one outside ASCII, which CPython refuses. So the class is held as
+    itself where pickle gives it back at protocol 2 and at the default, and
+    as `OSError` elsewhere, and the `FetchError` pickles at both.
+    """
+    module = ModuleType("odd_names")
+    monkeypatch.setitem(sys.modules, module_name, module)
+    kind = type(name, (OSError,), {"__module__": module_name})
+    setattr(module, name, kind)
+    url = f"{URL}/wallet/{SECRET}"
+    with pytest.raises(FetchError) as excinfo:
+        http_request(url, transport=Recorded(kind(SECRET)))
+    assert str(excinfo.value) == f"no answer from {URL}: {name}"
+    assert excinfo.value.__context__ is None
+    assert excinfo.value.__cause__ is None
+    assert_no_secret(excinfo.value)
+    expected = kind if _pickles(kind) else OSError
+    assert excinfo.value.failure_type is expected
+    assert _round_trip(excinfo.value).failure_type is expected
+    old = pickle.loads(pickle.dumps(excinfo.value, protocol=2))  # ruff: ignore[S301]
+    assert old.failure_type is expected
+
+
+class _Unreadable:
+    """A stand-in for a descriptor of `type`, raising on every read."""
+
+    def __get__(self, kind: type, owner: type | None = None) -> Any:
+        raise RuntimeError(SECRET)
+
+
+def test_a_failure_class_that_cannot_be_read_is_still_no_answer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Where reading a failure's class raises, the refusal names no class.
+
+    The test makes `_NAME` and `_MRO`, the descriptors of `type` that name
+    a failure's class and list its bases, raise: that is what reaches the
+    guards of `_failure_name` and `_failure_type`.
+    """
+    monkeypatch.setattr(errors_module, "_NAME", _Unreadable())
+    monkeypatch.setattr(errors_module, "_MRO", _Unreadable())
+    url = f"{URL}/wallet/{SECRET}"
+    with pytest.raises(FetchError) as excinfo:
+        http_request(url, transport=Recorded(OSError(SECRET)))
+    said = "an exception whose class cannot be read"
+    assert str(excinfo.value) == f"no answer from {URL}: {said}"
+    assert excinfo.value.__context__ is None
+    assert excinfo.value.__cause__ is None
+    assert_no_secret(excinfo.value)
+    assert excinfo.value.failure_type is BaseException
+    assert _round_trip(excinfo.value).failure_type is BaseException
+
+
 def test_an_error_names_the_host_and_not_the_rest_of_the_url() -> None:
     """`no answer from` keeps `scheme://host:port`, the path and query going."""
     with pytest.raises(FetchError, match=r"no answer from http://127\.0\.0\.1:1:") as e:
@@ -2503,8 +2972,9 @@ def test_a_tls_handshake_is_held_to_the_deadline() -> None:
     """
     with socket.create_server(("127.0.0.1", 0)) as silent:
         url = f"https://127.0.0.1:{silent.getsockname()[1]}/"
-        with pytest.raises(FetchError, match="TimeoutError"):
+        with pytest.raises(FetchError, match="TimeoutError") as excinfo:
             http_request(url, timeout=0.2)
+    assert excinfo.value.failure_type is TimeoutError
 
 
 class _TrickleSocket:
@@ -2901,16 +3371,19 @@ def test_a_given_context_reaches_a_server_the_default_refuses(
     """The issue's *Done when*: only the given context trusts the server.
 
     The default's refusal names the error by its type, which says that the
-    certificate is what it refused.
+    certificate is what it refused, and carries that type as its
+    `failure_type`, under urllib's `URLError` as without it.
     """
     serve = _tls_serve(lambda _: b"{}")
     with _peer(serve) as url:
         assert http_request(_https(url), transport=given(_trusting())) == (200, b"{}")
     with (
         _peer(serve) as url,
-        pytest.raises(FetchError, match=r"\bSSLCertVerificationError\b"),
+        pytest.raises(FetchError, match=r"\bSSLCertVerificationError\b") as excinfo,
     ):
         http_request(_https(url), transport=default())
+    assert excinfo.value.failure_type is ssl.SSLCertVerificationError
+    assert vars(_round_trip(excinfo.value)) == vars(excinfo.value)
 
 
 def test_a_given_context_still_reads_to_the_callers_limit() -> None:

@@ -1707,6 +1707,18 @@ def test_an_http_error_survives_pickle_and_deepcopy() -> None:
         assert type(back) is HttpError
         assert str(back) == str(error)
         assert back.status == 503
+        assert back.failure_type is None
+
+
+def test_a_fetch_error_survives_pickle_and_deepcopy() -> None:
+    """`failure_type` is an attribute, so `args` stays the message alone."""
+    error = FetchError("no answer from http://node")
+    error.failure_type = TimeoutError
+    assert error.args == ("no answer from http://node",)
+    for back in (pickle.loads(pickle.dumps(error)), copy.deepcopy(error)):  # ruff: ignore[S301]
+        assert type(back) is FetchError
+        assert str(back) == str(error)
+        assert back.failure_type is TimeoutError
 
 
 @pytest.mark.parametrize("code", [301, 302, 303, 307, 308])
@@ -1891,6 +1903,8 @@ def test_a_status_out_of_the_http_range_is_not_repeated(status: int) -> None:
     assert type(exc.value) is FetchError
     assert str(exc.value) == f"getblockcount at {URL}: a status outside 100 to 999"
     assert exc.value.args == (str(exc.value),)
+    # an answer arrived, and no exchange failed below it
+    assert exc.value.failure_type is None
 
 
 @pytest.mark.parametrize(
