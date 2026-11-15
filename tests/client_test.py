@@ -1373,6 +1373,22 @@ def test_a_non_finite_number_is_not_a_json_number(number: float) -> None:
         endpoint.call("settxfee", [number])
 
 
+def test_a_non_finite_float_refusal_names_the_type_and_path() -> None:
+    """ISS 824: the refusal names the type and the path, never the value.
+
+    `_assert_json_params` promises that a refusal never quotes the value,
+    which may be a passphrase or a key. A non-finite float was the one
+    exception: its message carried `inf` or `nan`.
+    """
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(
+        BtcRpcValueError,
+        match=r"^not a json number in the rpc params: a float at params\[0\]$",
+    ) as exc:
+        endpoint.call("settxfee", [float("inf")])
+    assert "inf" not in str(exc.value).lower()
+
+
 def test_a_number_in_a_reply_is_a_decimal_not_a_float() -> None:
     """An amount arrives exact, which binary floating point cannot be.
 
