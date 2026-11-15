@@ -29,7 +29,10 @@ being unmetered.
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc \
   --jq '{visibility, has_issues, wiki: .has_wiki, projects: .has_projects}'
-# {"has_issues":true,"projects":false,"visibility":"public","wiki":false}
+```
+
+```json
+{"has_issues":true,"projects":false,"visibility":"public","wiki":false}
 ```
 
 Section 10's `scorecard` sentinel is the other thing resting on the
@@ -307,8 +310,13 @@ reports the setting is the one that sets it:
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/code-quality/setup --jq '{state, languages}'
-# {"languages":["python"],"state":"not-configured"}
+```
 
+```json
+{"languages":["python"],"state":"not-configured"}
+```
+
+```shell
 gh api -X PATCH repos/btclib-org/bitcoin-core-rpc/code-quality/setup \
   -F state=not-configured
 ```
@@ -324,7 +332,10 @@ gh api \
   "repos/btclib-org/bitcoin-core-rpc/commits/dbd3263/check-runs?per_page=100" \
   --jq '.check_runs[] | select(.name == "Analyze (python)")
         | (.completed_at | fromdate) - (.started_at | fromdate)'
-# 44
+```
+
+```text
+44
 ```
 
 `per_page` is load-bearing: that commit carries more check runs than a
@@ -357,7 +368,10 @@ would change the answer.
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc --jq '.default_branch'
-# main
+```
+
+```text
+main
 ```
 
 Everything reaches it through a pull request: the checks above, an
@@ -392,7 +406,10 @@ merge GitHub performs itself, and GitHub signs those with its web-flow key.
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
   --jq '.required_signatures.enabled'
-# false
+```
+
+```text
+false
 ```
 
 Classic protection's own copy of the signature rule is off. No ruleset over
@@ -406,7 +423,10 @@ ground][s11-branch]. Read back:
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/branches/main/protection \
   --jq '.required_status_checks.strict'
-# false
+```
+
+```text
+false
 ```
 
 Dependabot, its security updates and pre-commit.ci all open pull requests
@@ -466,8 +486,11 @@ and not only the convention CONTRIBUTING.md states:
 gh api repos/btclib-org/bitcoin-core-rpc \
   --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge,
          allow_auto_merge}'
-# {"allow_auto_merge":false,"allow_merge_commit":false,
-#  "allow_rebase_merge":false,"allow_squash_merge":true}
+```
+
+```json
+{"allow_auto_merge":false,"allow_merge_commit":false,
+ "allow_rebase_merge":false,"allow_squash_merge":true}
 ```
 
 Auto-merge is off, [for the reason section 11 gives][s11-merge].
@@ -644,8 +667,11 @@ Read back:
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/actions/permissions/workflow \
   --jq '{default_workflow_permissions, can_approve_pull_request_reviews}'
-# {"default_workflow_permissions":"read",
-#  "can_approve_pull_request_reviews":false}
+```
+
+```json
+{"default_workflow_permissions":"read",
+ "can_approve_pull_request_reviews":false}
 ```
 
 It had to be set by hand because it had already drifted from the
@@ -688,7 +714,10 @@ for the answer.
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/actions/permissions \
   --jq '{allowed_actions, sha_pinning_required}'
-# {"allowed_actions":"all","sha_pinning_required":true}
+```
+
+```json
+{"allowed_actions":"all","sha_pinning_required":true}
 ```
 
 `sha_pinning_required` is set at the organization level: [section 11 of
@@ -698,9 +727,18 @@ the standard has the reasons for both fields][s11-tokens].
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc --jq .web_commit_signoff_required
-# true
+```
+
+```text
+true
+```
+
+```shell
 gh api orgs/btclib-org --jq .web_commit_signoff_required
-# true
+```
+
+```text
+true
 ```
 
 Set at the organization level, [for the reason section 11
@@ -718,18 +756,21 @@ than from `pyproject.toml`'s own copy of it:
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc --jq '.homepage'
-# https://btclib.org/bitcoin-core-rpc/
+```
+
+```text
+https://btclib.org/bitcoin-core-rpc/
 ```
 
 `[project.urls] homepage` carries the identical string, and
 `documentation` names `https://bitcoin-core-rpc.readthedocs.io/`.
 
+This tree serves no GitHub Pages site of its own, and the endpoint
+answers 404:
+
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/pages
-# 404
 ```
-
-This tree serves no GitHub Pages site of its own.
 
 ## Read the Docs, which is bitcoin-core-rpc.readthedocs.io
 
@@ -743,15 +784,30 @@ automation rule activates each new tag.
 ```shell
 p=https://app.readthedocs.org/api/v3/projects/bitcoin-core-rpc
 curl -s "$p/" | jq -c '{default_branch, repository: .repository.url}'
-# {"default_branch":"main",
-#  "repository":"https://github.com/btclib-org/bitcoin-core-rpc.git"}
+```
+
+```json
+{"default_branch":"main",
+ "repository":"https://github.com/btclib-org/bitcoin-core-rpc.git"}
+```
+
+```shell
 curl -s "$p/versions/?active=true" \
   | jq -c '.results[] | select(.slug == "latest" or .slug == "stable")
            | [.slug, .type, .ref]'
-# ["stable","tag","v2026.9.3"]
-# ["latest","branch",null]
+```
+
+```text
+["stable","tag","v2026.9.3"]
+["latest","branch",null]
+```
+
+```shell
 git tag --list 'v*' --sort=version:refname | tail -1
-# v2026.9.3
+```
+
+```text
+v2026.9.3
 ```
 
 `repository.url` says which repository the slug serves. `latest` is a
@@ -776,7 +832,10 @@ otherwise. Read at 2026-09-21T22:08:07Z.
 gh api orgs/btclib-org/installations \
   --jq '.installations[] | select(.app_slug == "read-the-docs-community")
         | [.app_slug, .repository_selection]'
-# ["read-the-docs-community","all"]
+```
+
+```json
+["read-the-docs-community","all"]
 ```
 
 `repository_selection: all` is what makes that the connection for every
@@ -786,7 +845,10 @@ no hook:
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/hooks --jq length
-# 0
+```
+
+```text
+0
 ```
 
 **A per-repository webhook existed here and is gone.** It pointed at
@@ -874,7 +936,10 @@ where the command answers for the day it is run:
 
 ```shell
 gh api orgs/btclib-org --jq .plan.name
-# free
+```
+
+```text
+free
 ```
 
 That answer is a fact about a changing world rather than a setting this
@@ -922,16 +987,37 @@ secret stores here answer empty for it:
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/actions/secrets --jq .total_count
-# 0
+```
+
+```text
+0
+```
+
+```shell
 gh api repos/btclib-org/bitcoin-core-rpc/dependabot/secrets \
   --jq .total_count
-# 0
+```
+
+```text
+0
+```
+
+```shell
 gh api orgs/btclib-org/actions/secrets \
   --jq '.secrets[] | [.name, .visibility]'
-# ["CLAUDE_CODE_OAUTH_TOKEN","all"]
+```
+
+```json
+["CLAUDE_CODE_OAUTH_TOKEN","all"]
+```
+
+```shell
 gh api orgs/btclib-org/dependabot/secrets \
   --jq '.secrets[] | [.name, .visibility]'
-# ["CLAUDE_CODE_OAUTH_TOKEN","all"]
+```
+
+```json
+["CLAUDE_CODE_OAUTH_TOKEN","all"]
 ```
 
 Those two zeros record a decision, and it is section 11's: the token is
@@ -947,7 +1033,10 @@ store is read too:
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/actions/variables --jq .total_count
-# 0
+```
+
+```text
+0
 ```
 
 **A facility this repository has never reached for answers empty.**
