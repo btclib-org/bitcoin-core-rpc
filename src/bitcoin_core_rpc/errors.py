@@ -58,8 +58,11 @@ __all__ = [
 #
 # `FetchError.failure_type` is no constructor argument but an attribute,
 # `None` on the class and set on an instance where the exchange did not
-# complete: `__reduce__` returns the instance's `__dict__` beside `args`,
-# so the round trip keeps it.
+# complete: an `__init__` on `FetchError` that calls a base's `__init__`
+# would make the refusal census, which takes that call for every
+# `__init__` of the package, read every `FetchError` built inside an
+# `except` as a call that may raise. `__reduce__` returns the instance's
+# `__dict__` beside `args`, so the round trip keeps it.
 
 
 class BtcRpcValueError(ValueError):
