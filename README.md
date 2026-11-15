@@ -276,9 +276,11 @@ one of them is a `FetchError`, so one `except FetchError` covers the lot.
 | --- | --- | --- |
 | `RpcError` | the node computed an error | `code` |
 | `HttpError` | the exchange failed | `status` |
-| `FetchError` | there was no answer to read | — |
+| `FetchError` | there was no answer to read | `failure_type` |
 
 ```python
+import ssl
+
 from bitcoin_core_rpc import FetchError, HttpError, RpcError
 
 try:
@@ -289,9 +291,13 @@ except RpcError as e:
 except HttpError as e:
     if e.status == 503:  # the rpc work queue is full: try again later
         ...  # a 401 never works again, so tell the two apart
-except FetchError:
-    ...  # refused connection, expired timeout, no answer
+except FetchError as e:
+    if e.failure_type is ssl.SSLCertVerificationError:
+        ...  # the node's certificate did not verify
 ```
+
+`FetchError`'s docstring says which classes `failure_type` holds, and
+where it is `None`.
 
 There is no retry, and it is deliberate: `call` carries any method, so this
 client cannot know whether re-sending one is safe, and a timeout is not a

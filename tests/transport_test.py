@@ -426,8 +426,10 @@ def test_a_body_that_drips_past_the_deadline_is_refused(
     monkeypatch.setattr(transport_module, "monotonic", _clock(0.0, 0.5, 9.0))
 
     request = Request(URL, method="GET")
-    with pytest.raises(FetchError, match="still arriving when the timeout expired"):
+    expired = "still arriving when the timeout expired"
+    with pytest.raises(FetchError, match=expired) as excinfo:
         urlopen_transport(request, 1.0, max_body_size=100)
+    assert excinfo.value.failure_type is TimeoutError
     # one read, and the ninety-nine octets still to come are not waited for
     assert response.reads == [101]
 
@@ -1668,9 +1670,10 @@ def test_a_deadline_already_spent_refuses_the_connect(
     connection = FakeConnection(FakeResponse(200, b"{}"))
     transport = SessionTransport(connection_factory=_connection_factory(connection))
 
-    with pytest.raises(FetchError, match="timeout expired"):
+    with pytest.raises(FetchError, match="timeout expired") as excinfo:
         transport(Request(URL, method="GET"), 1.0)
 
+    assert excinfo.value.failure_type is TimeoutError
     assert connection.requests == []
 
 
@@ -1705,6 +1708,7 @@ def test_a_drop_after_the_write_is_not_re_sent(
 
     # named by its type, and chaining nothing: `_failure_name` says why
     assert str(excinfo.value).endswith(type(error).__name__)
+    assert excinfo.value.failure_type is type(error)
     assert excinfo.value.__cause__ is None
     assert excinfo.value.__context__ is None
     assert len(stale.requests) == 2
@@ -2228,6 +2232,44 @@ def test_an_error_names_the_host_in_the_form_it_was_written(
     assert transport_module._split_url(url)[3] == where
 
 
+@pytest.mark.parametrize(
+    "transport",
+    [lambda: urlopen_transport, SessionTransport],
+    ids=["urlopen_transport", "SessionTransport"],
+)
+def test_a_refused_connection_carries_its_class(
+    transport: Callable[[], Any],
+) -> None:
+    """A port nothing listens on: the connection's own error, by its class.
+
+    urllib wraps it in a `URLError`, and `SessionTransport` raises it bare;
+    `failure_type` is the same for both.
+    """
+    with socket.create_server(("127.0.0.1", 0)) as closed:
+        port = closed.getsockname()[1]
+    with pytest.raises(FetchError, match="^no answer from") as excinfo:
+        http_request(f"http://127.0.0.1:{port}", timeout=5, transport=transport())
+    assert excinfo.value.failure_type is ConnectionRefusedError
+
+
+@pytest.mark.parametrize(
+    ("error", "kind"),
+    [
+        (URLError("unknown url type"), URLError),
+        (URLError(TimeoutError("timed out")), TimeoutError),
+        (BadStatusLine("garbled"), BadStatusLine),
+    ],
+    ids=["a reason that is text", "a reason that is an error", "no reason"],
+)
+def test_the_failure_type_is_the_reason_where_that_is_an_error(
+    error: Exception, kind: type[BaseException]
+) -> None:
+    """The class of a `reason` that is an exception, else of the error."""
+    with pytest.raises(FetchError) as excinfo:
+        http_request(URL, transport=Recorded(error))
+    assert excinfo.value.failure_type is kind
+
+
 def test_an_error_names_the_host_and_not_the_rest_of_the_url() -> None:
     """`no answer from` keeps `scheme://host:port`, the path and query going."""
     with pytest.raises(FetchError, match=r"no answer from http://127\.0\.0\.1:1:") as e:
@@ -2503,8 +2545,9 @@ def test_a_tls_handshake_is_held_to_the_deadline() -> None:
     """
     with socket.create_server(("127.0.0.1", 0)) as silent:
         url = f"https://127.0.0.1:{silent.getsockname()[1]}/"
-        with pytest.raises(FetchError, match="TimeoutError"):
+        with pytest.raises(FetchError, match="TimeoutError") as excinfo:
             http_request(url, timeout=0.2)
+    assert excinfo.value.failure_type is TimeoutError
 
 
 class _TrickleSocket:
@@ -2901,16 +2944,18 @@ def test_a_given_context_reaches_a_server_the_default_refuses(
     """The issue's *Done when*: only the given context trusts the server.
 
     The default's refusal names the error by its type, which says that the
-    certificate is what it refused.
+    certificate is what it refused, and carries that type as its
+    `failure_type`, under urllib's `URLError` as without it.
     """
     serve = _tls_serve(lambda _: b"{}")
     with _peer(serve) as url:
         assert http_request(_https(url), transport=given(_trusting())) == (200, b"{}")
     with (
         _peer(serve) as url,
-        pytest.raises(FetchError, match=r"\bSSLCertVerificationError\b"),
+        pytest.raises(FetchError, match=r"\bSSLCertVerificationError\b") as excinfo,
     ):
         http_request(_https(url), transport=default())
+    assert excinfo.value.failure_type is ssl.SSLCertVerificationError
 
 
 def test_a_given_context_still_reads_to_the_callers_limit() -> None:

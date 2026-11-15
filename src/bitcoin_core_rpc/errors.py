@@ -55,6 +55,11 @@ __all__ = [
 # message gains a second `(rpc error code -5)` every time. The price is
 # `args`, a tuple of the arguments rather than a one-tuple of the message,
 # and the `repr` that names the fields with it; `str` is unchanged.
+#
+# `FetchError.failure_type` is no constructor argument but an attribute,
+# `None` on the class and set on an instance where the exchange did not
+# complete: `__reduce__` returns the instance's `__dict__` beside `args`,
+# so the round trip keeps it.
 
 
 class BtcRpcValueError(ValueError):
@@ -84,7 +89,21 @@ class FetchError(BtcRpcRuntimeError):
 
     `HttpError`, `RpcError` and `CookieNotFoundError` derive from it, so
     one `except FetchError` catches every failure of an exchange.
+
+    `failure_type` is the class of what failed where the exchange did not
+    complete, such as `ConnectionRefusedError`,
+    `ssl.SSLCertVerificationError`, `socket.gaierror`, or an
+    `http.client.HTTPException` from a peer that does not speak HTTP, so
+    that a caller can tell its user why. It is the connection's own error,
+    not the `URLError` urllib wraps it in, where that error is the
+    `URLError`'s `reason`; a `URLError` whose `reason` is text is its own
+    class. Over this package's transports, an expired timeout is
+    `TimeoutError`. A class and not the exception: the exception's text and
+    args can quote the url or what the backend sent, and a class holds
+    neither. It is `None` on every other refusal.
     """
+
+    failure_type: type[BaseException] | None = None
 
 
 class HttpError(FetchError):
@@ -307,6 +326,23 @@ def _failure_name(failure: BaseException) -> str:
     if isinstance(reason, BaseException):
         name += f" ({_type_and_errno(reason)})"
     return name
+
+
+def _failure_type(failure: BaseException) -> type[BaseException]:
+    """Return what `FetchError.failure_type` holds for an exception.
+
+    The class of the `reason` where that is an exception, as `_failure_name`
+    reads it, and of the exception itself otherwise.
+    """
+    reason = getattr(failure, "reason", None)
+    return type(reason if isinstance(reason, BaseException) else failure)
+
+
+def _failed_exchange(message: str, failure_type: type[BaseException]) -> FetchError:
+    """Return the `FetchError` of an exchange that did not complete."""
+    refusal = FetchError(message)
+    refusal.failure_type = failure_type
+    return refusal
 
 
 def _type_and_errno(failure: BaseException) -> str:

@@ -2435,12 +2435,17 @@ _SEEDS = {
     ),
     "an HTTPException written into the text": (
         "transport.py",
-        "failure = _failure_name(e)",
-        "failure = str(e)",
+        "{_failure_name(failure)}",
+        "{failure}",
+    ),
+    "an OSError as its failure_type": (
+        "transport.py",
+        "_failure_type(failure)",
+        "failure",
     ),
     "an OSError written and chained": (
         "transport.py",
-        "failure = _failure_name(e)",
+        "refusal = _no_answer(where, e)",
         'raise FetchError(f"no answer from {where}: {e}") from e',
     ),
     "a connection factory called while handling a stale connection": (
