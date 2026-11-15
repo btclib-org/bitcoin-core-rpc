@@ -340,10 +340,8 @@ _MODULE = type.__dict__["__module__"]
 # class's names as lines, and below 3 in ASCII, so it refuses there a
 # name with a newline or a letter outside ASCII that the default takes.
 #
-# `fix_imports` is off in that check. On, which is pickle's default,
-# protocol 2 writes the `OSError` subclasses `_compat_pickle` lists,
-# `TimeoutError` and `ConnectionRefusedError` among them, under Python 2's
-# `OSError`, and reads them back as `OSError`: that is pickle mapping a
+# `fix_imports` is off in that check: what it does at protocol 2 to the
+# `OSError` subclasses `FetchError`'s docstring names is pickle mapping a
 # name it can write, not a class it refuses.
 _PROTOCOLS = (2, pickle.DEFAULT_PROTOCOL)
 
