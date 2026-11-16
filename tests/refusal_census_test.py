@@ -1618,9 +1618,6 @@ KEPT = {
     ("client.py", "_http_error", "status"): (
         "the HTTP status, shown where `_is_http_status` finds it three digits"
     ),
-    ("client.py", "_json_scalar", "value"): (
-        "a float that is not finite: nan, inf or -inf"
-    ),
     ("transport.py", "_assert_valid_timeout", "shown"): (
         "a refused timeout: a float, or the size in bits of a larger integer"
     ),

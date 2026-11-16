@@ -336,7 +336,8 @@ def _json_scalar(value: Any, path: str) -> bool:
         # not quoted: a NaN carries a payload of digits the caller chose
         raise BtcRpcValueError("not a json number in the rpc params: a Decimal")
     if isinstance(value, float) and not isfinite(value):
-        raise BtcRpcValueError(f"not a json number in the rpc params: {value}")
+        err_msg = f"not a json number in the rpc params: a float at {path}"
+        raise BtcRpcValueError(err_msg)
     if isinstance(value, (bytes, bytearray)):
         raise BtcRpcTypeError(_not_json_value(type(value), path))
     return value is None or isinstance(value, (bool, int, float, str, Decimal))
