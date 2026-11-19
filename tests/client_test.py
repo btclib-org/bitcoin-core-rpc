@@ -1389,6 +1389,44 @@ def test_a_non_finite_float_refusal_names_the_type_and_path() -> None:
     assert "inf" not in str(exc.value).lower()
 
 
+def test_a_non_finite_decimal_refusal_names_the_type_and_path() -> None:
+    """ISS 842: a non-finite Decimal is refused at its path, as a float is."""
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(
+        BtcRpcValueError,
+        match=r"^not a json number in the rpc params: a Decimal at params\[1\]\[0\]$",
+    ):
+        endpoint.call("settxfee", [1, [Decimal("NaN")]])
+
+
+def test_a_cycle_refusal_names_the_type_and_path() -> None:
+    """ISS 842: the container reached from inside itself, and where."""
+    cyclic: list[Any] = [1]
+    cyclic.append(cyclic)
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(
+        BtcRpcValueError,
+        match=(
+            r"^rpc params contains itself, so it has no json: "
+            r'a list at params\["outputs"\]\[1\]$'
+        ),
+    ):
+        endpoint.call("send", {"outputs": cyclic})
+
+
+def test_a_depth_refusal_names_the_type_and_path() -> None:
+    """ISS 842: the value past the bound, and the path down to it."""
+    too_deep: Any = "bottom"
+    for _ in range(101):
+        too_deep = [too_deep]
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BtcRpcValueError) as exc:
+        endpoint.call("send", too_deep)
+    assert str(exc.value) == (
+        "rpc params nested deeper than the 100 allowed: a str at params" + "[0]" * 101
+    )
+
+
 def test_a_number_in_a_reply_is_a_decimal_not_a_float() -> None:
     """An amount arrives exact, which binary floating point cannot be.
 
