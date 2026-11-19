@@ -1414,6 +1414,21 @@ def test_a_cycle_refusal_names_the_type_and_path() -> None:
         endpoint.call("send", {"outputs": cyclic})
 
 
+def test_a_dict_cycle_refusal_names_the_type_and_path() -> None:
+    """ISS 842: a mapping reached from inside itself is named where it is."""
+    cyclic: dict[str, Any] = {}
+    cyclic["self"] = cyclic
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(
+        BtcRpcValueError,
+        match=(
+            r"^rpc params contains itself, so it has no json: "
+            r'a dict at params\["a"\]\["self"\]$'
+        ),
+    ):
+        endpoint.call("send", {"a": cyclic})
+
+
 def test_a_depth_refusal_names_the_type_and_path() -> None:
     """ISS 842: the value past the bound, and the path down to it."""
     too_deep: Any = "bottom"
