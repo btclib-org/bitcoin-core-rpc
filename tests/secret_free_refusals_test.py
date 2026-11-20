@@ -269,10 +269,11 @@ def test_a_refused_url_is_not_quoted(url: str) -> None:
     refused(lambda: BitcoinCoreRpcClient(url, user=USER, password=KEY))
     refused(lambda: BitcoinCoreRpcClient(url, cookie_path="c"))
     refused(lambda: BitcoinCoreRestClient(url))
-    # `_split_url` does not refuse a query or a fragment, so two of these
-    # urls would reach `urlopen_transport` and look up the host `h`. A
-    # stub keeps the request on the machine (issue #848).
-    refused(lambda: http_request(url, transport=Recorded(URLError("unreachable"))))
+    # A url here with a query or a fragment would look up the host `h`: the
+    # comment above `_USABLE` in transport_test.py says why. The stub keeps
+    # the request on the machine (issue #848). It fails with the url, so that
+    # a refusal passing on the failure's text is caught.
+    refused(lambda: http_request(url, transport=Recorded(URLError(url))))
 
 
 @pytest.mark.parametrize(
