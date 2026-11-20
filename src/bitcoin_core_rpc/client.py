@@ -290,13 +290,13 @@ def _assert_json_params(
     """
     if depth > _MAX_PARAMS_DEPTH:
         err_msg = f"rpc params nested deeper than the {_MAX_PARAMS_DEPTH} allowed"
-        raise BtcRpcValueError(err_msg)
+        raise BtcRpcValueError(f"{err_msg}: a {type(value).__name__} at {path}")
     if _json_scalar(value, path):
         return
     # only the containers `_request_json` writes: a `range` or a `deque` is
     # a `Sequence` with no json, refused here where the path is known
     if isinstance(value, dict):
-        _assert_no_cycle(value, enclosing)
+        _assert_no_cycle(value, enclosing, path)
         for name, item in value.items():
             if not isinstance(name, str):
                 err_msg = "non-string rpc parameter name of type"
@@ -307,7 +307,7 @@ def _assert_json_params(
             )
         return
     if isinstance(value, (list, tuple)):
-        _assert_no_cycle(value, enclosing)
+        _assert_no_cycle(value, enclosing, path)
         for i, item in enumerate(value):
             _assert_json_params(
                 item, depth + 1, (*enclosing, id(value)), f"{path}[{i}]"
@@ -334,7 +334,8 @@ def _json_scalar(value: Any, path: str) -> bool:
     """
     if isinstance(value, Decimal) and not value.is_finite():
         # not quoted: a NaN carries a payload of digits the caller chose
-        raise BtcRpcValueError("not a json number in the rpc params: a Decimal")
+        err_msg = f"not a json number in the rpc params: a Decimal at {path}"
+        raise BtcRpcValueError(err_msg)
     if isinstance(value, float) and not isfinite(value):
         err_msg = f"not a json number in the rpc params: a float at {path}"
         raise BtcRpcValueError(err_msg)
@@ -343,10 +344,11 @@ def _json_scalar(value: Any, path: str) -> bool:
     return value is None or isinstance(value, (bool, int, float, str, Decimal))
 
 
-def _assert_no_cycle(value: Any, enclosing: tuple[int, ...]) -> None:
+def _assert_no_cycle(value: Any, enclosing: tuple[int, ...], path: str) -> None:
     """Refuse a container reached from inside itself, by the ids it is in."""
     if id(value) in enclosing:
-        raise BtcRpcValueError("rpc params contains itself, so it has no json")
+        err_msg = "rpc params contains itself, so it has no json"
+        raise BtcRpcValueError(f"{err_msg}: a {type(value).__name__} at {path}")
 
 
 def _refuse_param(value: Any) -> Any:
