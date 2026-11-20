@@ -25,9 +25,9 @@ on:
   push:
     # only the default branch is analysed -- ossf/scorecard-action's own
     # README names this and schedule as the supported triggers and calls
-    # workflow_dispatch experimental, so unlike every other workflow here
-    # this one carries no dispatch and no pull_request: its triggers are
-    # the action's, not section 10's general rule
+    # workflow_dispatch experimental, so this one carries no dispatch and
+    # no pull_request: its triggers are the action's, not section 10's
+    # general rule
     branches: [main]
   schedule:
     # Sunday, hour 05: section 10's calendar, where scorecard is the last

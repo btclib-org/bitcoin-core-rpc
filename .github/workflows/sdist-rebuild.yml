@@ -52,9 +52,9 @@ jobs:
       ${{ !github.event.pull_request.draft
       && github.event.action != 'closed' }}
     # a called workflow's own permissions: block can only downgrade,
-    # never restore, what this calling job grants, so every scope the
-    # callee's job asks for is named here too, or the run fails before
-    # any job starts, as a startup_failure (btclib-org/.github#912)
+    # never restore, what this calling job grants, so every scope any of
+    # the callee's jobs asks for is named here too, or the run fails
+    # before any job starts, as a startup_failure (btclib-org/.github#912)
     permissions:
       contents: read
       attestations: read # gh attestation verify reads the attestations API with it

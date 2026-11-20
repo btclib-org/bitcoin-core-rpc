@@ -87,10 +87,9 @@ on:
 permissions:
   contents: read
 
-# never cancel a sentinel, unlike every other workflow here: the run a
-# release calls, the weekly one and a dispatch share this group, each is a
-# sample worth keeping, and none supersedes the others. A concurrent run
-# queues instead
+# never cancel a sentinel: the run a release calls, the weekly one and a
+# dispatch share this group, each is a sample worth keeping, and none
+# supersedes the others. A concurrent run queues instead
 concurrency:
   group: pypi-install-${{ github.ref }}
   cancel-in-progress: false
