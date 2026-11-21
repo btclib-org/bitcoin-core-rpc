@@ -16,18 +16,15 @@ name: claude-review
 # rule. The required checks stay what they are, and which ones those
 # are is REPOSITORY.md's to record and the endpoint's to answer.
 #
-# One calling job, not two: a `uses:` job invokes the *whole* called
-# workflow, every job in it, so this one job already reaches both the
-# callee's `review` and `mention`, and each declines the events that are
-# not its own -- the callee's own header states this in the singular. A
-# calling job per callee job would not double-fire (each event still
-# matches one partition), but it would state the event dispatch twice --
-# this file's own `if:` and the callee's job `if:` -- and duplicate the
-# permissions triple, the secrets block and the `uses:` line for no
-# reason a third callee job would not then triple. `deps-latest.yml`
-# against `reusable-deps-latest.yml` is the precedent: one calling job
-# reaching several internal jobs, keyed by name in the run rather than
-# by the caller's job id.
+# One calling job: a `uses:` job invokes the *whole* called workflow,
+# every job in it, so this one job already reaches the callee's
+# `review`, its reactions and `mention`, and each declines the events
+# that are not its own -- the callee's own header states this in the
+# singular. A calling job per callee job would run the whole callee once
+# for each, so a pull request would get its review more than once.
+# `deps-latest.yml` against `reusable-deps-latest.yml` is the precedent:
+# one calling job reaching several internal jobs, keyed by name in the
+# run rather than by the caller's job id.
 
 on:
   pull_request:
@@ -85,15 +82,15 @@ jobs:
     # cache-call-unrestricted asks for
     cache-mode: none
     # a called workflow's own permissions: block can only downgrade,
-    # never restore, what this calling job grants, so every scope either
-    # of the callee's two jobs asks for is named here too, or the run
+    # never restore, what this calling job grants, so every scope any
+    # of the callee's jobs asks for is named here too, or the run
     # fails before any job starts, as a startup_failure
     # (btclib-org/.github#912)
     permissions:
       contents: read
-      pull-requests: write # posting the review, and the reply to a mention
+      pull-requests: write # the review, its reactions, the reply to a mention
       id-token: write # the OIDC token the action mints at its own startup
-    uses: btclib-org/.github/.github/workflows/reusable-claude-review.yml@cb5a79443399980ba717df2dea23dbedf6bdbc3a # v2026.11.12
+    uses: btclib-org/.github/.github/workflows/reusable-claude-review.yml@a96ab77e0b59880c6412f62da26d3f62dfc31e0c # v2026.11.20
     with:
       # this tree's own paragraph, landing between the verdict paragraph
       # and the instruction not to run the gates -- the callee's one

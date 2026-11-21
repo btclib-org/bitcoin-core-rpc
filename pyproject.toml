@@ -156,9 +156,9 @@ homepage = "https://btclib.org/bitcoin-core-rpc/"
 documentation = "https://bitcoin-core-rpc.readthedocs.io/"
 download = "https://github.com/btclib-org/bitcoin-core-rpc/releases"
 # RELEASE_NOTES.md and not CHANGELOG.md: this url is what an index puts
-# behind "Changelog", and what a user following it wants is the release
-# notes, not the record behind them. CHANGELOG.md is linked from the
-# first lines of that file
+# behind "Changelog", and RELEASE_NOTES.md's section is the one the
+# GitHub release shows. CHANGELOG.md is linked from the first lines of
+# that file
 changelog = "https://github.com/btclib-org/bitcoin-core-rpc/blob/main/RELEASE_NOTES.md"
 repository = "https://github.com/btclib-org/bitcoin-core-rpc"
 issues = "https://github.com/btclib-org/bitcoin-core-rpc/issues"
@@ -253,7 +253,14 @@ test = [
 # tree are written `ruff: ignore`, and 0.16 is the first release that reads
 # them. An older ruff does not fail on the syntax -- it fails on the
 # findings those comments suppress, which is the confusing way to learn it
-lint = ["mypy>=2.3.1", "pre-commit>=4.6.2", "ruff>=0.16"]
+lint = [
+    # what mypy reads .github/scripts/check_link_destinations.py against,
+    # at the version the link hooks of .pre-commit-config.yaml install
+    "markdown-it-py>=4.3.0",
+    "mypy>=2.3.1",
+    "pre-commit>=4.6.2",
+    "ruff>=0.16",
+]
 # mutation testing, which asks the question coverage cannot: a line the
 # suite executes is not a line the suite checks. Its own group and not part
 # of test, because every cell of the matrix installs that one and none of
@@ -512,8 +519,10 @@ package = ["src/bitcoin_core_rpc"]
 # editor and of an agent, the file prettier reads its ignores from, the
 # files git and the link checker read, the bestpractices.dev answers,
 # COPYRIGHT, which [tool.uv.build-backend] above says why the sdist does
-# not carry, and ClusterFuzzLite's configuration with the harnesses it
-# builds, which fuzz.yml reads and nothing installed from the sdist runs.
+# not carry, ClusterFuzzLite's configuration with the harnesses it
+# builds, which fuzz.yml reads and nothing installed from the sdist runs,
+# and changelog/, whose entries a release assembles into the history
+# files the sdist carries.
 # Patterns are gitignore's, so a directory covers what is under it at any
 # depth.
 #
@@ -528,6 +537,7 @@ git-only = [
     ".prettierignore",
     ".vscode/",
     "COPYRIGHT",
+    "changelog/",
     "fuzz/",
 ]
 
@@ -678,8 +688,16 @@ intoto = "intoto"
 # the backtick convention of [tool.codespell] above, honoured on the files
 # that quote a spelling on purpose rather than on all of them: outside
 # these a backticked word is an identifier, and identifiers are what this
-# hook is here for
-extend-glob = ["CHANGELOG.md", "RELEASE_NOTES.md", ".pre-commit-config.yaml"]
+# hook is here for. The entries under changelog/next/ are among those
+# files, being what a release assembles into CHANGELOG.md; a glob here
+# matches a file's name and not its path, so `pr[0-9]*.md` is what
+# reaches them
+extend-glob = [
+    "CHANGELOG.md",
+    "RELEASE_NOTES.md",
+    "pr[0-9]*.md",
+    ".pre-commit-config.yaml",
+]
 extend-ignore-re = ['`[^`]*`']
 
 [tool.coverage.run]
@@ -693,7 +711,12 @@ extend-ignore-re = ['`[^`]*`']
 # reaches is a check nobody has seen fail; it is no package, and
 # coverage measures it by path.
 source = ["bitcoin_core_rpc", "tests", ".github/scripts"]
-omit = ["*/site-packages/*"]
+omit = [
+    "*/site-packages/*",
+    # a copy section 14 of the standard compares, tested where its
+    # canonical copy is (section 8 of the standard)
+    ".github/scripts/check_link_destinations.py",
+]
 # statement coverage calls a half-tested `if` fully covered: the line ran,
 # one of its two ways out never did. What that hides here is this module's
 # own shape -- it is a thin client whose bodies are guard clauses, an
@@ -1037,6 +1060,10 @@ ignore = [
 # missing name, and a name missing from the built page is the one thing
 # a red run needs to say
 ".github/scripts/check_api_page.py" = ["T201"]
+# a copy section 14 of the standard keeps byte for byte: what it prints
+# is its report, and its `noqa` is for a rule this tree ignores, which
+# RUF100 would report as unused
+".github/scripts/check_link_destinations.py" = ["RUF100", "T201"]
 # flake8-no-pep420: each is a standalone entry point a workflow step or
 # a hook invokes with `python .github/scripts/<name>.py`, never an import -- the
 # directory holds no __init__.py because it is not a package, and adding

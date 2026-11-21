@@ -7,7 +7,10 @@
 # but local and meta, so a second bot on the same pin would only compete
 # with it. typos is a repo: local hook, which autoupdate skips on purpose
 # (see the comment beside it), so the version pinned in its
-# additional_dependencies moves by nobody until a hand edit does.
+# additional_dependencies moves by nobody until a hand edit does. The
+# link hooks are repo: local too, and their markdown-it-py pin moves with
+# the ports of the organization's standard, whose section 4 sets it at
+# the standard's own test-group version.
 #
 # every pull request here runs the merge gate -- the suite on one image
 # and the interpreter .python-version pins, the live-node smoke test, the

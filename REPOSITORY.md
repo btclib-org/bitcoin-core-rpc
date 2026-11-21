@@ -596,17 +596,19 @@ mapping, or a quoted key or value — is outside that answer.
 `id-token: write` on `publish-pypi` and `publish-testpypi`, the OIDC
 token that lets each index trust the workflow itself. `build`, the job
 that calls `reusable-build.yml`, takes `id-token: write` and
-`attestations: write` for the callee's `attest` job.
-`claude-review.yml` takes `pull-requests: write` to post a review or a
-reply and `id-token: write` for the token its action mints at startup, on
-its one `claude-review` job. `api-break.yml` takes `pull-requests: write`
-on its one `api-break` job, to write the `api-break` label.
-`codeql.yml`'s `analyze` and `scorecard.yml`'s `analysis` take
-`security-events: write` to file a SARIF as code-scanning alerts, and
-`analysis` takes `id-token: write` besides, for the transparency-log
-entry its published score rests on. The workflow-level
-`permissions: contents: read` is belt and braces; keep it, it is what
-makes the intent readable in the file.
+`attestations: write` for the callee's `attest` job. `claude-review.yml`
+takes `pull-requests: write` to post a review, its reactions or a reply
+and `id-token: write` for the token its action mints at startup, on its
+one `claude-review` job. `api-break.yml` takes `pull-requests: write` on
+its one `api-break` job, to write the `api-break` label.
+`sign-off-comment.yml` takes `pull-requests: write` on its one
+`sign-off-comment` job, to post its comment on a pull request whose
+commits are not all signed off. `codeql.yml`'s `analyze` and
+`scorecard.yml`'s `analysis` take `security-events: write` to file a
+SARIF as code-scanning alerts, and `analysis` takes `id-token: write`
+besides, for the transparency-log entry its published score rests on.
+The workflow-level `permissions: contents: read` is belt and braces;
+keep it, it is what makes the intent readable in the file.
 
 `release.yml`'s `test` job names a `permissions:` block for a different
 reason: not that the job needs more itself, but that
@@ -1026,10 +1028,11 @@ repository adopting the workflow configures nothing for it, and a copy
 of it in a store here would be that decision undone.
 
 **A switch this repository does not set.** `claude-review.yml` calls
-`btclib-org/.github`'s `reusable-claude-review.yml`, whose jobs guard on
-`vars.CLAUDE_REVIEW_ENABLED`; a variable set here would take precedence
-over one of the same name on the organization, so the repository's own
-store is read too:
+`btclib-org/.github`'s `reusable-claude-review.yml`, whose review and
+mention jobs guard on `vars.CLAUDE_REVIEW_ENABLED`; the job that clears
+a new head's reactions runs whatever it says. A variable set here would
+take precedence over one of the same name on the organization, so the
+repository's own store is read too:
 
 ```shell
 gh api repos/btclib-org/bitcoin-core-rpc/actions/variables --jq .total_count

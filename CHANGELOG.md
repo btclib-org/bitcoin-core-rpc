@@ -10,14 +10,14 @@
   }
 -->
 
-A release's section is written in the release's own pull request, from the
-squash subjects since the previous tag, and no other pull request adds an
-entry (section 9 of [the organization standard][std] and
-`CONTRIBUTING.md`'s *Pull requests*). A section takes what a reader of
-this repository would notice, grouped: what changed, why, and what it cost.
-[RELEASE_NOTES.md](./RELEASE_NOTES.md) has the release notes, which say
-what a user has to act on; this file is the record behind them, and is
-where a claim in those notes can be checked.
+A release's own pull request assembles its section here and in
+[RELEASE_NOTES.md](./RELEASE_NOTES.md) from the entries under
+`changelog/next/`, which each pull request that changes what a user gets
+adds as a file of its own (section 9 of [the organization standard][std]
+and `CONTRIBUTING.md`'s *Pull requests*). The GitHub release shows
+RELEASE_NOTES.md's section. Sections released before that were written
+for each file apart: there this file says what changed, and
+RELEASE_NOTES.md what a user has to act on.
 
 [std]: https://github.com/btclib-org/.github
 
